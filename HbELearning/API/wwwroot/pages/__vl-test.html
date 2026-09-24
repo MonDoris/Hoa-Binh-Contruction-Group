@@ -1,0 +1,113 @@
+<!-- File tam de kiem thu trinh phat video (se bi xoa sau khi kiem thu xong) -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title>VL test harness</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main"><div class="content">
+    <div class="card"><div class="card-body">
+        <div id="player"></div>
+        <div class="lesson-body"><p>Noi dung bai hoc</p></div>
+        <div id="qlist" class="mt"></div>
+    </div></div>
+</div></div>
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/video-learning.js"></script>
+<script>
+// ---- Video gia lap: thay currentTime/duration/paused bang thuoc tinh do harness dieu khien ----
+window.VLT = {
+    toasts: [],
+    build(seekPolicy, maxWatchedSecond, checkpointList, chapterList) {
+        document.getElementById('player').innerHTML = '';
+        document.getElementById('qlist').innerHTML = '';
+        this.toasts = [];
+        this.player = mountVideoLearning({
+            container: document.getElementById('player'),
+            src: '/uploads/none.webm',
+            checkpointList,
+            chapterList: chapterList || [],
+            startAt: 0,
+            seekPolicy,
+            maxWatchedSecond,
+            totalScore: checkpointList.reduce((s, c) => s + (c.score || 0), 0),
+            questionListContainer: document.getElementById('qlist'),
+            onAnswer: async () => ({ isCorrect: true, canContinue: true, message: 'ok', correctOptionIdList: [], tryCount: 1, remainingAttempt: -1, earnedScore: 1, totalEarnedScore: 1, totalScore: 2 })
+        });
+        const v = this.player.video;
+        let t = 0, dur = 600, paused = true, seeking = false;
+        Object.defineProperty(v, 'currentTime', {
+            configurable: true,
+            get: () => t,
+            // Gan currentTime = mot lenh tua -> ban seeking/seeked dung nhu trinh duyet that
+            set: (value) => { seeking = true; t = value; v.dispatchEvent(new Event('seeking')); seeking = false; v.dispatchEvent(new Event('seeked')); }
+        });
+        Object.defineProperty(v, 'duration', { configurable: true, get: () => dur });
+        Object.defineProperty(v, 'paused', { configurable: true, get: () => paused });
+        Object.defineProperty(v, 'seeking', { configurable: true, get: () => seeking });
+        v.play = () => { if (paused) { paused = false; v.dispatchEvent(new Event('play')); } return Promise.resolve(); };
+        v.pause = () => { if (!paused) { paused = true; v.dispatchEvent(new Event('pause')); } };
+        this.ctl = {
+            get t() { return t; },
+            setRaw: (value) => { t = value; },          // dat thang, khong ban seeking (gia lap trinh duyet nhay vi tri)
+            tick: (value) => { t = value; v.dispatchEvent(new Event('timeupdate')); },
+            seek: (value) => { v.currentTime = value; }, // qua setter -> co seeking/seeked
+        };
+        v.dispatchEvent(new Event('loadedmetadata'));
+        return this.state();
+    },
+    // Gia lap phat lien tuc tu a den b theo tung buoc nho, dung nhu nhip timeupdate that
+    play(from, to, step) {
+        this.player.video.play();
+        for (let x = from; x <= to + 1e-9; x += (step || 0.25)) this.ctl.tick(x);
+    },
+    state() {
+        return {
+            currentTime: +this.ctl.t.toFixed(2),
+            maxWatched: this.player.maxWatchedSecond,
+            // Danh sach cau hoi gio la luoi so (.qgrid): moi cau la mot nut vuong danh so, moi chi tiet
+            // (moc giay, trang thai, diem, ly do chua bam duoc) dồn vao thuoc tinh title.
+            rows: [...document.querySelectorAll('#qlist .qgrid .qgrid-item')].map(b => ({
+                cls: b.className.replace('qgrid-item', '').trim(),
+                label: b.textContent.trim(),
+                disabled: b.disabled,
+                title: b.getAttribute('title') || ''
+            })),
+            // Tieu de + dong ghi chu cach tua da bo khoi danh sach cau hoi; so cau va diem gio doc o
+            // thanh chu thich ngay duoi khung video, con ly do chua bam duoc nam trong title tung o.
+            note: (document.querySelector('.vl-legend-text') || {}).textContent || '',
+            count: (document.querySelector('.vl-score') || {}).textContent || '',
+            // Ban do noi dung: nhan "dang xem doan nao" + dai chuong tren thanh tien trinh
+            chapterHidden: document.querySelector('.vl-chapter').hidden,
+            chapterText: (document.querySelector('.vl-chapter').textContent || '').replace(/\s+/g, ' ').trim(),
+            chapterSeg: [...document.querySelectorAll('.vl-chapter-seg')].map(e => ({
+                left: e.style.left, width: e.style.width, title: e.getAttribute('title') || ''
+            })),
+            askOpen: !document.querySelector('.vl-ask').hidden,
+            askTitle: (document.querySelector('.vl-ask-content') || {}).textContent || '',
+            toasts: this.toasts.slice()
+        };
+    },
+    clickGo(index) {
+        document.querySelectorAll('#qlist .qgrid .qgrid-item')[index].click();
+        return this.state();
+    }
+};
+// Bat toast de kiem tra thong bao chan tua
+window.toastErr = (msg) => window.VLT.toasts.push(msg);
+window.toastOk = () => {};
+</script>
+</body>
+</html>

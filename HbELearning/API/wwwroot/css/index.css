@@ -1,0 +1,249 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+            --lp-primary: #2563eb; /* Đồng bộ với màu chủ đạo của khu quản trị */
+            --lp-primary-hover: #1d4ed8;
+            --lp-btn-ink: #ffffff;
+            --lp-text: #1e293b;
+            --lp-text-muted: #64748b;
+            --lp-heading: #0f172a;
+            --lp-bg: #f8fafc;
+            --lp-surface: #ffffff;
+            --lp-surface-alt: #ffffff;      /* các mục xen kẽ .alt */
+            --lp-role-top-bg: #f8fafc;
+            --lp-border: #e2e8f0;
+            --lp-hover-border: #bae6fd;
+            --lp-icon-bg: #eff6ff;
+            --lp-outline-hover-bg: #f0f9ff;
+            --lp-nav-bg: rgba(255, 255, 255, 0.78);
+            --shadow-sm: 0 1px 2px rgba(15,23,42,0.05);
+            --shadow-md: 0 8px 16px -4px rgba(15,23,42,0.10), 0 2px 6px -1px rgba(15,23,42,0.06);
+            --shadow-lg: 0 20px 40px -12px rgba(15,23,42,0.18), 0 4px 10px rgba(15,23,42,0.06);
+
+            /* Khung kết quả tra cứu chứng nhận — js/index.js dựng bằng inline style nên phải đi qua biến. */
+            --lp-ok-bg: #f0fdf4;
+            --lp-ok-border: #bbf7d0;
+            --lp-ok-text: #166534;
+            --lp-bad-bg: #fee2e2;
+            --lp-bad-border: #fecaca;
+            --lp-bad-text: #991b1b;
+            --lp-row-border: rgba(0, 0, 0, 0.05);
+            --lp-th: #475569;
+
+            color-scheme: light;
+        }
+
+        /* ---------- Bảng màu TỐI ----------
+           Cùng cơ chế với css/style.css: chỉ định nghĩa lại BIẾN, không đụng bố cục. Hai lớp chọn:
+             • [data-theme="dark"]  — người dùng tự bấm nút chuyển nền trên thanh điều hướng.
+             • prefers-color-scheme — máy đang để chế độ tối mà người dùng CHƯA chọn gì.
+           Khối hero vốn đã là nền tối nên không có gì phải đổi ở đó.
+
+           Chữ trên nút màu chủ đạo phải đảo theo: nền xanh nhạt #38bdf8 mà giữ chữ trắng thì gần như
+           không đọc được. */
+        :root[data-theme="dark"] {
+            --lp-primary: #38bdf8;
+            --lp-primary-hover: #0ea5e9;
+            --lp-btn-ink: #06283a;
+            --lp-text: #e8edf6;
+            --lp-text-muted: #93a3bd;
+            --lp-heading: #f1f5f9;
+            --lp-bg: #0b1220;
+            --lp-surface: #131c2e;
+            --lp-surface-alt: #0f1728;
+            --lp-role-top-bg: #0f1728;
+            --lp-border: #26324a;
+            --lp-hover-border: #0ea5e9;
+            --lp-icon-bg: #0c3a52;
+            --lp-outline-hover-bg: #0b2a3a;
+            --lp-nav-bg: rgba(11, 18, 32, 0.80);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+            --shadow-md: 0 8px 16px -4px rgba(0,0,0,0.5), 0 2px 6px -1px rgba(0,0,0,0.35);
+            --shadow-lg: 0 20px 40px -12px rgba(0,0,0,0.6), 0 4px 10px rgba(0,0,0,0.35);
+
+            --lp-ok-bg: #14321f;
+            --lp-ok-border: #1e5b38;
+            --lp-ok-text: #86efac;
+            --lp-bad-bg: #3b1717;
+            --lp-bad-border: #7f1d1d;
+            --lp-bad-text: #fca5a5;
+            --lp-row-border: rgba(255, 255, 255, 0.07);
+            --lp-th: #93a3bd;
+
+            color-scheme: dark;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --lp-primary: #38bdf8;
+                --lp-primary-hover: #0ea5e9;
+                --lp-btn-ink: #06283a;
+                --lp-text: #e8edf6;
+                --lp-text-muted: #93a3bd;
+                --lp-heading: #f1f5f9;
+                --lp-bg: #0b1220;
+                --lp-surface: #131c2e;
+                --lp-surface-alt: #0f1728;
+                --lp-role-top-bg: #0f1728;
+                --lp-border: #26324a;
+                --lp-hover-border: #0ea5e9;
+                --lp-icon-bg: #0c3a52;
+                --lp-outline-hover-bg: #0b2a3a;
+                --lp-nav-bg: rgba(11, 18, 32, 0.80);
+                --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+                --shadow-md: 0 8px 16px -4px rgba(0,0,0,0.5), 0 2px 6px -1px rgba(0,0,0,0.35);
+                --shadow-lg: 0 20px 40px -12px rgba(0,0,0,0.6), 0 4px 10px rgba(0,0,0,0.35);
+
+                --lp-ok-bg: #14321f;
+                --lp-ok-border: #1e5b38;
+                --lp-ok-text: #86efac;
+                --lp-bad-bg: #3b1717;
+                --lp-bad-border: #7f1d1d;
+                --lp-bad-text: #fca5a5;
+                --lp-row-border: rgba(255, 255, 255, 0.07);
+                --lp-th: #93a3bd;
+
+                color-scheme: dark;
+            }
+        }
+
+        body::-webkit-scrollbar {
+                display: none;
+            }
+
+        body { font-family: 'Manrope', sans-serif; background: var(--lp-bg); color: var(--lp-text); -ms-overflow-style: none;  /* IE và Edge cũ */
+    scrollbar-width: none;  /* Firefox */ }
+        html { scroll-behavior: smooth; }
+        h1, h2, h3, .lp-logo, .lp-btn, .num, .lp-stat b { font-family: 'Manrope', sans-serif; }
+
+        /* Navigation: Glassmorphism effect */
+        .lp-nav {
+            position: sticky; top: 0; z-index: 1000;
+            background: var(--lp-nav-bg);
+            -webkit-backdrop-filter: blur(10px) saturate(1.4);
+            backdrop-filter: blur(10px) saturate(1.4);
+            border-bottom: 1px solid var(--lp-border);
+            transition: all 0.3s ease;
+        }
+        .lp-logo { display: flex; align-items: center; gap: 8px; font-weight: 800; color: var(--lp-primary); text-decoration: none; font-size: 1.1rem; letter-spacing: -.2px; }
+        .logo-img { height: 32px; width: auto; object-fit: contain; }
+
+        /* Buttons */
+        .lp-btn {
+            background: var(--lp-primary); color: var(--lp-btn-ink) !important;
+            padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+            transition: all 0.2s; border: none; cursor: pointer;
+            box-shadow: 0 8px 20px -6px rgba(37, 99, 235, .4);
+        }
+        .lp-btn:hover { background: var(--lp-primary-hover); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .lp-btn.outline { background: transparent; color: var(--lp-primary) !important; border: 1px solid var(--lp-border); box-shadow: none; }
+        .lp-btn.outline:hover { background: var(--lp-outline-hover-bg); border-color: var(--lp-primary); box-shadow: var(--shadow-sm); }
+
+        /* Hero Section — nền tối kèm lưới điểm + quầng sáng gradient để nổi bật khối tiêu đề trắng */
+        .lp-hero {
+            position: relative; overflow: hidden;
+            padding: 96px 0 80px; text-align: center;
+            background: #0b1220; color: #e2e8f0;
+        }
+        .lp-hero::before {
+            content: ''; position: absolute; inset: 0; z-index: 0;
+            background:
+                radial-gradient(680px 420px at 12% -10%, rgba(37, 99, 235, .45), transparent 60%),
+                radial-gradient(620px 380px at 92% 8%, rgba(14, 165, 233, .32), transparent 60%),
+                linear-gradient(165deg, #0b1220 0%, #101c34 100%);
+        }
+        .lp-hero::after {
+            content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+            background-image:
+                linear-gradient(rgba(148, 163, 184, .08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, .08) 1px, transparent 1px);
+            background-size: 46px 46px;
+            mask-image: radial-gradient(680px 340px at 50% 25%, #000, transparent 75%);
+        }
+        .lp-hero .inner { position: relative; z-index: 1; }
+        .lp-hero h1 { color: #fff; }
+        .lp-hero .lead { color: #94a3b8 !important; }
+        .grad {
+            background: linear-gradient(100deg, #60a5fa, #22d3ee);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .lp-eyebrow {
+            display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 16px;
+            background: rgba(56, 189, 248, .14); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, .3);
+        }
+        .lp-hero .lp-eyebrow, .lp-hero h1, .lp-hero .lead, .lp-hero .lp-cta, .lp-hero .lp-stat {
+            animation: lpRise .6s cubic-bezier(.2,.7,.3,1) both;
+        }
+        .lp-hero h1 { animation-delay: .06s; }
+        .lp-hero .lead { animation-delay: .14s; }
+        .lp-hero .lp-cta { animation-delay: .22s; }
+        .lp-hero .lp-stat { animation-delay: .3s; }
+        @keyframes lpRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Stats */
+        .lp-stat {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 24px; margin-top: 48px;
+            background: var(--lp-surface); padding: 28px 24px; border-radius: 18px; box-shadow: var(--shadow-lg); border: 1px solid var(--lp-border);
+        }
+        .lp-stat div { flex: 1; min-width: 120px; text-align: center; }
+        .lp-stat b { display: block; font-size: 28px; font-weight: 800; color: var(--lp-primary); margin-bottom: 4px; letter-spacing: -.5px; }
+        .lp-stat span { font-size: 13px; color: var(--lp-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Features Card Hover */
+        .lp-feature {
+            background: var(--lp-surface); padding: 26px 24px; border-radius: 14px;
+            border: 1px solid var(--lp-border); box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+        }
+        .lp-feature:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); border-color: var(--lp-hover-border); }
+        .lp-feature .ic { font-size: 32px; color: var(--lp-primary); margin-bottom: 16px; display: inline-block; padding: 12px; background: var(--lp-icon-bg); border-radius: 12px; }
+        .lp-feature h3 { margin-bottom: 8px; font-size: 18px; font-weight: 700; color: var(--lp-heading); }
+        .lp-feature p { color: var(--lp-text-muted); font-size: 14px; line-height: 1.6; }
+
+        /* Flow / Steps — các bước hiển thị dạng thẻ, tự xuống hàng khi hết chỗ ngang */
+        .lp-flow { display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch; gap: 14px; margin-top: 36px; }
+        .lp-step {
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            flex: 1 1 150px; max-width: 190px; background: var(--lp-surface);
+            padding: 22px 16px; border-radius: 14px; border: 1px solid var(--lp-border); box-shadow: var(--shadow-sm);
+            transition: box-shadow .2s ease, border-color .2s ease, transform .2s ease;
+        }
+        .lp-step:hover { box-shadow: var(--shadow-md); border-color: var(--lp-hover-border); transform: translateY(-3px); }
+        .lp-step .num {
+            width: 34px; height: 34px; background: linear-gradient(135deg, #0ea5e9, var(--lp-primary)); color: var(--lp-btn-ink);
+            display: flex; align-items: center; justify-content: center; border-radius: 50%;
+            font-weight: 700; font-size: 14px; margin-bottom: 12px; flex-shrink: 0;
+        }
+        .lp-step b { display: block; font-size: 14.5px; font-weight: 700; color: var(--lp-heading); margin-bottom: 5px; }
+        .lp-step span { color: var(--lp-text-muted); font-size: 12.5px; line-height: 1.5; }
+
+        /* Roles */
+        .lp-role { background: var(--lp-surface); border-radius: 14px; border: 1px solid var(--lp-border); overflow: hidden; box-shadow: var(--shadow-sm); transition: box-shadow .2s ease, transform .2s ease; }
+        .lp-role:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
+        .lp-role .top { padding: 20px; background: var(--lp-role-top-bg); border-bottom: 1px solid var(--lp-border); }
+        .lp-role.admin .top { border-top: 4px solid #ef4444; }
+        .lp-role.trainer .top { border-top: 4px solid #f59e0b; }
+        .lp-role.learner .top { border-top: 4px solid #10b981; }
+        .lp-role h3 { margin: 0; font-size: 18px; font-weight: 700; color: var(--lp-heading); }
+        .lp-role span { font-size: 13px; color: var(--lp-text-muted); font-weight: 600; text-transform: uppercase; }
+        .lp-role ul { padding: 20px; margin: 0; list-style: none; }
+        .lp-role li { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; color: var(--lp-text); margin-bottom: 12px; }
+        .lp-role li i { color: var(--lp-primary); font-size: 18px; margin-top: 2px; }
+        .lp-role li:last-child { margin-bottom: 0; }
+
+        /* Verify Block */
+        .lp-verify .box { display: flex; max-width: 500px; margin: 24px auto; gap: 8px; }
+        .lp-verify input {
+            flex: 1; padding: 12px 16px; border: 1px solid var(--lp-border); border-radius: 8px;
+            background: var(--lp-surface); color: var(--lp-text);
+            font-size: 15px; outline: none; transition: border 0.2s;
+        }
+        .lp-verify input:focus { border-color: var(--lp-primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12); }
+        
+        .alt { background: var(--lp-surface-alt); }
+        
+        @media (max-width: 768px) {
+            .lp-verify .box { flex-direction: column; }
+            .lp-step { flex: 1 1 130px; }
+        }

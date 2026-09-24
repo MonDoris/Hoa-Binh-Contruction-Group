@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Lớp hiện thực hóa: EF Core, SMTP, SMS/Zalo, Ollama, đọc/ghi Word-Excel-PDF, tệp tin, JWT.
+       Mọi package của bên thứ ba tập trung ở đây. Mỗi lớp trong này là phần cắm vào (adapter) cho
+       một cổng (interface) đã khai báo bên Application/Common/Interfaces. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HbELearning.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Application\HbELearning.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- IWebHostEnvironment (FileService, CertificateService), IHttpContextAccessor và
+         BackgroundService (StudyReminderWorker, CourseKnowledgeSyncWorker). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
+    <!-- TokenService ký JWT bằng Microsoft.IdentityModel.* mà gói này mang theo. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.*">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.*" />
+    <PackageReference Include="Oracle.EntityFrameworkCore" Version="10.23.26300" />
+    <PackageReference Include="QRCoder" Version="1.8.0" />
+    <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
+  </ItemGroup>
+
+</Project>

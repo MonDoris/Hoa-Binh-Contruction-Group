@@ -1,0 +1,510 @@
+<!-- File: wwwroot/pages/account.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script src="/js/head.js"></script>
+    <title data-i18n="account.taiKhoanCuaToiHbELearning">Tài khoản của tôi · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    
+    <style>        
+        @keyframes fadeUp {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        .acc-layout {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 24px;
+            align-items: start;
+            animation: fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+        }
+        
+        @media (max-width: 992px) {
+            .acc-layout { grid-template-columns: 1fr; }
+        }
+
+        .profile-cover {
+            height: 120px;
+            /* Gradient tái tạo lại mảng màu hồng -> đào -> xanh lam nhạt */
+            background: linear-gradient(135deg, #f3448f 0%, #ffbba6 65%, #76b1c4 100%);
+            position: relative;
+            border-radius: 16px 16px 0 0; /* Bo tròn góc trên */
+        }
+        
+        .profile-cover::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(0,0,0,0.4) 100%);
+        }
+
+        .acc-cover-edit {
+            position: absolute;
+            top: 12px; right: 12px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .acc-cover-edit:hover {
+            background: rgba(0, 0, 0, 0.6);
+            transform: translateY(-2px);
+        }
+        .acc-cover-edit input[type="file"] { display: none; }
+        
+        .profile-body {
+            padding: 0 24px 24px 24px;
+            text-align: center;
+            position: relative;
+        }
+
+        .profile-name { font-size: 22px; margin: 0 0 8px 0; font-weight: 800; }
+        .profile-badges { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        
+        .profile-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .profile-actions .btn { border-radius: 10px; font-weight: 600; }
+        
+        .info-list { text-align: left; border-top: 1px dashed var(--border); padding-top: 20px; }
+        .info-list-item { 
+            display: flex; align-items: center; gap: 12px; margin-bottom: 16px; 
+            padding: 8px; border-radius: 8px; transition: all 0.3s;
+        }
+        .info-list-item:hover { background: rgba(14, 165, 233, 0.08); transform: translateX(4px); }
+        .info-list-item .ico { 
+            width: 36px; height: 36px; border-radius: 10px; 
+            background: rgba(14, 165, 233, 0.1); /* Nền icon màu xanh dương nhạt */
+            color: #0284c7; /* Icon xanh dương đậm */
+            display: grid; place-items: center; font-size: 18px; 
+        }
+        .info-list-item .detail { flex: 1; }
+        .info-list-item .label { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+        .info-list-item .val { font-weight: 600; font-size: 14px; word-break: break-word; }
+
+        #stat-box { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        #stat-box .stat {
+            background: var(--surface); padding: 24px 20px; border-radius: 16px;
+            border: 1px solid rgba(0,0,0,0.03); box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            text-align: center; transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        #stat-box .stat:hover { transform: translateY(-5px); box-shadow: 0 12px 25px rgba(14, 165, 233, 0.15); }
+        #stat-box .stat::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #0ea5e9; /* Viền thẻ xanh */
+        }
+        #stat-box .stat .value {
+            font-size: 32px; font-weight: 900; margin-top: 8px;
+            background: linear-gradient(135deg, #0ea5e9, #0284c7); /* Gradient số xanh trời -> xanh biển */
+            -webkit-background-clip: text; color: transparent;
+        }
+        #stat-box .stat .label { font-size: 14px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .acc-cert-card {
+            --cert-tint: #bae6fd;
+            --cert-glow: rgba(0, 161, 230, .15);
+            --cert-glow-strong: rgba(0, 161, 230, .4);
+            --cert-shine: rgba(56, 189, 248, .25);
+            display: flex; flex-direction: column; padding: 20px; text-decoration: none;
+        }
+        .acc-cert-card:hover { border-color: #38bdf8; }
+        .acc-cert-card .cert-card-stamp { right: -25px; bottom: -25px; font-size: 130px; opacity: .1; color: var(--primary); }
+        .acc-cert-card .cert-card-no { font-size: 16px; }
+        .acc-cert-card .cert-card-no i { color: var(--primary); font-size: 20px; filter: drop-shadow(0 2px 4px rgba(0, 161, 230, .4)); }
+        .acc-cert-title {
+            font-size: 16px; line-height: 1.4; margin-bottom: 16px; display: -webkit-box;
+            -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .acc-cert-date { margin-top: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); font-weight: 600; padding-top: 12px; border-top: 1px dashed #7dd3fc; }
+
+    </style>
+    
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="acc-layout">            
+            <!-- ================= CỘT TRÁI: SIDEBAR PROFILE ================= -->
+            <aside class="acc-sidebar">
+                <div class="card">
+                    <div class="profile-cover" id="acc-cover">
+                        <label class="acc-cover-edit" title="Đổi ảnh bìa">
+                            <i class="ph ph-camera"></i> Đổi ảnh bìa
+                            <input type="file" id="cover-input" accept=".png,.jpg,.jpeg">
+                        </label>
+                    </div>
+                    <div class="profile-body">
+                        <!-- Avatar -->
+                        <div class="acc-avatar-wrap">
+                            <div class="avatar lg" id="acc-avatar">?</div>
+                            <label class="acc-avatar-edit" data-i18n-title="account.doiAnhDaiDien" title="Đổi ảnh đại diện">
+                                +<input type="file" id="avatar-input" accept=".png,.jpg,.jpeg">
+                            </label>
+                        </div>
+                        <h2 class="profile-name" id="acc-name">—</h2>
+                        <div class="profile-badges">
+                            <span class="badge blue" id="acc-role"></span>
+                            <code id="acc-code"></code>
+                        </div>
+                        <div class="profile-actions">
+                            <button class="btn ghost primary" id="btn-edit">
+                                <i class="ph ph-pencil-simple"></i> Sửa hồ sơ
+                            </button>
+                            <button class="btn ghost" id="btn-password">
+                                <i class="ph ph-lock"></i> Đổi Pass
+                            </button>
+                        </div>
+                        <div class="info-list">
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-envelope-simple"></i></div>
+                                <div class="detail">
+                                    <div class="label">Email</div>
+                                    <div class="val" id="acc-email">—</div>
+                                </div>
+                            </div>
+                            <!-- Chỉ hiện khi quản trị viên đã đặt tên tài khoản cho người này — người chưa có
+                                 vẫn đăng nhập bằng email, bày ra một dòng trống chỉ khiến họ tưởng mình thiếu gì đó. -->
+                            <div class="info-list-item" id="acc-username-row" hidden>
+                                <div class="ico"><i class="ph ph-user-circle"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="user.tenTaiKhoan" class="label">Tên tài khoản</div>
+                                    <div class="val" id="acc-username">—</div>
+                                </div>
+                            </div>
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-device-mobile"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="account.soDienThoai" class="label">Số điện thoại</div>
+                                    <div class="val" id="d-phone">—</div>
+                                </div>
+                            </div>
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-buildings"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="account.phongBan" class="label">Phòng ban</div>
+                                    <div class="val" id="d-department">—</div>
+                                </div>
+                            </div>
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-briefcase"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="account.viTriCongViec" class="label">Vị trí công việc</div>
+                                    <div class="val" id="d-position">—</div>
+                                </div>
+                            </div>
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-calendar-plus"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="account.ngayThamGia" class="label">Ngày tham gia</div>
+                                    <div class="val" id="d-created">—</div>
+                                </div>
+                            </div>
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-clock-counter-clockwise"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="account.dangNhapGanNhat" class="label">Đăng nhập gần nhất</div>
+                                    <div class="val" id="d-last-login">—</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+            <!-- ================= CỘT PHẢI: NỘI DUNG CHÍNH ================= -->
+            <main class="acc-main">
+                <div id="stat-box"></div>
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card-head">
+                        <h3 data-i18n="account.khoaHocGanDay">Khóa học gần đây</h3>
+                        <a data-i18n="dashboard.viewAll" class="btn ghost sm" href="/pages/my-course.html">Xem tất cả</a>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th data-i18n="index.stat-course">Khóa học</th>
+                                    <th data-i18n="dashboard.colStatus">Trạng thái</th>
+                                    <th data-i18n="account.tienDo" style="width:190px">Tiến độ</th>
+                                    <th data-i18n="account.hanHoanThanh">Hạn hoàn thành</th>
+                                </tr>
+                            </thead>
+                            <tbody id="course-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-head">
+                        <h3 data-i18n="index.stat-cert">Chứng nhận</h3>
+                        <a data-i18n="dashboard.viewAll" class="btn ghost sm" href="/pages/certificate.html">Xem tất cả</a>
+                    </div>
+                    <div class="card-body" id="cert-box"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODALS ================= -->
+<div class="modal-mask" id="modal-edit">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 data-i18n="account.chinhSuaHoSo">Chỉnh sửa hồ sơ</h3>
+            <button class="close-x" onclick="closeModal('modal-edit')">×</button>
+        </div>
+        <form id="edit-form">
+            <div class="modal-body">
+                <div class="field"><label data-i18n="account.hoVaTen" for="e-name">Họ và tên *</label><input id="e-name" required maxlength="150"></div>
+                <div class="field"><label data-i18n="account.soDienThoai" for="e-phone">Số điện thoại</label><input id="e-phone" maxlength="20"></div>
+                <div class="field"><label for="e-email">Email</label><input id="e-email" disabled><div data-i18n="account.lienHeQuanTriVienDeThayDoiEmai" class="hint">Liên hệ quản trị viên để thay đổi email</div></div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-edit')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-password">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 data-i18n="account.doiMatKhau">Đổi mật khẩu</h3>
+            <button class="close-x" onclick="closeModal('modal-password')">×</button>
+        </div>
+        <form id="password-form">
+            <div class="modal-body">
+                <div class="field"><label data-i18n="account.matKhauHienTai" for="p-current">Mật khẩu hiện tại *</label><input type="password" id="p-current" required></div>
+                <div class="field"><label data-i18n="account.matKhauMoi" for="p-new">Mật khẩu mới *</label><input type="password" id="p-new" required minlength="6"><div data-i18n="account.toiThieu6KyTu" class="hint">Tối thiểu 6 ký tự.</div></div>
+                <div class="field"><label data-i18n="account.xacNhanMatKhauMoi" for="p-confirm">Xác nhận mật khẩu mới *</label><input type="password" id="p-confirm" required minlength="6"></div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-password')">Hủy</button>
+                <button data-i18n="account.doiMatKhau" type="submit" class="btn">Đổi mật khẩu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= SCRIPTS ================= -->
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    await Lang.ready;
+    if (!Auth.require()) return;
+    mountLayout('account', t('account.taiKhoanCuaToi', 'Tài khoản của tôi'), t('account.xemVaCapNhatThongTinCaNhanCuaB', 'Xem và cập nhật thông tin cá nhân của bạn'));
+
+    let profile = null;
+    ['p-current', 'p-new', 'p-confirm'].forEach(id => attachPasswordEye(document.getElementById(id)));
+    attachPasswordStrength(document.getElementById('p-new'));
+
+    document.getElementById('btn-edit').addEventListener('click', openEdit);
+    document.getElementById('btn-password').addEventListener('click', () => {
+        document.getElementById('password-form').reset();
+        document.getElementById('p-new').dispatchEvent(new Event('input'));
+        openModal('modal-password');
+    });
+    
+    document.getElementById('edit-form').addEventListener('submit', saveProfile);
+    document.getElementById('password-form').addEventListener('submit', savePassword);
+    document.getElementById('avatar-input').addEventListener('change', uploadAvatar);
+
+    await load();
+    loadCourseAndCertificate();
+
+    async function uploadCover(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        try {
+            const localPreviewUrl = URL.createObjectURL(file);
+            const coverEl = document.getElementById('acc-cover');
+            coverEl.style.backgroundImage = `url('${localPreviewUrl}')`;
+            coverEl.style.backgroundSize = 'cover';
+            coverEl.style.backgroundPosition = 'center';
+
+            const uploaded = await API.upload(file, 'cover');
+            toastOk(t('account.daCapNhatAnhBia', 'Đã cập nhật ảnh bìa.'));
+            
+        } catch (ex) {
+            toastErr("Lỗi Server: " + ex.message);
+        } finally {
+            e.target.value = '';
+        }
+    }
+
+    async function load() {
+        try {
+            profile = await API.get('/auth/me');
+            renderProfile();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    function renderProfile() {
+        document.getElementById('acc-avatar').outerHTML = profile.avatarUrl
+            ? `<img class="avatar lg" id="acc-avatar" src="${esc(profile.avatarUrl)}" alt="">`
+            : `<div class="avatar lg" id="acc-avatar">${esc(initial(profile.fullName))}</div>`;
+            
+        document.getElementById('acc-name').textContent = profile.fullName;
+        document.getElementById('acc-role').textContent = profile.roleName;
+        document.getElementById('acc-code').textContent = profile.employeeCode;
+        document.getElementById('acc-email').textContent = profile.email;
+        document.getElementById('acc-username').textContent = profile.userName || '—';
+        document.getElementById('acc-username-row').hidden = !profile.userName;
+
+        document.getElementById('d-phone').textContent = profile.phoneNumber || '—';
+        document.getElementById('d-department').textContent = profile.departmentName || '—';
+        document.getElementById('d-position').textContent = profile.positionName || '—';
+        document.getElementById('d-created').textContent = formatDate(profile.createdAt);
+        document.getElementById('d-last-login').textContent = profile.lastLoginAt ? formatDate(profile.lastLoginAt, true) : t('account.chuaDangNhapLanNaoKhac', 'Chưa đăng nhập lần nào khác');
+        document.getElementById('cover-input').addEventListener('change', uploadCover);
+        Auth.save(Auth.token, { ...Auth.profile, ...profile });
+    }
+
+    async function loadCourseAndCertificate() {
+        const courseTbody = document.getElementById('course-tbody');
+        const certBox = document.getElementById('cert-box');
+        
+        courseTbody.innerHTML = skeletonHtml('table', { rows: 4, cols: 4 });
+        certBox.innerHTML = skeletonHtml('cards', { count: 4, thumb: false });
+
+        try {
+            const [enrollmentList, certificateList] = await Promise.all([
+                API.get('/enrollment/my'),
+                API.get('/certificate/my')
+            ]);
+            renderStat(enrollmentList, certificateList);
+            renderCourse(enrollmentList);
+            renderCertificate(certificateList);
+        } catch (ex) {
+            courseTbody.innerHTML = `<tr><td colspan="4">${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</td></tr>`;
+            certBox.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        }
+    }
+
+    function renderStat(enrollmentList, certificateList) {
+        const stat = [
+            { label: t('dashboard.assignedCourse', 'Khóa học được giao'), value: enrollmentList.length, css: '' },
+            { label: t('dashboard.inProgress', 'Đang học'), value: enrollmentList.filter(x => x.status === 'InProgress').length, css: 'accent' },
+            { label: t('index.stat-enroll', 'Hoàn thành'), value: enrollmentList.filter(x => x.status === 'Completed').length, css: 'ok' },
+            { label: t('index.stat-cert', 'Chứng nhận'), value: certificateList.length, css: '' }
+        ];
+        
+        document.getElementById('stat-box').innerHTML = stat.map(s => `
+            <div class="stat ${s.css}">
+                <div class="label">${s.label}</div>
+                <div class="value">${s.value}</div>
+            </div>
+        `).join('');
+    }
+
+    function renderCourse(enrollmentList) {
+        const tbody = document.getElementById('course-tbody');
+        const recent = enrollmentList.slice(0, 5);
+        
+        tbody.innerHTML = recent.length ? recent.map(x => `
+            <tr>
+                <td>
+                    <b>${esc(x.courseTitle)}</b>
+                    <div class="small muted">${esc(x.courseCode)}</div>
+                </td>
+                <td>${statusBadge(x.status)}</td>
+                <td>${progressBar(x.progressPercent)}</td>
+                <td class="nowrap">
+                    ${formatDate(x.dueDate)}
+                    ${x.isOverdue ? ` <span data-i18n="dashboard.overdue" class="badge red">Quá hạn</span>` : ''}
+                </td>
+            </tr>
+        `).join('') : `<tr><td colspan="4">${emptyHtml(t('account.chuaCoKhoaHocNaoDuocPhanCong', 'Chưa có khóa học nào được phân công.'))}</td></tr>`;
+    }
+
+    function renderCertificate(certificateList) {
+        const box = document.getElementById('cert-box');
+        
+        box.innerHTML = certificateList.length ? `<div class="grid grid-2">${certificateList.slice(0, 4).map(c => `
+            <a href="/pages/certificate.html" class="cert-card interactive acc-cert-card ${c.isRevoked ? 'revoked' : ''}">
+                <span class="cert-card-shine"></span>
+                <i class="ph-fill ph-seal-check cert-card-stamp"></i>
+                <div class="cert-card-no">
+                    <i class="ph-fill ph-medal"></i> ${esc(c.certificateNo)}
+                </div>
+                <div class="cert-card-course acc-cert-title" title="${esc(c.courseTitle)}">
+                    ${esc(c.courseTitle)}
+                </div>
+                <div class="acc-cert-date">
+                    <i class="ph ph-calendar-blank"></i> Cấp ngày ${formatDate(c.issuedAt)}
+                    ${c.isRevoked ? `<span data-i18n="account.daThuHoi" class="badge red" style="margin-left:auto; padding:2px 6px; font-size:10px;">Đã thu hồi</span>` : ''}
+                </div>
+            </a>
+        `).join('')}</div>` : emptyHtml(t('account.banChuaCoChungNhanNao', 'Bạn chưa có chứng nhận nào.'), '<i class="ph ph-seal-check"></i>');
+    }
+
+    function openEdit() {
+        document.getElementById('e-name').value = profile.fullName;
+        document.getElementById('e-phone').value = profile.phoneNumber || '';
+        document.getElementById('e-email').value = profile.email;
+        openModal('modal-edit');
+    }
+
+    async function saveProfile(e) {
+        e.preventDefault();
+        try {
+            profile = await API.put('/auth/me', {
+                fullName: document.getElementById('e-name').value.trim(),
+                phoneNumber: document.getElementById('e-phone').value.trim() || null,
+                avatarUrl: profile.avatarUrl || null
+            });
+            renderProfile();
+            toastOk(t('account.daCapNhatHoSo', 'Đã cập nhật hồ sơ.'));
+            closeModal('modal-edit');
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    async function savePassword(e) {
+        e.preventDefault();
+        const newPassword = document.getElementById('p-new').value;
+        if (newPassword !== document.getElementById('p-confirm').value) {
+            toastErr(t('account.xacNhanMatKhauMoiKhongKhop', 'Xác nhận mật khẩu mới không khớp.'));
+            return;
+        }
+        try {
+            await API.post('/auth/change-password', {
+                currentPassword: document.getElementById('p-current').value,
+                newPassword
+            });
+            toastOk(t('account.doiMatKhauThanhCong', 'Đổi mật khẩu thành công.'));
+            closeModal('modal-password');
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    async function uploadAvatar(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const uploaded = await API.upload(file, 'avatar');
+            profile = await API.put('/auth/me', {
+                fullName: profile.fullName,
+                phoneNumber: profile.phoneNumber || null,
+                avatarUrl: uploaded.url
+            });
+            renderProfile();
+            toastOk(t('account.daCapNhatAnhDaiDien', 'Đã cập nhật ảnh đại diện.'));
+        } catch (ex) { toastErr(ex.message); } finally { e.target.value = ''; }
+    }
+})();
+</script>
+</body>
+</html>

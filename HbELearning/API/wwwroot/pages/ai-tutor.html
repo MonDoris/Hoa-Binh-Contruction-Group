@@ -1,0 +1,654 @@
+<!-- File: wwwroot/pages/Ai-Tutors.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script src="/js/head.js"></script>
+    <title data-i18n="aitutor.pageTitle">Pico B · Chat</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* ================= BIẾN CSS GEMINI / CLAUDE STYLE ================= */
+        :root {
+            --ai-sidebar-bg: #f9f9f9;
+            --ai-sidebar-hover: #ececec;
+            --ai-main-bg: #ffffff;
+            --ai-text-main: #0f0f0f;
+            --ai-text-muted: #606060;
+            --ai-border: #e5e5e5;
+            
+            --ai-user-bubble: #f0f4f9; /* Giống màu bubble user của Gemini */
+            --ai-primary: #1a73e8;
+            --ai-composer-bg: #f0f4f9;
+            --ai-shadow: 0 4px 24px rgba(0,0,0,0.06);
+            --ai-radius: 24px;
+        }
+
+        :root[data-theme="dark"] { 
+            --ai-sidebar-bg: #1e1f22;
+            --ai-sidebar-hover: #2b2d31;
+            --ai-main-bg: #131314;
+            --ai-text-main: #e3e3e3;
+            --ai-text-muted: #a0a0a0;
+            --ai-border: #333538;
+            
+            --ai-user-bubble: #333538; 
+            --ai-primary: #a8c7fa;
+            --ai-composer-bg: #1e1f22;
+            --ai-shadow: 0 -10px 40px rgba(0,0,0,0.4);
+        }
+        
+        .main { height: 100vh; }
+        .content {
+            padding: 0 !important;          /* chat chạm sát mép, không có lề như các trang dạng bảng biểu */
+            flex: 1; min-height: 0;         /* min-height: 0 là thứ cho phép phần chat tự cuộn bên trong */
+            overflow: hidden;
+        }
+
+        [hidden] { display: none !important; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* ================= BỐ CỤC APP CHAT ================= */
+        .ai-app {
+            display: flex; height: 100%; width: 100%; background: var(--ai-main-bg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* === SIDEBAR (LỊCH SỬ) === */
+        .ai-sidebar {
+            width: 280px; flex-shrink: 0; background: var(--ai-sidebar-bg);
+            display: flex; flex-direction: column;
+            border-right: 1px solid var(--ai-border);
+            transition: transform 0.3s ease;
+        }
+
+        .ai-sidebar-header { padding: 16px; }
+        
+        .btn-new-chat {
+            width: 100%; display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; border-radius: 99px; cursor: pointer;
+            background: transparent; border: 1px solid transparent;
+            color: var(--ai-text-main); font-weight: 500; font-size: 14.5px;
+            transition: all 0.2s;
+        }
+        .btn-new-chat:hover { background: var(--ai-sidebar-hover); }
+        .btn-new-chat i { font-size: 18px; color: var(--ai-text-muted); }
+
+        .ai-history-list {
+            flex: 1; overflow-y: auto; padding: 0 12px 12px 12px;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .ai-history-group {
+            font-size: 11px; font-weight: 600; color: var(--ai-text-muted);
+            padding: 16px 12px 8px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        
+        .history-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 12px; border-radius: 8px; cursor: pointer;
+            color: var(--ai-text-main); font-size: 13.5px;
+            transition: background 0.2s;
+        }
+        .history-item:hover, .history-item.active { background: var(--ai-sidebar-hover); }
+        .history-item.active { font-weight: 600; }
+        .history-item .h-title {
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
+        }
+        .history-item .h-act { display: none; gap: 4px; }
+        .history-item:hover .h-act, .history-item.active .h-act { display: flex; }
+        .history-item .h-act button {
+            background: transparent; border: none; color: var(--ai-text-muted);
+            cursor: pointer; padding: 4px; border-radius: 4px;
+        }
+        .history-item .h-act button:hover { background: var(--ai-border); color: var(--ai-text-main); }
+
+        /* === KHUNG CHAT CHÍNH === */
+        .ai-main {
+            flex: 1; display: flex; flex-direction: column; position: relative;
+            background: var(--ai-main-bg); min-width: 0;
+        }
+        
+        .ai-header {
+            padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
+            color: var(--ai-text-muted); font-size: 18px; position: absolute; top: 0; width: 100%; z-index: 10;
+        }
+        #model-name { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--ai-text-main); }
+        .pico-logo { width: 28px; height: 28px; }
+
+        .ai-chat-area {
+            flex: 1; overflow-y: auto; scroll-behavior: smooth;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 60px 20px 180px;
+        }
+
+        .ai-messages-container {
+            width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 32px;
+            padding-bottom: 40px;
+        }
+
+        .pico-face {
+            background-image: url('/img/ai-tutor.svg');
+            background-repeat: no-repeat;
+            background-position: 62% 16%;
+            background-size: 420% auto;
+            background-color: var(--ai-sidebar-bg);
+            border-radius: 50%;
+            border: 1px solid var(--ai-border);
+            flex: none;
+        }
+
+        /* === KIỂU DÁNG TIN NHẮN (MESSAGE) === */
+        .msg { display: flex; gap: 16px; max-width: 100%; animation: fadeIn 0.4s ease; }
+        
+        /* User: Giống Gemini (Nằm phải, có bubble nền xám nhạt, không có avatar) */
+        .msg.me { justify-content: flex-end; }
+        .msg.me .msg-bubble {
+            background: var(--ai-user-bubble); color: var(--ai-text-main);
+            padding: 14px 20px; border-radius: 24px 24px 4px 24px;
+            font-size: 15px; line-height: 1.6; max-width: 85%;
+            word-break: break-word;
+        }
+        .msg.me .msg-avatar { display: none; } /* Ẩn avatar người dùng */
+
+        /* AI: Giống Claude/Gemini (Nằm trái, nền trong suốt, avatar to rõ) */
+        .msg.ai { align-items: flex-start; }
+        /* Kích thước và vị trí thôi — phần hình do .pico-face lo (xem trên). */
+        .msg.ai .msg-avatar {
+            flex: 0 0 32px; width: 32px; height: 32px;
+            margin-top: 2px;
+        }
+        .msg.ai .msg-bubble {
+            flex: 1; min-width: 0;
+            color: var(--ai-text-main); background: transparent;
+            font-size: 15.5px; line-height: 1.7;
+            padding-top: 4px;
+        }
+
+        /* Typing & Animation */
+        .ai-cursor { display: inline-block; width: 6px; height: 18px; background: var(--ai-primary); vertical-align: middle; animation: blink 1s step-end infinite; margin-left: 4px; }
+        .typing-indicator { display: flex; gap: 4px; padding: 10px 0; }
+        .typing-indicator i { width: 6px; height: 6px; border-radius: 50%; background: var(--ai-text-muted); animation: fadeIn 1s infinite alternate; }
+        .typing-indicator i:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator i:nth-child(3) { animation-delay: 0.4s; }
+
+        /* === COMPOSER (Ô NHẬP LIỆU CỐ ĐỊNH Ở ĐÁY) === */
+        .ai-composer-wrapper {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: linear-gradient(to top, var(--ai-main-bg) 70%, transparent);
+            padding: 0 20px 24px; display: flex; flex-direction: column; align-items: center;
+        }
+
+        .ai-composer {
+            width: 100%; max-width: 800px;
+            background: var(--ai-composer-bg);
+            border-radius: 28px;
+            padding: 12px 12px 12px 24px;
+            display: flex; align-items: flex-end; gap: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            transition: box-shadow 0.2s, background 0.2s;
+        }
+        .ai-composer:focus-within { background: var(--ai-main-bg); box-shadow: var(--ai-shadow); border-color: transparent; }
+        
+        .ai-composer textarea {
+            flex: 1; border: none; outline: none; background: transparent;
+            color: var(--ai-text-main); font-family: inherit; font-size: 15.5px; line-height: 1.5;
+            resize: none; max-height: 200px; padding: 10px 0; margin-bottom: 2px;
+        }
+        .ai-composer textarea::placeholder { color: var(--ai-text-muted); }
+
+        .btn-composer-action {
+            width: 40px; height: 40px; border-radius: 50%; border: none;
+            display: grid; place-items: center; font-size: 20px; cursor: pointer; transition: 0.2s;
+            flex-shrink: 0;
+        }
+        .btn-send { background: var(--ai-text-main); color: var(--ai-main-bg); }
+        .btn-send:hover:not(:disabled) { opacity: 0.8; transform: scale(1.05); }
+        .btn-send:disabled { background: var(--ai-border); color: var(--ai-text-muted); cursor: not-allowed; }
+        
+        .btn-stop { background: var(--ai-main-bg); color: #ef4444; border: 1px solid var(--ai-border); }
+        .btn-stop:hover { background: #fee2e2; }
+
+        .composer-footer {
+            margin-top: 12px; font-size: 11.5px; color: var(--ai-text-muted);
+            text-align: center;
+        }
+
+        /* === MÀN HÌNH CHÀO (WELCOME) === */
+        .ai-welcome {
+            margin: auto; text-align: center; width: 100%; max-width: 700px;
+            animation: fadeIn 0.5s ease; padding-bottom: 100px;
+        }
+        .ai-welcome h1 { font-size: 32px; font-weight: 500; color: var(--ai-text-main); margin-bottom: 32px; background: conic-gradient(from 180deg at 50% 50%, #4285F4 0deg, #9b72cb 180deg, #d96570 360deg); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .ai-suggest-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .ai-suggest-card {
+            background: var(--ai-main-bg); border: 1px solid var(--ai-border);
+            border-radius: 16px; padding: 16px; text-align: left;
+            font-size: 14px; color: var(--ai-text-muted); cursor: pointer;
+            transition: all 0.2s;
+        }
+        .ai-suggest-card:hover { background: var(--ai-user-bubble); color: var(--ai-text-main); }
+        .ai-suggest-card i { display: block; font-size: 20px; margin-bottom: 8px; color: var(--ai-text-main); }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 768px) {
+            .ai-sidebar { position: fixed; left: -100%; z-index: 100; }
+            .ai-sidebar.open { left: 0; box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
+            .ai-header .menu-toggle { display: block; }
+            .ai-suggest-grid { grid-template-columns: 1fr; }
+            .ai-messages-container { padding: 16px; }
+            .msg.me .msg-bubble { max-width: 95%; border-radius: 20px; }
+            .ai-composer-wrapper { padding: 0 12px 16px; }
+        }
+        .menu-toggle { display: none; background: transparent; border: none; font-size: 24px; color: var(--ai-text-muted); cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+<div class="ai-app">
+    <aside class="ai-sidebar" id="ai-history">
+        <div class="ai-sidebar-header">
+            <button type="button" class="btn-new-chat" id="btn-new">
+                <i class="ph ph-plus"></i>
+                <span data-i18n="aitutor.hoiThoaiMoi">Cuộc trò chuyện mới</span>
+            </button>
+        </div>
+        
+        <div class="ai-history-list" id="history-list">
+            <!-- Lịch sử sẽ render vào đây -->
+        </div>
+        
+        <div class="ai-sidebar-header" style="border-top: 1px solid var(--ai-border); text-align: center;">
+            <button type="button" id="btn-clear-all" class="btn-new-chat" style="justify-content: center; color: #ef4444" hidden>
+                <i class="ph ph-trash" style="color: inherit"></i> Xóa tất cả
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CHAT -->
+    <main class="ai-main">
+        <header class="ai-header">
+            <button class="menu-toggle" id="btn-toggle-menu"><i class="ph ph-list"></i></button>
+            <div id="model-name"><span class="pico-logo pico-face" aria-hidden="true"></span> Pico B</div>
+            <div id="status-card" style="font-size: 13px; color: #d97706;" hidden></div>
+        </header>
+
+        <div class="ai-chat-area" id="scroll-area">
+            <div class="ai-messages-container" id="chat-log">
+                <!-- Nội dung chat render vào đây -->
+            </div>
+        </div>
+
+        <div class="ai-composer-wrapper">
+            <div class="ai-composer">
+                <textarea id="f-question" rows="1" maxlength="2000"
+                          placeholder="Hỏi Pico B về tài liệu nội bộ..."
+                          aria-label="Câu hỏi gửi cho Pico B"></textarea>
+                
+                <button type="button" class="btn-composer-action btn-stop" id="btn-stop" hidden title="Dừng">
+                    <i class="ph ph-stop-circle"></i>
+                </button>
+                
+                <button type="button" class="btn-composer-action btn-send" id="btn-send" disabled title="Gửi">
+                    <i class="ph ph-arrow-up"></i>
+                </button>
+            </div>
+            <div class="composer-footer">
+                Pico B là một AI có thể mắc sai sót nên cần bạn kiểm chứng lại 
+                <span id="ask-timer" style="margin-left: 8px; color: var(--ai-primary)"></span>
+            </div>
+        </div>
+    </main>
+
+</div><!-- /.ai-app -->
+
+    </div><!-- /.content -->
+</div><!-- /.main -->
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    await Lang.ready;
+
+    if (!Auth.require(['Học viên', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'ai-tutor.view')) return;
+
+    // Dựng khung hệ thống: cột chức năng bên trái, thanh trên, chuông thông báo, điểm/streak. Thiếu dòng này
+    // thì trang chat trở thành một ốc đảo — mở Pico B xong không còn đường nào quay lại phần khác của hệ
+    // thống ngoài nút Back của trình duyệt.
+    mountLayout('ai-tutor',
+        t('aitutor.title', 'Pico B'),
+        t('aitutor.subtitle', 'Hỏi bất cứ điều gì về bài học — Pico B trả lời dựa trên tài liệu nội bộ của công ty'));
+
+    const LAST_SESSION_KEY = 'hbe_aitutor_session';
+    const logBox     = document.getElementById('chat-log');
+    const scrollArea = document.getElementById('scroll-area');
+    const inputBox   = document.getElementById('f-question');
+    const btnSend    = document.getElementById('btn-send');
+    const btnStop    = document.getElementById('btn-stop');
+    const btnNew     = document.getElementById('btn-new');
+    const btnClearAll = document.getElementById('btn-clear-all');
+    const historyBox = document.getElementById('history-list');
+    const timerBox   = document.getElementById('ask-timer');
+
+    let askController = null;
+    let isReady = false;
+    let turnCount = 0;
+    let sessionId = null;
+    let sessionList = [];
+
+    renderWelcome();
+    bindEvent();
+    await loadStatus();
+    await loadSessionList();
+
+    const lastId = Number(localStorage.getItem(LAST_SESSION_KEY)) || 0;
+    if (lastId && sessionList.some(x => x.id === lastId)) await openSession(lastId);
+
+    // ==================== SỰ KIỆN ====================
+    function bindEvent() {
+        btnSend.addEventListener('click', ask);
+        btnStop.addEventListener('click', () => askController?.abort());
+        btnNew.addEventListener('click', newConversation);
+        btnClearAll.addEventListener('click', deleteAllSession);
+
+        inputBox.addEventListener('input', () => {
+            autoGrow();
+            refreshSendButton();
+        });
+
+        inputBox.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+            e.preventDefault();
+            ask();
+        });
+
+        // Mobile Sidebar Toggle
+        document.getElementById('btn-toggle-menu').addEventListener('click', () => {
+            document.getElementById('ai-history').classList.toggle('open');
+        });
+    }
+
+    function autoGrow() {
+        inputBox.style.height = 'auto';
+        inputBox.style.height = `${Math.min(inputBox.scrollHeight, 200)}px`;
+    }
+
+    function refreshSendButton() {
+        btnSend.disabled = !isReady || !!askController || !inputBox.value.trim();
+    }
+
+    // ==================== TRẠNG THÁI AI ====================
+    async function loadStatus() {
+        const card = document.getElementById('status-card');
+        try {
+            const status = await API.get('/aitutor/status');
+            isReady = !!status.isReady;
+            card.hidden = isReady;
+            if (!isReady) card.innerHTML = `<i class="ph ph-warning-circle"></i> ${esc(status.message)}`;
+        } catch (ex) {
+            isReady = false;
+            card.hidden = false;
+            card.innerHTML = `<i class="ph ph-warning"></i> ${esc(ex.message)}`;
+        }
+        inputBox.disabled = !isReady;
+        refreshSendButton();
+    }
+
+    // ==================== LỊCH SỬ ====================
+    async function loadSessionList() {
+        try { sessionList = await API.get('/aitutor/session'); } catch { sessionList = []; }
+        renderHistory();
+    }
+
+    function renderHistory() {
+        btnClearAll.hidden = sessionList.length === 0;
+
+        if (sessionList.length === 0) {
+            historyBox.innerHTML = `<div style="text-align:center; padding: 40px 10px; color: var(--ai-text-muted); font-size: 13px;">Chưa có hội thoại nào.</div>`;
+            return;
+        }
+
+        historyBox.innerHTML = `<div class="ai-history-group">Gần đây</div>` + sessionList.map(x => `
+            <div class="history-item ${x.id === sessionId ? 'active' : ''}" data-open="${x.id}">
+                <div class="h-title" title="${esc(x.title)}">${esc(x.title)}</div>
+                <div class="h-act">
+                    <button type="button" data-rename="${x.id}"><i class="ph ph-pencil-simple"></i></button>
+                    <button type="button" data-del="${x.id}"><i class="ph ph-trash"></i></button>
+                </div>
+            </div>`).join('');
+
+        historyBox.querySelectorAll('[data-open]').forEach(el => el.addEventListener('click', (e) => {
+            if (e.target.closest('[data-rename], [data-del]')) return;
+            openSession(Number(el.dataset.open));
+        }));
+        historyBox.querySelectorAll('[data-rename]').forEach(el => el.addEventListener('click', () => renameSession(Number(el.dataset.rename))));
+        historyBox.querySelectorAll('[data-del]').forEach(el => el.addEventListener('click', () => deleteSession(Number(el.dataset.del))));
+    }
+
+    async function openSession(id) {
+        if (askController) { toastErr('Đang xử lý. Vui lòng đợi.'); return; }
+        
+        // Đóng sidebar trên mobile nếu đang mở
+        document.getElementById('ai-history').classList.remove('open');
+
+        logBox.innerHTML = `<div style="margin:auto; color:var(--ai-text-muted)"><span class="spinner-inline"></span> Đang tải...</div>`;
+        try {
+            const detail = await API.get(`/aitutor/session/${id}`);
+            sessionId = detail.id;
+            localStorage.setItem(LAST_SESSION_KEY, String(detail.id));
+            logBox.innerHTML = '';
+            turnCount = 0;
+            
+            for (const message of detail.messageList) {
+                appendMessage(message.role === 'user' ? 'me' : 'ai', answerHtml(message.content));
+            }
+            if (turnCount === 0) renderWelcome();
+            renderHistory();
+            scrollToEnd();
+        } catch (ex) {
+            toastErr(ex.message);
+            await newConversation();
+            await loadSessionList();
+        }
+    }
+
+    async function newConversation() {
+        if (askController) return;
+        document.getElementById('ai-history').classList.remove('open');
+        sessionId = null;
+        localStorage.removeItem(LAST_SESSION_KEY);
+        turnCount = 0;
+        timerBox.textContent = '';
+        renderWelcome();
+        renderHistory();
+        inputBox.focus();
+    }
+
+    async function renameSession(id) {
+        const current = sessionList.find(x => x.id === id);
+        const title = await promptDialog('Đổi tên hội thoại', { value: current?.title ?? '', okText: 'Lưu' });
+        if (title === null) return;
+        try { await API.put(`/aitutor/session/${id}`, { title }); await loadSessionList(); } 
+        catch (ex) { toastErr(ex.message); }
+    }
+
+    async function deleteSession(id) {
+        if (!await confirmDialog('Bạn có chắc chắn muốn xóa hội thoại này?', { danger: true, okText: 'Xóa' })) return;
+        try {
+            await API.del(`/aitutor/session/${id}`);
+            if (id === sessionId) await newConversation();
+            await loadSessionList();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    async function deleteAllSession() {
+        if (!await confirmDialog('Xóa toàn bộ lịch sử hỏi đáp?', { danger: true, okText: 'Xóa tất cả' })) return;
+        try {
+            await API.del('/aitutor/session');
+            await newConversation();
+            await loadSessionList();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    // ==================== RENDER ====================
+    function renderWelcome() {
+        const suggestList = [
+            { icon: 'pencil-line', text: 'Tóm tắt nội dung chính khóa học' },
+            { icon: 'code', text: 'Giải thích quy trình nghiệp vụ' },
+            { icon: 'compass', text: 'Quy định giờ làm việc công ty' },
+            { icon: 'lightbulb', text: 'Quy tắc an toàn lao động' }
+        ];
+
+        logBox.innerHTML = `
+            <div class="ai-welcome">
+                <h1>Xin chào</h1>
+                <div class="ai-suggest-grid">
+                    ${suggestList.map(x => `
+                        <div class="ai-suggest-card">
+                            <i class="ph ph-${x.icon}"></i>
+                            ${esc(x.text)}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>`;
+
+        logBox.querySelectorAll('.ai-suggest-card').forEach(btn => btn.addEventListener('click', () => {
+            inputBox.value = btn.innerText.trim();
+            autoGrow();
+            refreshSendButton();
+            ask();
+        }));
+    }
+
+    function appendMessage(side, html) {
+        if (turnCount === 0) logBox.innerHTML = '';
+        turnCount++;
+
+        const row = document.createElement('div');
+        row.className = `msg ${side}`;
+        row.innerHTML = `
+            ${side === 'ai' ? `<div class="msg-avatar pico-face"></div>` : `<div class="msg-avatar"></div>`}
+            <div class="msg-bubble"></div>
+        `;
+        row.querySelector('.msg-bubble').innerHTML = html;
+        logBox.appendChild(row);
+        scrollToEnd();
+        return row.querySelector('.msg-bubble');
+    }
+
+    function scrollToEnd() {
+        // Cuộn khung bao ngoài thay vì logBox
+        scrollArea.scrollTop = scrollArea.scrollHeight;
+    }
+
+    /** Chữ thô của model -> HTML an toàn.
+     *  XÓA luôn các số trích dẫn [1] [2] thay vì tô chúng lên: người học không còn xem bảng nguồn nữa, nên
+     *  mấy con số đó chỉ là những cái móc trỏ vào hư không — đọc tới là khựng lại tự hỏi nó nghĩa là gì.
+     *  Cắt ở ĐÂY chứ không chỉ sửa câu lệnh cho model, để những câu trả lời ĐÃ LƯU trong lịch sử (vốn còn
+     *  đầy [1] [2]) mở lại cũng sạch. */
+    function answerHtml(text) {
+        return esc(text)
+            .replace(/ ?\[\d{1,2}\]/g, "")
+            .replace(/\n/g, "<br>");
+    }
+
+    // ==================== HỎI ĐÁP ====================
+    async function ask() {
+        const question = inputBox.value.trim();
+        if (!question) return;
+        if (askController) return;
+
+        appendMessage('me', answerHtml(question));
+        inputBox.value = '';
+        autoGrow();
+
+        const bubble = appendMessage('ai', '<div class="typing-indicator"><i></i><i></i><i></i></div>');
+
+        askController = new AbortController();
+        btnStop.hidden = false;
+        refreshSendButton();
+
+        const startedAt = Date.now();
+        const timer = setInterval(() => { timerBox.textContent = `${Math.round((Date.now() - startedAt) / 1000)}s`; }, 1000);
+
+        let answer = '';
+
+        function renderAnswer(pending) {
+            bubble.innerHTML = answerHtml(answer) + (pending ? '<span class="ai-cursor"></span>' : '');
+            if (scrollArea.scrollHeight - scrollArea.scrollTop - scrollArea.clientHeight < 200) scrollToEnd();
+        }
+
+        try {
+            const response = await fetch('/api/aitutor/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` },
+                body: JSON.stringify({ question, sessionId }),
+                signal: askController.signal
+            });
+
+            if (response.status === 401) { Auth.clear(); location.href = '/login.html'; return; }
+            if (!response.ok) throw new Error(`Lỗi máy chủ: ${response.status}`);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                let cut;
+                while ((cut = buffer.indexOf('\n\n')) >= 0) {
+                    const raw = buffer.slice(0, cut);
+                    buffer = buffer.slice(cut + 2);
+
+                    const name = raw.match(/^event: (.+)$/m)?.[1];
+                    const dataText = raw.match(/^data: ([\s\S]*)$/m)?.[1];
+                    if (!name || !dataText) continue;
+
+                    let data;
+                    try { data = JSON.parse(dataText); } catch { continue; }
+
+                    // Sự kiện "sources" của máy chủ bị bỏ qua có chủ đích: người học chỉ xem câu trả lời,
+                    // không xem danh sách tài liệu đã tra.
+                    if (name === 'token') { answer += data.t; renderAnswer(true); }
+                    else if (name === 'session') {
+                        sessionId = data.id;
+                        localStorage.setItem(LAST_SESSION_KEY, String(data.id));
+                    }
+                    else if (name === 'error') throw new Error(data.message);
+                }
+            }
+
+            renderAnswer(false);
+            if (!answer.trim()) bubble.innerHTML = `Hệ thống chưa tìm thấy thông tin phù hợp trong tài liệu.`;
+
+        } catch (ex) {
+            if (ex.name === 'AbortError') {
+                renderAnswer(false);
+            } else {
+                bubble.innerHTML = `<span style="color:#ef4444;"><i class="ph ph-warning"></i> ${esc(ex.message)}</span>`;
+                toastErr(ex.message);
+            }
+        } finally {
+            clearInterval(timer);
+            timerBox.textContent = '';
+            askController = null;
+            btnStop.hidden = true;
+            refreshSendButton();
+            inputBox.focus();
+            await loadSessionList();
+        }
+    }
+})();
+</script>
+</body>
+</html>

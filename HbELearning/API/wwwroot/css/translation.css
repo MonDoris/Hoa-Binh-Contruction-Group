@@ -1,0 +1,402 @@
+/* File: wwwroot/css/translation.css
+   Giao diện màn hình Dịch ngôn ngữ.
+
+   Tách hẳn khỏi style.css vì đây là màn hình duy nhất có bố cục kiểu "bàn làm việc của người dịch":
+   chọn cặp ngôn ngữ nguồn → đích, lọc theo chất lượng bản dịch, sửa ngay trên bảng. Nhét vào style.css
+   thì mọi trang khác phải tải theo một đống lớp không dùng tới.
+
+   Màu chủ đạo #00a0e3 chỉ khai báo trong phạm vi .tr-page — đổi biến --primary toàn hệ thống sẽ đổi
+   màu của cả 20 màn hình còn lại, không phải thứ được yêu cầu ở đây. Các màu nền / viền / chữ vẫn lấy
+   từ biến chung của style.css nên trang này tự động theo nền sáng/tối như mọi trang khác. */
+
+.tr-page {
+    --tr-primary: #00a0e3;
+    --tr-primary-dark: #0086c2;
+    --tr-primary-ink: #ffffff;
+    --tr-primary-soft: rgba(0, 160, 227, .10);
+    --tr-primary-line: rgba(0, 160, 227, .40);
+
+    --tr-warn: #b45309;
+    --tr-warn-soft: rgba(245, 158, 11, .13);
+    --tr-warn-line: rgba(245, 158, 11, .40);
+    --tr-danger: #be123c;
+    --tr-danger-soft: rgba(244, 63, 94, .11);
+    --tr-danger-line: rgba(244, 63, 94, .38);
+    --tr-info: #0e7490;
+    --tr-info-soft: rgba(6, 182, 212, .12);
+    --tr-info-line: rgba(6, 182, 212, .38);
+
+    --tr-radius: 12px;
+}
+
+/* Trên nền tối, các sắc chữ đậm ở trên đọc không ra — chuyển sang bản sáng hơn. */
+:root[data-theme="dark"] .tr-page,
+:root:not([data-theme="light"]) .tr-page {
+    --tr-warn: #fbbf24;
+    --tr-danger: #fb7185;
+    --tr-info: #22d3ee;
+}
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .tr-page {
+        --tr-warn: #b45309;
+        --tr-danger: #be123c;
+        --tr-info: #0e7490;
+    }
+}
+/* Ẩn thanh cuộn cho Chrome, Safari và Opera */
+body::-webkit-scrollbar {
+    display: none;
+}
+
+/* Ẩn thanh cuộn cho Firefox, IE và Edge */
+body {
+    -ms-overflow-style: none;  /* IE và Edge cũ */
+    scrollbar-width: none;     /* Firefox */
+}
+/* ==================== THẺ NGÔN NGỮ ==================== */
+/* Mỗi ngôn ngữ một thẻ, kèm tiến độ dịch. Bấm vào thẻ là chọn ngôn ngữ ĐÍCH đang dịch — thao tác này
+   xảy ra liên tục nên để ngay tầm mắt, thay vì giấu trong một ô select. */
+.tr-langs {
+    display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch;
+    margin-bottom: 16px;
+}
+
+.tr-lang {
+    position: relative; flex: 0 1 232px; min-width: 200px;
+    display: flex; flex-direction: column; gap: 9px;
+    padding: 12px 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--tr-radius);
+    cursor: pointer; text-align: left; font-family: inherit; color: var(--text);
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.tr-lang:hover { border-color: var(--tr-primary-line); }
+.tr-lang.active {
+    border-color: var(--tr-primary);
+    background: var(--tr-primary-soft);
+    box-shadow: 0 0 0 3px var(--tr-primary-soft);
+}
+/* Ngôn ngữ nguồn không bấm chọn làm đích được: dịch từ tiếng Việt sang tiếng Việt là vô nghĩa. */
+.tr-lang.is-source { cursor: default; }
+.tr-lang.is-source:hover { border-color: var(--border); }
+
+.tr-lang-top { display: flex; align-items: center; gap: 8px; }
+.tr-lang-name { font-weight: 700; font-size: 13.5px; flex: 1; min-width: 0; }
+.tr-lang-pct { font-size: 12.5px; font-weight: 700; color: var(--text-muted); }
+
+/* Mã quốc gia hai chữ thay cho ảnh cờ: không phải tải thêm ảnh, và ngôn ngữ nào cũng có mã. */
+.tr-flag {
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    min-width: 24px; height: 17px; padding: 0 4px;
+    border-radius: 4px; background: var(--bg); border: 1px solid var(--border);
+    font-size: 9.5px; font-weight: 800; letter-spacing: .5px; color: var(--text-muted);
+}
+
+.tr-lang-tag {
+    flex: none; font-size: 9.5px; font-weight: 800; letter-spacing: .8px;
+    color: var(--text-muted); text-transform: uppercase;
+}
+
+.tr-bar { height: 5px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.tr-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--tr-primary); }
+.tr-lang.is-source .tr-bar > span { background: var(--success); }
+
+.tr-lang-count { font-size: 11.5px; color: var(--text-muted); }
+
+/* Nút thêm ngôn ngữ: viền đứt để đọc ra ngay đây là ô trống chờ thêm, không phải một ngôn ngữ đã có. */
+.tr-lang.tr-lang-add {
+    align-items: center; justify-content: center; gap: 6px;
+    border-style: dashed; background: none; color: var(--text-muted); font-weight: 600; font-size: 13px;
+}
+.tr-lang.tr-lang-add:hover { border-color: var(--tr-primary); color: var(--tr-primary); }
+.tr-lang.tr-lang-add i { font-size: 18px; }
+
+.tr-lang-del {
+    position: absolute; top: 6px; right: 6px;
+    width: 20px; height: 20px; padding: 0; line-height: 1;
+    display: none; align-items: center; justify-content: center;
+    border: none; border-radius: 50%; background: none; cursor: pointer;
+    color: var(--text-muted); font-size: 13px;
+}
+.tr-lang:hover .tr-lang-del { display: inline-flex; }
+.tr-lang-del:hover { background: var(--danger); color: #fff; }
+
+/* ==================== THANH LỌC ==================== */
+.tr-filters {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.tr-search { position: relative; flex: 1 1 300px; min-width: 220px; }
+.tr-search > i {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); font-size: 16px; pointer-events: none;
+}
+.tr-search input {
+    width: 100%; height: 38px; padding: 0 40px 0 36px; border-radius: 10px;
+}
+/* Gợi ý phím tắt nằm trong ô: người dùng bàn phím thấy được mà không tốn thêm một dòng chữ hướng dẫn. */
+.tr-search .tr-kbd { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); }
+
+.tr-select {
+    position: relative; display: inline-flex; align-items: center;
+}
+.tr-select select {
+    height: 38px; padding: 0 32px 0 13px; border-radius: 10px;
+    font-weight: 600; font-size: 13px; cursor: pointer;
+    appearance: none; -webkit-appearance: none;
+}
+.tr-select > i {
+    position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+    pointer-events: none; color: var(--text-muted); font-size: 14px;
+}
+
+/* Cặp nguồn → đích, đẩy sang phải cho tách hẳn khỏi nhóm ô lọc bên trái. */
+.tr-pair { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+.tr-pair-label { font-size: 12.5px; color: var(--text-muted); }
+.tr-pair-arrow { color: var(--text-muted); font-size: 15px; }
+
+.tr-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 34px; padding: 0 12px; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    font-family: inherit; font-size: 12.5px; font-weight: 700;
+}
+.tr-pill.target { border-color: var(--tr-primary); color: var(--tr-primary); background: var(--tr-primary-soft); }
+.tr-pill.target .tr-flag { border-color: var(--tr-primary-line); color: var(--tr-primary); background: transparent; }
+
+/* ==================== CHIP LỌC CHẤT LƯỢNG ==================== */
+.tr-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+
+.tr-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 32px; padding: 0 13px; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    transition: border-color .15s ease, background-color .15s ease;
+}
+.tr-chip .n {
+    font-size: 11.5px; font-weight: 800; opacity: .75;
+}
+.tr-chip:hover { border-color: var(--text-muted); }
+
+/* Mỗi loại vấn đề một sắc riêng, giữ nguyên cả khi chưa được chọn — người dịch quét mắt qua hàng chip
+   là biết ngay còn bao nhiêu chỗ hỏng thuộc loại nào, không cần bấm vào từng cái mới biết. */
+.tr-chip.tone-warn { background: var(--tr-warn-soft); border-color: var(--tr-warn-line); color: var(--tr-warn); }
+.tr-chip.tone-danger { background: var(--tr-danger-soft); border-color: var(--tr-danger-line); color: var(--tr-danger); }
+.tr-chip.tone-info { background: var(--tr-info-soft); border-color: var(--tr-info-line); color: var(--tr-info); }
+
+.tr-chip.active {
+    background: var(--tr-primary); border-color: var(--tr-primary); color: var(--tr-primary-ink);
+}
+.tr-chip.active .n { opacity: .85; }
+
+/* ==================== BẢNG DỊCH ==================== */
+.tr-board {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--tr-radius);
+    overflow: hidden;
+}
+
+.tr-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+.tr-table thead th {
+    padding: 11px 14px; text-align: left;
+    font-size: 10.5px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase;
+    color: var(--text-muted); background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+.tr-table thead th .tr-flag { margin-right: 5px; vertical-align: -3px; }
+.tr-table thead th .side { font-weight: 700; text-transform: none; letter-spacing: 0; opacity: .75; }
+
+.tr-table tbody td {
+    padding: 11px 14px; border-bottom: 1px solid var(--border);
+    font-size: 13px; line-height: 1.5; vertical-align: top;
+}
+.tr-table tbody tr:last-child td { border-bottom: none; }
+.tr-table tbody tr:hover td { background: var(--bg); }
+
+/* Dòng đang chọn bằng bàn phím. Vệt màu bên trái chứ không chỉ đổi nền: cuộn nhanh bằng ↑↓ thì một mảng
+   nền nhạt rất khó bắt mắt, một vệt dọc thì thấy ngay. */
+.tr-table tbody tr.sel td { background: var(--tr-primary-soft); }
+.tr-table tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--tr-primary); }
+
+.tr-col-mark { width: 34px; padding-left: 12px !important; padding-right: 0 !important; }
+.tr-col-group { width: 130px; }
+.tr-col-open { width: 44px; }
+
+/* Dấu hiệu chất lượng ở đầu dòng — cùng bảng màu với hàng chip lọc phía trên. */
+.tr-mark { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; }
+.tr-mark.dot::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--tr-warn);
+}
+.tr-mark.same::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--tr-info);
+}
+.tr-mark.warn { color: var(--tr-danger); font-size: 15px; }
+
+.tr-key {
+    font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
+    font-size: 12px; color: var(--text-muted); word-break: break-all;
+}
+
+.tr-src { color: var(--text); }
+.tr-dst { color: var(--text); }
+.tr-empty-cell { color: var(--text-muted); font-style: italic; }
+
+/* Ô đích bấm vào là sửa được ngay tại chỗ. Viền chỉ hiện khi rê chuột, để bảng ở trạng thái nghỉ vẫn
+   là một bảng đọc chứ không phải một biểu mẫu đầy ô nhập. */
+.tr-dst-cell { cursor: text; border-radius: 7px; }
+.tr-table tbody tr:hover .tr-dst-cell { box-shadow: inset 0 0 0 1px var(--border); }
+
+.tr-edit {
+    width: 100%; min-height: 62px; resize: vertical;
+    font-family: inherit; font-size: 13px; line-height: 1.5;
+    border-radius: 8px; padding: 7px 9px;
+}
+.tr-edit-hint { margin-top: 5px; font-size: 11px; color: var(--text-muted); display: flex; gap: 6px; align-items: center; }
+
+.tr-group-chip {
+    display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    padding: 3px 9px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--bg);
+    font-size: 11.5px; font-weight: 600; color: var(--text-muted);
+}
+
+.tr-open {
+    border: none; background: none; cursor: pointer; padding: 3px;
+    color: var(--text-muted); font-size: 16px; line-height: 1; border-radius: 6px;
+}
+.tr-open:hover { color: var(--tr-primary); background: var(--tr-primary-soft); }
+
+/* ==================== CHÂN BẢNG ==================== */
+.tr-foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+    padding: 10px 14px; border-top: 1px solid var(--border); background: var(--bg);
+}
+.tr-foot-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); }
+.tr-foot-left b { color: var(--text); }
+.tr-dot-sep { opacity: .5; }
+
+.tr-kbd {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 20px; height: 20px; padding: 0 5px;
+    border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px;
+    background: var(--surface); color: var(--text-muted);
+    font-family: inherit; font-size: 11px; font-weight: 700; line-height: 1;
+}
+
+.tr-pager { display: flex; align-items: center; gap: 8px; }
+.tr-pager .page-of { font-size: 12.5px; font-weight: 600; color: var(--text); min-width: 52px; text-align: center; }
+.tr-page-btn {
+    width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+    color: var(--text); cursor: pointer; font-size: 14px;
+}
+.tr-page-btn:hover:not(:disabled) { border-color: var(--tr-primary); color: var(--tr-primary); }
+.tr-page-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ==================== NGĂN KÉO CHI TIẾT ==================== */
+/* Mở ra khi bấm mũi tên cuối dòng: đủ chỗ cho TẤT CẢ ngôn ngữ + ghi chú + lịch sử sửa, những thứ không
+   nhét vừa vào một dòng bảng nhưng lại cần khi phải cân nhắc một cách dịch. */
+.tr-drawer-mask {
+    position: fixed; inset: 0; z-index: 900;
+    background: rgba(15, 23, 42, .38);
+    display: none;
+}
+.tr-drawer-mask.open { display: block; }
+
+.tr-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 901;
+    width: min(460px, 100vw);
+    background: var(--surface); border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform .22s cubic-bezier(.2, .7, .3, 1);
+}
+.tr-drawer.open { transform: translateX(0); }
+
+.tr-drawer-head {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 15px 18px; border-bottom: 1px solid var(--border);
+}
+.tr-drawer-title { flex: 1; min-width: 0; }
+.tr-drawer-head h3 { font-size: 15px; font-weight: 800; margin: 0 0 3px; }
+.tr-drawer-body { flex: 1; overflow-y: auto; padding: 16px 18px; }
+.tr-drawer-foot {
+    display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;
+    padding: 12px 18px; border-top: 1px solid var(--border); background: var(--bg);
+}
+
+.tr-field { margin-bottom: 14px; }
+.tr-field > label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; font-weight: 700; margin-bottom: 5px; color: var(--text);
+}
+.tr-field textarea { width: 100%; min-height: 62px; resize: vertical; }
+.tr-field .tr-origin {
+    margin-top: 5px; padding-left: 8px; border-left: 2px solid var(--tr-warn-line);
+    font-size: 11.5px; color: var(--text-muted);
+}
+
+.tr-meta { font-size: 11.5px; color: var(--text-muted); line-height: 1.7; }
+
+/* ==================== NÚT MÀU CHỦ ĐẠO ==================== */
+/* Nút trên thanh trên của riêng màn hình này dùng #00a0e3, không đụng tới .btn chung.
+   Ghi kèm giá trị dự phòng trong var(): nút "Thêm thuật ngữ" nằm trên thanh trên, tức là NGOÀI .tr-page —
+   nơi bộ biến --tr-* được khai báo. Không có dự phòng thì var() rỗng, background thành trong suốt và nút
+   chính của màn hình hiện ra y hệt một nút phụ viền xám. */
+.tr-page-btn-primary,
+.btn.tr-primary {
+    background: var(--tr-primary, #00a0e3);
+    border-color: var(--tr-primary, #00a0e3);
+    color: var(--tr-primary-ink, #fff);
+}
+.btn.tr-primary:hover:not(:disabled) {
+    background: var(--tr-primary-dark, #0086c2);
+    border-color: var(--tr-primary-dark, #0086c2);
+}
+
+/* ==================== MÀN HÌNH HẸP ==================== */
+@media (max-width: 900px) {
+    .tr-pair { margin-left: 0; width: 100%; }
+    .tr-col-group { display: none; }
+    .tr-table thead th.tr-col-group, .tr-table tbody td.tr-col-group { display: none; }
+}
+@media (max-width: 640px) {
+    .tr-lang { flex: 1 1 100%; }
+}
+
+/* ==================== DỊCH BẰNG AI ==================== */
+/* Thanh tiến độ khi đang dịch hàng loạt: nằm ngay trên bảng, đúng chỗ mắt đang nhìn khi các dòng lần lượt
+   được điền chữ. */
+.tr-ai-bar {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 14px; padding: 10px 14px;
+    border: 1px solid var(--tr-primary-line); border-radius: 12px;
+    background: var(--tr-primary-soft); font-size: 12.5px;
+}
+.tr-ai-bar[hidden] { display: none; }
+.tr-ai-bar > i { font-size: 16px; color: var(--tr-primary); }
+.tr-ai-text { font-weight: 600; white-space: nowrap; }
+.tr-ai-track {
+    flex: 1; min-width: 80px; height: 6px; border-radius: 999px; overflow: hidden;
+    background: rgba(0, 160, 227, .18);
+}
+.tr-ai-fill {
+    display: block; height: 100%; width: 0; border-radius: 999px;
+    background: var(--tr-primary); transition: width .25s ease;
+}
+
+/* Nút xin AI dịch một dòng, đặt cạnh nhãn ngôn ngữ trong ngăn kéo chi tiết. Cố tình nhỏ và nhạt: đây là
+   việc phụ, việc chính của ngăn kéo vẫn là người dịch tự gõ. */
+.tr-field-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tr-field-head > label { margin-bottom: 5px; }
+.tr-ai-mini {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px; margin-bottom: 5px;
+    border: 1px solid var(--tr-primary-line); border-radius: 999px;
+    background: transparent; color: var(--tr-primary);
+    font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.tr-ai-mini:hover:not(:disabled) { background: var(--tr-primary-soft); }
+.tr-ai-mini:disabled { opacity: .6; cursor: default; }

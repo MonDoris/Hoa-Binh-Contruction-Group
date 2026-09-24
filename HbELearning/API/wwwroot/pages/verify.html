@@ -1,0 +1,215 @@
+<!-- File: wwwroot/pages/verify.html -->
+<!-- Trang xác thực chứng nhận công khai — KHÔNG yêu cầu đăng nhập (đích đến của mã QR) -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="verify.xacThucChungNhanHbELearning">Xác thực chứng nhận · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Input quét mã to rõ, viền bọc sáng */
+        #code {
+            font-size: 15px; padding: 12px 16px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            border: 2px solid var(--border);
+        }
+        #code:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-light); }
+        #btn-verify { padding: 0 24px; font-size: 14.5px; }
+
+        /* ================= KẾT QUẢ XÁC THỰC VIP ================= */
+        /* Mặt thẻ, vệt sáng và con dấu chìm lấy từ .cert-card trong css/style.css. Ở đây chỉ thêm phần
+           riêng: khung không bấm được (nên không có .interactive), viền đổi màu theo kết quả xác thực. */
+        .cert-res-card {
+            padding: 28px 24px; margin-top: 24px; border-width: 2px;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, .15);
+            animation: slideUpFade .4s cubic-bezier(.175, .885, .32, 1.275);
+        }
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .cert-res-card .cert-card-stamp {
+            right: -20px; bottom: -20px; opacity: .05; transform: rotate(-15deg);
+        }
+        /* Chưa nhập mã thì thẻ chưa có kết quả nào để khoe — tắt vệt sáng cho tới khi có trạng thái. */
+        .cert-res-card .cert-card-shine { animation: none; }
+
+        /* --- Trạng thái: HỢP LỆ (Vàng kim / Xanh lục) --- */
+        .cert-res-card.valid {
+            --cert-tint: #fbbf24;
+            background: linear-gradient(180deg, var(--surface) 70%, #fffbeb 100%);
+        }
+        :root[data-theme="dark"] .cert-res-card.valid { background: linear-gradient(180deg, var(--surface) 70%, rgba(251, 191, 36, .05) 100%); }
+        .cert-res-card.valid .cert-card-shine { animation: certCardShine 3.5s infinite; }
+        .cert-res-card.valid .cert-card-stamp { color: #fbbf24; animation: pulseStamp 4s infinite alternate; }
+        .cert-res-card.valid .res-icon { 
+            color: #10b981; background: #d1fae5; box-shadow: 0 0 0 8px rgba(16, 185, 129, 0.15);
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .cert-res-card.valid .res-msg { color: #059669; }
+
+        /* --- Trạng thái: KHÔNG HỢP LỆ (Đỏ thẫm) --- */
+        .cert-res-card.invalid {
+            --cert-tint: var(--danger);
+            background: linear-gradient(180deg, var(--surface) 70%, var(--danger-light) 100%);
+        }
+        .cert-res-card.invalid .cert-card-stamp { color: var(--danger); opacity: .08; }
+        .cert-res-card.invalid .res-icon { 
+            color: #ef4444; background: #fee2e2; box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.15);
+            animation: shake 0.5s ease-in-out;
+        }
+        .cert-res-card.invalid .res-msg { color: #dc2626; }
+
+        @keyframes popIn { 0% { transform: scale(0); } 80% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+        @keyframes pulseStamp { from { transform: rotate(-15deg) scale(1); opacity: 0.05; } to { transform: rotate(-15deg) scale(1.1); opacity: 0.1; } }
+
+        /* Bố cục icon và chữ thông báo */
+        .res-head { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 24px; border-bottom: 1px dashed var(--border); padding-bottom: 24px; }
+        .res-icon { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 32px; margin-bottom: 16px; }
+        .res-msg { font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }
+
+        /* Bố cục lưới thông tin chi tiết */
+        .res-id { font-size: 18px; justify-content: center; color: #b45309; margin-bottom: 20px; }
+        .res-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+        .res-col { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; background: var(--bg); border-radius: 12px; border: 1px solid var(--border); }
+        .res-col .lbl { font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+        .res-col .val { font-size: 14.5px; font-weight: 700; color: var(--text); word-break: break-word; }
+        
+        .res-col.full { grid-column: 1 / -1; }
+        .res-col.full .val { font-family: 'Playfair Display', Georgia, serif; font-size: 18px; color: var(--primary-dark); }
+        .res-col.highlight { background: var(--primary-light); border-color: var(--primary); }
+        .res-col.highlight .val { color: var(--primary); font-size: 18px; font-family: "Consolas", monospace; }
+
+        @media (max-width: 600px) {
+            .res-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="verify-wrap decorated">
+    <div class="verify-card">
+        <div class="card">
+            <div class="card-head">
+                <h3 data-i18n="index.verifyTitle">Xác thực chứng nhận đào tạo</h3>
+                <span class="small muted">HB E-Learning</span>
+            </div>
+            <div class="card-body">
+                <div class="field">
+                    <label data-i18n="verify.soHieuChungNhan" for="code">Số hiệu chứng nhận</label>
+                    <div class="flex">
+                        <input type="text" id="code" data-i18n-ph="verify.nhapSoHieuVd" placeholder="VD: HBE-2026-000001 — hoặc quét QR trên chứng nhận">
+                        <button data-i18n="verify.kiemTra" class="btn w-auto" id="btn-verify">Kiểm tra</button>
+                    </div>
+                </div>
+                <div id="result"></div>
+            </div>
+        </div>
+        <p class="text-center small muted mt">
+            <a href="/"><i class="ph ph-arrow-left"></i> <span data-i18n="verify.veTrangChu">Về trang chủ</span></a> &nbsp;·&nbsp; <a data-i18n="verify.dangNhapHeThong" href="/login.html">Đăng nhập hệ thống</a>
+        </p>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    ensurePhosphorIcons();
+    ensureUicons();
+
+    const input = document.getElementById('code');
+    const box = document.getElementById('result');
+
+    document.getElementById('btn-verify').addEventListener('click', verify);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') verify(); });
+
+    const code = qs('code');
+    if (code) { input.value = code; verify(); }
+
+    async function verify() {
+        const value = input.value.trim();
+        if (!value) { toastErr(t('verify.vuiLongNhapMaXacThuc', 'Vui lòng nhập mã xác thực.')); return; }
+
+        box.innerHTML = skeletonHtml('block', { height: '180px' });
+        try {
+            const r = await API.get(`/certificate/verify/${encodeURIComponent(value)}`);
+
+            // Giao diện kết quả VIP mới
+            box.innerHTML = `
+                <div class="cert-card cert-res-card ${r.isValid ? 'valid' : 'invalid'}">
+                    ${r.isValid ? '<span class="cert-card-shine"></span>' : ''}
+                    <i class="ph-fill ${r.isValid ? 'ph-seal-check' : 'ph-warning-octagon'} cert-card-stamp"></i>
+                    
+                    <div class="res-head">
+                        <div class="res-icon">
+                            <i class="ph-bold ${r.isValid ? 'ph-check' : 'ph-x'}"></i>
+                        </div>
+                        <h4 class="res-msg">${esc(r.message)}</h4>
+                    </div>
+
+                    ${r.certificateNo ? `
+                    <div class="cert-card-no res-id">
+                        <i class="ph-fill ph-medal"></i> ${esc(r.certificateNo)}
+                    </div>
+                    
+                    <div class="res-grid">
+                        ${r.userFullName ? `
+                            <div class="res-col">
+                                <span class="lbl" data-i18n="verify.nguoiDuocCap">Người được cấp</span>
+                                <span class="val">${esc(r.userFullName)} <small style="color:var(--text-muted); font-weight:normal; display:block;">${esc(r.employeeCode || '')}</small></span>
+                            </div>
+                        ` : ''}
+                        
+                        ${r.finalScore != null ? `
+                            <div class="res-col highlight">
+                                <span class="lbl" data-i18n="verify.ketQua">Kết quả (Điểm)</span>
+                                <span class="val">${r.finalScore}<small style="font-size:12px">/100</small></span>
+                            </div>
+                        ` : ''}
+
+                        ${r.courseTitle ? `
+                            <div class="res-col full">
+                                <span class="lbl" data-i18n="verify.khoaDaoTao">Khóa đào tạo hoàn thành</span>
+                                <span class="val">${esc(r.courseTitle)}</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${r.issuedAt ? `
+                            <div class="res-col">
+                                <span class="lbl" data-i18n="verify.ngayCap">Ngày cấp</span>
+                                <span class="val">${formatDate(r.issuedAt)}</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${r.expiredAt ? `
+                            <div class="res-col">
+                                <span class="lbl" data-i18n="verify.hieuLucDen">Hiệu lực đến</span>
+                                <span class="val">${formatDate(r.expiredAt)}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    ` : ''}
+                </div>`;
+        } catch (ex) {
+            box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        }
+    }
+})();
+</script>
+</body>
+</html>

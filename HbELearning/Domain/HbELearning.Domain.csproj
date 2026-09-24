@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Lớp trong cùng của Clean Architecture: thực thể nghiệp vụ, enum, hằng số và quy tắc thuần.
+       CỐ Ý không có <ProjectReference> lẫn <PackageReference> nào — đó chính là điều khiến quy tắc
+       phụ thuộc được trình biên dịch bảo đảm, chứ không chỉ là quy ước đặt tên thư mục. Thêm bất kỳ
+       tham chiếu nào vào đây là phá vỡ kiến trúc, nên hãy cân nhắc rất kỹ trước khi sửa file này. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HbELearning.Domain</RootNamespace>
+  </PropertyGroup>
+
+</Project>

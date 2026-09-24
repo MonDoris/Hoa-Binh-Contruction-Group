@@ -1,0 +1,293 @@
+<!-- File: wwwroot/pages/role.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="role.vaiTroHbELearning">Vai trò & Phân quyền · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <!-- Hai tab thay cho một bảng gộp: sáu vai trò cài sẵn và các vai trò công ty tự tạo là hai thứ khác
+             hẳn nhau về cách dùng — bên trái chỉ sửa được quyền, bên phải mới thêm/xóa/gán vai trò cha được.
+             Gộp chung một bảng thì mỗi lần tìm một vai trò tự tạo đều phải lướt qua sáu dòng không đụng tới. -->
+        <div class="tabs">
+            <button class="active" data-tab="system"><i class="ph ph-lock-key"></i>
+                <span data-i18n="role.vaiTroHeThong">Vai trò hệ thống</span></button>
+            <button data-tab="custom"><i class="ph ph-user-gear"></i>
+                <span data-i18n="role.vaiTroTuTao">Vai trò tự tạo</span></button>
+        </div>
+
+        <div class="tab-panel active" id="tab-system"></div>
+        <div class="tab-panel" id="tab-custom"></div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-role">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="role.themVaiTro" id="modal-title">Thêm vai trò</h3>
+            <button class="close-x" onclick="closeModal('modal-role')">×</button></div>
+        <form id="role-form">
+            <div class="modal-body">
+                <input type="hidden" id="r-id">
+                <div class="field">
+                    <label data-i18n="role.tenVaiTro2" for="r-name">Tên vai trò *</label>
+                    <input id="r-name" required maxlength="50">
+                    <div class="hint hidden" id="r-name-hint" data-i18n="role.vaiTroHeThongKhongDoiTen">Vai trò hệ thống: không đổi được tên vì tên này được dùng trong luồng duyệt khóa học. Vẫn sửa được mô tả và quyền.</div>
+                </div>
+                <div class="field" id="r-parent-row">
+                    <label data-i18n="role.keThuaTuVaiTro" for="r-parent">Kế thừa từ vai trò</label>
+                    <select id="r-parent"></select>
+                    <div data-i18n="role.keThuaHint" class="hint">Chọn vai trò cha thì vai trò này được coi
+                        LÀ vai trò đó: nhận đủ quyền của cha (tick thêm được, bỏ tick quyền của cha thì không
+                        có tác dụng), vào được đúng các màn hình của cha, và tham gia duyệt nội dung đúng cấp
+                        của cha — nhưng chỉ trong phạm vi phòng ban của mình. VD "Trưởng phòng IT" kế thừa
+                        "Trưởng phòng" thì chỉ duyệt được bài của phòng IT.</div>
+                </div>
+                <!-- Ô "Mô tả" đã được gỡ khỏi biểu mẫu theo yêu cầu. Giá trị cũ vẫn được GIỮ NGUYÊN qua input ẩn này thay vì gửi null — nếu không, mỗi lần mở ra sửa một thứ khác là mô tả đã nhập trước đó bị xóa sạch mà không ai biết. -->
+                <input type="hidden" id="r-description">
+                <div class="field">
+                    <label data-i18n="role.quyenCuaVaiTro">Quyền của vai trò</label>
+                    <div class="perm-list" id="r-function"></div>
+                    <div data-i18n="role.tickONgoaiDeCapCaNhom" class="hint">Tick ô ngoài để cấp cả nhóm, bấm mũi tên để mở chi tiết Xem / Thêm / Sửa / Xóa. Quyền cấp riêng cho từng người ở trang Người dùng chỉ thu hẹp thêm, không mở rộng quá quyền của vai trò.</div>
+                    <div class="hint hidden" id="r-admin-hint" data-i18n="role.adminLuonToanQuyen">Vai trò Admin luôn giữ trọn quyền để không tự khóa mình khỏi trang phân quyền — phần tick bên trên chỉ để xem.</div>
+                </div>
+                <label class="check"><input type="checkbox" id="r-active" checked> <span data-i18n="status.Active">Đang hoạt động</span></label>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-role')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.require(['Admin'], 'role.view')) return;
+    mountLayout('role', t('role.vaiTroPhanQuyen', 'Vai trò & Phân quyền'),
+        t('role.dinhNghiaVaiTroVaChucNang', 'Định nghĩa vai trò và chức năng mỗi vai trò được sử dụng'));
+    // Chỉ hiện nút thao tác mà vai trò thực sự được cấp — tránh bấm vào rồi nhận lỗi 403 từ API.
+    const canCreate = Auth.can('role.create') ?? true;
+    const canUpdate = Auth.can('role.update') ?? true;
+    const canDelete = Auth.can('role.delete') ?? true;
+
+    if (canCreate)
+        setTopbarAction('<button data-i18n="role.themVaiTro2" class="btn" id="btn-new">+ Thêm vai trò</button>');
+
+    let currentTab = 'system';
+    let currentList = [];
+
+    document.querySelectorAll('.tabs button').forEach(button => {
+        button.addEventListener('click', () => {
+            document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            button.classList.add('active');
+            currentTab = button.dataset.tab;
+            document.getElementById(`tab-${currentTab}`).classList.add('active');
+            // Không gọi lại API: cả hai tab đọc chung một danh sách vừa tải, chỉ khác phần lọc.
+            renderTab();
+        });
+    });
+
+    /** Chuyển sang tab "Vai trò tự tạo" — vai trò mới luôn là vai trò tự tạo, tạo xong mà vẫn đứng ở tab
+     *  hệ thống thì người dùng không thấy thứ mình vừa thêm và tưởng lưu hỏng. */
+    function goToCustomTab() {
+        document.querySelector('.tabs button[data-tab="custom"]')?.click();
+    }
+
+    renderPermissionMatrix('r-function');
+    bindPermissionMatrix('r-function');
+
+    document.getElementById('btn-new')?.addEventListener('click', () => openForm());
+    document.getElementById('role-form').addEventListener('submit', save);
+
+    await load();
+
+    /** Đếm số quyền đã cấp để hiện nhanh trên bảng, VD "5 chức năng · 14 quyền". */
+    function permissionSummary(raw) {
+        const keyList = parseFunctionKeys(raw) || [];
+        if (!keyList.length) return `<span data-i18n="role.chuaCapQuyen" class="badge gray">Chưa cấp quyền</span>`;
+
+        const moduleCount = new Set(keyList.map(x => x.split('.')[0])).size;
+        return `<span class="small">${moduleCount} ${t('role.chucNang', 'chức năng')} · ${keyList.length} ${t('role.quyen', 'quyền')}</span>`;
+    }
+
+    /** Quyền hiển thị của một vai trò = quyền riêng CỘNG quyền nhận từ cha — đúng bằng thứ người dùng thực
+     *  sự có sau khi đăng nhập (xem FunctionKey.Inherit ở server). Hiện mỗi quyền riêng thì con số trong
+     *  bảng luôn nhỏ hơn thực tế, và Admin sẽ tưởng vai trò con đang thiếu quyền. */
+    function mergeKeys(role) {
+        const split = (raw) => String(raw || '').split(',').map(x => x.trim()).filter(Boolean);
+        return [...new Set([...split(role.functionKeys), ...split(role.inheritedFunctionKeys)])].join(',');
+    }
+
+    /** Chỉ vai trò HỆ THỐNG được làm cha — ràng buộc một cấp, xem RoleController.ResolveParentAsync. */
+    function fillParentSelect(role) {
+        const select = document.getElementById('r-parent');
+        const canPickParent = !role?.isSystem;
+
+        select.innerHTML = `<option value="">${esc(t('role.khongKeThua', '— Không kế thừa —'))}</option>`
+            + currentList.filter(x => x.isSystem && x.id !== role?.id)
+                .map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('');
+        select.value = role?.parentRoleId || '';
+        select.disabled = !canPickParent;
+
+        // Vai trò hệ thống không kế thừa ai: chúng CHÍNH LÀ gốc của cây, cho chọn cha chỉ tạo ra vòng lặp
+        // và làm hỏng chuỗi duyệt vốn dựa đúng vào sáu cái tên đó.
+        document.getElementById('r-parent-row').classList.toggle('hidden', !canPickParent);
+    }
+
+    async function load() {
+        document.getElementById(`tab-${currentTab}`).innerHTML = skeletonHtml('list', { count: 5, avatar: false });
+        try {
+            currentList = await API.get('/role');
+            renderTab();
+        } catch (ex) {
+            document.getElementById(`tab-${currentTab}`).innerHTML = `<div class="card"><div class="card-body">${esc(ex.message)}</div></div>`;
+        }
+    }
+
+    /** Dựng bảng của tab đang mở từ danh sách đã tải. */
+    function renderTab() {
+        const isSystemTab = currentTab === 'system';
+        const list = currentList.filter(r => !!r.isSystem === isSystemTab);
+        const panel = document.getElementById(`tab-${currentTab}`);
+
+        panel.innerHTML = `
+            <div class="card">
+                <div class="card-head">
+                    <h3>${list.length} ${esc(t('role.vaiTro', 'vai trò'))}</h3>
+                    <span class="small muted">${esc(isSystemTab
+                        ? t('role.ghiChuVaiTroHeThong', 'Vai trò cài sẵn: chỉ sửa được quyền. Tên của chúng được dùng trong luồng duyệt khóa học nên không đổi và không xóa được.')
+                        : t('role.ghiChuApDung', 'Đổi quyền xong, người dùng thuộc vai trò đó cần đăng xuất và đăng nhập lại để áp dụng.'))}</span>
+                </div>
+                <div class="table-wrap"><table>
+                    <thead><tr>
+                        <th data-i18n="role.tenVaiTro">Tên vai trò</th>
+                        <th data-i18n="role.quyenDuocCap">Quyền được cấp</th>
+                        <th class="text-center" data-i18n="role.soNguoiDung">Người dùng</th>
+                        <th data-i18n="dashboard.colStatus">Trạng thái</th>
+                        <th class="text-right"></th>
+                    </tr></thead>
+                    <tbody id="tbody"></tbody>
+                </table></div>
+            </div>`;
+
+        const tbody = panel.querySelector('#tbody');
+        const emptyText = isSystemTab
+            ? t('common.empty', 'Chưa có dữ liệu.')
+            : t('role.chuaCoVaiTroTuTao', 'Chưa có vai trò tự tạo nào. Bấm "+ Thêm vai trò" để tạo, và chọn một vai trò hệ thống làm vai trò cha để kế thừa quyền của nó.');
+
+        tbody.innerHTML = list.length ? list.map(r => `
+                <tr>
+                    <!-- Không còn nhãn "Hệ thống" trên từng dòng: cả tab này đã là vai trò hệ thống rồi.
+                         Cũng bỏ phần thụt đầu dòng của vai trò con — vai trò cha nằm ở tab bên kia nên thụt
+                         vào chỉ trông như lỗi căn lề, dòng "Kế thừa từ ..." mới là thứ nói rõ nhánh nào. -->
+                    <td><b>${esc(r.name)}</b>
+                        ${r.parentRoleName
+                            ? `<div class="small muted"><i class="ph ph-arrow-elbow-down-right"></i>
+                                 ${esc(t('role.keThuaTu', 'Kế thừa từ'))} <b>${esc(r.parentRoleName)}</b></div>`
+                            : (r.isSystem ? '' : `<div class="small muted">${esc(t('role.khongKeThuaAi', 'Không kế thừa vai trò nào'))}</div>`)}</td>
+                    <td>${permissionSummary(mergeKeys(r))}${
+                        r.parentRoleId ? `<div class="small muted">${esc(t('role.daGomQuyenCha', 'đã gồm quyền của vai trò cha'))}</div>` : ''}</td>
+                    <td class="text-center">${r.userCount}</td>
+                    <td>${r.isActive ? '<span data-i18n="organization.hoatDong" class="badge green">Hoạt động</span>' : '<span data-i18n="organization.ngung" class="badge gray">Ngừng</span>'}</td>
+                    <td class="text-right nowrap">
+                        ${canUpdate ? `<button data-i18n="role.phanQuyen" class="btn ghost sm" data-edit="${r.id}" style="background-color: yellow">Phân quyền</button>` : ''}
+                        ${canDelete && !r.isSystem ? `<button data-i18n="common.delete" class="btn ghost sm" data-del="${r.id}" style="background-color: red; color: white">Xóa</button>` : ''}
+                    </td>
+                </tr>`).join('') : `<tr><td colspan="5">${emptyHtml(emptyText, '<i class="ph ph-shield-check"></i>')}</td></tr>`;
+
+        tbody.querySelectorAll('[data-edit]').forEach(b =>
+            b.addEventListener('click', () => openForm(currentList.find(x => x.id == b.dataset.edit))));
+
+        tbody.querySelectorAll('[data-del]').forEach(b =>
+            b.addEventListener('click', () => remove(currentList.find(x => x.id == b.dataset.del))));
+
+        translateTree(panel);
+    }
+
+    async function remove(role) {
+        if (!role) return;
+        if (!await confirmDialog(
+            t('role.xacNhanXoa', 'Xóa vai trò "{name}"?', { name: role.name }),
+            { danger: true, okText: t('common.delete', 'Xóa') })) return;
+
+        try {
+            const result = await API.del(`/role/${role.id}`);
+            toastOk(result.message);
+            load();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    function openForm(role) {
+        const isEdit = !!role;
+        const isSystem = !!role?.isSystem;
+        const isAdminRole = role?.name === 'Admin';
+
+        document.getElementById('modal-title').textContent = isEdit
+            ? t('role.phanQuyenChoVaiTro', 'Phân quyền: {name}', { name: role.name })
+            : t('role.themVaiTro', 'Thêm vai trò');
+
+        document.getElementById('r-id').value = role?.id || '';
+        document.getElementById('r-name').value = role?.name || '';
+        document.getElementById('r-name').disabled = isSystem;
+        document.getElementById('r-name-hint').classList.toggle('hidden', !isSystem);
+        document.getElementById('r-description').value = role?.description || '';
+        document.getElementById('r-active').checked = role ? role.isActive : true;
+        document.getElementById('r-active').disabled = isSystem;
+        document.getElementById('r-admin-hint').classList.toggle('hidden', !isAdminRole);
+
+        fillParentSelect(role);
+        // Bảng tick hiện quyền RIÊNG của vai trò, không gộp quyền cha vào: gộp rồi lưu lại là quyền cha bị
+        // sao chép cứng vào con, sau này Admin sửa quyền cha thì con không nhận được thay đổi nữa.
+        setPermissionMatrix('r-function', role?.functionKeys, isAdminRole);
+        openModal('modal-role');
+    }
+
+    async function save(e) {
+        e.preventDefault();
+        const id = document.getElementById('r-id').value;
+
+        const body = {
+            name: document.getElementById('r-name').value.trim(),
+            description: document.getElementById('r-description').value.trim() || null,
+            functionKeys: getPermissionMatrix('r-function'),
+            isActive: document.getElementById('r-active').checked,
+            parentRoleId: +document.getElementById('r-parent').value || null
+        };
+
+        try {
+            if (id) {
+                const result = await API.put(`/role/${id}`, body);
+                toastOk(result.message);
+            } else {
+                await API.post('/role', body);
+                toastOk(t('role.daLuuVaiTro', 'Đã lưu vai trò.'));
+                // Vai trò mới luôn là vai trò tự tạo — chuyển sang đúng tab chứa nó, nếu không người dùng
+                // bấm Lưu xong vẫn thấy y nguyên sáu dòng cũ và tưởng không lưu được.
+                goToCustomTab();
+            }
+            closeModal('modal-role');
+            load();
+        } catch (ex) { toastErr(ex.message); }
+    }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!-- File: wwwroot/pages/classroom-recap.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="classroom-recap.xemLaiBuoiHocHbELearning">Xem lại buổi học · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .recap-video { width: 100%; max-height: 480px; background: #000; border-radius: 10px; display: block; }
+        .recap-timeline { list-style: none; margin: 0; padding: 0; }
+        .recap-timeline li { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .recap-timeline li:last-child { border-bottom: none; }
+        .recap-timeline .time { color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .recap-timeline .msg b { color: var(--primary); }
+    </style>
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="card" style="margin-bottom:16px">
+            <div class="card-head"><h3 data-i18n="classroom-recap.banGhiBuoiHoc" id="rc-title">Bản ghi buổi học</h3></div>
+            <div class="card-body">
+                <div id="rc-recording-area"></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-head"><h3 data-i18n="classroom-recap.dienBienBuoiHoc">Diễn biến buổi học</h3></div>
+            <div class="card-body">
+                <ul class="recap-timeline" id="rc-timeline"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'online-class.view')) return;
+    mountLayout('online-class', t('classroom.dangTai', 'Đang tải...'), '');
+
+    const roomId = parseInt(qs('id') || '0', 10);
+    if (!roomId) { location.href = '/pages/online-class.html'; return; }
+
+    try {
+        const room = await API.get(`/onlineclassroom/${roomId}`);
+        document.querySelector('.topbar h1').textContent = room.title;
+        document.querySelector('.topbar .sub')?.remove();
+        document.querySelector('.topbar h1').insertAdjacentHTML('afterend',
+            `<div class="sub">${esc(formatDate(room.actualStartAt || room.scheduledStart, true))} · Chủ trì: ${esc(room.hostUserName)}</div>`);
+    } catch (ex) {
+        document.getElementById('rc-title').textContent = ex.message;
+        return;
+    }
+
+    await loadRecording();
+    await loadTimeline();
+
+    async function loadRecording() {
+        const area = document.getElementById('rc-recording-area');
+        area.innerHTML = skeletonHtml('block', { height: '260px' });
+        try {
+            const list = await API.get(`/onlineclassroom/${roomId}/recordings`);
+            if (!list.length) {
+                area.innerHTML = emptyHtml(t('classroom-recap.buoiHocNayChuaCoBanGhiVideo', 'Buổi học này chưa có bản ghi video.'), '<i class="ph ph-video-camera-slash"></i>');
+                return;
+            }
+            area.innerHTML = list.map(r => `
+                <div style="margin-bottom:16px">
+                    <video class="recap-video" controls preload="metadata" src="${esc(r.fileUrl)}"></video>
+                    <div class="small muted" style="margin-top:6px">
+                        Ghi bởi ${esc(r.recordedByUserName)} · ${formatDate(r.createdAt, true)} · ${formatFileSize(r.fileSizeBytes)}
+                    </div>
+                </div>`).join('');
+        } catch (ex) {
+            area.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        }
+    }
+
+    async function loadTimeline() {
+        const list = document.getElementById('rc-timeline');
+        list.innerHTML = `<li>${skeletonHtml('list', { count: 4, avatar: false })}</li>`;
+        try {
+            const events = await API.get(`/onlineclassroom/${roomId}/events`);
+            list.innerHTML = events.length
+                ? events.map(eventHtml).join('')
+                : `<li>${emptyHtml(t('classroom-recap.chuaCoDienBienNaoDuocGhiLai', 'Chưa có diễn biến nào được ghi lại.'))}</li>`;
+        } catch (ex) {
+            list.innerHTML = `<li>${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</li>`;
+        }
+    }
+
+    function eventHtml(e) {
+        const labelMap = {
+            Started: t('classroom-recap.buoiHocBatDau', 'Buổi học bắt đầu'),
+            Ended: t('classroom-recap.buoiHocKetThuc', 'Buổi học kết thúc'),
+            Joined: `${esc(e.userName)} đã vào phòng`,
+            Left: `${esc(e.userName)} đã rời phòng`,
+            ChatMessage: `<b>${esc(e.userName)}</b>: ${esc(e.message)}`,
+            MicOn: `${esc(e.userName)} bật mic`,
+            MicOff: `${esc(e.userName)} tắt mic`,
+            CamOn: `${esc(e.userName)} bật camera`,
+            CamOff: `${esc(e.userName)} tắt camera`
+        };
+        return `<li>
+            <span class="time">${formatDate(e.createdAt, true)}</span>
+            <span class="msg">${labelMap[e.eventType] || esc(e.eventType)}</span>
+        </li>`;
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes) return '0 KB';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let value = bytes, i = 0;
+        while (value >= 1024 && i < units.length - 1) { value /= 1024; i++; }
+        return `${value.toFixed(1)} ${units[i]}`;
+    }
+})();
+</script>
+</body>
+</html>

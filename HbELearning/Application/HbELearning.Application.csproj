@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Lớp tình huống sử dụng: DTO, cổng (interface) và nghiệp vụ điều phối.
+       Chỉ được tham chiếu Domain. Muốn chạm vào database thì đi qua IAppDbContext, KHÔNG dùng
+       AppDbContext — lớp này không nhìn thấy Infrastructure, và đó là chủ đích. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HbELearning.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Domain\HbELearning.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Chỉ phần trừu tượng của EF Core (DbSet, Include, ToListAsync...) để khai báo IAppDbContext.
+         KHÔNG kéo theo provider (SqlServer/Sqlite/Oracle) — chọn provider là việc của Infrastructure. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- CỐ Ý KHÔNG tham chiếu framework ASP.NET Core (Microsoft.AspNetCore.App). Lớp này không được biết tới
+         HTTP: tệp tải lên là FileUpload, người dùng hiện tại là ICurrentUser, luồng sự kiện là IEventStream.
+         Chỉ dùng các gói TRỪU TƯỢNG của nền tảng .NET — không gói nào kéo theo máy chủ web. -->
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.*" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.*" />
+  </ItemGroup>
+
+</Project>

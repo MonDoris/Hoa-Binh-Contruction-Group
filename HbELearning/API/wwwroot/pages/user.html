@@ -1,0 +1,460 @@
+<!-- File: wwwroot/pages/user.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="user.nguoiDungHbELearning">Người dùng · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="card">
+            <div class="card-head">
+                <div class="flex">
+                    <input type="search" id="keyword" data-i18n-ph="user.timTheoTenEmailMaNvPhongBanViT" placeholder="Tìm theo tên, email, mã NV, phòng ban, vị trí..." style="width:260px">
+                    <select id="f-department" aria-label="Lọc theo phòng ban" style="width:180px"><option data-i18n="user.tatCaPhongBan" value="">Tất cả phòng ban</option></select>
+                    <select id="f-role" aria-label="Lọc theo vai trò" style="width:150px"><option data-i18n="user.tatCaVaiTro" value="">Tất cả vai trò</option></select>
+                </div>
+            </div>
+            <div class="table-wrap"><table>
+                <thead><tr><th data-i18n="user.maNv">Mã NV</th><th data-i18n="user.hoTen">Họ tên</th><th>Email</th><th data-i18n="index.role">Vai trò</th>
+                    <th data-i18n="account.phongBan">Phòng ban</th><th data-i18n="report.viTri">Vị trí</th><th data-i18n="dashboard.colStatus">Trạng thái</th><th class="text-right"></th></tr></thead>
+                <tbody id="tbody"></tbody>
+            </table></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-user">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="user.themNguoiDung" id="modal-title">Thêm người dùng</h3>
+            <button class="close-x" onclick="closeModal('modal-user')">×</button></div>
+        <form id="user-form">
+            <div class="modal-body">
+                <input type="hidden" id="u-id">
+                <input type="hidden" id="u-avatar">
+
+                <div class="form-section"><i class="ph-fill ph-user-circle"></i> <span data-i18n="user.thongTinCaNhan">Thông tin cá nhân</span></div>
+
+                <div class="form-avatar-row">
+                    <label class="form-avatar-pick" data-i18n-title="account.doiAnhDaiDien" title="Đổi ảnh đại diện">
+                        <span class="avatar" id="u-avatar-preview">?</span>
+                        <span class="edit"><i class="ph-bold ph-camera"></i></span>
+                        <input type="file" id="u-avatar-file" accept=".png,.jpg,.jpeg,.webp">
+                    </label>
+                    <div class="form-avatar-info">
+                        <b data-i18n="user.anhDaiDien">Ảnh đại diện</b>
+                        <div class="hint" id="u-avatar-hint" data-i18n="user.anhDaiDienHint">Bấm vào vòng tròn để chọn ảnh. Bỏ trống thì hệ thống hiện chữ cái đầu của tên.</div>
+                        <button type="button" id="u-avatar-clear" class="hidden" data-i18n="user.goAnh">Gỡ ảnh</button>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="field"><label data-i18n="account.hoVaTen" for="u-name">Họ và tên *</label><input id="u-name" required maxlength="150"></div>
+                    <div class="field"><label data-i18n="account.soDienThoai" for="u-phone">Số điện thoại</label><input id="u-phone" maxlength="20"></div>
+                </div>
+
+                <div class="form-section"><i class="ph-fill ph-sign-in"></i> <span data-i18n="user.thongTinDangNhap">Thông tin đăng nhập</span></div>
+                <div class="row">
+                    <div class="field"><label for="u-email">Email *</label><input type="email" id="u-email" required maxlength="150"></div>
+                    <div class="field" id="password-field"><label data-i18n="user.matKhau" for="u-password">Mật khẩu *</label><input type="password" id="u-password" minlength="6">
+                        <div data-i18n="account.toiThieu6KyTu" class="hint">Tối thiểu 6 ký tự.</div></div>
+                </div>
+                <div class="field"><label data-i18n="user.tenTaiKhoan" for="u-username">Tên tài khoản</label>
+                    <input id="u-username" maxlength="50" spellcheck="false" autocapitalize="none" autocomplete="off">
+                    <div data-i18n="user.tenTaiKhoanHint" class="hint">Không bắt buộc. Có đặt thì người này đăng nhập được bằng tên tài khoản thay cho email. Dài 3–50 ký tự, chỉ gồm chữ không dấu, chữ số và các ký tự . _ - (không dùng dấu @).</div></div>
+
+                <div class="form-section"><i class="ph-fill ph-buildings"></i> <span data-i18n="user.viTriTrongToChuc">Vị trí trong tổ chức</span></div>
+                <div class="row">
+                    <div class="field"><label data-i18n="account.phongBan" for="u-department">Phòng ban</label><select id="u-department"></select></div>
+                    <div class="field"><label data-i18n="account.viTriCongViec" for="u-position">Vị trí công việc</label><select id="u-position"></select></div>
+                </div>
+                <div class="field"><label data-i18n="user.vaiTro" for="u-role">Vai trò *</label><select id="u-role" required></select></div>
+
+                <div class="form-section"><i class="ph-fill ph-shield-check"></i> <span data-i18n="user.chucNangDuocSuDung">Chức năng được sử dụng</span></div>
+                <div class="field">
+                    <div class="perm-list" id="u-function"></div>
+                    <div data-i18n="user.quyenTheoVaiTroDangChon" class="hint" id="u-function-hint">Đang hiện đúng quyền của vai trò vừa chọn. Bỏ tick để thu hẹp quyền của riêng người này; chức năng mờ là vai trò không có, muốn cấp thì phải sửa ở trang Vai trò &amp; Phân quyền.</div>
+                    <div data-i18n="user.vaiTroChuaCauHinhQuyen" class="hint hidden" id="u-function-none-hint">Vai trò này chưa được cấu hình quyền nào, nên hệ thống vẫn chặn theo tên vai trò như cũ. Hãy phân quyền cho vai trò ở trang Vai trò &amp; Phân quyền trước.</div>
+                </div>
+
+                <label class="check"><input type="checkbox" id="u-active" checked> Tài khoản đang hoạt động</label>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-user')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<input type="file" id="import-user-file" accept=".xlsx,.xlsm" hidden aria-label="Chọn tệp Excel danh sách người dùng">
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+const ROLE_BADGE_CLASS = {
+    'Admin': 'red',
+    'Tổng Giám Đốc': 'orange',
+    'Giám Đốc': 'green',
+    'Trưởng phòng': 'blue',
+    'Trưởng Nhóm': 'cyan',
+    'Học Viên': 'gray'
+};
+function roleBadgeClass(roleName) { return ROLE_BADGE_CLASS[roleName] || 'gray'; }
+
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.require(['Admin'], 'user.view')) return;
+    mountLayout('user', t('user.quanLyNguoiDung', 'Quản lý người dùng'), t('user.taiKhoanVaPhanQuyenTruyCapHeTh', 'Tài khoản và phân quyền truy cập hệ thống'));
+    // Chỉ hiện nút thao tác mà vai trò thực sự được cấp — tránh bấm vào rồi nhận lỗi 403 từ API.
+    const canCreate = Auth.can('user.create') ?? true;
+    const canUpdate = Auth.can('user.update') ?? true;
+    const canDelete = Auth.can('user.delete') ?? true;
+
+    if (canCreate)
+        setTopbarAction(`
+            <button class="btn ghost" id="btn-user-template">
+                <i class="ph ph-download-simple"></i> <span data-i18n="import.taiFileMau">Tải file mẫu</span></button>
+            <button class="btn ghost" id="btn-user-import">
+                <i class="ph ph-upload-simple"></i> <span data-i18n="import.importExcel">Import Excel</span></button>
+            <button data-i18n="user.themNguoiDung2" class="btn" id="btn-new">+ Thêm người dùng</button>`);
+
+    const tbody = document.getElementById('tbody');
+    let roleList = [], departmentList = [], positionList = [], currentList = [], timer = null;
+    // Quyền cấp riêng ĐÃ LƯU của người đang mở (null = kế thừa vai trò). Giữ lại để lúc đổi vai trò
+    // trong biểu mẫu còn biết phần thu hẹp nào là do Admin cố ý, phần nào chỉ là quyền vai trò cũ.
+    let editingFunctionKeys = null;
+
+    [roleList, departmentList, positionList] = await Promise.all([
+        API.get('/auth/role'), API.get('/department'), API.get('/position')
+    ]);
+    await ensureRolePermission();
+
+    fillSelect('f-department', departmentList, t('user.tatCaPhongBan', 'Tất cả phòng ban'));
+    fillSelect('f-role', roleList, t('user.tatCaVaiTro', 'Tất cả vai trò'));
+    fillSelect('u-role', roleList, null);
+    fillSelect('u-department', departmentList, t('organization.khongChon', '— Không chọn —'));
+    fillSelect('u-position', positionList, t('organization.khongChon', '— Không chọn —'));
+    renderPermissionMatrix('u-function');
+    bindPermissionMatrix('u-function');
+
+    attachPasswordEye(document.getElementById('u-password'));
+    attachPasswordStrength(document.getElementById('u-password'));
+
+    document.getElementById('btn-new')?.addEventListener('click', () => openForm());
+    document.getElementById('user-form').addEventListener('submit', save);
+
+    bindExcelImport({
+        templateId: 'btn-user-template', importId: 'btn-user-import', fileId: 'import-user-file',
+        templatePath: '/user/import/template', importPath: '/user/import',
+        fileName: 'Mau_Import_NguoiDung.xlsx',
+        onDone: () => load(),
+    });
+
+    document.getElementById('u-avatar-file').addEventListener('change', uploadUserAvatar);
+    document.getElementById('u-avatar-clear').addEventListener('click', () => {
+        document.getElementById('u-avatar').value = '';
+        refreshAvatarPreview();
+    });
+    // Chưa có ảnh thì vòng tròn hiện chữ cái đầu của tên — gõ tên tới đâu đổi tới đó.
+    document.getElementById('u-name').addEventListener('input', () => {
+        if (!document.getElementById('u-avatar').value) refreshAvatarPreview();
+    });
+    ['f-department', 'f-role'].forEach(id => document.getElementById(id).addEventListener('change', load));
+
+    enhanceSearchableSelect(document.getElementById('f-department'),
+            { placeholder: t('course.goTenPhongBan', 'Gõ tên hoặc mã phòng ban...') });
+    enhanceSearchableSelect(document.getElementById('f-role'),
+            { placeholder: t('course-detail.goTenViTri', 'Gõ tên vị trí...') });
+
+
+    // Đổi vai trò là đổi luôn bộ quyền nền — vẽ lại ngay để Admin thấy vai trò mới cho phép những gì.
+    document.getElementById('u-role').addEventListener('change', () => setFunctionPermission(editingFunctionKeys));
+    document.getElementById('keyword').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(load, 350); });
+
+    await load();
+
+    /**
+     * Bảo đảm mỗi vai trò trong roleList có kèm functionKeys — bảng tick quyền bên dưới dựa vào đó.
+     *
+     * /auth/role trả sẵn quyền, nhưng chỉ từ bản backend có RoleDto.FunctionKeys. Chạy trên bản cũ hơn
+     * thì payload không có trường này và cả bảng tick sẽ tưởng mọi vai trò đều chưa cấu hình quyền —
+     * nên lấy bổ sung từ /role. Kiểm tra bằng 'functionKeys' in ... chứ không phải giá trị khác null,
+     * để phân biệt "backend cũ" với "backend mới, vai trò thật sự chưa được cấp quyền nào".
+     */
+    async function ensureRolePermission() {
+        if (!roleList.length || 'functionKeys' in roleList[0]) return;
+
+        try {
+            const detailList = await API.get('/role');
+            const keysById = new Map(detailList.map(r => [r.id, r.functionKeys ?? null]));
+            roleList = roleList.map(r => ({ ...r, functionKeys: keysById.get(r.id) ?? null }));
+        } catch {
+            // Không đọc được danh mục vai trò thì cứ để trống: bảng tick mở khóa toàn bộ và hiện lời
+            // nhắc "vai trò chưa cấu hình quyền" — thà vậy còn hơn chặn luôn cả biểu mẫu người dùng.
+        }
+    }
+
+    function fillSelect(id, list, placeholder) {
+        const el = document.getElementById(id);
+        el.innerHTML = (placeholder ? `<option value="">${placeholder}</option>` : '')
+            // Vai trò kế thừa được thụt vào dưới vai trò cha (danh sách đã xếp sẵn theo cây ở server) —
+            // nhìn là biết ngay "Trưởng phòng IT" thuộc nhánh "Trưởng phòng", và lọc theo cha sẽ ra cả nhánh.
+            + list.map(x => `<option value="${x.id}">${x.parentRoleId ? '  └─ ' : ''}${esc(x.name)}</option>`).join('');
+    }
+
+    /** Vai trò đang chọn trong biểu mẫu. */
+    function selectedRole() {
+        return roleList.find(r => r.id == document.getElementById('u-role').value);
+    }
+
+    /** Bảng tick quyền dùng chung với trang Vai trò — xem setUserPermissionMatrix() trong js/app.js. */
+    function setFunctionPermission(raw) {
+        const roleConfigured = setUserPermissionMatrix('u-function', selectedRole()?.functionKeys, raw);
+        document.getElementById('u-function-hint').classList.toggle('hidden', !roleConfigured);
+        document.getElementById('u-function-none-hint').classList.toggle('hidden', roleConfigured);
+    }
+
+    /**
+     * Quyền riêng để gửi đi. Tick đúng bằng trọn bộ quyền vai trò = KHÔNG thu hẹp gì, nên lưu null
+     * thay vì lưu một bản sao: về sau vai trò được cấp thêm quyền thì người này được theo, chứ không
+     * bị đóng băng ở bộ quyền của ngày hôm nay.
+     */
+    function getFunctionPermission() {
+        const picked = getPermissionMatrix('u-function');
+        const roleKeyList = functionKeyList(selectedRole()?.functionKeys);
+        if (!roleKeyList.length) return picked;
+
+        const pickedList = functionKeyList(picked);
+        const sameAsRole = pickedList.length === roleKeyList.length
+            && roleKeyList.every(x => pickedList.includes(x));
+
+        return sameAsRole ? null : picked;
+    }
+
+    async function load() {
+        tbody.innerHTML = skeletonHtml('table', { rows: 6, cols: 8 });
+        const query = new URLSearchParams({ page: 1, pageSize: 200 });
+        const keyword = document.getElementById('keyword').value.trim();
+        const departmentId = document.getElementById('f-department').value;
+        const roleId = document.getElementById('f-role').value;
+        if (keyword) query.set('keyword', keyword);
+        if (departmentId) query.set('departmentId', departmentId);
+        if (roleId) query.set('roleId', roleId);
+
+        try {
+            const result = await API.get(`/user?${query}`);
+            currentList = result.item;
+            tbody.innerHTML = currentList.length ? currentList.map(u => `
+                <tr>
+                    <td><code>${esc(u.employeeCode)}</code></td>
+                    <td><b>${esc(u.fullName)}</b></td>
+                    <td class="small">${esc(u.email)}</td>
+                    <td><span class="badge ${roleBadgeClass(u.roleName)}">${esc(u.roleName)}</span></td>
+                    <td class="small">${esc(u.departmentName || '—')}</td>
+                    <td class="small">${esc(u.positionName || '—')}</td>
+                    <td>
+                        ${u.isActive ? '<span data-i18n="organization.hoatDong" class="badge green">Hoạt động</span>' : '<span data-i18n="user.daKhoa" class="badge gray">Đã khóa</span>'}
+                        ${u.isLockedOut ? `<span data-i18n="user.khoaDangNhap" class="badge red" style="margin-top:12px" title="${esc(t('user.khoaDangNhapTitle', 'Gõ sai mật khẩu quá số lần cho phép — bấm "Mở khóa" để cho đăng nhập lại.'))}">Khóa đăng nhập</span>` : ''}
+                    </td>
+                    <td class="text-right nowrap">
+                        ${canUpdate ? `<button data-i18n="common.edit" class="btn ghost sm" data-edit="${u.id}" style="background-color: yellow">Sửa</button>` : ''}
+                        ${canUpdate && u.isLockedOut ? `<button data-i18n="user.moKhoa" class="btn ghost sm" data-unlock="${u.id}" style="background-color: #16a34a; color: white">Mở khóa</button>` : ''}
+                        ${canUpdate ? `<button class="btn ghost sm" data-reset="${u.id}" style="background-color: orange">Reset MK</button>` : ''}
+                        ${canUpdate && u.isActive ? `<button data-i18n="user.khoa" class="btn ghost sm" data-off="${u.id}" style="background-color: red; color: white">Khóa</button>` : ''}
+                        ${canDelete ? `<button data-i18n="common.delete" class="btn danger sm" data-del="${u.id}">Xóa</button>` : ''}
+                    </td>
+                </tr>`).join('') : `<tr><td colspan="8">${emptyHtml(t('user.khongTimThayNguoiDung', 'Không tìm thấy người dùng.'), '<i class="ph ph-users"></i>')}</td></tr>`;
+            bind();
+        } catch (ex) {
+            tbody.innerHTML = `<tr><td colspan="8">${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</td></tr>`;
+        }
+    }
+
+    function generateRandomPassword(length = 12) {
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    
+    // 1. Tạo một mảng (TypedArray) chứa 'length' phần tử số nguyên 32-bit không dấu
+    const randomValues = new Uint32Array(length);
+    
+    // 2. Yêu cầu trình duyệt điền các giá trị ngẫu nhiên thực sự vào mảng này
+    window.crypto.getRandomValues(randomValues);
+    
+    // 3. Chuyển đổi các con số ngẫu nhiên thành ký tự trong charset
+    for (let i = 0; i < length; i++) {
+        // Dùng phép chia lấy dư (%) để đảm bảo index luôn nằm trong giới hạn chiều dài của charset
+        const randomIndex = randomValues[i] % charset.length;
+        password += charset[randomIndex];
+    }
+    
+    return password;
+}
+
+    function bind() {
+        tbody.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', async () =>
+            openForm(await API.get(`/user/${b.dataset.edit}`))));
+
+        tbody.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', async () => {
+            // 1. Tạo mật khẩu ngẫu nhiên
+            const newPassword = generateRandomPassword(12);
+            
+            // 2. Hiển thị mật khẩu mới trong câu hỏi xác nhận để Admin biết trước
+            if (!await confirmDialog(`Bạn có muốn đặt lại mật khẩu ngẫu nhiên thành: ${newPassword}`, { okText: t('user.datLai', 'Đặt lại') })) return;
+            
+            try {
+                // 3. Gửi mật khẩu mới xuống backend — key phải khớp đúng "newPassword" (AdminResetPasswordRequest.NewPassword ở UserController).
+                const response = await API.post(`/user/${b.dataset.reset}/reset-password`, { newPassword });
+
+                // 4. response.message do backend trả về đã chứa đúng mật khẩu vừa lưu (Quan trọng để copy lại nếu lỡ quên).
+                toastOk(response.message);
+            }
+            catch (ex) { toastErr(ex.message); }
+        }));
+
+        // Mở khóa cho người gõ sai mật khẩu quá số lần cho phép — KHÔNG đổi mật khẩu, họ đăng nhập lại
+        // bằng đúng mật khẩu cũ. Ai quên hẳn mật khẩu thì dùng "Reset MK", nút đó mở khóa luôn.
+        tbody.querySelectorAll('[data-unlock]').forEach(b => b.addEventListener('click', async () => {
+            if (!await confirmDialog(t('user.moKhoaDangNhapChoTaiKhoanNay', 'Mở khóa đăng nhập cho tài khoản này? Mật khẩu giữ nguyên như cũ.'), { okText: t('user.moKhoa', 'Mở khóa') })) return;
+            try { toastOk((await API.post(`/user/${b.dataset.unlock}/unlock`)).message); load(); }
+            catch (ex) { toastErr(ex.message); }
+        }));
+
+        tbody.querySelectorAll('[data-off]').forEach(b => b.addEventListener('click', async () => {
+            if (!await confirmDialog(t('user.khoaTaiKhoanNayLichSuHocTapVan', 'Khóa tài khoản này? Lịch sử học tập vẫn được giữ lại.'), { danger: true, okText: t('user.khoaTaiKhoan', 'Khóa tài khoản') })) return;
+            try { toastOk((await API.del(`/user/${b.dataset.off}`)).message); load(); }
+            catch (ex) { toastErr(ex.message); }
+        }));
+
+        tbody.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+            if (!await confirmDialog(t('user.xoaVinhVienTaiKhoanNayChiThucH', 'Xóa vĩnh viễn tài khoản này? Chỉ thực hiện được nếu tài khoản chưa có dữ liệu hoạt động nào (khóa học, phân công, duyệt nội dung...) — nếu đã có, hãy dùng "Khóa" thay vì Xóa.'), { danger: true, okText: t('user.xoaVinhVien', 'Xóa vĩnh viễn') })) return;
+            try { toastOk((await API.del(`/user/${b.dataset.del}/permanent`)).message); load(); }
+            catch (ex) { toastErr(ex.message); }
+        }));
+    }
+
+    function openForm(user) {
+        const isEdit = !!user;
+        document.getElementById('modal-title').textContent = isEdit ? 'Sửa người dùng' : t('user.themNguoiDung', 'Thêm người dùng');
+        document.getElementById('u-id').value = user?.id || '';
+        document.getElementById('u-name').value = user?.fullName || '';
+        document.getElementById('u-email').value = user?.email || '';
+        document.getElementById('u-email').disabled = isEdit;
+        // Tên tài khoản sửa được cả lúc thêm lẫn lúc sửa — khác email (khóa lại sau khi tạo) vì đây chỉ là
+        // một lối đăng nhập phụ, đổi hay gỡ đi cũng không ảnh hưởng dữ liệu học tập đã gắn với tài khoản.
+        document.getElementById('u-username').value = user?.userName || '';
+        document.getElementById('u-password').value = '';
+        document.getElementById('u-password').dispatchEvent(new Event('input'));
+        document.getElementById('u-password').required = !isEdit;
+        document.getElementById('password-field').classList.toggle('hidden', isEdit);
+        document.getElementById('u-department').value = user?.departmentId || '';
+        document.getElementById('u-position').value = user?.positionId || '';
+        document.getElementById('u-active').checked = true;
+
+        const role = roleList.find(r => r.name === user?.roleName);
+        document.getElementById('u-role').value = role?.id || roleList.at(-1)?.id || '';
+
+        document.getElementById('u-avatar').value = user?.avatarUrl || '';
+        refreshAvatarPreview();
+        
+
+        enhanceSearchableSelect(document.getElementById('u-department'),
+            { 
+                placeholder: t('course.goTenPhongBan', 'Gõ tên hoặc mã phòng ban...'),
+                maxHeight: '250px',
+                size: 5
+            });
+        enhanceSearchableSelect(document.getElementById('u-position'),
+            { placeholder: t('course-detail.goTenViTri', 'Gõ tên vị trí...') });
+
+        enhanceSearchableSelect(document.getElementById('u-role'),
+            { placeholder: t('course-detail.goTenViTri', 'Gõ tên vị trí...') });
+        
+        editingFunctionKeys = user?.functionKeys || null;
+        setFunctionPermission(editingFunctionKeys);
+        openModal('modal-user');
+    }
+
+    /** Vẽ lại vòng tròn ảnh: có ảnh thì hiện ảnh, chưa có thì hiện chữ cái đầu của tên đang gõ. */
+    function refreshAvatarPreview() {
+        const url = document.getElementById('u-avatar').value;
+        const box = document.getElementById('u-avatar-preview');
+
+        if (url) box.outerHTML = `<img class="avatar" id="u-avatar-preview" src="${esc(url)}" alt="">`;
+        else box.outerHTML = `<span class="avatar" id="u-avatar-preview">${esc(initial(document.getElementById('u-name').value))}</span>`;
+
+        document.getElementById('u-avatar-clear').classList.toggle('hidden', !url);
+    }
+
+    /** Tải ảnh lên NGAY khi chọn, không đợi bấm Lưu: người dùng thấy được ảnh mình vừa chọn trước khi lưu,
+     *  và biểu mẫu chỉ cần gửi đi một đường dẫn thay vì kèm cả tệp. */
+    async function uploadUserAvatar(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const hintEl = document.getElementById('u-avatar-hint');
+        const previousHint = hintEl.textContent;
+        hintEl.innerHTML = '<span class="spinner-inline"></span> Đang tải ảnh lên...';
+        try {
+            const uploaded = await API.upload(file, 'avatar');
+            document.getElementById('u-avatar').value = uploaded.url;
+            refreshAvatarPreview();
+            hintEl.textContent = previousHint;
+        } catch (ex) {
+            hintEl.textContent = previousHint;
+            toastErr(ex.message);
+        } finally {
+            // Xóa lựa chọn để chọn lại ĐÚNG tệp vừa rồi vẫn kích hoạt sự kiện change.
+            e.target.value = '';
+        }
+    }
+
+    async function save(e) {
+        e.preventDefault();
+        const id = document.getElementById('u-id').value;
+        const departmentId = document.getElementById('u-department').value;
+        const positionId = document.getElementById('u-position').value;
+
+        const common = {
+            fullName: document.getElementById('u-name').value.trim(),
+            userName: document.getElementById('u-username').value.trim() || null,
+            roleId: +document.getElementById('u-role').value,
+            departmentId: departmentId ? +departmentId : null,
+            positionId: positionId ? +positionId : null,
+            phoneNumber: document.getElementById('u-phone').value.trim() || null,
+            avatarUrl: document.getElementById('u-avatar').value || null,
+            functionKeys: getFunctionPermission()
+        };
+
+        try {
+            if (id) {
+                await API.put(`/user/${id}`, { ...common, isActive: document.getElementById('u-active').checked });
+            } else {
+                await API.post('/user', {
+                    ...common,
+                    email: document.getElementById('u-email').value.trim(),
+                    password: document.getElementById('u-password').value
+                });
+            }
+            toastOk(t('user.daLuuNguoiDung', 'Đã lưu người dùng.'));
+            closeModal('modal-user');
+            load();
+        } catch (ex) { toastErr(ex.message); }
+    }
+})();
+</script>
+</body>
+</html>

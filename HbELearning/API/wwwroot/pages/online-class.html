@@ -1,0 +1,347 @@
+<!-- File: wwwroot/pages/online-class.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="online-class.phongHocOnlineHbELearning">Phòng học online · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .otp-hint { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+        .otp-boxes { display: flex; gap: 8px; justify-content: center; margin-bottom: 6px; }
+        .otp-box {
+            width: 44px; height: 54px; text-align: center; font-size: 22px; font-weight: 700;
+            font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+            text-transform: uppercase; border: 1.5px solid var(--border); border-radius: 10px;
+            background: var(--bg); color: var(--text); transition: border-color .15s, box-shadow .15s, transform .1s;
+        }
+        .otp-box:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+        .otp-box.filled { border-color: var(--primary); background: var(--primary-light); }
+        .otp-error { font-size: 12px; color: var(--danger); text-align: center; min-height: 16px; margin-top: 8px; }
+        .join-code-cell { display: inline-flex; align-items: center; gap: 6px; }
+        .join-code-cell b {
+            font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; letter-spacing: 1px;
+            background: var(--primary-light); color: var(--primary-dark); padding: 3px 8px; border-radius: 6px; font-size: 12.5px;
+        }
+        .join-code-cell button { padding: 3px 7px; }
+        .room-modal-head { display: flex; align-items: center; gap: 14px; }
+        .room-modal-icon {
+            width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; font-size: 19px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .room-modal-head h3 { margin: 0 0 2px; }
+        .room-modal-head p { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+        #f-title { font-size: 15px; }
+    </style>
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="card">
+            <div class="card-head">
+                <div class="flex">
+                    <select id="filter-status" aria-label="Lọc theo trạng thái" style="width:180px">
+                        <option data-i18n="course.tatCaTrangThai" value="">Tất cả trạng thái</option>
+                        <option data-i18n="online-class.daLenLich" value="0">Đã lên lịch</option>
+                        <option data-i18n="online-class.dangDienRa" value="1">Đang diễn ra</option>
+                        <option data-i18n="online-class.daKetThuc" value="2">Đã kết thúc</option>
+                        <option data-i18n="online-class.daHuy" value="3">Đã hủy</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-wrap"><table>
+                <thead><tr>
+                    <th data-i18n="online-class.buoiHoc">Buổi học</th><th data-i18n="dashboard.colStatus">Trạng thái</th><th data-i18n="classroom.maPhong">Mã phòng</th>
+                    <th data-i18n="course-detail.thoiGian">Thời gian</th><th data-i18n="online-class.nguoiChuTri">Người chủ trì</th><th data-i18n="course.thaoTac" class="text-right">Thao tác</th>
+                </tr></thead>
+                <tbody id="tbody"></tbody>
+            </table></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-room">
+    <div class="modal">
+        <div class="modal-head">
+            <div class="room-modal-head">
+                <div class="room-modal-icon"><i class="ph ph-video-camera"></i></div>
+                <div>
+                    <h3 data-i18n="online-class.taoBuoiHocOnline" id="modal-title">Tạo buổi học online</h3>
+                    <p data-i18n="online-class.aiCungTaoDuocDungDeHopNhomHoac">Ai cũng tạo được — dùng để họp nhóm hoặc trò chuyện nhanh.</p>
+                </div>
+            </div>
+            <button class="close-x" onclick="closeModal('modal-room')">×</button>
+        </div>
+        <form id="room-form">
+            <div class="modal-body">
+                <input type="hidden" id="f-id">
+                <div class="field"><label for="f-title" data-i18n="online-class.tieuDe">Tiêu đề *</label><input id="f-title" required maxlength="250" data-i18n-ph="online-class.vdHopNhomTuanTraoDoiDuAn" placeholder="VD: Họp nhóm tuần, Trao đổi dự án..."></div>
+                <div class="row">
+                    <div class="field"><label for="f-start" data-i18n="online-class.batDau">Bắt đầu *</label><input type="datetime-local" id="f-start" required></div>
+                    <div class="field"><label for="f-end" data-i18n="online-class.ketThucDuKien">Kết thúc dự kiến</label><input type="datetime-local" id="f-end"></div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-room')">Hủy</button>
+                <button data-i18n="online-class.batDauNgay" type="button" class="btn success" id="btn-start-now">Bắt đầu ngay</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-join-code">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-head">
+            <h3 data-i18n="online-class.nhapMaPhong">Nhập mã phòng</h3>
+            <button class="close-x" type="button" onclick="closeModal('modal-join-code')">×</button>
+        </div>
+        <div class="modal-body">
+            <div data-i18n="online-class.nhapMaPhongDoNguoiChuTriCungCa" class="otp-hint">Nhập mã phòng do người chủ trì cung cấp:</div>
+            <div class="otp-boxes" id="otp-boxes">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
+            </div>
+            <div class="otp-error" id="otp-error"></div>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-join-code')">Hủy</button>
+            <button data-i18n="online-class.vaoPhong" type="button" class="btn" id="btn-join-code-submit">Vào phòng</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'online-class.view')) return;
+    mountLayout('online-class', t('menu.online-class', 'Phòng học online'), t('online-class.lichCacBuoiDaoTaoTrucTuyen', 'Lịch các buổi đào tạo trực tuyến'));
+
+    // Mọi vai trò trừ Admin đều tạo được phòng học online — Admin chỉ quản trị hệ thống, không trực tiếp tổ chức buổi học.
+    const canManage = !Auth.isAdmin;
+    setTopbarAction(
+        (canManage ? '<button data-i18n="online-class.taoBuoiHoc" class="btn" id="btn-new">+ Tạo buổi học</button>' : '') +
+        '<button class="btn ghost" id="btn-join-code" style="margin-left:8px"><i class="ph ph-keyhole"></i> <span data-i18n="online-class.nhapMaPhong">Nhập mã phòng</span></button>');
+    document.getElementById('btn-join-code').addEventListener('click', openJoinCodeModal);
+    document.getElementById('btn-join-code-submit').addEventListener('click', submitJoinCode);
+    setupOtpBoxes();
+
+    const tbody = document.getElementById('tbody');
+
+    if (canManage) document.getElementById('btn-new').addEventListener('click', () => openForm());
+    document.getElementById('filter-status').addEventListener('change', load);
+    document.getElementById('room-form').addEventListener('submit', save);
+    document.getElementById('btn-start-now').addEventListener('click', startNow);
+
+    await load();
+
+    async function load() {
+        tbody.innerHTML = skeletonHtml('table', { rows: 5, cols: 6 });
+        const status = document.getElementById('filter-status').value;
+        const query = status !== '' ? `?status=${status}` : '';
+
+        try {
+            const list = await API.get(`/onlineclassroom${query}`);
+            tbody.innerHTML = list.length ? list.map(rowHtml).join('')
+                : `<tr><td colspan="6">${emptyHtml(t('online-class.chuaCoBuoiHocOnlineNao', 'Chưa có buổi học online nào.'), '<i class="ph ph-video-camera"></i>')}</td></tr>`;
+            bindRow(list);
+        } catch (ex) {
+            tbody.innerHTML = `<tr><td colspan="6">${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</td></tr>`;
+        }
+    }
+
+    function rowHtml(r) {
+        const isHost = r.hostUserId === Auth.profile?.id;
+        const canEdit = r.status === 'Scheduled' && (Auth.isAdmin || isHost);
+        // Chỉ chủ trì/Admin vào thẳng được không cần mã — người khác dù thấy buổi học trong danh sách này
+        // cũng phải có mã phòng (hoặc liên kết mời kèm mã) do chủ trì chia sẻ mới vào được (ClassRoomHub.JoinRoom).
+        const canJoinDirect = Auth.isAdmin || isHost;
+
+        let joinBtn = '';
+        if (r.status === 'Live' && canJoinDirect)
+            joinBtn = `<a data-i18n="online-class.vaoPhong" class="btn sm" href="/pages/classroom.html?id=${r.id}">Vào phòng</a>`;
+        else if (r.status === 'Scheduled' && isHost)
+            joinBtn = `<a data-i18n="my-course.batDau" class="btn sm" href="/pages/classroom.html?id=${r.id}">Bắt đầu</a>`;
+        else if (r.status === 'Ended')
+            joinBtn = `<a data-i18n="online-class.xemLai" class="btn ghost sm" href="/pages/classroom-recap.html?id=${r.id}">Xem lại</a>`;
+
+        // r.joinCode chỉ khác null với chủ trì/Admin (backend không lộ mã cho người khác) — hiện kèm nút sao
+        // chép liên kết mời để họ gửi cho người tham gia.
+        const codeHtml = r.joinCode && (r.status === 'Scheduled' || r.status === 'Live')
+            ? `<div class="join-code-cell"><b>${esc(r.joinCode)}</b>
+                <button type="button" class="btn ghost sm" data-copy-link="${r.id}" data-code="${esc(r.joinCode)}" data-i18n-title="classroom.saoChepLienKetMoi" title="Sao chép liên kết mời"><i class="ph ph-copy"></i></button></div>`
+            : '<span class="small muted">—</span>';
+
+        return `<tr>
+            <td><b>${esc(r.title)}</b></td>
+            <td>${statusBadge(r.status)}</td>
+            <td class="small">${codeHtml}</td>
+            <td class="small nowrap">${formatDate(r.scheduledStart, true)}${r.scheduledEnd ? ' — ' + formatDate(r.scheduledEnd, true) : ''}</td>
+            <td class="small">${esc(r.hostUserName)}</td>
+            <td class="text-right nowrap">
+                ${joinBtn}
+                ${canEdit ? `<button data-i18n="common.edit" class="btn ghost sm" data-edit="${r.id}" style="background-color: yellow">Sửa</button>` : ''}
+                ${canEdit ? `<button data-i18n="common.cancel" class="btn ghost sm" data-cancel="${r.id}" style="background-color: orange; color: white">Hủy</button>` : ''}
+                ${Auth.isAdmin && r.status !== 'Live' ? `<button data-i18n="common.delete" class="btn ghost sm" data-del="${r.id}" style="background-color: red; color: white">Xóa</button>` : ''}
+            </td>
+        </tr>`;
+    }
+
+    function bindRow(list) {
+        tbody.querySelectorAll('[data-edit]').forEach(b =>
+            b.addEventListener('click', () => openForm(list.find(x => x.id == b.dataset.edit))));
+
+        tbody.querySelectorAll('[data-cancel]').forEach(b =>
+            b.addEventListener('click', async () => {
+                if (!await confirmDialog(t('online-class.huyBuoiHocNay', 'Hủy buổi học này?'), { danger: true, okText: t('online-class.huyBuoiHoc', 'Hủy buổi học') })) return;
+                try { const r = await API.post(`/onlineclassroom/${b.dataset.cancel}/cancel`); toastOk(r.message); load(); }
+                catch (ex) { toastErr(ex.message); }
+            }));
+
+        tbody.querySelectorAll('[data-del]').forEach(b =>
+            b.addEventListener('click', async () => {
+                if (!await confirmDialog(t('online-class.xoaBuoiHocNay', 'Xóa buổi học này?'), { danger: true, okText: t('common.delete', 'Xóa') })) return;
+                try { const r = await API.del(`/onlineclassroom/${b.dataset.del}`); toastOk(r.message); load(); }
+                catch (ex) { toastErr(ex.message); }
+            }));
+
+        tbody.querySelectorAll('[data-copy-link]').forEach(b =>
+            b.addEventListener('click', async () => {
+                const link = `${location.origin}/pages/classroom.html?id=${b.dataset.copyLink}&code=${encodeURIComponent(b.dataset.code)}`;
+                try { await navigator.clipboard.writeText(link); toastOk(t('classroom.daSaoChepLienKetMoiVaoPhong', 'Đã sao chép liên kết mời vào phòng.')); }
+                catch { toastErr(t('classroom.khongSaoChepDuocTrinhDuyetChan', 'Không sao chép được — trình duyệt chặn quyền truy cập clipboard.')); }
+            }));
+    }
+
+    function openForm(room) {
+        document.getElementById('modal-title').textContent = room ? 'Sửa buổi học' : t('online-class.taoBuoiHocOnline', 'Tạo buổi học online');
+        document.getElementById('f-id').value = room?.id || '';
+        document.getElementById('f-title').value = room?.title || '';
+        document.getElementById('f-start').value = room?.scheduledStart ? toLocalInput(room.scheduledStart) : '';
+        document.getElementById('f-end').value = room?.scheduledEnd ? toLocalInput(room.scheduledEnd) : '';
+        openModal('modal-room');
+    }
+
+    /** ISO -> "yyyy-MM-ddTHH:mm" cho input datetime-local (theo giờ địa phương). */
+    function toLocalInput(iso) {
+        const d = new Date(iso);
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    async function save(e) {
+        e.preventDefault();
+        const id = document.getElementById('f-id').value;
+        const end = document.getElementById('f-end').value;
+
+        const body = {
+            title: document.getElementById('f-title').value.trim(),
+            scheduledStart: document.getElementById('f-start').value,
+            scheduledEnd: end || null
+        };
+
+        try {
+            if (id) await API.put(`/onlineclassroom/${id}`, body);
+            else await API.post('/onlineclassroom', body);
+            toastOk(t('online-class.daLuuBuoiHoc', 'Đã lưu buổi học.'));
+            closeModal('modal-room');
+            load();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    /** Tạo/lưu buổi học với thời gian bắt đầu = ngay bây giờ rồi vào thẳng phòng học với vai trò chủ trì. */
+    async function startNow() {
+        const titleInput = document.getElementById('f-title');
+        if (!titleInput.value.trim()) { toastErr(t('online-class.vuiLongNhapTieuDe', 'Vui lòng nhập tiêu đề.')); titleInput.focus(); return; }
+
+        document.getElementById('f-start').value = toLocalInput(new Date().toISOString());
+
+        const id = document.getElementById('f-id').value;
+        const body = {
+            title: titleInput.value.trim(),
+            scheduledStart: document.getElementById('f-start').value,
+            scheduledEnd: document.getElementById('f-end').value || null
+        };
+
+        try {
+            let roomId = id;
+            if (id) await API.put(`/onlineclassroom/${id}`, body);
+            else roomId = (await API.post('/onlineclassroom', body)).id;
+
+            closeModal('modal-room');
+            location.href = `/pages/classroom.html?id=${roomId}`;
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    /** Vào phòng bằng mã tham gia (do chủ trì chia sẻ riêng) — không cần buổi học đó nằm trong danh sách này.
+     * Mã phòng luôn đúng 6 ký tự (xem GenerateUniqueJoinCodeAsync ở backend) nên dùng 6 ô nhập kiểu OTP,
+     * gõ tới đâu tự nhảy ô kế tiếp tới đó, gõ xong ô cuối tự vào phòng luôn cho nhanh. */
+    function openJoinCodeModal() {
+        const boxes = document.querySelectorAll('#otp-boxes .otp-box');
+        boxes.forEach(b => { b.value = ''; b.classList.remove('filled'); });
+        document.getElementById('otp-error').textContent = '';
+        openModal('modal-join-code');
+        boxes[0]?.focus();
+    }
+
+    function setupOtpBoxes() {
+        const boxes = [...document.querySelectorAll('#otp-boxes .otp-box')];
+        boxes.forEach((box, i) => {
+            box.addEventListener('input', () => {
+                box.value = box.value.replace(/[^0-9]/g, '').slice(-1);
+                box.classList.toggle('filled', !!box.value);
+                if (box.value && i < boxes.length - 1) boxes[i + 1].focus();
+                else if (box.value && i === boxes.length - 1) submitJoinCode();
+            });
+            box.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !box.value && i > 0) {
+                    boxes[i - 1].focus();
+                    boxes[i - 1].value = '';
+                    boxes[i - 1].classList.remove('filled');
+                } else if (e.key === 'ArrowLeft' && i > 0) boxes[i - 1].focus();
+                else if (e.key === 'ArrowRight' && i < boxes.length - 1) boxes[i + 1].focus();
+                else if (e.key === 'Enter') submitJoinCode();
+            });
+            box.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+                if (!text) return;
+                [...text].slice(0, boxes.length).forEach((ch, idx) => { boxes[idx].value = ch; boxes[idx].classList.add('filled'); });
+                const filledCount = Math.min(text.length, boxes.length);
+                if (filledCount >= boxes.length) submitJoinCode();
+                else boxes[filledCount].focus();
+            });
+        });
+    }
+
+    function submitJoinCode() {
+        const boxes = [...document.querySelectorAll('#otp-boxes .otp-box')];
+        const code = boxes.map(b => b.value).join('');
+        if (code.length < boxes.length) {
+            document.getElementById('otp-error').textContent = t('online-class.vuiLongNhapDu6KyTuMaPhong', 'Vui lòng nhập đủ 6 ký tự mã phòng.');
+            return;
+        }
+        closeModal('modal-join-code');
+        location.href = `/pages/classroom.html?code=${encodeURIComponent(code)}`;
+    }
+})();
+</script>
+</body>
+</html>

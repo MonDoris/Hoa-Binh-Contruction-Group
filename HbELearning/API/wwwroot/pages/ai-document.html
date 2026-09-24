@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="aidoc.pageTitle">Tài liệu AI · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* Biến riêng của trang, có tiền tố --ai- để không đụng biến dùng chung của css/style.css.
+           Khối cũ còn đặt lại --radius-lg (biến dùng chung) thành 16px — trùng đúng giá trị mặc định nên
+           không ai thấy, nhưng đổi bo góc toàn hệ thống thì riêng trang này đứng im. */
+        :root {
+            --ai-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+            --ai-glow: rgba(168, 85, 247, .4);
+        }
+
+        /* ================= HOẠT ẢNH (ANIMATIONS) ================= */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 var(--ai-glow); }
+            70% { box-shadow: 0 0 0 10px rgba(168,85,247, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(168,85,247, 0); }
+        }
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Card, tiêu đề card lấy nguyên từ css/style.css — chỉ giữ riêng phần làm nổi bật card "Hỏi AI". */
+        .card.ai-card .card-head h3 { background: var(--ai-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* ================= KHU VỰC KÉO THẢ (DROP ZONE) ================= */
+        /* Khung kéo thả lấy từ css/style.css; ở đây chỉ đặt tông tím của khu vực AI và cho biểu tượng
+           nhấp nhô khi rê chuột. */
+        .drop-zone {
+            --dz-accent: #a855f7;
+            --dz-accent-bg: rgba(168, 85, 247, .05);
+            padding: 40px 20px;
+        }
+        .drop-zone:hover .big { animation: float 2s ease-in-out infinite; }
+
+        /* ================= FORM NHẬP LỆNH (CHAT INPUT) ================= */
+        .ai-input-wrapper { position: relative; display: flex; align-items: center; }
+        .ai-input-wrapper input {
+            width: 100%; padding: 16px 120px 16px 20px;
+            border-radius: 30px; border: 2px solid var(--border);
+            font-size: 15px; transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            background: var(--bg);
+            color: var(--text);
+        }
+        .ai-input-wrapper input:focus { border-color: #a855f7; box-shadow: 0 0 0 4px rgba(168,85,247,0.15); outline: none; }
+        .ai-input-actions { position: absolute; right: 8px; display: flex; gap: 8px; align-items: center; }
+        
+        /* ================= KẾT QUẢ AI & SOURCE ================= */
+        #answer-box:not(:empty) { margin-top: 24px; animation: slide-up 0.4s ease-out; }
+        .ai-answer {
+            position: relative; padding: 20px; border-radius: var(--radius-lg);
+            background: var(--bg); line-height: 1.7; font-size: 15px;
+        }
+        /* Tạo viền gradient mỏng cho khung trả lời */
+        .ai-answer::before {
+            content: ""; position: absolute; inset: -2px; border-radius: calc(var(--radius-lg) + 2px);
+            background: var(--ai-gradient); z-index: -1; opacity: 0.3;
+        }
+        
+        .ai-thinking .ai-answer::before { opacity: 1; animation: pulse-glow 2s infinite; }
+
+        .chunk-item { border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; font-size: 13.5px; line-height: 1.6; background: rgba(0,0,0,0.01); transition: transform 0.2s; }
+        .chunk-item:hover { transform: translateX(4px); border-color: #a855f7; }
+        .chunk-item .idx { font-size: 12px; font-weight: 700; color: #a855f7; }
+        
+        /* Thanh điểm số (Score bar) */
+        .score-bar { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; flex: 1; margin: 0 10px; }
+        .score-bar > span { display: block; height: 100%; background: var(--ai-gradient); border-radius: 999px; transition: width 0.5s ease-out; }
+
+        /* ================= TIỆN ÍCH ================= */
+        .btn-ai { background: var(--ai-gradient); color: #fff; border: none; border-radius: 20px; padding: 8px 24px; font-weight: 600; cursor: pointer; transition: opacity 0.2s, transform 0.2s; display: flex; align-items: center; gap: 6px; }
+        .btn-ai:hover { opacity: 0.9; transform: scale(1.02); }
+        .btn-ai:disabled { filter: grayscale(1); opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .mt-sm { margin-top: 8px; } .mt-md { margin-top: 12px; } .mt-lg { margin-top: 16px; } .mt-xl { margin-top: 24px; }
+        .flex-center { display: flex; align-items: center; gap: 8px; }
+        .action-row { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+        .modal-wide { max-width: 820px; }
+        .chunk-scroll { max-height: 60vh; overflow: auto; }
+    </style>
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+
+        <div class="card mb" id="status-card">
+            <div class="card-body"><span class="spinner-inline"></span> <span data-i18n="aidoc.dangKiemTra">Đang kiểm tra máy chủ AI...</span></div>
+        </div>
+
+        <div class="grid grid-2 mb">
+            <div class="card">
+                <div class="card-head">
+                    <h3 data-i18n="aidoc.napTaiLieu"><i class="ph ph-database"></i> Nạp tài liệu vào kho tri thức</h3>
+                </div>
+                <div class="card-body">
+                    <div class="field">
+                        <label for="f-course" data-i18n="aidoc.thuocKhoaHoc">Thuộc khóa học</label>
+                        <select id="f-course"></select>
+                        <div class="hint" data-i18n="aidoc.hintKhoaHoc">Để trống nếu là tài liệu dùng chung cho toàn công ty (quy định, nội quy, sổ tay nhân viên...).</div>
+                    </div>
+
+                    <div class="drop-zone" id="drop-zone">
+                        <div class="big"><i class="ph ph-cloud-arrow-up"></i></div>
+                        <div id="drop-label" data-i18n="aidoc.keoThaFile">Kéo thả file vào đây hoặc bấm để chọn</div>
+                        <div class="small muted mt-sm" data-i18n="aidoc.dinhDangHoTro">Hỗ trợ PDF, DOCX, TXT — tối đa 200 MB</div>
+                        <input type="file" id="f-file" accept=".pdf,.docx,.txt,.md" hidden aria-label="Chọn tệp tài liệu để tải lên">
+                    </div>
+
+                    <div class="action-row">
+                        <button class="btn" id="btn-upload" disabled data-i18n="aidoc.napVaoKho">Nạp vào kho tri thức</button>
+                        <button class="btn ghost" id="btn-clear" hidden data-i18n="common.cancel">Hủy</button>
+                    </div>
+                    <div id="upload-note" class="small muted mt-md"></div>
+                </div>
+            </div>
+
+            <div class="card ai-card">
+                <div class="card-head">
+                    <h3><i class="ph ph-sparkle"></i> <span data-i18n="aidoc.hoiDap">Hỏi đáp với AI (Dựa trên tài liệu)</span></h3>
+                </div>
+                <div class="card-body">
+                    <div class="hint mb" data-i18n="aidoc.hintHoiDap">
+                        AI sẽ đọc hiểu tài liệu bạn đã nạp bên trái và đưa ra câu trả lời chính xác nhất.
+                    </div>
+                    
+                    <div class="ai-input-wrapper">
+                        <input id="f-query" maxlength="500" placeholder="VD: Công ty được thành lập khi nào?">
+                        <div class="ai-input-actions">
+                            <span class="small muted flex-center" id="ask-timer" style="margin-right: 10px; font-family: monospace;"></span>
+                            <button class="btn ghost" id="btn-stop" hidden data-i18n="aidoc.dungTraLoi" style="color: red; border-radius: 20px;"><i class="ph ph-stop-circle"></i> Dừng</button>
+                            <button class="btn-ai" id="btn-ask" data-i18n="aidoc.hoiAi"><i class="ph ph-paper-plane-right"></i> Hỏi AI</button>
+                        </div>
+                    </div>
+
+                    <div id="answer-box"></div>
+                    <div id="source-box" class="mt-lg"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= AI HỌC NỘI DUNG KHÓA HỌC =================
+             Khác hẳn khối "Nạp tài liệu" bên trên: phần này KHÔNG có gì để tải lên. Máy tự đọc nội dung các
+             khóa học nhân viên đang được học và nạp lại mỗi khi bài học đổi, nên ở đây chỉ có một bảng theo
+             dõi "đã học tới đâu" và một nút để bắt học ngay thay vì chờ lượt quét định kỳ. -->
+        <div class="card mb">
+            <div class="card-head">
+                <h3><i class="ph ph-graduation-cap"></i> <span data-i18n="aidoc.kienThucKhoaHoc">AI học nội dung khóa học</span></h3>
+                <div style="display:flex; gap:8px; align-items:center">
+                    <button class="btn ghost sm" id="btn-sync-force" data-i18n-title="aidoc.hocLaiTatCaHint"
+                            title="Nạp lại toàn bộ, kể cả bài học không thay đổi">
+                        <i class="ph ph-arrows-clockwise"></i> <span data-i18n="aidoc.hocLaiTatCa">Học lại tất cả</span>
+                    </button>
+                    <button class="btn sm" id="btn-sync">
+                        <i class="ph ph-brain"></i> <span data-i18n="aidoc.hocNgay">Học ngay</span>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="hint mb" data-i18n="aidoc.hintKienThuc">
+                    Pico B tự đọc mô tả khóa học và nội dung từng bài học của các khóa đã xuất bản hoặc đang có người học,
+                    rồi cập nhật lại sau mỗi vài giờ khi bài học được sửa. Học viên chỉ tra được nội dung của khóa mình
+                    được phân công. Nội dung bài kiểm tra không được nạp để không lộ đáp án. Bài học quá ngắn (dưới 60 ký tự) không được nạp nên có thể vẫn hiện là học một phần.
+                </div>
+                <div id="knowledge-box"><span class="spinner-inline"></span></div>
+            </div>
+        </div>
+
+        <!-- ================= CÂU TRẢ LỜI CÀI SẴN =================
+             Những câu xã giao ("hi", "cảm ơn") không nằm trong tài liệu nội bộ nào, mà lại quá ngắn nên đưa
+             qua tìm kiếm ngữ nghĩa là vớ phải một đoạn bất kỳ rồi AI viết ra một bài giảng lạc đề. Cài sẵn
+             câu trả lời cho đúng nhóm câu đó thì vừa đúng vừa hiện ra tức thì. -->
+        <div class="card mb">
+            <div class="card-head">
+                <h3><i class="ph ph-lightning"></i> <span data-i18n="aiqr.tieuDe">Câu trả lời cài sẵn</span></h3>
+                <button class="btn sm" id="btn-qr-add">
+                    <i class="ph ph-plus"></i> <span data-i18n="aiqr.them">Thêm câu trả lời</span>
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="hint mb" data-i18n="aiqr.huongDan">
+                    Gặp đúng những câu này, Pico B trả lời ngay bằng câu chữ bạn soạn — không hỏi model, không tra tài liệu.
+                    Chỗ giữ chỗ dùng được: {ten} họ tên người hỏi, {ten_ngan} tên gọi, {vai_tro} vai trò.
+                    So khớp bỏ qua hoa thường và bỏ qua dấu tiếng Việt, nên gõ "chào" là bắt được cả người gõ "chao".
+                </div>
+
+                <!-- Thử trước khi tin: chạy qua đúng hàm so khớp mà lượt hỏi thật dùng. -->
+                <div class="action-row mb" style="gap:8px; flex-wrap:wrap">
+                    <input id="f-qr-test" maxlength="500" style="flex:1; min-width:240px"
+                           data-i18n-ph="aiqr.thuPlaceholder" placeholder="Gõ thử một câu hỏi, VD: hi">
+                    <button class="btn ghost" id="btn-qr-test"><i class="ph ph-play"></i> <span data-i18n="aiqr.thu">Thử</span></button>
+                </div>
+                <div id="qr-test-result" class="mb"></div>
+
+                <div id="qr-list"></div>
+            </div>
+        </div>
+
+        <div id="doc-list"></div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-qr">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="qr-modal-title" data-i18n="aiqr.them">Thêm câu trả lời</h3>
+            <button class="close-x" onclick="closeModal('modal-qr')">×</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="f-qr-id">
+
+            <div class="field">
+                <label for="f-qr-keyword" data-i18n="aiqr.tuKhoa">Từ khóa kích hoạt</label>
+                <textarea id="f-qr-keyword" rows="4" maxlength="500"
+                          data-i18n-ph="aiqr.phTuKhoa" placeholder="hi&#10;hello&#10;chào&#10;xin chào"></textarea>
+                <div class="hint" data-i18n="aiqr.hintTuKhoa">Mỗi dòng một từ khóa — bất kỳ dòng nào khớp là dùng câu trả lời này.</div>
+            </div>
+
+            <div class="field">
+                <label for="f-qr-answer" data-i18n="aiqr.cauTraLoi">Câu trả lời</label>
+                <textarea id="f-qr-answer" rows="5" maxlength="2000"
+                          placeholder="Chào {ten_ngan}! Bạn cần mình giúp gì?"></textarea>
+                <div class="hint" data-i18n="aiqr.hintCauTraLoi">Dùng được {ten}, {ten_ngan}, {vai_tro}. Xuống dòng được giữ nguyên khi hiển thị.</div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="field">
+                    <label for="f-qr-match" data-i18n="aiqr.kieuKhop">Cách so khớp</label>
+                    <select id="f-qr-match">
+                        <option value="Exact" data-i18n="aiqr.khopCaCau">Khớp cả câu (an toàn)</option>
+                        <option value="Contains" data-i18n="aiqr.chuaTuKhoa">Câu hỏi có chứa từ khóa</option>
+                    </select>
+                    <div class="hint" data-i18n="aiqr.hintKieuKhop">"Khớp cả câu" chỉ bắt khi người dùng gõ đúng chừng ấy chữ. "Chứa từ khóa" rộng hơn nên dễ bắt nhầm câu hỏi thật.</div>
+                </div>
+                <div class="field">
+                    <label for="f-qr-order" data-i18n="aiqr.thuTu">Thứ tự xét</label>
+                    <input type="number" id="f-qr-order" min="0" max="9999" value="0">
+                    <div class="hint" data-i18n="aiqr.hintThuTu">Số nhỏ được xét trước. Đặt câu khớp hẹp lên trên câu khớp rộng.</div>
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="check"><input type="checkbox" id="f-qr-active" checked>
+                    <span data-i18n="aiqr.dangBat">Đang bật</span></label>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn ghost" onclick="closeModal('modal-qr')" data-i18n="common.cancel">Hủy</button>
+            <button type="button" class="btn" id="btn-qr-save" data-i18n="common.save">Lưu</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-chunk">
+    <div class="modal modal-wide">
+        <div class="modal-head">
+            <h3 id="chunk-title">Nội dung đã cắt đoạn</h3>
+            <button class="close-x" onclick="closeModal('modal-chunk')">×</button>
+        </div>
+        <div class="modal-body chunk-scroll" id="chunk-body"></div>
+        <div class="modal-foot">
+            <button type="button" class="btn ghost" onclick="closeModal('modal-chunk')" data-i18n="aidoc.dong">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.require(['Admin'], 'ai-document.view')) return;
+    mountLayout('ai-document',
+        t('aidoc.title', 'Tài liệu AI'),
+        t('aidoc.subtitle', 'Nạp tài liệu nội bộ để AI tra cứu và trả lời theo đúng quy định của công ty'));
+
+    let selectedFile = null;
+    let courseList = [];
+    // Danh sách câu trả lời cài sẵn đang hiện — giữ lại để nút Sửa điền sẵn form mà không phải gọi lại máy chủ.
+    // PHẢI khai báo ở đây chứ không phải cạnh loadQuickReply() bên dưới: let nằm giữa hàm thì lúc lượt nạp
+    // đầu tiên chạy (ngay đầu hàm này) nó vẫn trong "vùng chết" và cả bảng chỉ hiện ra một dòng báo lỗi.
+    let quickReplyList = [];
+    let isReady = false;
+    let askController = null;   // dùng để hủy câu trả lời đang sinh dở
+
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('f-file');
+    const btnUpload = document.getElementById('btn-upload');
+    const btnClear = document.getElementById('btn-clear');
+
+    attachDropZone(dropZone, fileInput, pickFile);   // js/app.js
+
+    btnClear.addEventListener('click', () => pickFile(null));
+    btnUpload.addEventListener('click', upload);
+    document.getElementById('btn-ask').addEventListener('click', ask);
+    document.getElementById('btn-stop').addEventListener('click', () => askController?.abort());
+    document.getElementById('f-query').addEventListener('keydown', (e) => { if (e.key === 'Enter') ask(); });
+
+    document.getElementById('btn-sync').addEventListener('click', () => syncKnowledge(false));
+    document.getElementById('btn-sync-force').addEventListener('click', () => syncKnowledge(true));
+
+    document.getElementById('btn-qr-add').addEventListener('click', () => openQuickReplyForm(null));
+    document.getElementById('btn-qr-save').addEventListener('click', saveQuickReply);
+    document.getElementById('btn-qr-test').addEventListener('click', testQuickReply);
+    document.getElementById('f-qr-test').addEventListener('keydown', (e) => { if (e.key === 'Enter') testQuickReply(); });
+
+    await loadStatus();
+    await loadCourseList();
+    await loadDocumentList();
+    await loadKnowledge();
+    await loadQuickReply();
+
+    // ==================== TRẠNG THÁI MÁY CHỦ AI ====================
+    async function loadStatus() {
+        const card = document.getElementById('status-card');
+        try {
+            const s = await API.get('/aidocument/status');
+            isReady = s.isReady;
+            card.innerHTML = `
+                <div class="card-body" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+                    <span class="badge ${s.isReady ? 'green' : 'red'}">
+                        <i class="ph ${s.isReady ? 'ph-check-circle' : 'ph-warning-circle'}"></i>
+                        ${s.isReady ? t('aidoc.sanSang', 'Sẵn sàng') : t('aidoc.chuaSanSang', 'Chưa sẵn sàng')}
+                    </span>
+                    <span>${esc(s.message)}</span>
+                </div>`;
+        } catch (ex) {
+            isReady = false;
+            card.innerHTML = `<div class="card-body"><span class="badge red">${esc(ex.message)}</span></div>`;
+        }
+        refreshUploadButton();
+    }
+
+    // ==================== DANH SÁCH KHÓA HỌC ====================
+    async function loadCourseList() {
+        const select = document.getElementById('f-course');
+        try {
+            const paged = await API.get('/course?pageSize=200');
+            courseList = paged.item || [];
+        } catch { courseList = []; }
+
+        select.innerHTML = `<option value="">${t('aidoc.dungChung', '— Dùng chung toàn công ty —')}</option>`
+            + courseList.map(c => `<option value="${c.id}">${esc(c.title)}</option>`).join('');
+    }
+
+    // ==================== CHỌN FILE ====================
+    function pickFile(file) {
+        selectedFile = file || null;
+        fileInput.value = '';
+
+        const label = document.getElementById('drop-label');
+        dropZone.classList.toggle('has-file', !!selectedFile);
+        btnClear.hidden = !selectedFile;
+
+        label.innerHTML = selectedFile
+            ? `<b>${esc(selectedFile.name)}</b> · ${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`
+            : t('aidoc.keoThaFile', 'Kéo thả file vào đây hoặc bấm để chọn');
+
+        document.getElementById('upload-note').textContent = '';
+        refreshUploadButton();
+    }
+
+    function refreshUploadButton() {
+        btnUpload.disabled = !selectedFile || !isReady;
+    }
+
+    // ==================== NẠP TÀI LIỆU ====================
+    async function upload() {
+        if (!selectedFile) return;
+
+        const courseId = document.getElementById('f-course').value;
+        const path = `/aidocument/upload${courseId ? `?courseId=${encodeURIComponent(courseId)}` : ''}`;
+        const note = document.getElementById('upload-note');
+        const originalLabel = btnUpload.innerHTML;
+
+        btnUpload.disabled = true;
+        btnClear.hidden = true;
+
+        try {
+            const result = await API.uploadWithProgress(path, selectedFile, (percent) => {
+                // Tải file xong không có nghĩa là nạp xong: máy chủ còn phải bóc tách và sinh vector,
+                // với tài liệu dài có thể mất vài phút — nói rõ để người dùng không tưởng hệ thống treo.
+                btnUpload.innerHTML = percent < 100
+                    ? `<span class="spinner-inline"></span> ${t('aidoc.dangTaiLen', 'Đang tải lên')}... ${percent}%`
+                    : `<span class="spinner-inline"></span> ${t('aidoc.dangPhanTich', 'Đang phân tích và sinh vector')}...`;
+            });
+
+            // Bỏ chọn file TRƯỚC khi ghi kết quả: pickFile() xóa sạch ô ghi chú, gọi sau sẽ nuốt mất
+            // thông báo vừa hiện và người dùng không thấy tài liệu đã nạp bao nhiêu đoạn.
+            pickFile(null);
+
+            note.innerHTML = `<span class="badge green"><i class="ph ph-check-circle"></i> ${t('aidoc.daNap', 'Đã nạp')}</span>
+                <b>${esc(result.sourceFileName)}</b> · ${result.chunkCount} ${t('aidoc.doan', 'đoạn')}
+                · ${result.characterCount.toLocaleString('vi-VN')} ${t('aidoc.kyTu', 'ký tự')}
+                ${result.removedOldChunkCount ? ` · ${t('aidoc.daThayThe', 'đã thay thế bản cũ')} (${result.removedOldChunkCount} ${t('aidoc.doan', 'đoạn')})` : ''}`;
+
+            toastOk(`${t('aidoc.daNapTaiLieu', 'Đã nạp tài liệu')} "${result.sourceFileName}".`);
+            await loadDocumentList();
+        } catch (ex) {
+            toastErr(ex.message);
+            note.innerHTML = `<span class="badge red">${esc(ex.message)}</span>`;
+        } finally {
+            btnUpload.innerHTML = originalLabel;
+            btnClear.hidden = !selectedFile;
+            refreshUploadButton();
+        }
+    }
+
+    // ==================== DANH SÁCH TÀI LIỆU ĐÃ NẠP ====================
+    // ==================== AI HỌC NỘI DUNG KHÓA HỌC ====================
+    async function loadKnowledge() {
+        const box = document.getElementById('knowledge-box');
+        box.innerHTML = skeletonHtml('list', { count: 3, avatar: false });
+
+        try {
+            const data = await API.get('/aidocument/course-knowledge');
+
+            box.innerHTML = `
+                <div class="action-row mb" style="gap:8px; flex-wrap:wrap">
+                    <span class="badge ${data.isEmbeddingReady ? 'green' : 'red'}">
+                        ${data.isEmbeddingReady
+                            ? `<i class="ph ph-check-circle"></i> ${esc(t('aidoc.sanSang', 'Sẵn sàng'))}`
+                            : `<i class="ph ph-warning-circle"></i> ${esc(data.message)}`}
+                    </span>
+                    <span class="badge blue">${data.indexedCourseCount}/${data.courseCount} ${esc(t('aidoc.khoaHocDaHoc', 'khóa học đã học'))}</span>
+                    <span class="badge">${data.chunkCount} ${esc(t('aidoc.doan', 'đoạn'))}</span>
+                    ${data.lastSyncedAt
+                        ? `<span class="small muted">${esc(t('aidoc.lanHocGanNhat', 'Lần học gần nhất'))}: ${formatDate(data.lastSyncedAt, true)}</span>`
+                        : ''}
+                </div>
+
+                <div class="table-wrap"><table>
+                    <thead><tr>
+                        <th data-i18n="aidoc.colKhoaHocHoc">Khóa học</th>
+                        <th class="text-center" data-i18n="aidoc.colBaiHoc">Bài học đã nạp</th>
+                        <th class="text-center" data-i18n="aidoc.colDoan">Số đoạn</th>
+                        <th data-i18n="aidoc.colLanHoc">Lần học gần nhất</th>
+                    </tr></thead>
+                    <tbody>${data.itemList.length ? data.itemList.map(x => `
+                        <tr>
+                            <td><b>${esc(x.courseTitle)}</b></td>
+                            <td class="text-center">
+                                ${x.indexedLessonCount}/${x.lessonCount}
+                                ${x.chunkCount === 0
+                                    ? `<span class="badge red">${esc(t('aidoc.chuaHoc', 'Chưa học'))}</span>`
+                                    : x.indexedLessonCount < x.lessonCount
+                                        ? `<span class="badge orange">${esc(t('aidoc.hocMotPhan', 'Học một phần'))}</span>`
+                                        : ''}
+                            </td>
+                            <td class="text-center">${x.chunkCount}</td>
+                            <td class="small">${x.syncedAt ? formatDate(x.syncedAt, true) : '—'}</td>
+                        </tr>`).join('')
+                        : `<tr><td colspan="4">${emptyHtml(t('aidoc.chuaCoKhoaHoc', 'Chưa có khóa học nào được xuất bản hoặc phân công cho học viên.'), '<i class="ph ph-graduation-cap"></i>')}</td></tr>`}
+                    </tbody>
+                </table></div>`;
+        } catch (ex) {
+            box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        }
+    }
+
+    /** Bắt AI học lại ngay. Khóa hai nút trong lúc chạy: mỗi lượt gọi Ollama sinh vector cho hàng trăm đoạn,
+     *  bấm chồng lên nhau là hai lượt cùng ghi vào một bảng và cùng chậm đi. */
+    async function syncKnowledge(isForced) {
+        if (isForced && !await confirmDialog(
+            t('aidoc.xacNhanHocLai', 'Nạp lại toàn bộ nội dung khóa học? Việc này có thể mất vài phút.'),
+            { okText: t('aidoc.hocLaiTatCa', 'Học lại tất cả') })) return;
+
+        const btnList = [document.getElementById('btn-sync'), document.getElementById('btn-sync-force')];
+        btnList.forEach(b => b.disabled = true);
+
+        const box = document.getElementById('knowledge-box');
+        box.innerHTML = `<div class="flex-center" style="gap:8px; padding:14px">
+                <span class="spinner-inline"></span>
+                <span>${esc(t('aidoc.dangHoc', 'Pico B đang đọc nội dung khóa học...'))}</span>
+            </div>`;
+
+        try {
+            const result = await API.post(`/aidocument/course-knowledge/sync?isForced=${isForced}`, {});
+
+            toastOk(result.indexedUnitCount > 0 || result.removedChunkCount > 0
+                ? `${t('aidoc.daHocXong', 'Đã học xong')}: ${result.indexedUnitCount} ${t('aidoc.muc', 'mục')} `
+                  + `(${result.chunkCount} ${t('aidoc.doan', 'đoạn')})`
+                : t('aidoc.khongCoGiMoi', 'Nội dung khóa học không thay đổi — không cần học lại.'));
+        } catch (ex) {
+            toastErr(ex.message);
+        } finally {
+            btnList.forEach(b => b.disabled = false);
+            await loadKnowledge();
+        }
+    }
+
+    // ==================== CÂU TRẢ LỜI CÀI SẴN ====================
+    async function loadQuickReply() {
+        const box = document.getElementById('qr-list');
+        box.innerHTML = skeletonHtml('list', { count: 3, avatar: false });
+
+        try {
+            quickReplyList = await API.get('/aiquickreply');
+
+            box.innerHTML = `
+                <div class="table-wrap"><table>
+                    <thead><tr>
+                        <th style="width:34%" data-i18n="aiqr.colTuKhoa">Từ khóa</th>
+                        <th data-i18n="aiqr.colCauTraLoi">Câu trả lời</th>
+                        <th class="text-center" data-i18n="aiqr.colKieuKhop">So khớp</th>
+                        <th class="text-center" data-i18n="aiqr.colThuTu">Thứ tự</th>
+                        <th class="text-right"></th>
+                    </tr></thead>
+                    <tbody>${quickReplyList.length ? quickReplyList.map(x => `
+                        <tr${x.isActive ? '' : ' style="opacity:.55"'}>
+                            <td>
+                                <b>${esc(x.keyword.split('|')[0])}</b>
+                                ${x.keyword.includes('|') ? `<span class="small muted"> +${x.keyword.split('|').length - 1}</span>` : ''}
+                                ${x.isActive ? '' : `<span class="badge gray">${esc(t('aiqr.dangTat', 'Đang tắt'))}</span>`}
+                                <div class="small muted" style="margin-top:3px; word-break:break-word">${esc(x.keyword.split('|').join(' · '))}</div>
+                            </td>
+                            <td class="small" style="white-space:pre-wrap">${esc(x.answer)}</td>
+                            <td class="text-center small">${x.matchType === 'Contains'
+                                ? `<span class="badge orange">${esc(t('aiqr.chua', 'Chứa'))}</span>`
+                                : `<span class="badge blue">${esc(t('aiqr.caCau', 'Cả câu'))}</span>`}</td>
+                            <td class="text-center">${x.orderIndex}</td>
+                            <td class="text-right nowrap">
+                                <button class="btn ghost sm" data-qr-edit="${x.id}">${esc(t('common.edit', 'Sửa'))}</button>
+                                <button class="btn ghost sm" data-qr-del="${x.id}" style="color:var(--danger)">${esc(t('common.delete', 'Xóa'))}</button>
+                            </td>
+                        </tr>`).join('')
+                        : `<tr><td colspan="5">${emptyHtml(t('aiqr.chuaCo', 'Chưa cài câu trả lời nào.'), '<i class="ph ph-lightning"></i>')}</td></tr>`}
+                    </tbody>
+                </table></div>`;
+
+            box.querySelectorAll('[data-qr-edit]').forEach(b =>
+                b.addEventListener('click', () => openQuickReplyForm(Number(b.dataset.qrEdit))));
+            box.querySelectorAll('[data-qr-del]').forEach(b =>
+                b.addEventListener('click', () => deleteQuickReply(Number(b.dataset.qrDel))));
+        } catch (ex) {
+            box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        }
+    }
+
+    /** Mở form thêm mới (id rỗng) hoặc sửa một dòng đã có. */
+    function openQuickReplyForm(id) {
+        const item = id ? quickReplyList.find(x => x.id === id) : null;
+
+        document.getElementById('qr-modal-title').textContent = item
+            ? t('aiqr.sua', 'Sửa câu trả lời cài sẵn')
+            : t('aiqr.them', 'Thêm câu trả lời');
+
+        document.getElementById('f-qr-id').value = item?.id ?? '';
+        // Hiện mỗi từ khóa một dòng. Trong database chúng nối bằng dấu "|", nhưng một chuỗi dài toàn dấu
+        // gạch đứng thì đọc bằng mắt gần như không ra chữ nào — mà đây đúng là ô người ta phải đọc kỹ nhất.
+        document.getElementById('f-qr-keyword').value = (item?.keyword ?? '').split('|').join('\n');
+        document.getElementById('f-qr-answer').value = item?.answer ?? '';
+        document.getElementById('f-qr-match').value = item?.matchType ?? 'Exact';
+        document.getElementById('f-qr-active').checked = item ? item.isActive : true;
+        // Dòng mới xếp xuống cuối: chen vào giữa thì nó có thể chặn mất một dòng đang chạy đúng.
+        document.getElementById('f-qr-order').value = item
+            ? item.orderIndex
+            : (quickReplyList.reduce((max, x) => Math.max(max, x.orderIndex), 0) + 1);
+
+        openModal('modal-qr');
+    }
+
+    async function saveQuickReply() {
+        const id = document.getElementById('f-qr-id').value;
+        const body = {
+            // Gộp lại thành dạng lưu trữ "a|b|c". Máy chủ nhận cả hai kiểu (xem QuickReplyMatcher), nhưng
+            // giữ đúng MỘT dạng trong database thì danh sách bên dưới và dữ liệu cài sẵn mới hiện giống nhau.
+            keyword: document.getElementById('f-qr-keyword').value
+                .split(/[|\r\n]+/).map(x => x.trim()).filter(Boolean).join('|'),
+            answer: document.getElementById('f-qr-answer').value.trim(),
+            matchType: document.getElementById('f-qr-match').value,
+            isActive: document.getElementById('f-qr-active').checked,
+            orderIndex: Number(document.getElementById('f-qr-order').value) || 0
+        };
+
+        if (!body.keyword) { toastErr(t('aiqr.thieuTuKhoa', 'Bạn chưa nhập từ khóa kích hoạt.')); return; }
+        if (!body.answer) { toastErr(t('aiqr.thieuCauTraLoi', 'Bạn chưa nhập câu trả lời.')); return; }
+
+        try {
+            if (id) await API.put(`/aiquickreply/${id}`, body);
+            else await API.post('/aiquickreply', body);
+
+            closeModal('modal-qr');
+            toastOk(t('aiqr.daLuu', 'Đã lưu câu trả lời cài sẵn.'));
+            await loadQuickReply();
+        } catch (ex) {
+            toastErr(ex.message);
+        }
+    }
+
+    async function deleteQuickReply(id) {
+        const item = quickReplyList.find(x => x.id === id);
+        if (!await confirmDialog(
+            `${t('aiqr.xacNhanXoa', 'Xóa câu trả lời cài sẵn này?')}\n\n${item?.keyword ?? ''}`,
+            { danger: true, okText: t('common.delete', 'Xóa') })) return;
+
+        try {
+            const result = await API.del(`/aiquickreply/${id}`);
+            toastOk(result.message);
+            await loadQuickReply();
+        } catch (ex) {
+            toastErr(ex.message);
+        }
+    }
+
+    /** Thử một câu hỏi mẫu. Gọi máy chủ chứ không tự so khớp ở trình duyệt: bản so khớp thật nằm ở máy chủ,
+     *  viết thêm một bản ở đây là sớm muộn hai bên lệch nhau và ô thử này báo sai. */
+    async function testQuickReply() {
+        const question = document.getElementById('f-qr-test').value.trim();
+        const box = document.getElementById('qr-test-result');
+
+        if (!question) { toastErr(t('aiqr.nhapCauThu', 'Bạn chưa nhập câu hỏi để thử.')); return; }
+
+        box.innerHTML = `<span class="spinner-inline"></span>`;
+        try {
+            const result = await API.post('/aiquickreply/test', { question });
+
+            box.innerHTML = result.isMatched
+                ? `<div class="src-item" style="border:1px solid var(--border); border-radius:10px; padding:10px 12px">
+                       <span class="badge green"><i class="ph ph-check-circle"></i> ${esc(t('aiqr.coKhop', 'Khớp câu cài sẵn'))}</span>
+                       <span class="small muted"> ${esc(result.keyword)}</span>
+                       <div style="margin-top:8px; white-space:pre-wrap">${esc(result.answer)}</div>
+                   </div>`
+                : `<span class="badge gray"><i class="ph ph-info"></i> ${esc(t('aiqr.khongKhop',
+                       'Không khớp câu cài sẵn nào — câu này sẽ được AI tra tài liệu và tự trả lời.'))}</span>`;
+        } catch (ex) {
+            box.innerHTML = `<span class="badge red">${esc(ex.message)}</span>`;
+        }
+    }
+
+    async function loadDocumentList() {
+        const box = document.getElementById('doc-list');
+        box.innerHTML = skeletonHtml('list', { count: 4, avatar: false });
+
+        try {
+            const list = await API.get('/aidocument');
+            const totalChunk = list.reduce((sum, x) => sum + x.chunkCount, 0);
+
+            box.innerHTML = `
+                <div class="card">
+                    <div class="card-head">
+                        <h3>${list.length} ${t('aidoc.taiLieu', 'tài liệu')} · ${totalChunk} ${t('aidoc.doan', 'đoạn')}</h3>
+                    </div>
+                    <div class="table-wrap"><table>
+                        <thead><tr>
+                            <th data-i18n="aidoc.colTen">Tài liệu</th>
+                            <th data-i18n="aidoc.colKhoaHoc">Phạm vi</th>
+                            <th class="text-center" data-i18n="aidoc.colDoan">Số đoạn</th>
+                            <th data-i18n="aidoc.colModel">Model</th>
+                            <th data-i18n="aidoc.colNgay">Ngày nạp</th>
+                            <th class="text-right"></th>
+                        </tr></thead>
+                        <tbody>${list.length ? list.map(x => `
+                            <tr>
+                                <td><b>${esc(x.sourceFileName)}</b>
+                                    ${x.sourceFileUrl ? ` <a href="${esc(x.sourceFileUrl)}" target="_blank" class="small" title="${t('aidoc.moFileGoc', 'Mở file gốc')}"><i class="ph ph-arrow-square-out"></i></a>` : ''}
+                                </td>
+                                <td class="small">${x.courseTitle
+                                    ? esc(x.courseTitle)
+                                    : `<span class="badge blue">${t('aidoc.toanCongTy', 'Toàn công ty')}</span>`}</td>
+                                <td class="text-center">${x.chunkCount}</td>
+                                <td class="small muted">${esc(x.embeddingModel)}</td>
+                                <td class="small">${formatDate(x.createdAt, true)}</td>
+                                <td class="text-right nowrap">
+                                    <button class="btn ghost sm" data-view="${esc(x.sourceFileName)}" data-course="${x.courseId ?? ''}">${t('aidoc.xemDoan', 'Xem đoạn')}</button>
+                                    <button class="btn ghost sm" data-del="${esc(x.sourceFileName)}" data-course="${x.courseId ?? ''}" style="background-color: red; color: white">${t('common.delete', 'Xóa')}</button>
+                                </td>
+                            </tr>`).join('')
+                            : `<tr><td colspan="6">${emptyHtml(t('aidoc.chuaCoTaiLieu', 'Chưa nạp tài liệu nào.'), '<i class="ph ph-file-text"></i>')}</td></tr>`}
+                        </tbody>
+                    </table></div>
+                </div>`;
+
+            box.querySelectorAll('[data-view]').forEach(b =>
+                b.addEventListener('click', () => viewChunkList(b.dataset.view, b.dataset.course)));
+
+            box.querySelectorAll('[data-del]').forEach(b =>
+                b.addEventListener('click', () => remove(b.dataset.del, b.dataset.course)));
+        } catch (ex) {
+            box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        }
+    }
+
+    async function viewChunkList(sourceFileName, courseId) {
+        const body = document.getElementById('chunk-body');
+        document.getElementById('chunk-title').textContent = sourceFileName;
+        body.innerHTML = skeletonHtml('text', { lines: 6 });
+        openModal('modal-chunk');
+
+        try {
+            const list = await API.get(`/aidocument/chunk?sourceFileName=${encodeURIComponent(sourceFileName)}`
+                + (courseId ? `&courseId=${encodeURIComponent(courseId)}` : ''));
+
+            body.innerHTML = list.length
+                ? `<div class="small muted mb">${t('aidoc.giaiThichDoan',
+                        'Mỗi đoạn dưới đây là một đơn vị AI dùng để tra cứu. Hai đoạn liền nhau cố ý lặp phần đầu/cuối để câu bị cắt ngang vẫn còn đủ ngữ cảnh.')}</div>`
+                    + list.map(c => `<div class="chunk-item"><div class="idx">#${c.chunkIndex + 1}</div>${esc(c.textContent)}</div>`).join('')
+                : emptyHtml(t('aidoc.khongCoDoan', 'Tài liệu này không còn đoạn nào.'));
+        } catch (ex) {
+            body.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        }
+    }
+
+    async function remove(sourceFileName, courseId) {
+        if (!await confirmDialog(
+            `${t('aidoc.xacNhanXoa', 'Xóa tài liệu')} "${sourceFileName}" ${t('aidoc.khoiKhoTriThuc', 'khỏi kho tri thức?')}`,
+            { danger: true, okText: t('common.delete', 'Xóa') })) return;
+
+        try {
+            const r = await API.del(`/aidocument?sourceFileName=${encodeURIComponent(sourceFileName)}`
+                + (courseId ? `&courseId=${encodeURIComponent(courseId)}` : ''));
+            toastOk(r.message);
+            await loadDocumentList();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    // ==================== HỎI ĐÁP TRÊN TÀI LIỆU ====================
+    async function ask() {
+        const question = document.getElementById('f-query').value.trim();
+        const answerBox = document.getElementById('answer-box');
+        const sourceBox = document.getElementById('source-box');
+        const timerBox = document.getElementById('ask-timer');
+        const btnAsk = document.getElementById('btn-ask');
+        const btnStop = document.getElementById('btn-stop');
+
+        if (!question) { toastErr(t('aidoc.nhapCauHoi', 'Vui lòng nhập câu hỏi cần tìm.')); return; }
+        if (askController) return;   // đang trả lời dở thì không nhận câu mới
+
+        const courseId = document.getElementById('f-course').value;
+        askController = new AbortController();
+        btnAsk.disabled = true;
+        btnStop.hidden = false;
+        sourceBox.innerHTML = '';
+        
+        // Thêm class 'ai-thinking' để tạo hiệu ứng viền phát sáng khi AI đang nghĩ
+        answerBox.className = 'mt-xl ai-thinking';
+        answerBox.innerHTML = `
+            <div class="ai-answer">
+                <span class="spinner-inline"></span> 
+                <span style="color: var(--text-muted)">${t('aidoc.dangDocTaiLieu', 'AI đang đọc tài liệu và phân tích...')}</span>
+            </div>`;
+
+        const startedAt = Date.now();
+        const timer = setInterval(() => {
+            timerBox.textContent = `${Math.round((Date.now() - startedAt) / 1000)}s`;
+        }, 1000);
+
+        let answer = '';
+        let sourceList = [];
+
+        function renderAnswer(pending) {
+            // Số trích dẫn [1], [2] do model chèn — tô lên cho dễ đối chiếu với danh sách nguồn bên dưới.
+            const html = esc(answer)
+                .replace(/\[(\d{1,2})\]/g, '<span class="badge" style="background:#a855f7; color:#fff; padding:0 6px; border-radius: 4px; font-size: 12px; vertical-align: super;">$1</span>')
+                .replace(/\n/g, '<br>');
+            
+            // Dùng class ai-answer thay vì chunk-item để UI đẹp hơn
+            answerBox.innerHTML = `<div class="ai-answer">${html}${pending ? '<span class="spinner-inline" style="margin-left:6px; color:#a855f7"></span>' : ''}</div>`;
+        }
+
+        function renderSource() {
+            if (!sourceList.length) return;
+            sourceBox.innerHTML = `
+                <details>
+                    <summary class="small muted" style="cursor:pointer">
+                        ${t('aidoc.nguonThamKhao', 'Nguồn tham khảo')} (${sourceList.length}) — ${t('aidoc.bamDeXem', 'bấm để xem đoạn tài liệu AI đã đọc')}
+                    </summary>
+                    <div style="margin-top:10px">
+                        ${sourceList.map(x => `
+                            <div class="chunk-item">
+                                <div style="display:flex; gap:10px; align-items:center; margin-bottom:6px">
+                                    <span class="badge blue" style="padding:0 6px">${x.index}</span>
+                                    <span class="idx">${esc(x.sourceFileName)} · #${x.chunkIndex + 1}</span>
+                                    ${x.score > 0 ? `<span class="score-bar" style="flex:1"><span style="width:${Math.max(0, Math.min(100, x.score * 100)).toFixed(0)}%"></span></span>
+                                        <b class="small">${Math.min(100, x.score * 100).toFixed(1)}%</b>` : ''}
+                                </div>
+                                ${esc(x.textContent)}
+                            </div>`).join('')}
+                    </div>
+                </details>`;
+        }
+
+        try {
+            const response = await fetch('/api/aidocument/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` },
+                body: JSON.stringify({ question, courseId: courseId ? +courseId : null }),
+                signal: askController.signal
+            });
+
+            if (response.status === 401) { Auth.clear(); location.href = '/login.html'; return; }
+            if (!response.ok) throw new Error(`${t('aidoc.loiMayChu', 'Máy chủ trả về lỗi')} ${response.status}`);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Mỗi sự kiện SSE kết thúc bằng một dòng trống; phần đuôi chưa đủ thì giữ lại chờ gói sau.
+                let cut;
+                while ((cut = buffer.indexOf('\n\n')) >= 0) {
+                    const raw = buffer.slice(0, cut);
+                    buffer = buffer.slice(cut + 2);
+
+                    const name = raw.match(/^event: (.+)$/m)?.[1];
+                    const dataText = raw.match(/^data: ([\s\S]*)$/m)?.[1];
+                    if (!name || !dataText) continue;
+
+                    let data;
+                    try { data = JSON.parse(dataText); } catch { continue; }
+
+                    if (name === 'sources') { sourceList = data; renderSource(); }
+                    else if (name === 'token') { answer += data.t; renderAnswer(true); }
+                    else if (name === 'error') { throw new Error(data.message); }
+                }
+            }
+
+            renderAnswer(false);
+            if (!answer.trim()) answerBox.innerHTML = emptyHtml(
+                t('aidoc.khongTraLoiDuoc', 'AI không trả lời được. Hãy kiểm tra model sinh câu trả lời đã được cài chưa.'),
+                '<i class="ph ph-warning"></i>');
+        } catch (ex) {
+            if (ex.name === 'AbortError') {
+                // Người dùng bấm Dừng: giữ lại phần đã sinh được thay vì xóa trắng.
+                renderAnswer(false);
+                if (!answer.trim()) answerBox.innerHTML = `<div class="small muted">${t('aidoc.daDung', 'Đã dừng.')}</div>`;
+            } else {
+                answerBox.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+                toastErr(ex.message);
+            }
+        } finally {
+            clearInterval(timer);
+            askController = null;
+            btnAsk.disabled = false;
+            btnStop.hidden = true;
+            answerBox.classList.remove('ai-thinking'); // Dừng hiệu ứng phát sáng
+            if(!answer.trim() && !answerBox.innerHTML.includes('ph-warning')) {
+                timerBox.textContent = '';
+            }
+        }
+    }
+
+})();
+</script>
+</body>
+</html>

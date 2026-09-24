@@ -1,0 +1,468 @@
+<!-- File: wwwroot/login.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="login.pageTitle">HBC · Cổng đăng nhập — HB E-Learning</title>
+    <link rel="stylesheet" href="/css/phosphor/regular.css">
+    <link rel="stylesheet" href="/css/phosphor/fill.css">
+    <link rel="stylesheet" href="/css/phosphor/bold.css">
+    <link rel="stylesheet" href="/css/phosphor/duotone.css">
+    <link rel="stylesheet" href="/css/login.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+
+<a href="/" class="back-home"><i class="ph ph-arrow-left"></i> <span data-i18n="login.Home">Trang chủ</span></a>
+<div class="login-top-right">
+    <button class="theme-switch-login" type="button" id="themeSwitch"></button>
+    <button class="lang-switch-login" type="button" id="langSwitch"></button>
+</div>
+
+<!-- ==================== CÁNH CỬA ==================== -->
+<div class="gate-container" id="gate">
+
+    <div class="gate gate-left">
+        <div class="hero-title">
+            <h1>HOA<span>BINH</span></h1>
+            <h1 style="font-size: 30px; margin-top: 10px;">CONSTRUCTION</h1>
+            <div class="hero-sub" data-i18n="login.subtitle" style="font-size: bold; color: #00a0e3">Hệ Thống Đào Tạo Nội Bộ</div>
+        </div>
+    </div>
+
+    <div class="gate gate-right">
+        <div class="login-card" id="loginCard">
+            <div class="logo-box">
+                <img src="/img/HoaBinh.png" alt="HBC Logo" id="hbcLogo">
+                <div class="caption" style="color: #1d9fd9; font-weight: bold">HB E-Learning</div>
+            </div>
+
+            <div class="auth-error" id="authError"></div>
+
+            <!-- Đồng hồ đếm số lần còn được gõ sai. ẨN cho tới lần bấm Đăng nhập sai đầu tiên, rồi mỗi lần
+                 sai tiếp theo con số tụt xuống theo số máy chủ trả về, chạm 0 là tài khoản bị khóa. Con số
+                 này chỉ để BÁO CHO BIẾT — nơi đếm thật và nơi quyết định khóa đều nằm ở máy chủ
+                 (User.FailedLoginCount), nên tải lại trang hay mở trình duyệt khác cũng không xin thêm được
+                 lượt nào. Số 3 viết sẵn ở đây chỉ là chỗ giữ chân, chưa bao giờ kịp hiện ra. -->
+            <div class="attempt-left" id="attemptBox">
+                <i class="ph ph-shield-warning"></i>
+                <span data-i18n="login.attemptLeft">Số lần đăng nhập còn lại</span>:
+                <b id="attemptNumber">3</b>
+            </div>
+
+            <form id="authForm" novalidate>
+                <div class="input-group">
+                    <!-- type="text" chứ không phải "email": ô này nhận CẢ tên tài khoản, để "email" thì trình
+                         duyệt tự chặn mọi chuỗi không có "@" trước khi kịch bản kịp gửi đi.
+                         autocapitalize="none" để bàn phím điện thoại không viết hoa chữ đầu tên tài khoản. -->
+                    <input type="text" id="email" required placeholder=" " autocomplete="username"
+                           spellcheck="false" autocapitalize="none" maxlength="150">
+                    <label for="email" data-i18n="login.username">Email / Tên Tài Khoản</label>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="password" required placeholder=" " autocomplete="current-password">
+                    <label for="password" data-i18n="login.password">Mật Khẩu</label>
+                </div>
+                <div class="fp-link-row">
+                    <button type="button" class="fp-link" id="btnForgotPassword" data-i18n="login.forgotPwd">Quên mật khẩu?</button>
+                </div>
+                <button type="submit" class="btn-glow" id="submitBtn" data-i18n="login.loginBtn">Đăng Nhập</button>
+            </form>
+
+            <div class="demo-hint">
+                <b data-i18n="login.demoTitle">TÀI KHOẢN DÙNG THỬ</b> <span data-i18n="login.demoHint">— bấm để điền nhanh</span>
+                <div>
+                    <button type="button" data-fill="admin@hbelearning.vn|Admin@123" data-i18n="login.demoAdmin">Quản trị</button>                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== QUÊN MẬT KHẨU ==================== -->
+<div class="fp-mask" id="fpMask">
+    <div class="fp-modal">
+        <button type="button" class="fp-close" id="fpClose">&times;</button>
+
+        <div class="fp-step" id="fpStep1">
+            <h3 data-i18n="fp.title1">Quên mật khẩu</h3>
+            <p class="fp-desc" data-i18n="fp.desc1">Nhập email của bạn và chọn kênh nhận mã OTP, hệ thống sẽ gửi mã OTP tới email hoặc số điện thoại đã đăng ký với tài khoản.</p>
+            <div class="fp-error" id="fpError1"></div>
+            <div class="fp-channel-row">
+                <button type="button" class="fp-channel active" data-channel="zalo">Zalo</button>
+                <button type="button" class="fp-channel" data-channel="sms">SMS</button>
+                <button type="button" class="fp-channel" data-channel="email">Email</button>
+            </div>
+            <div class="input-group">
+                <input type="email" id="fpEmail" required placeholder=" " autocomplete="username" spellcheck="false">
+                <label for="fpEmail" data-i18n="fp.emailLabel">Nhập Email Hoặc Số Điện Thoại Của Bạn</label>
+            </div>
+            <button type="button" class="btn-glow" id="fpSendOtp" data-i18n="fp.sendOtp">Gửi mã OTP</button>
+        </div>
+
+        <div class="fp-step" id="fpStep2" hidden>
+            <h3 data-i18n="fp.title2">Nhập mã OTP</h3>
+            <p class="fp-desc"><span data-i18n="fp.otpSent1">Mã OTP vừa được gửi qua </span><b id="fpStep2Channel">Zalo</b><span data-i18n="fp.otpSent2"> đăng ký </span><b id="fpStep2Email"></b><span data-i18n="fp.otpSent3">, có hiệu lực trong 5 phút.</span></p>
+            <div class="fp-error" id="fpError2"></div>
+            <div class="input-group">
+                <input type="text" id="fpOtp" inputmode="numeric" maxlength="6" required placeholder=" " autocomplete="one-time-code">
+                <label for="fpOtp" data-i18n="fp.otpLabel">Mã OTP</label>
+            </div>
+            <button type="button" class="btn-glow" id="fpVerifyOtp" data-i18n="fp.confirm">Xác nhận</button>
+            <button type="button" class="fp-link fp-resend" id="fpResend" data-i18n="fp.resend">Gửi lại mã</button>
+        </div>
+
+        <div class="fp-step" id="fpStep3" hidden>
+            <h3 data-i18n="fp.title3">Đặt mật khẩu mới</h3>
+            <p class="fp-desc" data-i18n="fp.desc3">Mật khẩu mới cần tối thiểu 6 ký tự.</p>
+            <div class="fp-error" id="fpError3"></div>
+            <div class="input-group">
+                <input type="password" id="fpNewPassword" required placeholder=" " autocomplete="new-password">
+                <label for="fpNewPassword" data-i18n="fp.newPassword">Mật khẩu mới</label>
+            </div>
+            <div class="input-group">
+                <input type="password" id="fpConfirmPassword" required placeholder=" " autocomplete="new-password">
+                <label for="fpConfirmPassword" data-i18n="fp.confirmPassword">Xác nhận mật khẩu mới</label>
+            </div>
+            <button type="button" class="btn-glow" id="fpResetPassword" data-i18n="fp.reset">Đặt lại mật khẩu</button>
+        </div>
+
+        <div class="fp-step" id="fpStep4" hidden>
+            <div class="fp-success-icon">&#10003;</div>
+            <h3 data-i18n="fp.title4">Thành công!</h3>
+            <p class="fp-desc" data-i18n="fp.desc4">Mật khẩu đã được đặt lại. Vui lòng đăng nhập với mật khẩu mới.</p>
+            <button type="button" class="btn-glow" id="fpDone" data-i18n="fp.backToLogin">Quay lại đăng nhập</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== LÕI BÊN TRONG ==================== -->
+<div class="sanctum">
+    <div class="glow-orb"></div>
+    <img src="/img/HoaBinh.png" data-i18n-alt="login.successAlt" alt="Truy cập thành công" class="success-img">
+    <div data-i18n="sanctumtext" class="sanctum-text" id="sanctumText">Truy cập không gian làm việc</div>
+    <div data-i18n="sanctumSub" class="sanctum-sub" id="sanctumSub">Đang chuyển hướng...</div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script>
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    // Đã đăng nhập thì vào thẳng hệ thống
+    if (Auth.isLoggedIn) { location.href = '/pages/dashboard.html'; return; }
+    applyI18n();
+
+    // Trang chưa đăng nhập nên không có topbar — nút đổi ngôn ngữ phải đặt riêng.
+    renderLanguageSwitch(document.getElementById('langSwitch'));
+    renderThemeSwitch(document.getElementById('themeSwitch'));
+
+    const form   = document.getElementById('authForm');
+    const logo   = document.getElementById('hbcLogo');
+    const gate   = document.getElementById('gate');
+    const btn    = document.getElementById('submitBtn');
+    const card   = document.getElementById('loginCard');
+    const errBox = document.getElementById('authError');
+
+    const emailInput    = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+
+    const attemptBox    = document.getElementById('attemptBox');
+    const attemptNumber = document.getElementById('attemptNumber');
+
+    // Tài khoản vừa bị máy chủ báo là đã khóa. Giữ lại để biểu mẫu không mở lại sau đó: không cho gửi tiếp,
+    // không xóa câu thông báo khi người dùng gõ lại, và nút Đăng nhập ở nguyên trạng thái mờ.
+    let isLockedOut = false;
+
+    const MIN_DECODE_MS  = 1600;   // giữ hiệu ứng giải mã tối thiểu cho đủ "đã mắt"
+    const REDIRECT_AFTER = 2900;   // thời gian xem hoạt cảnh mở cửa trước khi chuyển trang
+
+    // Nút điền nhanh tài khoản dùng thử
+    document.querySelectorAll('[data-fill]').forEach(button => {
+        button.addEventListener('click', () => {
+            if (isLockedOut) return;
+            const [email, password] = button.dataset.fill.split('|');
+            emailInput.value = email;
+            passwordInput.value = password;
+            hideError();
+            emailInput.dispatchEvent(new Event('input'));
+        });
+    });
+
+    [emailInput, passwordInput].forEach(el => el.addEventListener('input', hideError));
+
+    /** Vẽ lại số lần còn được gõ sai. Về 0 thì tô đỏ cả dòng, giống cách ô báo lỗi tự hiện màu.
+     *
+     *  Hàm này cũng là chỗ DUY NHẤT làm dòng đếm hiện ra: lúc mới mở trang chưa có gì để cảnh báo, hiện sẵn
+     *  một hạn mức chỉ làm người dùng bình thường hoang mang. Chỉ khi máy chủ đã tính một lần gõ sai thì con
+     *  số mới xuất hiện — và lúc đó nó là số thật, không phải số đoán ở trình duyệt. */
+    function setRemainingAttempt(remaining) {
+        attemptNumber.textContent = remaining;
+        attemptBox.classList.toggle('warn', remaining <= 1);
+        attemptBox.classList.add('show');
+    }
+
+    /** Đóng hẳn biểu mẫu sau lần sai cuối cùng. Máy chủ mới là nơi thực sự chặn (xem AuthService.Login),
+     *  đây chỉ là để người dùng khỏi gõ thêm vô ích. Chỉ phòng IT mở lại được nên không có đường quay lui. */
+    function lockOut() {
+        isLockedOut = true;
+        setRemainingAttempt(0);
+        [emailInput, passwordInput].forEach(el => el.disabled = true);
+        btn.disabled = true;
+        btn.textContent = t('login.lockedBtn', 'Tài khoản đã bị khóa');
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (isLockedOut) return;
+        hideError();
+
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        if (!email || !password) { fail(t('login.errRequired', 'Vui lòng nhập đầy đủ định danh và khóa bảo mật.')); return; }
+        // Định danh là email HOẶC tên tài khoản. Tên tài khoản không bao giờ chứa "@" (xem Helpers/UserNameHelper.cs),
+        // nên chỉ chuỗi có "@" mới bị đo bằng thước email — gõ thiếu chữ ".vn" thì báo ngay tại chỗ thay vì
+        // phải chờ máy chủ trả lời "không tìm thấy tài khoản".
+        if (email.includes('@') && !/^\S+@\S+\.\S+$/.test(email)) { fail(t('login.errEmail', 'Địa chỉ email không hợp lệ.')); return; }
+
+        // ----- Trạng thái đang giải mã -----
+        btn.disabled = true;
+        btn.textContent = t('login.decoding', 'Đang giải mã...');
+        
+        logo.classList.add('spin-hyper');
+
+        const startedAt = Date.now();
+
+        try {
+            const result = await API.post('/auth/login', { email, password });
+            Auth.save(result.token, result.profile);
+
+            // Đảm bảo hiệu ứng chạy đủ lâu rồi mới mở cửa
+            const elapsed = Date.now() - startedAt;
+            setTimeout(() => openGate(result.profile), Math.max(0, MIN_DECODE_MS - elapsed));
+
+        } catch (ex) {
+            // Giữ hiệu ứng xoay đủ lâu để mắt kịp thấy, kể cả khi đăng nhập thất bại
+            const elapsed = Date.now() - startedAt;
+            setTimeout(() => {
+                logo.classList.remove('spin-hyper');
+
+                // Đăng nhập sai trả về LoginFailedResponse (xem Application/DTOs/AuthDto.cs): ngoài câu thông
+                // báo còn kèm số lần còn lại và cờ đã khóa. Lỗi hạ tầng (mất mạng, 500...) không có hai thứ
+                // đó — khi ấy giữ nguyên con số đang hiện, vì lần bấm này không hề bị máy chủ tính là sai.
+                const failure = (ex.data && typeof ex.data === 'object') ? ex.data : null;
+                if (typeof failure?.remainingAttempt === 'number') setRemainingAttempt(failure.remainingAttempt);
+
+                if (failure?.isLockedOut) {
+                    lockOut();
+                    fail(t('login.locked', 'Bạn đã bị khóa tài khoản, xin liên hệ phòng IT.'));
+                    return;
+                }
+                fail(ex.message || t('login.errAuth', 'Không xác thực được. Vui lòng thử lại.'));
+            }, Math.max(0, MIN_DECODE_MS - elapsed));
+        }
+    });
+
+    function openGate(profile) {
+        document.getElementById('sanctumText').textContent =
+            t('login.hello', 'Xin chào, {name}', { name: profile.fullName });
+
+        // roleLabel() dịch tên vai trò để HIỂN THỊ, chuỗi gốc profile.roleName vẫn giữ nguyên cho phân quyền.
+        const who = roleLabel(profile.roleName) + (profile.departmentName ? ' · ' + profile.departmentName : '');
+        document.getElementById('sanctumSub').textContent =
+            t('login.opening', '{who} — đang mở không gian làm việc...', { who });
+
+        // Logo vẫn xoay xuyên suốt lúc cánh cửa bật mở — chỉ dừng khi đăng nhập thất bại
+        gate.classList.add('access-granted');
+
+        const go = () => location.href = '/pages/dashboard.html';
+        const timer = setTimeout(go, REDIRECT_AFTER);
+
+        // Bấm vào đâu cũng vào ngay, không cần đợi hết hoạt cảnh
+        document.addEventListener('click', () => { clearTimeout(timer); go(); }, { once: true });
+    }
+
+    function fail(message) {
+        // Đã khóa thì nút giữ nguyên trạng thái mờ mà lockOut() vừa đặt — mở lại là mời người dùng gõ thêm
+        // một lần nữa để nhận đúng câu thông báo cũ.
+        if (!isLockedOut) {
+            btn.disabled = false;
+            btn.textContent = t('login.activate', 'Kích hoạt');
+        }
+        errBox.textContent = message;
+        errBox.classList.add('show');
+        card.classList.remove('shake');
+        void card.offsetWidth;          // ép trình duyệt tính lại để animation chạy lại
+        card.classList.add('shake');
+    }
+
+    // Câu báo khóa tài khoản phải ở lại trên màn hình: nó không phải lỗi của lần gõ này mà là trạng thái
+    // của cả tài khoản, gõ lại chữ nào cũng không làm nó hết đúng.
+    function hideError() { if (!isLockedOut) errBox.classList.remove('show'); }
+
+    // ==================== QUÊN MẬT KHẨU ====================
+    const fpMask = document.getElementById('fpMask');
+    const fpStepList = [1, 2, 3, 4].map(n => document.getElementById('fpStep' + n));
+    const fpEmailInput = document.getElementById('fpEmail');
+    const fpOtpInput = document.getElementById('fpOtp');
+    const fpNewPasswordInput = document.getElementById('fpNewPassword');
+    const fpConfirmPasswordInput = document.getElementById('fpConfirmPassword');
+    const fpSendOtpBtn = document.getElementById('fpSendOtp');
+    const fpVerifyOtpBtn = document.getElementById('fpVerifyOtp');
+    const fpResetPasswordBtn = document.getElementById('fpResetPassword');
+    const fpResendBtn = document.getElementById('fpResend');
+
+    let fpResetToken = null;
+    let fpResendTimer = null;
+    let fpChannel = 'zalo';
+
+    // ---------- Ô nhập mật khẩu ----------
+    // Thanh đo và nút con mắt dùng chung với phần còn lại của hệ thống (js/password.js). Trang này truyền
+    // '.input-group' làm chỗ đặt: nhãn nổi ở đây dựa vào bộ chọn "input ~ label", để hàm tự bọc thêm một
+    // thẻ quanh ô nhập là hai phần tử hết còn là anh em và nhãn đứng im không chịu nổi lên.
+    const PWD_HOST = { hostSelector: '.input-group', anchorSelector: '.input-group' };
+
+    attachPasswordStrength(fpNewPasswordInput, PWD_HOST);
+    [passwordInput, fpNewPasswordInput, fpConfirmPasswordInput].forEach(x => attachPasswordEye(x, PWD_HOST));
+
+    document.querySelectorAll('.fp-channel').forEach(btn => {
+        btn.addEventListener('click', () => {
+            fpChannel = btn.dataset.channel;
+            document.querySelectorAll('.fp-channel').forEach(b => b.classList.toggle('active', b === btn));
+        });
+    });
+
+    document.getElementById('btnForgotPassword').addEventListener('click', openForgotPassword);
+    document.getElementById('fpClose').addEventListener('click', closeForgotPassword);
+    document.getElementById('fpDone').addEventListener('click', closeForgotPassword);
+    fpMask.addEventListener('click', (e) => { if (e.target === fpMask) closeForgotPassword(); });
+
+    function openForgotPassword() {
+        fpEmailInput.value = emailInput.value.trim();
+        goToFpStep(1);
+        fpMask.classList.add('open');
+    }
+
+    function closeForgotPassword() {
+        fpMask.classList.remove('open');
+        clearInterval(fpResendTimer);
+        fpResetToken = null;
+        [fpEmailInput, fpOtpInput, fpNewPasswordInput, fpConfirmPasswordInput].forEach(el => el.value = '');
+        resetPasswordEye(fpMask);
+        fpNewPasswordInput.dispatchEvent(new Event('input'));
+        [1, 2, 3].forEach(fpHideError);
+    }
+
+    function goToFpStep(n) { fpStepList.forEach((el, i) => el.hidden = (i + 1) !== n); }
+
+    function fpShowError(step, message) {
+        const box = document.getElementById('fpError' + step);
+        box.textContent = message;
+        box.classList.add('show');
+    }
+    function fpHideError(step) { document.getElementById('fpError' + step).classList.remove('show'); }
+
+    async function sendForgotPasswordOtp() {
+        const email = fpEmailInput.value.trim();
+        await API.post('/auth/forgot-password', { email, channel: fpChannel });
+        document.getElementById('fpStep2Email').textContent = email;
+        document.getElementById('fpStep2Channel').textContent = fpChannel === 'sms' ? 'SMS' : fpChannel === 'email' ? 'Email' : 'Zalo';
+        startFpResendCooldown();
+    }
+
+    fpSendOtpBtn.addEventListener('click', async () => {
+        fpHideError(1);
+        const email = fpEmailInput.value.trim();
+        if (!email || !/^\S+@\S+\.\S+$/.test(email)) { fpShowError(1, t('fp.errEmail', 'Vui lòng nhập email hợp lệ.')); return; }
+
+        fpSendOtpBtn.disabled = true;
+        fpSendOtpBtn.textContent = t('fp.sending', 'Đang gửi...');
+        try {
+            await sendForgotPasswordOtp();
+            goToFpStep(2);
+        } catch (ex) {
+            fpShowError(1, ex.message || t('fp.errSendOtp', 'Không gửi được mã OTP. Vui lòng thử lại.'));
+        } finally {
+            fpSendOtpBtn.disabled = false;
+            fpSendOtpBtn.textContent = t('fp.sendOtp', 'Gửi mã OTP');
+        }
+    });
+
+    fpResendBtn.addEventListener('click', async () => {
+        if (fpResendBtn.disabled) return;
+        fpHideError(2);
+        try { await sendForgotPasswordOtp(); }
+        catch (ex) { fpShowError(2, ex.message || t('fp.errResend', 'Không gửi lại được mã OTP.')); }
+    });
+
+    function startFpResendCooldown() {
+        clearInterval(fpResendTimer);
+        let remain = 60;
+        fpResendBtn.disabled = true;
+        fpResendBtn.textContent = t('fp.resendIn', 'Gửi lại mã ({second}s)', { second: remain });
+        fpResendTimer = setInterval(() => {
+            remain--;
+            if (remain <= 0) {
+                clearInterval(fpResendTimer);
+                fpResendBtn.disabled = false;
+                fpResendBtn.textContent = t('fp.resend', 'Gửi lại mã');
+            } else {
+                fpResendBtn.textContent = t('fp.resendIn', 'Gửi lại mã ({second}s)', { second: remain });
+            }
+        }, 1000);
+    }
+
+    fpVerifyOtpBtn.addEventListener('click', async () => {
+        fpHideError(2);
+        const code = fpOtpInput.value.trim();
+        if (!/^\d{6}$/.test(code)) { fpShowError(2, t('fp.errOtpFormat', 'Mã OTP gồm 6 chữ số.')); return; }
+
+        fpVerifyOtpBtn.disabled = true;
+        fpVerifyOtpBtn.textContent = t('fp.confirming', 'Đang xác nhận...');
+        try {
+            const r = await API.post('/auth/verify-otp', { email: fpEmailInput.value.trim(), code });
+            fpResetToken = r.resetToken;
+            clearInterval(fpResendTimer);
+            goToFpStep(3);
+        } catch (ex) {
+            fpShowError(2, ex.message || t('fp.errOtp', 'Mã OTP không đúng hoặc đã hết hạn.'));
+        } finally {
+            fpVerifyOtpBtn.disabled = false;
+            fpVerifyOtpBtn.textContent = t('fp.confirm', 'Xác nhận');
+        }
+    });
+
+    fpResetPasswordBtn.addEventListener('click', async () => {
+        fpHideError(3);
+        const newPassword = fpNewPasswordInput.value;
+        const confirmPassword = fpConfirmPasswordInput.value;
+        if (newPassword.length < 6) { fpShowError(3, t('fp.errPwdShort', 'Mật khẩu mới tối thiểu 6 ký tự.')); return; }
+        if (newPassword !== confirmPassword) { fpShowError(3, t('fp.errPwdMismatch', 'Mật khẩu xác nhận không khớp.')); return; }
+
+        fpResetPasswordBtn.disabled = true;
+        fpResetPasswordBtn.textContent = t('fp.processing', 'Đang xử lý...');
+        try {
+            await API.post('/auth/reset-password', { resetToken: fpResetToken, newPassword });
+            goToFpStep(4);
+        } catch (ex) {
+            fpShowError(3, ex.message || t('fp.errReset', 'Không đặt lại được mật khẩu.'));
+        } finally {
+            fpResetPasswordBtn.disabled = false;
+            fpResetPasswordBtn.textContent = t('fp.reset', 'Đặt lại mật khẩu');
+        }
+    });
+
+})();
+</script>
+</body>
+</html>

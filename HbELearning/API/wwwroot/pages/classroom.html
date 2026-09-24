@@ -1,0 +1,865 @@
+<!-- File: wwwroot/pages/classroom.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="classroom.phongHocHbELearning">Phòng học · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Sử dụng Plus Jakarta Sans để mang lại cảm giác công nghệ, sắc nét -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --cr-bg: #090B10;
+        --cr-bg-gradient: radial-gradient(circle at 50% 0%, #151a2a 0%, #090b10 80%);
+        --cr-panel: #11151F;
+        --cr-panel-alt: #161B26;
+        --cr-border: #202636;
+        --cr-border-hover: #2D3548;
+        --cr-text: #F8FAFC;
+        --cr-muted: #94A3B8;
+        --cr-accent: #0EA5E9;
+        --cr-accent-hover: #0284C7;
+        --cr-accent-glow: rgba(14, 165, 233, 0.25);
+        --cr-danger: #F43F5E;
+        --cr-success: #10B981;
+    }
+
+    body {
+        margin: 0;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    .cr-wrap {
+        display: flex; flex-direction: column; height: 100vh; color: var(--cr-text);
+        background: var(--cr-bg); background-image: var(--cr-bg-gradient);
+        position: relative; overflow: hidden; z-index: 0;
+    }
+
+    /* TOPBAR - ĐƠN GIẢN, PHẲNG */
+    .cr-topbar {
+        display: flex; align-items: center; gap: 16px; padding: 14px 24px;
+        background: var(--cr-panel); border-bottom: 1px solid var(--cr-border);
+        position: relative; z-index: 10;
+    }
+    .cr-topbar h2 {
+        margin: 0; font-size: 15px; font-weight: 600; flex: 1; color: var(--cr-text);
+    }
+
+    .cr-body { flex: 1; display: flex; overflow: hidden; position: relative; }
+    .cr-stage { flex: 1; display: flex; flex-direction: column; padding: 24px; gap: 20px; overflow: hidden; position: relative; }
+    
+    /* VIDEO CHÍNH - VIỀN MỎNG, GÓC CẠNH HƠN */
+    .cr-main-video {
+        flex: 1; background: #000; border-radius: 12px; position: relative;
+        display: flex; align-items: center; justify-content: center; overflow: hidden;
+        border: 1px solid var(--cr-border);
+        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
+    }
+    .cr-main-video video { width: 100%; height: 100%; object-fit: contain; }
+    .cr-main-video video.mirror { transform: scaleX(-1); }
+    .cr-main-video .placeholder { color: var(--cr-muted); font-size: 14px; font-weight: 500; letter-spacing: 0.5px; }
+
+    /* DANH SÁCH HỌC VIÊN */
+    .cr-viewer-strip { display: flex; gap: 12px; overflow-x: auto; padding: 0 0 80px; }
+    
+    .cr-tile {
+        flex: 0 0 auto; width: 148px; background: var(--cr-panel);
+        border: 1px solid var(--cr-border); border-radius: 10px; padding: 12px; 
+        text-align: center; transition: all 0.2s ease;
+    }
+    .cr-tile:hover { border-color: var(--cr-accent); box-shadow: 0 4px 20px -8px var(--cr-accent-glow); }
+    
+    .cr-tile .avatar {
+        width: 44px; height: 44px; border-radius: 8px; margin: 0 auto 12px;
+        background: var(--cr-panel-alt); border: 1px solid var(--cr-border);
+        display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px; color: var(--cr-accent);
+    }
+    .cr-tile video.cr-tile-video { width: 100%; height: 84px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: #000; border: 1px solid var(--cr-border); }
+    .cr-tile .name { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--cr-text); }
+    .cr-tile .mic, .cr-tile .cam { font-size: 11px; color: var(--cr-muted); margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 4px; font-weight: 500; }
+    .cr-tile .mic.on, .cr-tile .cam.on { color: var(--cr-success); }
+
+    /* SIDEBAR CHAT - KHỐI RÕ RÀNG */
+    .cr-side {
+        width: 320px; flex-shrink: 0; background: var(--cr-panel);
+        border-left: 1px solid var(--cr-border); overflow: hidden; 
+        transition: width .25s ease; z-index: 10;
+    }
+    .cr-side.collapsed { width: 0; border-left-color: transparent; }
+    .cr-side-inner { width: 320px; height: 100%; display: flex; flex-direction: column; }
+    
+    .cr-side-toggle {
+        position: absolute; top: 50%; right: 320px; transform: translateY(-50%);
+        width: 20px; height: 60px; border-radius: 6px 0 0 6px; border: 1px solid var(--cr-border); border-right: none;
+        background: var(--cr-panel-alt); color: var(--cr-muted); cursor: pointer; z-index: 20;
+        display: flex; align-items: center; justify-content: center; font-size: 12px;
+        transition: all .25s ease;
+    }
+    .cr-side-toggle:hover { color: var(--cr-accent); background: var(--cr-panel); }
+    .cr-body.side-collapsed .cr-side-toggle { right: 0; }
+    .cr-body.side-collapsed .cr-side-toggle i { transform: rotate(180deg); }
+
+    .cr-side-tabs { display: flex; align-items: center; border-bottom: 1px solid var(--cr-border); }
+    .cr-side-tabs button {
+        flex: 1; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--cr-muted); 
+        padding: 16px 12px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .2s;
+    }
+    .cr-side-tabs button:hover { color: var(--cr-text); }
+    .cr-side-tabs button.active { color: var(--cr-accent); border-bottom-color: var(--cr-accent); }
+    
+    .cr-side-close {
+        flex: none !important; width: 48px; height: 100%; border: none !important;
+        display: flex; align-items: center; justify-content: center; font-size: 14px;
+    }
+    .cr-side-close:hover { color: var(--cr-danger) !important; background: rgba(244, 63, 94, 0.1) !important; }
+    
+    .cr-side-panel { flex: 1; overflow-y: auto; padding: 20px 16px; display: none; }
+    .cr-side-panel.active { display: flex; flex-direction: column; }
+    
+    /* TIN NHẮN CHAT - ĐƯỜNG KẺ NHẤN BÊN TRÁI */
+    .cr-chat-msg { 
+        margin-bottom: 16px; font-size: 13px; padding-left: 12px;
+        border-left: 2px solid var(--cr-border);
+    }
+    .cr-chat-msg:hover { border-left-color: var(--cr-accent); }
+    .cr-chat-msg b { color: var(--cr-text); font-size: 13px; font-weight: 600; }
+    .cr-chat-msg .time { color: var(--cr-muted); font-size: 11px; margin-left: 8px; font-weight: 500; }
+    .cr-chat-msg > div:last-child { margin-top: 4px; line-height: 1.6; color: #CBD5E1; }
+    
+    .cr-chat-input { display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--cr-border); background: var(--cr-panel); }
+    .cr-chat-input input {
+        flex: 1; border-radius: 6px; border: 1px solid var(--cr-border); background: var(--cr-bg);
+        color: var(--cr-text); padding: 10px 14px; font-size: 13px; transition: 0.2s;
+    }
+    .cr-chat-input input:focus { outline: none; border-color: var(--cr-accent); box-shadow: 0 0 0 2px var(--cr-accent-glow); }
+    .cr-chat-input button {
+        border-radius: 6px; padding: 0 16px; background: var(--cr-accent); color: #fff; border: none; font-weight: 600; cursor: pointer; transition: 0.2s;
+    }
+    .cr-chat-input button:hover { background: var(--cr-accent-hover); }
+
+    .cr-participant { display: flex; align-items: center; gap: 12px; padding: 10px; font-size: 13px; border-radius: 6px; margin-bottom: 4px; font-weight: 500; }
+    .cr-participant:hover { background: var(--cr-panel-alt); }
+    .cr-participant .avatar {
+        width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0;
+        background: var(--cr-bg); border: 1px solid var(--cr-border);
+        display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--cr-accent);
+    }
+
+    /* DOCK ĐIỀU KHIỂN - HÌNH CHỮ NHẬT BO GÓC NHẸ */
+    .cr-controls {
+        position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 20;
+        display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 12px;
+        background: var(--cr-panel); border: 1px solid var(--cr-border);
+        border-radius: 12px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7);
+    }
+    
+    .cr-ctrl-btn {
+        width: 44px; height: 44px; border-radius: 8px; border: 1px solid transparent; 
+        background: var(--cr-panel-alt); color: var(--cr-text);
+        font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s ease;
+    }
+    .cr-ctrl-btn:hover:not(:disabled) { background: var(--cr-border-hover); }
+    .cr-ctrl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    
+    .cr-ctrl-btn.off { background: rgba(244, 63, 94, 0.1); color: var(--cr-danger); border-color: rgba(244, 63, 94, 0.2); }
+    .cr-ctrl-btn.off:hover:not(:disabled) { background: rgba(244, 63, 94, 0.2); }
+    
+    .cr-ctrl-btn.active { 
+        background: var(--cr-accent); color: #fff;
+        box-shadow: 0 4px 12px var(--cr-accent-glow); 
+    }
+    
+    .cr-leave-btn { background: var(--cr-danger) !important; color: white; margin-left: 12px; }
+    .cr-leave-btn:hover { background: #E11D48 !important; }
+
+    /* BADGE GHI HÌNH & MÃ PHÒNG */
+    .cr-rec-badge, .cr-code-badge {
+        display: none; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--cr-muted);
+        background: var(--cr-panel-alt); border: 1px solid var(--cr-border); padding: 6px 12px; border-radius: 6px;
+    }
+    .cr-rec-badge { color: var(--cr-danger); background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); }
+    .cr-rec-badge.show, .cr-code-badge.show { display: flex; }
+    
+    .cr-code-chars { display: flex; gap: 4px; margin-left: 4px; }
+    .cr-code-char {
+        width: 20px; height: 22px; display: flex; align-items: center; justify-content: center;
+        background: var(--cr-bg); border: 1px solid var(--cr-border); border-radius: 4px;
+        font-family: ui-monospace, monospace; font-weight: 700; font-size: 12px; color: var(--cr-accent);
+    }
+    .cr-copy-btn {
+        width: 26px; height: 26px; border-radius: 4px; border: none;
+        background: transparent; color: var(--cr-muted); font-size: 14px; cursor: pointer; transition: 0.2s;
+    }
+    .cr-copy-btn:hover { background: var(--cr-border); color: var(--cr-text); }
+    .cr-copy-btn.copied { color: var(--cr-success); }
+    
+    .cr-rec-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cr-danger); animation: cr-rec-pulse 1.5s infinite alternate; }
+    @keyframes cr-rec-pulse { 0% { opacity: 1; } 100% { opacity: 0.3; } }
+
+    /* SCROLLBAR - VUÔNG VỨC & TINH TẾ */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--cr-border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--cr-muted); }
+</style>
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="cr-wrap">
+    <div class="cr-topbar">
+        <h2 data-i18n="classroom.dangTai" id="cr-title">Đang tải...</h2>
+        <span id="cr-status"></span>
+        <span class="cr-code-badge" id="cr-code-badge"></span>
+        <span class="cr-rec-badge" id="cr-rec-badge"><span class="dot"></span> Đang ghi hình <span class="time" id="cr-rec-time">00:00</span></span>
+    </div>
+    <div class="cr-body">
+        <div class="cr-stage">
+            <div class="cr-main-video" id="cr-main-video">
+                <div data-i18n="classroom.dangKetNoi" class="placeholder" id="cr-placeholder">Đang kết nối...</div>
+            </div>
+            <div class="cr-viewer-strip" id="cr-viewer-strip"></div>
+        </div>
+        <button type="button" class="cr-side-toggle" id="cr-side-toggle" data-i18n-title="classroom.anHienKhungChat" title="Ẩn/hiện khung chat"><i class="ph ph-caret-right"></i></button>
+        <div class="cr-side" id="cr-side">
+            <div class="cr-side-inner">
+                <div class="cr-side-tabs">
+                    <button class="active" data-panel="chat">Chat</button>
+                    <button data-panel="people">Người tham gia (<span id="cr-people-count">0</span>)</button>
+                    <button type="button" class="cr-side-close" id="cr-side-close" data-i18n-title="classroom.dongKhungChat" title="Đóng khung chat"><i class="ph ph-x"></i></button>
+                </div>
+                <div class="cr-side-panel active" id="panel-chat">
+                    <div id="cr-chat-log" style="flex:1;overflow-y:auto"></div>
+                </div>
+                <div class="cr-side-panel" id="panel-people">
+                    <div id="cr-people-list"></div>
+                </div>
+                <div class="cr-chat-input">
+                    <input id="cr-chat-text" data-i18n-ph="classroom.nhapTinNhan" placeholder="Nhập tin nhắn..." maxlength="500">
+                    <button data-i18n="classroom.gui" class="btn sm" id="cr-chat-send">Gửi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="cr-controls" id="cr-controls"></div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/lib/signalr.min.js"></script>
+<script>
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.require(['Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'online-class.view')) return;
+    ensurePhosphorIcons();
+    ensureUicons();
+
+    // Mã tham gia (từ liên kết mời, hoặc tự gõ ở trang danh sách) — bắt buộc với người không phải chủ trì/Admin,
+    // xem ClassRoomHub.JoinRoom. Hỗ trợ cả liên kết chỉ có "code" (không kèm sẵn id) — tra id trước qua API.
+    const joinCode = (qs('code') || '').trim();
+    let roomId = parseInt(qs('id') || '0', 10);
+    if (!roomId && joinCode) {
+        try { roomId = (await API.get(`/onlineclassroom/resolve-code/${encodeURIComponent(joinCode)}`)).id; }
+        catch (ex) { document.getElementById('cr-placeholder').textContent = ex.message; return; }
+    }
+    if (!roomId) { location.href = '/pages/online-class.html'; return; }
+
+    // Lấy cấu hình STUN/TURN từ server (server tự triển khai — không qua bên thứ ba nào). Nếu
+    // backend chưa cấu hình mục "Turn" (appsettings), API trả về rỗng và WebRTC chỉ dùng được
+    // trong cùng mạng LAN/VPN công ty (chỉ có ứng viên host nội bộ, không xuyên NAT được).
+    let ICE_SERVERS = [];
+    try { ICE_SERVERS = await API.get('/onlineclassroom/ice-servers'); } catch { ICE_SERVERS = []; }
+
+    let room = null;
+    let isHost = false;
+    let myConnectionId = null;
+    let localStream = null;      // host: camera/mic (hoặc màn hình đang chia sẻ); viewer: mic (+ camera nếu tự bật)
+    let cameraTrack = null;      // track camera gốc của chính mình (host: có sẵn; viewer: xin quyền khi bấm nút cam), dùng để phục hồi sau khi tắt chia sẻ màn hình
+    let myCamSender = null;      // viewer: RTCRtpSender của kênh video gửi tới host, dùng để gắn camera vào khi bật (không cần đàm phán lại)
+    const peerList = {};         // connectionId -> { pc, connectionId, fullName, isHost, micOn, camOn, videoTrack }
+    let mediaRecorder = null;    // host: ghi lại toàn bộ giao diện phòng học (quay tab) + mic để lưu thành bản ghi buổi học
+    let displayStream = null;    // luồng hình quay nguyên tab trình duyệt (xin quyền qua getDisplayMedia, gồm cả giao diện chat/người tham gia/đồng hồ)
+    let recordingId = null;      // id bản ghi phía server (tạo lúc StartRecording), dùng để gửi từng đoạn video nhỏ lên
+    let recordingStartAt = null; // mốc thời gian bắt đầu ghi (đồng hồ trình duyệt), dùng tính thời lượng thật lúc kết thúc + chạy đồng hồ hiển thị
+    let recTimerInterval = null;
+    let uploadQueue = Promise.resolve(); // hàng đợi tải từng đoạn lên tuần tự, tránh 2 đoạn ghi đè lẫn nhau trên server
+
+    try {
+        room = await API.get(`/onlineclassroom/${roomId}`);
+    } catch (ex) {
+        document.getElementById('cr-placeholder').textContent = ex.message;
+        return;
+    }
+    isHost = room.hostUserId === Auth.profile?.id;
+    document.getElementById('cr-title').textContent = room.title;
+    document.getElementById('cr-status').innerHTML = statusBadge(room.status);
+
+    // room.joinCode chỉ khác null với chủ trì/Admin (API tự ẩn với người khác) — hiện ngay trong phòng để
+    // chủ trì tiện đọc/gửi mã cho người tham gia mà không phải quay lại trang danh sách.
+    if (room.joinCode) {
+        const codeBadge = document.getElementById('cr-code-badge');
+        codeBadge.classList.add('show');
+        // Mỗi ký tự 1 ô riêng — cùng kiểu với các ô OTP lúc nhập mã ở trang danh sách, để người chủ trì
+        // nhận ra ngay đây là mã sẽ gõ vào từng ô đó (mã gồm cả chữ lẫn số, không phải chỉ toàn số).
+        const charsHtml = [...room.joinCode].map(ch => `<span class="cr-code-char">${esc(ch)}</span>`).join('');
+        codeBadge.innerHTML = `
+            <span data-i18n="classroom.maPhong" class="cr-code-label">Mã phòng</span>
+            <span class="cr-code-chars">${charsHtml}</span>
+            <button type="button" id="cr-copy-code" class="cr-copy-btn" data-i18n-title="classroom.saoChepLienKetMoi" title="Sao chép liên kết mời"><i class="ph ph-copy"></i></button>`;
+        const copyBtn = document.getElementById('cr-copy-code');
+        copyBtn.addEventListener('click', async () => {
+            const link = `${location.origin}/pages/classroom.html?id=${roomId}&code=${encodeURIComponent(room.joinCode)}`;
+            try {
+                await navigator.clipboard.writeText(link);
+                toastOk(t('classroom.daSaoChepLienKetMoiVaoPhong', 'Đã sao chép liên kết mời vào phòng.'));
+                copyBtn.classList.add('copied');
+                copyBtn.innerHTML = '<i class="ph ph-check"></i>';
+                setTimeout(() => { copyBtn.classList.remove('copied'); copyBtn.innerHTML = '<i class="ph ph-copy"></i>'; }, 1600);
+            } catch { toastErr(t('classroom.khongSaoChepDuocTrinhDuyetChan', 'Không sao chép được — trình duyệt chặn quyền truy cập clipboard.')); }
+        });
+    }
+
+    if (room.status === 'Ended' || room.status === 'Cancelled') {
+        document.getElementById('cr-placeholder').textContent = t('classroom.buoiHocDaKetThucHoacBiHuy', 'Buổi học đã kết thúc hoặc bị hủy.');
+        return;
+    }
+
+    renderControls();
+
+    document.querySelectorAll('.cr-side-tabs button[data-panel]').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('.cr-side-tabs button[data-panel]').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.cr-side-panel').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        document.getElementById(`panel-${b.dataset.panel}`).classList.add('active');
+    }));
+    document.getElementById('cr-chat-send').addEventListener('click', sendChat);
+    document.getElementById('cr-chat-text').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
+
+    // Đóng/mở khung chat — thu hẹp .cr-side về 0 để nhường chỗ cho video, không ảnh hưởng kết nối/luồng bên trong.
+    // Có 2 nút bấm cùng chức năng: mũi tên ở mép ngoài (luôn thấy được để mở lại) và nút "×" ngay trong khung (dễ thấy để đóng).
+    function toggleSidePanel() {
+        document.getElementById('cr-side').classList.toggle('collapsed');
+        document.querySelector('.cr-body').classList.toggle('side-collapsed');
+    }
+    document.getElementById('cr-side-toggle').addEventListener('click', toggleSidePanel);
+    document.getElementById('cr-side-close').addEventListener('click', toggleSidePanel);
+
+    // ==================== KẾT NỐI SIGNALR ====================
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl('/hubs/classroom', { accessTokenFactory: () => Auth.token })
+        .withAutomaticReconnect()
+        .build();
+
+    connection.on('Error', msg => { document.getElementById('cr-placeholder').textContent = msg; toastErr(msg); });
+
+    connection.on('Joined', async ({ self, otherList }) => {
+        myConnectionId = self.connectionId;
+        renderPeopleList();
+
+        if (isHost) {
+            await startLocalMedia({ video: true, audio: true });
+            document.getElementById('cr-main-video').querySelector('video')?.remove();
+            const v = document.createElement('video');
+            v.autoplay = true; v.muted = true; v.playsInline = true;
+            v.classList.add('mirror'); // camera tự quay mình — soi gương cho tự nhiên, bỏ khi chia sẻ màn hình (xem toggleScreenShare)
+            v.srcObject = localStream;
+            document.getElementById('cr-placeholder')?.remove();
+            document.getElementById('cr-main-video').appendChild(v);            
+        } else {
+            await startLocalMedia({ video: false, audio: true });
+            const host = otherList.find(p => p.isHost);
+            if (host) await connectToHost(host);
+        }
+        syncMicButton();
+    });
+
+    connection.on('ParticipantJoined', (p) => {
+        const existing = peerList[p.connectionId];
+        if (existing) {
+            existing.fullName = p.fullName;
+            existing.isHost = p.isHost;
+        } else {
+            peerList[p.connectionId] = { pc: null, connectionId: p.connectionId, fullName: p.fullName, isHost: p.isHost, micOn: false, camOn: false, videoTrack: null };
+        }
+        renderPeopleList();
+        renderViewerStrip();
+    });
+
+    connection.on('ParticipantLeft', (connectionId) => {
+        const peer = peerList[connectionId];
+        if (peer?.pc) peer.pc.close();
+        delete peerList[connectionId];
+        renderPeopleList();
+        renderViewerStrip();
+    });
+
+    connection.on('ParticipantMicToggled', (connectionId, isOn) => {
+        if (peerList[connectionId]) peerList[connectionId].micOn = isOn;
+        renderPeopleList();
+        renderViewerStrip();
+    });
+
+    connection.on('ParticipantCamToggled', (connectionId, isOn) => {
+        if (peerList[connectionId]) peerList[connectionId].camOn = isOn;
+        renderPeopleList();
+        renderViewerStrip();
+    });
+
+    connection.on('Signal', async (fromConnectionId, type, payload) => {
+        const data = JSON.parse(payload);
+        if (type === 'offer') await handleOfferAsHost(fromConnectionId, data);
+        else if (type === 'answer') await peerList[fromConnectionId]?.pc?.setRemoteDescription(data);
+        else if (type === 'candidate') { try { await peerList[fromConnectionId]?.pc?.addIceCandidate(data); } catch { } }
+    });
+
+    connection.on('ChatMessage', (fullName, message, time) => appendChat(fullName, message, time));
+
+    connection.on('RecordingStatus', (isRecording) => {
+        document.getElementById('cr-rec-badge').classList.toggle('show', isRecording);
+        clearInterval(recTimerInterval);
+        if (isRecording) {
+            const displayStartAt = Date.now();
+            document.getElementById('cr-rec-time').textContent = '00:00';
+            recTimerInterval = setInterval(() => {
+                const totalSeconds = Math.floor((Date.now() - displayStartAt) / 1000);
+                const mm = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+                const ss = String(totalSeconds % 60).padStart(2, '0');
+                document.getElementById('cr-rec-time').textContent = `${mm}:${ss}`;
+            }, 1000);
+        }
+    });
+
+    connection.on('RoomEnded', () => {
+        toastOk(t('classroom.buoiHocDaKetThuc', 'Buổi học đã kết thúc.'));
+        cleanupAndLeave();
+        setTimeout(() => location.href = '/pages/online-class.html', 1500);
+    });
+
+    connection.onreconnected(() => location.reload());
+    try {
+        await connection.start();
+        await connection.invoke('JoinRoom', roomId, joinCode);
+    } catch (ex) {
+        document.getElementById('cr-placeholder').textContent = t('classroom.khongKetNoiDuocMayChuBaoHieu', 'Không kết nối được máy chủ báo hiệu.');
+        toastErr(ex.message || t('classroom.loiKetNoi', 'Lỗi kết nối.'));
+    }
+
+    // ==================== MEDIA CỤC BỘ ====================
+    async function startLocalMedia(constraints) {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia(constraints);
+            if (constraints.video) cameraTrack = localStream.getVideoTracks()[0] || null;
+            if (!isHost) localStream.getAudioTracks().forEach(t => t.enabled = false);
+        } catch {
+            toastErr(t('classroom.khongTruyCapDuocCameraMicropho', 'Không truy cập được camera/microphone. Kiểm tra quyền trình duyệt.'));
+            localStream = new MediaStream();
+        }
+    }
+
+    function createPeerConnection(remoteConnectionId) {
+        const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+        pc.onicecandidate = (e) => {
+            if (e.candidate) connection.invoke('Signal', remoteConnectionId, 'candidate', JSON.stringify(e.candidate));
+        };
+        pc.ontrack = (e) => {
+            if (isHost) return; // host tự override pc.ontrack riêng trong handleOfferAsHost, không dùng nhánh này
+            let v = document.querySelector('#cr-main-video video');
+            if (!v) {
+                document.getElementById('cr-placeholder')?.remove();
+                v = document.createElement('video');
+                v.autoplay = true; v.playsInline = true;
+                document.getElementById('cr-main-video').appendChild(v);
+            }
+            v.srcObject = e.streams[0];
+        };
+        return pc;
+    }
+
+    // ---------- Phía Viewer: chủ động tạo offer gửi tới host ----------
+    async function connectToHost(host) {
+        const pc = createPeerConnection(host.connectionId);
+        peerList[host.connectionId] = { pc, connectionId: host.connectionId, fullName: host.fullName, isHost: true, micOn: false, camOn: false, videoTrack: null };
+
+        localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+        pc.addTransceiver('video', { direction: 'recvonly' });
+        myCamSender = pc.addTransceiver('video', { direction: 'sendonly' }).sender;
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await connection.invoke('Signal', host.connectionId, 'offer', JSON.stringify(offer));
+        renderPeopleList();
+    }
+
+    // ---------- Phía Host: nhận offer từ viewer, phát video/mic của mình cho họ ----------
+    async function handleOfferAsHost(fromConnectionId, offer) {
+        let peer = peerList[fromConnectionId];
+        if (!peer) { peer = { pc: null, connectionId: fromConnectionId, fullName: 'Học viên', isHost: false, micOn: false, camOn: false, videoTrack: null }; peerList[fromConnectionId] = peer; }
+
+        const pc = createPeerConnection(fromConnectionId);
+        peer.pc = pc;
+        localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+        pc.ontrack = (e) => {
+            if (e.track.kind === 'video') {
+                peer.videoTrack = e.track;
+                renderViewerStrip();
+                return;
+            }
+            let a = document.getElementById(`audio-${fromConnectionId}`);
+            if (!a) {
+                a = document.createElement('audio');
+                a.id = `audio-${fromConnectionId}`;
+                a.autoplay = true;
+                document.body.appendChild(a);
+            }
+            a.srcObject = new MediaStream([e.track]);
+        };
+
+        await pc.setRemoteDescription(offer);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await connection.invoke('Signal', fromConnectionId, 'answer', JSON.stringify(answer));
+        renderViewerStrip();
+        renderPeopleList();
+    }
+
+    // ==================== GIAO DIỆN ====================
+    function renderPeopleList() {
+        const list = Object.values(peerList);
+        document.getElementById('cr-people-count').textContent = list.length + 1;
+        document.getElementById('cr-people-list').innerHTML = [
+            `<div class="cr-participant"><div class="avatar">${esc(initial(Auth.profile?.fullName))}</div>
+                <div>${esc(Auth.profile?.fullName)} (Bạn)${isHost ? ' · Chủ trì' : ''}</div></div>`,
+            ...list.map(p => `<div class="cr-participant"><div class="avatar">${esc(initial(p.fullName))}</div>
+                <div>${esc(p.fullName)}${p.isHost ? ' · Chủ trì' : ''} ${p.micOn ? '<span data-i18n="classroom.micBat" style="color:#34d399">· mic bật</span>' : ''} ${p.camOn ? '<span data-i18n="classroom.camBat" style="color:#34d399">· cam bật</span>' : ''}</div></div>`)
+        ].join('');
+    }
+
+    function renderViewerStrip() {
+        if (!isHost) { document.getElementById('cr-viewer-strip').innerHTML = ''; return; }
+        const list = Object.values(peerList).filter(p => !p.isHost);
+        document.getElementById('cr-viewer-strip').innerHTML = list.map(p => `
+            <div class="cr-tile">
+                ${p.camOn && p.videoTrack
+                    ? `<video class="cr-tile-video" autoplay playsinline muted data-cid="${esc(p.connectionId)}"></video>`
+                    : `<div class="avatar">${esc(initial(p.fullName))}</div>`}
+                <div class="name">${esc(p.fullName)}</div>
+                <div class="mic ${p.micOn ? 'on' : ''}"><i class="ph ${p.micOn ? 'ph-microphone' : 'ph-microphone-slash'}"></i> ${p.micOn ? 'Đang bật mic' : t('classroom.tatMic', 'Tắt mic')}</div>
+                <div class="cam ${p.camOn ? 'on' : ''}"><i class="ph ${p.camOn ? 'ph-video-camera' : 'ph-video-camera-slash'}"></i> ${p.camOn ? 'Đang bật cam' : t('classroom.tatCam', 'Tắt cam')}</div>
+            </div>`).join('') || '<div data-i18n="classroom.chuaCoHocVienThamGia" class="small muted" style="color:#9ca3af">Chưa có học viên tham gia.</div>';
+
+        list.filter(p => p.camOn && p.videoTrack).forEach(p => {
+            const v = document.querySelector(`video[data-cid="${cssEsc(p.connectionId)}"]`);
+            if (v) v.srcObject = new MediaStream([p.videoTrack]);
+        });
+    }
+
+    function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
+
+    function appendChat(fullName, message, time) {
+        const log = document.getElementById('cr-chat-log');
+        log.insertAdjacentHTML('beforeend',
+            `<div class="cr-chat-msg"><b>${esc(fullName)}</b><span class="time">${formatDate(time, true)}</span><div>${esc(message)}</div></div>`);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function sendChat() {
+        const input = document.getElementById('cr-chat-text');
+        const message = input.value.trim();
+        if (!message) return;
+        connection.invoke('SendChatMessage', roomId, message);
+        input.value = '';
+    }
+
+    function renderControls() {
+        const box = document.getElementById('cr-controls');
+        box.innerHTML = `
+            <button class="cr-ctrl-btn off" id="btn-mic" data-i18n-title="classroom.batTatMic" title="Bật/tắt mic"><i class="ph ph-microphone-slash"></i></button>
+            <button class="cr-ctrl-btn ${isHost ? 'active' : 'off'}" id="btn-cam" data-i18n-title="classroom.batTatCamera" title="Bật/tắt camera"><i class="ph ph-video-camera${isHost ? '' : '-slash'}"></i></button>
+            <button class="cr-ctrl-btn" id="btn-share" data-i18n-title="classroom.chiaSeManHinh" title="Chia sẻ màn hình"><i class="ph ph-monitor-arrow-up"></i></button>
+            <button class="cr-ctrl-btn" id="btn-record" data-i18n-title="classroom.ghiHinhBuoiHocYeuCauChoPhepQua" title="Ghi hình buổi học (yêu cầu cho phép quay tab này)"><i class="ph ph-record"></i></button>
+            <button class="cr-ctrl-btn cr-leave-btn" id="btn-leave" title="${isHost ? 'Kết thúc buổi học' : t('classroom.roiPhong', 'Rời phòng')}"><i class="ph ph-phone-x"></i></button>
+        `;
+
+        document.getElementById('btn-mic').addEventListener('click', toggleMic);
+        document.getElementById('btn-cam').addEventListener('click', toggleCamera);
+        document.getElementById('btn-share').addEventListener('click', toggleScreenShare);
+        document.getElementById('btn-record').addEventListener('click', startRecording);
+        document.getElementById('btn-leave').addEventListener('click', async () => {
+            const ok = await confirmDialog(isHost ? 'Kết thúc buổi học cho tất cả mọi người?' : t('classroom.roiKhoiPhongHoc', 'Rời khỏi phòng học?'),
+                { danger: true, okText: isHost ? 'Kết thúc' : t('classroom.roiPhong', 'Rời phòng') });
+            if (!ok) return;
+            document.getElementById('btn-leave').disabled = true;
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                toastOk(t('classroom.dangLuuBanGhiBuoiHoc', 'Đang lưu bản ghi buổi học...'));
+                await stopAndUploadRecording();
+            }
+            if (isHost) await connection.invoke('EndRoom', roomId);
+            cleanupAndLeave();
+            location.href = '/pages/online-class.html';
+        });
+    }
+
+    function toggleMic() {
+        const track = localStream?.getAudioTracks()[0];
+        if (!track) return;
+        track.enabled = !track.enabled;
+        syncMicButton();
+        connection.invoke('ToggleMic', roomId, track.enabled);
+    }
+
+    function syncMicButton() {
+        const track = localStream?.getAudioTracks()[0];
+        const btn = document.getElementById('btn-mic');
+        if (!track || !btn) return;
+        btn.classList.toggle('off', !track.enabled);
+        btn.classList.toggle('active', track.enabled);
+        btn.querySelector('i').className = `ph ph-microphone${track.enabled ? '' : '-slash'}`;
+    }
+
+    async function toggleCamera() {
+        const btn = document.getElementById('btn-cam');
+        let camOn;
+
+        if (isHost) {
+            const track = localStream?.getVideoTracks()[0];
+            if (!track) return;
+            track.enabled = !track.enabled;
+            camOn = track.enabled;
+        } else {
+            if (!cameraTrack) {
+                try {
+                    const camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    cameraTrack = camStream.getVideoTracks()[0];
+                    localStream.addTrack(cameraTrack);
+                    if (myCamSender) await myCamSender.replaceTrack(cameraTrack);
+                } catch {
+                    toastErr(t('classroom.khongTruyCapDuocCameraKiemTraQ', 'Không truy cập được camera. Kiểm tra quyền trình duyệt.'));
+                    return;
+                }
+            } else {
+                cameraTrack.enabled = !cameraTrack.enabled;
+            }
+            camOn = cameraTrack.enabled;
+            connection.invoke('ToggleCam', roomId, camOn);
+        }
+
+        btn.classList.toggle('off', !camOn);
+        btn.classList.toggle('active', camOn);
+        btn.querySelector('i').className = `ph ph-video-camera${camOn ? '' : '-slash'}`;
+    }
+
+    async function toggleScreenShare() {
+        const btn = document.getElementById('btn-share');
+        const sharing = btn.classList.contains('active');
+        try {
+            if (isHost) {
+                if (!sharing) {
+                    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    const screenTrack = screenStream.getVideoTracks()[0];
+                    replaceOutgoingVideoTrack(screenTrack);
+                    document.querySelector('#cr-main-video video')?.classList.remove('mirror'); // màn hình chia sẻ không soi gương
+                    screenTrack.onended = () => {
+                        replaceOutgoingVideoTrack(cameraTrack);
+                        document.querySelector('#cr-main-video video')?.classList.add('mirror');
+                        btn.classList.remove('active');
+                    };
+                    btn.classList.add('active');
+                } else {
+                    replaceOutgoingVideoTrack(cameraTrack);
+                    document.querySelector('#cr-main-video video')?.classList.add('mirror');
+                    btn.classList.remove('active');
+                }
+            } else {
+                await toggleScreenShareViewer(btn, sharing);
+            }
+        } catch { /* người dùng hủy hộp thoại chọn màn hình */ }
+    }
+
+    let myScreenTrack = null;
+
+    async function toggleScreenShareViewer(btn, sharing) {
+        if (!sharing) {
+            const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            myScreenTrack = screenStream.getVideoTracks()[0];
+            if (myCamSender) await myCamSender.replaceTrack(myScreenTrack);
+            myScreenTrack.onended = () => stopViewerScreenShare();
+            btn.classList.add('active');
+            connection.invoke('ToggleCam', roomId, true);
+        } else {
+            stopViewerScreenShare();
+        }
+    }
+
+    function stopViewerScreenShare() {
+        myScreenTrack?.stop();
+        myScreenTrack = null;
+        document.getElementById('btn-share')?.classList.remove('active');
+
+        const camOn = !!cameraTrack?.enabled;
+        if (myCamSender) myCamSender.replaceTrack(camOn ? cameraTrack : null);
+        connection.invoke('ToggleCam', roomId, camOn);
+
+        const camBtn = document.getElementById('btn-cam');
+        if (camBtn) {
+            camBtn.classList.toggle('off', !camOn);
+            camBtn.classList.toggle('active', camOn);
+            camBtn.querySelector('i').className = `ph ph-video-camera${camOn ? '' : '-slash'}`;
+        }
+    }
+
+    function replaceOutgoingVideoTrack(newTrack) {
+        if (!newTrack) return;
+        Object.values(peerList).forEach(p => {
+            const sender = p.pc?.getSenders().find(s => s.track && s.track.kind === 'video');
+            if (sender) sender.replaceTrack(newTrack);
+        });
+
+        const oldTrack = localStream.getVideoTracks()[0];
+        if (oldTrack && oldTrack !== newTrack) {
+            localStream.removeTrack(oldTrack);
+            if (oldTrack !== cameraTrack) oldTrack.stop(); // dừng track màn hình chia sẻ cũ; giữ track camera để dùng lại
+        }
+        if (!localStream.getVideoTracks().includes(newTrack)) localStream.addTrack(newTrack);
+
+        const localVideoEl = document.querySelector('#cr-main-video video');
+        if (localVideoEl) localVideoEl.srcObject = localStream;
+    }
+
+    // ==================== GHI HÌNH BUỔI HỌC (chủ trì lẫn người tham gia đều bấm được) ====================
+    function pickRecorderMimeType() {
+        if (typeof MediaRecorder === 'undefined') return null;
+        const candidateList = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+        return candidateList.find(t => MediaRecorder.isTypeSupported?.(t)) || null;
+    }
+
+    async function startRecording() {
+        if (!localStream) return;
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') return; // đang ghi rồi, bỏ qua lần bấm thêm
+
+        const mimeType = pickRecorderMimeType();
+        if (!mimeType) {
+            toastErr(t('classroom.trinhDuyetNayKhongHoTroGhiHinh', 'Trình duyệt này không hỗ trợ ghi hình buổi học tự động.'));
+            return;
+        }
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+            toastErr(t('classroom.trinhDuyetNayKhongHoTroQuayLai', 'Trình duyệt này không hỗ trợ quay lại giao diện phòng học.'));
+            return;
+        }
+
+        try {
+            displayStream = await navigator.mediaDevices.getDisplayMedia({
+                video: { frameRate: 15 },
+                audio: false,
+                preferCurrentTab: true,   // Chrome: tự chọn sẵn "tab này" trong hộp thoại xin quyền
+                selfBrowserSurface: 'include'
+            });
+        } catch {
+            toastErr(t('classroom.canChoPhepQuayTabNayThiMoiGhiH', 'Cần cho phép quay tab này thì mới ghi hình được buổi học. Bấm "Ghi hình" để thử lại.'));
+            return;
+        }
+
+        try {
+            const started = await API.post(`/onlineclassroom/${roomId}/recording/start`);
+            recordingId = started.id;
+        } catch (ex) {
+            toastErr(t('classroom.khongTaoDuocBanGhiTrenServer', 'Không tạo được bản ghi trên server: ') + ex.message);
+            displayStream.getTracks().forEach(t => t.stop());
+            displayStream = null;
+            return;
+        }
+
+        const micTrack = localStream.getAudioTracks()[0];
+        const compositeStream = new MediaStream([...displayStream.getVideoTracks(), ...(micTrack ? [micTrack] : [])]);
+
+        try {
+            mediaRecorder = new MediaRecorder(compositeStream, { mimeType });
+        } catch (ex) {
+            mediaRecorder = null;
+            displayStream.getTracks().forEach(t => t.stop());
+            displayStream = null;
+            toastErr(t('classroom.khongTheBatDauGhiHinh', 'Không thể bắt đầu ghi hình: ') + (ex.message || t('classroom.loiKhongXacDinh', 'lỗi không xác định.')));
+            return;
+        }
+
+        // Người dùng có thể tự bấm "Dừng chia sẻ" trên thanh thông báo của trình duyệt bất cứ lúc nào -> coi như dừng ghi hình.
+        displayStream.getVideoTracks()[0].onended = () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                toastErr(t('classroom.daDungChiaSeManHinhDungGhiHinh', 'Đã dừng chia sẻ màn hình — dừng ghi hình buổi học.'));
+                stopAndUploadRecording();
+            }
+        };
+
+        mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) queueChunkUpload(e.data); };
+        mediaRecorder.onerror = () => toastErr(t('classroom.ghiHinhBuoiHocBiGianDoan', 'Ghi hình buổi học bị gián đoạn.'));
+        recordingStartAt = Date.now();
+        mediaRecorder.start(5000); // cắt theo từng đoạn 5 giây, mỗi đoạn gửi lên server ngay
+        connection.invoke('NotifyRecordingStatus', roomId, true); // kích hoạt đồng hồ hiển thị (xem connection.on('RecordingStatus', ...))
+
+        const btn = document.getElementById('btn-record');
+        if (btn) { btn.classList.add('off'); btn.disabled = true; btn.title = t('classroom.dangGhiHinh', 'Đang ghi hình'); }
+    }
+
+    function queueChunkUpload(blob) {
+        uploadQueue = uploadQueue.then(async () => {
+            const file = new File([blob], 'chunk.webm', { type: blob.type });
+            try {
+                await API.postFile(`/onlineclassroom/${roomId}/recording/${recordingId}/chunk`, file);
+            } catch (ex) {
+                console.error(t('classroom.loiGuiDoanGhiHinh', 'Lỗi gửi đoạn ghi hình:'), ex.message);
+            }
+        });
+    }
+
+    function stopAndUploadRecording() {
+        return new Promise((resolve) => {
+            clearInterval(recTimerInterval);
+            recTimerInterval = null;
+            document.getElementById('cr-rec-badge')?.classList.remove('show');
+
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') { resolve(); return; }
+            mediaRecorder.onstop = async () => {
+                connection.invoke('NotifyRecordingStatus', roomId, false);
+                displayStream?.getTracks().forEach(t => t.stop());
+                displayStream = null;
+                await uploadQueue; 
+
+                if (recordingId && recordingStartAt) {
+                    try { await API.post(`/onlineclassroom/${roomId}/recording/${recordingId}/finish`, { durationMs: Date.now() - recordingStartAt }); }
+                    catch (ex) { console.error(t('classroom.loiVaThoiLuongBanGhi', 'Lỗi vá thời lượng bản ghi:'), ex.message); }
+                }
+
+                const btn = document.getElementById('btn-record');
+                if (btn) { btn.classList.remove('off'); btn.disabled = false; btn.title = t('classroom.ghiHinhBuoiHocYeuCauChoPhepQua', 'Ghi hình buổi học (yêu cầu cho phép quay tab này)'); }
+
+                toastOk(t('classroom.daLuuBanGhiBuoiHoc', 'Đã lưu bản ghi buổi học.'));
+                resolve();
+            };
+            mediaRecorder.stop();
+        });
+    }
+
+    function cleanupAndLeave() {
+        Object.values(peerList).forEach(p => p.pc?.close());
+        localStream?.getTracks().forEach(t => t.stop());
+        displayStream?.getTracks().forEach(t => t.stop());
+        clearInterval(recTimerInterval);
+        try { connection.stop(); } catch { }
+    }
+
+    window.addEventListener('beforeunload', cleanupAndLeave);
+})();
+</script>
+</body>
+</html>

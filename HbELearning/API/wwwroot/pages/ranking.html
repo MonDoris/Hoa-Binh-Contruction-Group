@@ -1,0 +1,1343 @@
+<!-- File: wwwroot/pages/ranking.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="ranking.xepHangHbELearning">Xếp hạng · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* Hình dáng của khối "Hạng của tôi", thẻ bậc hạng và bảng xếp hạng nằm trong css/style.css.
+           Ở đây chỉ giữ những gì chỉ trang này mới có. */
+
+        /* Các style biểu mẫu quản trị ban đầu */
+        /* Ô ngưỡng nằm ngay dưới ô điểm của chính hoạt động đó, chữ nhỏ và thụt vào để đọc ra là một dòng
+           điều kiện ("khi học đủ 10 phút trong ngày") chứ không phải một trường độc lập. */
+        .pr-threshold {
+            display: flex; align-items: center; gap: 6px; margin-top: 8px;
+            font-size: 12px; color: var(--text-muted);
+            /* Không cho gãy dòng: cả cụm phải đọc liền một câu điều kiện ("khi học đủ 10 phút/ngày").
+               Gãy ra thì "khi học / đủ" nằm hai dòng, nhìn như hai trường riêng biệt. */
+            white-space: nowrap;
+        }
+        .pr-threshold label { margin: 0; font-size: 12px; color: inherit; font-weight: 500; }
+        .pr-threshold input { width: 58px; padding: 6px 8px; font-size: 12.5px; text-align: center; }
+
+        .tier-form-top { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 18px; align-items: start; }
+        @media (max-width: 560px) { .tier-form-top { grid-template-columns: minmax(0, 1fr); } }
+
+        .tier-preview {
+            border: 1px solid var(--border); border-radius: 14px; padding: 14px 10px;
+            display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center;
+            background: var(--bg);
+        }
+        .tier-preview-badge {
+            width: 66px; height: 66px; border-radius: 50%;
+            display: grid; place-items: center; font-size: 32px; color: #fff;
+            box-shadow: 0 6px 16px -6px rgba(15, 23, 42, .4);
+        }
+        .tier-preview-name { font-size: 13px; font-weight: 800; letter-spacing: -.2px; word-break: break-word; }
+        .tier-preview-point { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+
+        .tier-swatch-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .tier-swatch {
+            width: 28px; height: 28px; border-radius: 50%; cursor: pointer; padding: 0;
+            border: 2px solid transparent; box-shadow: 0 0 0 1px var(--border);
+        }
+        .tier-swatch.active { border-color: var(--surface); box-shadow: 0 0 0 2px var(--primary); }
+        .tier-color-custom {
+            width: 44px; height: 28px; padding: 2px; border: 1px solid var(--border);
+            border-radius: 7px; cursor: pointer; background: var(--surface);
+        }
+
+        .tier-icon-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
+        .tier-icon-search { position: relative; flex: 1; min-width: 170px; }
+        .tier-icon-search i {
+            position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+            color: var(--text-muted); font-size: 15px; pointer-events: none;
+        }
+        .tier-icon-search input { width: 100%; padding-left: 32px; }
+
+        .tier-icon-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 8px; }
+        .tier-icon-tab {
+            border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+            border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 12px; font-weight: 600;
+            cursor: pointer; white-space: nowrap;
+        }
+        .tier-icon-tab:hover { border-color: var(--primary); color: var(--primary-dark); }
+        .tier-icon-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+        .tier-icon-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 5px;
+            max-height: 210px; overflow-y: auto; padding: 8px;
+            border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
+        }
+        .tier-icon-cell {
+            aspect-ratio: 1; border: 1px solid transparent; border-radius: 9px; cursor: pointer;
+            background: var(--surface); color: var(--text); font-size: 21px;
+            display: grid; place-items: center; padding: 0;
+        }
+        .tier-icon-cell:hover { border-color: var(--primary); }
+        .tier-icon-cell.active { background: var(--primary); border-color: var(--primary); }
+        .tier-icon-empty { grid-column: 1 / -1; text-align: center; padding: 22px 10px; color: var(--text-muted); font-size: 12.5px; }
+        .tier-icon-name { font-size: 11.5px; color: var(--text-muted); margin-top: 7px; }
+        .tier-icon-name b { color: var(--text); }
+
+        /* Emoji có màu riêng nên bỏ qua thuộc tính color — chỉ cần khai báo bộ font emoji để Windows, macOS
+           và Android cùng vẽ ra một hình, và line-height 1 để emoji không đội cao dòng chữ bên cạnh. */
+        .tier-emoji, .tier-icon-cell {
+            font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif;
+            line-height: 1; font-style: normal;
+        }
+
+        /* Hàng công cụ của tab "Top 5 phòng ban": ô chọn phòng ban và ô lọc tháng đứng cạnh nhau nên phải
+           cùng bề ngang và cùng bề cao. Bỏ mặc thì ô chọn (.ss-wrap rộng 100%) kéo dài hết hàng còn ô tháng
+           chỉ 170px, và input[type=month] do trình duyệt tự vẽ lại thấp hơn nút .ss-button vài pixel. */
+        .top5dept-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+        .top5dept-toolbar > select,
+        .top5dept-toolbar > .ss-wrap,
+        .top5dept-toolbar > input[type="month"] { flex: 0 1 240px; width: 240px; min-width: 0; }
+        .top5dept-toolbar > .ss-wrap .ss-button,
+        .top5dept-toolbar > select,
+        .top5dept-toolbar > input[type="month"],
+        .top5dept-toolbar > .badge { height: 38px; }
+        /* .badge vốn là inline-block nên khi bị ép chiều cao thì chữ nằm lệch lên trên. */
+        .top5dept-toolbar > .badge { display: inline-flex; align-items: center; gap: 6px; }
+        .top5dept-toolbar > .btn { flex: 0 0 auto; }
+    </style>
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="tabs">
+            <button class="active" data-tab="mine" id="tab-btn-mine"><i class="ph ph-trophy"></i> <span data-i18n="ranking.cuaToi">Của tôi</span></button>
+            <button data-tab="board"><i class="ph ph-chart-bar"></i> <span data-i18n="ranking.bangXepHang">Bảng xếp hạng</span></button>
+            <button data-tab="top10"><i class="ph ph-medal-military"></i> <span data-i18n="ranking.top10CongTy">Top 10 công ty</span></button>
+            <button data-tab="streak"><i class="ph-fill ph-fire"></i> <span data-i18n="ranking.top20Chuoi">Top 20 chuỗi ngày</span></button>
+            <button data-tab="top5dept" id="tab-btn-top5dept" style="display:none"><i class="ph ph-users-three"></i> <span data-i18n="ranking.top5PhongBan">Top 5 phòng ban</span></button>
+            <button data-tab="manage" id="tab-btn-manage" style="display:none"><i class="ph ph-gear"></i> <span data-i18n="ranking.quanLyBacHang">Quản lý bậc hạng</span></button>
+            <button data-tab="mission" id="tab-btn-mission" style="display:none"><i class="ph ph-target"></i> <span data-i18n="ranking.quanLyNhiemVu">Quản lý nhiệm vụ</span></button>
+        </div>
+        <div class="tab-panel active" id="tab-mine"></div>
+        <div class="tab-panel" id="tab-board"></div>
+        <div class="tab-panel" id="tab-top10"></div>
+        <div class="tab-panel" id="tab-streak"></div>
+        <div class="tab-panel" id="tab-top5dept"></div>
+        <div class="tab-panel" id="tab-manage"></div>
+        <div class="tab-panel" id="tab-mission"></div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-tier">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="ranking.themBacHang" id="tier-title">Thêm bậc hạng</h3>
+            <button class="close-x" onclick="closeModal('modal-tier')">×</button></div>
+        <form id="tier-form">
+            <div class="modal-body">
+                <input type="hidden" id="t-id">
+                <input type="hidden" id="t-icon" required>
+
+                <div class="tier-form-top">
+                    <div class="tier-preview">
+                        <div class="tier-preview-badge" id="t-preview-badge"></div>
+                        <div class="tier-preview-name" id="t-preview-name">—</div>
+                        <div class="tier-preview-point" id="t-preview-point"></div>
+                    </div>
+
+                    <div>
+                        <div class="field">
+                            <label for="t-name" data-i18n="ranking.tenBacHang">Tên bậc hạng *</label>
+                            <input id="t-name" required maxlength="50" placeholder="Bronze">
+                        </div>
+                        <div class="row">
+                            <div class="field">
+                                <label for="t-minpoints" data-i18n="ranking.diemToiThieu">Điểm tối thiểu *</label>
+                                <input type="number" id="t-minpoints" required min="0" step="1" value="0">
+                            </div>
+                            <div class="field">
+                                <label for="t-order" data-i18n="ranking.thuTuHienThi">Thứ tự hiển thị</label>
+                                <input type="number" id="t-order" value="0" step="1">
+                                <div class="hint" data-i18n="ranking.soNhoHonHienThiTruocCoTheDeGio">Số nhỏ hơn hiển thị trước. Có thể để giống nhau, hệ thống luôn sắp theo điểm tối thiểu.</div>
+                            </div>
+                        </div>
+                        <div class="field" style="margin-bottom:0">
+                            <label for="t-color" data-i18n="ranking.mauChuDao">Màu chủ đạo *</label>
+                            <div class="tier-swatch-row" id="t-swatch-row">
+                                <input type="color" class="tier-color-custom" id="t-color" required value="#cd7f32"
+                                       data-i18n-title="ranking.chonMauKhac" title="Chọn màu khác">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field mt">
+                    <label for="t-icon-search" data-i18n="ranking.bieuTuong">Biểu tượng *</label>
+                    <div class="tier-icon-head">
+                        <div class="tier-icon-search">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input id="t-icon-search" maxlength="40" autocomplete="off"
+                                   data-i18n-ph="ranking.timBieuTuong" placeholder="Tìm emoji: cúp, sao, lửa, học...">
+                        </div>
+                    </div>
+                    <div class="tier-icon-tabs" id="t-icon-tabs"></div>
+                    <div class="tier-icon-grid" id="t-icon-grid"></div>
+                    <div class="tier-icon-name" id="t-icon-name"></div>
+                </div>
+
+                <div class="field">
+                    <label for="t-reward" data-i18n="ranking.moTaPhanThuong">Mô tả phần thưởng</label>
+                    <input id="t-reward" maxlength="300" data-i18n-ph="ranking.vdVoucherHighlandCoffee50000d"
+                           placeholder="VD: Voucher Highland Coffee 50.000đ">
+                    <div class="hint" data-i18n="ranking.moTaPhanThuongHint">Câu chữ này hiện cho người học khi họ đạt bậc hạng. Để trống nếu bậc này chưa có phần thưởng.</div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-tier')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-code">
+    <div class="modal wide">
+        <div class="modal-head"><h3 data-i18n="ranking.khoMaVoucher" id="code-title">Kho mã voucher</h3>
+            <button class="close-x" onclick="closeModal('modal-code')">×</button></div>
+        <div class="modal-body">
+            <div class="field">
+                <label for="c-codes" data-i18n="ranking.themMaMoiMoiDong1Ma">Thêm mã mới (mỗi dòng 1 mã)</label>
+                <textarea id="c-codes" rows="4" class="code-pool-textarea" placeholder="HL-2026-0001&#10;HL-2026-0002&#10;HL-2026-0003"></textarea>
+            </div>
+            <button data-i18n="ranking.themVaoKho" type="button" class="btn sm w-auto" id="btn-add-code">+ Thêm vào kho</button>
+            <div class="table-wrap" style="margin-top:18px"><table>
+                <thead><tr><th data-i18n="organization.ma">Mã</th><th data-i18n="dashboard.colStatus">Trạng thái</th><th data-i18n="ranking.nguoiNhan">Người nhận</th><th data-i18n="certificate.ngayCap">Ngày cấp</th><th class="text-right"></th></tr></thead>
+                <tbody id="code-tbody"></tbody>
+            </table></div>
+        </div>
+        <div class="modal-foot"><button data-i18n="common.close" type="button" class="btn ghost" onclick="closeModal('modal-code')">Đóng</button></div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-mission">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="ranking.themNhiemVu" id="mission-title">Thêm nhiệm vụ</h3>
+            <button class="close-x" onclick="closeModal('modal-mission')">×</button></div>
+        <form id="mission-form">
+            <div class="modal-body">
+                <input type="hidden" id="m-id">
+
+                <div class="field">
+                    <label for="m-label" data-i18n="ranking.tenNhiemVu">Tên nhiệm vụ *</label>
+                    <input id="m-label" required maxlength="200" data-i18n-ph="ranking.vdHocXong5BaiHoc" placeholder="VD: Học xong 5 bài học">
+                    <div class="hint" data-i18n="ranking.tenNhiemVuHint">Đây là câu chữ người học đọc thấy. Hệ thống không tự ghép số vào, hãy tự viết chỉ tiêu vào tên cho khớp.</div>
+                </div>
+
+                <div class="row">
+                    <div class="field">
+                        <label for="m-reason" data-i18n="ranking.hoatDongDuocDem">Hoạt động được đếm *</label>
+                        <select id="m-reason" required></select>
+                    </div>
+                    <div class="field">
+                        <label for="m-target" data-i18n="ranking.chiTieuTuan">Chỉ tiêu mỗi tuần *</label>
+                        <input type="number" id="m-target" required min="1" max="999" step="1" value="1">
+                    </div>
+                    <div class="field">
+                        <label for="m-reward" data-i18n="ranking.diemThuongKhiXong">Điểm thưởng khi xong *</label>
+                        <input type="number" id="m-reward" required min="0" max="9999" step="1" value="10">
+                    </div>
+                    <div class="field">
+                        <label for="m-order" data-i18n="ranking.thuTuHienThi">Thứ tự hiển thị</label>
+                        <input type="number" id="m-order" value="0" step="1">
+                    </div>
+                </div>
+                <div class="hint" data-i18n="ranking.diemThuongHint">Điểm thưởng cộng MỘT lần khi làm đủ chỉ tiêu trong tuần, do bạn đặt. Điểm của từng hoạt động lẻ (số trong ngoặc ở ô hoạt động) vẫn cộng như thường, không thay đổi. Để 0 nếu muốn nhiệm vụ chỉ để theo dõi, không kèm thưởng.</div>
+
+                <label class="check"><input type="checkbox" id="m-active" checked>
+                    <span data-i18n="ranking.dangHienChoNguoiHoc">Đang hiện cho người học</span></label>
+                <div class="hint" data-i18n="ranking.tatNhiemVuHint">Tắt thì nhiệm vụ biến khỏi trang Tổng quan nhưng vẫn giữ nguyên đề bài, bật lại lúc nào cũng được.</div>
+
+                <div class="field mt">
+                    <label data-i18n="ranking.nguoiHocSeThay">Người học sẽ thấy</label>
+                    <div class="card" style="padding:12px 14px"><div id="m-preview"></div></div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-mission')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    await Lang.ready;
+
+    if (!Auth.require()) return;
+    mountLayout('ranking', t('menu.ranking', 'Xếp hạng'), t('ranking.tichDiemHocTapThangHangVaNhanT', 'Tích điểm học tập, thăng hạng và nhận thưởng'));
+
+    const isAdmin = Auth.profile.roleName === 'Admin';
+    const isHeadOfDepartment = Auth.hasRole('Trưởng phòng');
+    const isDirector = Auth.hasRole('Giám Đốc');
+    const isManagingDirector = Auth.isManagingDirector;
+    let tierList = [];
+    let currentTab = 'mine';
+
+    // Biểu tượng bậc hạng nay là emoji lưu thẳng trong CSDL. Bậc hạng tạo từ trước còn lưu tên icon Phosphor
+    // (chỉ chữ thường và gạch ngang, VD "medal") — nhận ra bằng chính hình dạng đó rồi quy đổi sang emoji,
+    // chứ không in tên icon ra màn hình.
+    const TIER_EMOJI_FALLBACK = '🛡️';
+
+    function tierEmoji(icon) {
+        const value = (icon || '').trim();
+        if (!value) return TIER_EMOJI_FALLBACK;
+        if (/^[a-z0-9-]+$/.test(value)) return LEGACY_PHOSPHOR_EMOJI[value] || TIER_EMOJI_FALLBACK;
+        return value;
+    }
+
+    const tierIcon = (icon) => `<span class="tier-emoji">${esc(tierEmoji(icon))}</span>`;
+
+    // Admin không tham gia xếp hạng: server không cộng điểm cho họ và lọc họ khỏi mọi bảng (xem
+    // RankingService.RankableUserQuery). Ẩn luôn tab "Của tôi" — với họ nó chỉ còn là một thanh tiến độ đứng
+    // yên vĩnh viễn kèm lời hứa "còn N điểm nữa lên hạng" không bao giờ tới. Dùng hasRole để tính cả vai trò
+    // kế thừa Admin, đúng bằng luật phía server.
+    const joinsRanking = !Auth.hasRole('Admin');
+    if (!joinsRanking) {
+        document.getElementById('tab-btn-mine').style.display = 'none';
+        document.getElementById('tab-btn-mine').classList.remove('active');
+        document.getElementById('tab-mine').classList.remove('active');
+        document.querySelector('.tabs button[data-tab="board"]').classList.add('active');
+        document.getElementById('tab-board').classList.add('active');
+    }
+
+    if (isAdmin || isDirector) document.getElementById('tab-btn-manage').style.display = '';
+    if (isAdmin) document.getElementById('tab-btn-mission').style.display = '';
+    if (isAdmin || isHeadOfDepartment || isDirector || isManagingDirector) document.getElementById('tab-btn-top5dept').style.display = '';
+
+    document.querySelectorAll('.tabs button').forEach(button => {
+        button.addEventListener('click', () => {
+            document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            button.classList.add('active');
+            currentTab = button.dataset.tab;
+            document.getElementById(`tab-${currentTab}`).classList.add('active');
+            loadTab(currentTab);
+        });
+    });
+
+    document.getElementById('tier-form').addEventListener('submit', saveTier);
+    document.getElementById('mission-form').addEventListener('submit', saveMission);
+    document.getElementById('btn-add-code').addEventListener('click', addCode);
+
+    tierList = await API.get('/ranking/tier');
+    await loadTab(joinsRanking ? 'mine' : 'board');
+
+    async function loadTab(tab) {
+        if (tab === 'mine') await renderMine();
+        else if (tab === 'board') await renderBoard();
+        else if (tab === 'top10') await renderTop10();
+        else if (tab === 'streak') await renderStreak();
+        else if (tab === 'top5dept') await renderTop5Dept();
+        else if (tab === 'manage') await renderManage();
+        else if (tab === 'mission') await renderMissionManage();
+    }
+
+    async function renderMine() {
+        const box = document.getElementById('tab-mine');
+        box.innerHTML = skeletonHtml('block', { height: '150px' });
+
+        try {
+            const status = await API.get('/ranking/me');
+            const tier = status.currentTier, next = status.nextTier;
+            const color = tier?.colorHex || '#64748b';
+            const tierFull = tier ? tierList.find(t => t.id === tier.id) : null;
+
+            box.innerHTML = `
+                <div class="rank-hero" style="--rank-color:${color}">
+                    <div class="rank-hero-icon">${tierIcon(tier?.icon)}</div>
+                    <div class="rank-hero-body">
+                        <div class="rank-hero-name">${tier ? esc(tier.name) : t('ranking.khongHang', 'Không hạng')}</div>
+                        <div class="rank-hero-points">${status.totalPoints} điểm tích lũy</div>
+                        ${tier?.rewardDescription ? `<div class="rank-hero-reward"><i class="ph ph-gift"></i> ${esc(tier.rewardDescription)}</div>` : ''}
+                        ${tierFull?.departmentRewardDescription ? `<div class="rank-hero-reward"><i class="ph ph-gift"></i> ${esc(tierFull.departmentRewardDescription)} <span data-i18n="ranking.phongBan" class="small">(phòng ban)</span></div>` : ''}
+                        <div class="rank-progress-wrap">
+                            ${next ? `
+                                <div class="rank-progress"><span style="width:${status.progressPercent}%"></span></div>
+                                <div class="rank-progress-label">Còn <b>${status.pointsToNext}</b> điểm nữa để đạt hạng ${tierIcon(next.icon)} ${esc(next.name)}</div>
+                            ` : `<div class="rank-progress-label"><i class="ph ph-confetti"></i> <span data-i18n="ranking.banDaDatBacHangCaoNhat">Bạn đã đạt bậc hạng cao nhất!</span></div>`}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt">
+                    <div class="card-head"><h3 data-i18n="ranking.cacBacHang">Các bậc hạng</h3>
+                        <span data-i18n="ranking.hoanThanhBaiHoc5dVuotBaiKiemTr" class="small muted">Hoàn thành bài học (+5đ), vượt bài kiểm tra (+10đ), hoàn tất khóa học (+30đ)</span></div>
+                    <div class="card-body">
+                        <div class="rank-tier-grid">
+                            ${tierList.map(t => `
+                                <div class="rank-tier-card ${status.totalPoints >= t.minPoints ? 'reached' : ''}" style="--rank-color:${t.colorHex}">
+                                    <div class="ico">${tierIcon(t.icon)}</div>
+                                    <div class="name">${esc(t.name)}</div>
+                                    <div class="pts">${t.minPoints} điểm</div>
+                                    ${t.rewardDescription ? `<div class="reward"><i class="ph ph-gift"></i> ${esc(t.rewardDescription)}</div>` : ''}
+                                    ${t.departmentRewardDescription ? `<div class="reward"><i class="ph ph-gift"></i> ${esc(t.departmentRewardDescription)} <span data-i18n="ranking.phongBan" class="small muted">(phòng ban)</span></div>` : ''}
+                                </div>`).join('') || emptyHtml(t('ranking.chuaCauHinhBacHangNao', 'Chưa cấu hình bậc hạng nào.'), '<i class="ph ph-trophy"></i>')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt">
+                    <div class="card-head"><h3 data-i18n="ranking.lichSuDatHang">Lịch sử đạt hạng</h3></div>
+                    <div class="table-wrap"><table>
+                        <thead><tr><th data-i18n="ranking.bacHang">Bậc hạng</th><th data-i18n="ranking.ngayDat">Ngày đạt</th><th data-i18n="ranking.phanThuong">Phần thưởng</th><th data-i18n="ranking.maVoucher">Mã voucher</th></tr></thead>
+                        <tbody>${status.awardHistory.length ? status.awardHistory.map(a => `
+                            <tr>
+                                <td><span style="color:${a.colorHex}">${tierIcon(a.icon)}</span> <b>${esc(a.tierName)}</b></td>
+                                <td class="small nowrap">${formatDate(a.awardedAt, true)}</td>
+                                <td class="small">${esc(a.rewardDescription || '—')}</td>
+                                <td>${a.voucherCode ? `<code>${esc(a.voucherCode)}</code>` : '<span data-i18n="ranking.dangChoCapMa" class="muted small">Đang chờ cấp mã</span>'}</td>
+                            </tr>`).join('') : `<tr><td colspan="4">${emptyHtml(t('ranking.chuaDatBacHangNaoTiepTucHocDeT', 'Chưa đạt bậc hạng nào — tiếp tục học để tích điểm nhé!'), '<i class="ph ph-trophy"></i>')}</td></tr>`}
+                        </tbody>
+                    </table></div>
+                </div>`;
+        } catch (ex) { box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    const rankIcon = (r) => {
+        if (r === 1) return '<i class="ph-fill ph-crown" style="color: #f59e0b;" title="Quán quân"></i>';
+        if (r === 2) return '<i class="ph-fill ph-medal" style="color: #94a3b8;" title="Á quân"></i>';
+        if (r === 3) return '<i class="ph-fill ph-medal" style="color: #d97706;" title="Hạng ba"></i>';
+        return r;
+    };
+
+    function leaderboardHeaderHtml() {
+        return `
+            <div class="leaderboard-row leaderboard-header">
+                <div class="leaderboard-rank"></div>
+                <div style="width:36px;flex-shrink:0"></div>
+                <div data-i18n="ranking.nhanVien" class="leaderboard-name-col">Nhân viên</div>
+                <div class="leaderboard-stat-col" data-i18n-title="ranking.hoanThanhBaiHoc" title="Hoàn thành bài học">Bài học<br><span data-i18n="ranking.5d" class="small muted">+5đ</span></div>
+                <div class="leaderboard-stat-col" data-i18n-title="ranking.vuotBaiKiemTra" title="Vượt bài kiểm tra">Bài kiểm tra<br><span data-i18n="ranking.10d" class="small muted">+10đ</span></div>
+                <div class="leaderboard-stat-col" data-i18n-title="ranking.hoanTatKhoaHoc" title="Hoàn tất khóa học">Khóa học<br><span data-i18n="ranking.30d" class="small muted">+30đ</span></div>
+                <div data-i18n="ranking.tongDiem" class="leaderboard-points">Tổng điểm</div>
+            </div>`;
+    }
+
+    function leaderboardRowsHtml(list) {
+        return leaderboardHeaderHtml() + list.map(e => `
+            <div class="leaderboard-row ${e.isMe ? 'me' : ''}">
+                <div class="leaderboard-rank ${e.rank <= 3 ? 'top' + e.rank : ''}">${rankIcon(e.rank)}</div>
+                ${e.avatarUrl ? `<img class="leaderboard-avatar" src="${esc(e.avatarUrl)}" alt="">` : `<div class="leaderboard-avatar">${esc(initial(e.fullName))}</div>`}
+                <div class="leaderboard-name-col">
+                    <div class="name">${esc(e.fullName)}${e.isMe ? ' <span data-i18n="ranking.ban" class="badge blue">Bạn</span>' : ''}</div>
+                    <div class="dept">${esc(e.departmentName || '—')}</div>
+                    ${e.tierName ? `<span class="rank-tier-chip" style="background:${e.tierColorHex}">${tierIcon(e.tierIcon)} ${esc(e.tierName)}</span>` : ''}
+                </div>
+                <div class="leaderboard-stat-col">${e.lessonCompletedCount}</div>
+                <div class="leaderboard-stat-col">${e.quizPassedCount}</div>
+                <div class="leaderboard-stat-col">${e.courseCompletedCount}</div>
+                <div class="leaderboard-points">${e.totalPoints} đ</div>
+            </div>`).join('');
+    }
+
+    async function renderBoard() {
+        const box = document.getElementById('tab-board');
+        box.innerHTML = skeletonHtml('list', { count: 8 });
+
+        try {
+            const list = await API.get('/ranking/leaderboard?top=100');
+            box.innerHTML = `
+                <div class="card">
+                    <div class="card-head"><h3><i class="ph ph-trophy"></i> <span data-i18n="ranking.bangXepHangToanCongTy">Bảng xếp hạng toàn công ty</span></h3>
+                        <span class="small muted">Top ${list.length} người có điểm tích lũy cao nhất</span></div>
+                    <div>${list.length ? leaderboardRowsHtml(list) : emptyHtml(t('ranking.chuaCoAiGhiDiemHayLaNguoiDauTi', 'Chưa có ai ghi điểm — hãy là người đầu tiên!'), '<i class="ph ph-trophy"></i>')}</div>
+                </div>`;
+        } catch (ex) { box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    let top10Period = '';
+
+    async function renderTop10() {
+        const box = document.getElementById('tab-top10');
+        box.innerHTML = periodFilterHtml('top10Period', top10Period) + `<div id="top10-list">${skeletonHtml('list', { count: 10 })}</div>`;
+        document.getElementById('top10Period').addEventListener('change', (e) => { top10Period = e.target.value; renderTop10(); });
+        document.getElementById('top10PeriodClear')?.addEventListener('click', () => { top10Period = ''; renderTop10(); });
+        await loadTop10List();
+    }
+
+    async function loadTop10List() {
+        const list0 = document.getElementById('top10-list');
+        try {
+            const query = new URLSearchParams({ top: 10 });
+            appendPeriodQuery(query, top10Period);
+            const list = await API.get(`/ranking/leaderboard?${query}`);
+            list0.innerHTML = `
+                <div class="card">
+                    <div class="card-head"><h3><i class="ph-fill ph-medal-military"></i> <span data-i18n="ranking.top10NhanVienXuatSacToanCongTy">Top 10 nhân viên xuất sắc toàn công ty</span></h3>
+                        <span class="small muted">${periodLabel(top10Period)}</span></div>
+                    <div>${list.length ? leaderboardRowsHtml(list) : emptyHtml(t('ranking.chuaCoAiGhiDiemTrongKhoangThoi', 'Chưa có ai ghi điểm trong khoảng thời gian này.'), '<i class="ph ph-trophy"></i>')}</div>
+                </div>`;
+        } catch (ex) { list0.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    function streakFlameHtml(day) {
+        const tone = day >= 30 ? '#dc2626' : day >= 14 ? '#ea580c' : day >= 7 ? '#f59e0b' : '#94a3b8';
+        return `<i class="ph-fill ph-fire" style="color:${tone}"></i>`;
+    }
+
+    function streakRowsHtml(list) {
+        const byLongest = streakMode === 'longest';
+        const header = `
+            <div class="leaderboard-row leaderboard-header">
+                <div class="leaderboard-rank"></div>
+                <div style="width:36px;flex-shrink:0"></div>
+                <div class="leaderboard-name-col" data-i18n="ranking.nhanVien">Nhân viên</div>
+                <div class="leaderboard-stat-col">${byLongest
+                    ? `<span data-i18n="ranking.chuoiHienTai">Chuỗi</span>`
+                    : `<span data-i18n="ranking.chuoiDaiNhat">Dài nhất</span>`}</div>
+                <div class="leaderboard-stat-col" data-i18n-title="ranking.tongNgayHocTitle" title="Tổng số ngày có học trong một năm gần đây">
+                    <span data-i18n="ranking.tongNgayHoc">Số ngày học</span></div>
+                <div class="leaderboard-points">${byLongest
+                    ? `<span data-i18n="ranking.chuoiKyLuc">Kỷ lục</span>`
+                    : `<span data-i18n="ranking.chuoiHienTai">Chuỗi</span>`}</div>
+            </div>`;
+
+        return header + list.map(e => `
+            <div class="leaderboard-row ${e.isMe ? 'me' : ''}">
+                <div class="leaderboard-rank ${e.rank <= 3 ? 'top' + e.rank : ''}">${rankIcon(e.rank)}</div>
+                ${e.avatarUrl
+                    ? `<img class="leaderboard-avatar" src="${esc(e.avatarUrl)}" alt="">`
+                    : `<div class="leaderboard-avatar">${esc(initial(e.fullName))}</div>`}
+                <div class="leaderboard-name-col">
+                    <div class="name">${esc(e.fullName)}${e.isMe ? ' <span data-i18n="ranking.ban" class="badge blue">Bạn</span>' : ''}</div>
+                    <div class="dept">${esc(e.departmentName || '—')}</div>
+                    <div class="small muted">${esc(t('ranking.hocGanNhat', 'Học gần nhất: {date}', { date: formatDate(e.lastActiveDate) }))}</div>
+                </div>
+                <div class="leaderboard-stat-col">${byLongest ? e.currentStreakDay : e.longestStreakDay}</div>
+                <div class="leaderboard-stat-col">${e.activeDayCount}</div>
+                <div class="leaderboard-points">${rankStreakCell(byLongest ? e.longestStreakDay : e.currentStreakDay)}</div>
+            </div>`).join('');
+    }
+
+    const rankStreakCell = (day) => `${streakFlameHtml(day)} ${day}`;
+
+    let streakMode = 'current';
+
+    async function renderStreak() {
+        const box = document.getElementById('tab-streak');
+        box.innerHTML = skeletonHtml('list', { count: 8 });
+
+        let list;
+        try {
+            list = await API.get(`/ranking/streak-leaderboard?top=20&mode=${streakMode}`);
+        } catch (ex) {
+            box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+            return;
+        }
+
+        const emptyText = streakMode === 'longest'
+            ? t('ranking.chuaAiCoKyLuc', 'Chưa có ai học đủ để tạo thành một chuỗi ngày nào.')
+            : t('ranking.chuaAiCoChuoi', 'Hiện không ai đang giữ chuỗi ngày học nào — mở mục Kỷ lục để xem ai từng giữ chuỗi dài nhất.');
+
+        box.innerHTML = `
+            <div class="tabs mb">
+                <button class="${streakMode === 'current' ? 'active' : ''}" data-streak-mode="current">
+                    <i class="ph-fill ph-fire"></i> <span data-i18n="ranking.chuoiDangGiu">Đang giữ</span></button>
+                <button class="${streakMode === 'longest' ? 'active' : ''}" data-streak-mode="longest">
+                    <i class="ph ph-trophy"></i> <span data-i18n="ranking.chuoiKyLuc">Kỷ lục</span></button>
+            </div>
+            <div class="card">
+                <div class="card-head">
+                    <h3><i class="ph-fill ph-fire" style="color:#ea580c"></i>
+                        <span data-i18n="ranking.top20ChuoiTieuDe">Top 20 chuỗi ngày học liên tiếp</span></h3>
+                    <span class="small muted">${esc(streakMode === 'longest'
+                        ? t('ranking.chuoiGhiChuKyLuc', 'Chuỗi dài nhất từng đạt trong một năm gần đây')
+                        : t('ranking.chuoiGhiChu', 'Tính theo số ngày liên tiếp có hoạt động học tập'))}</span>
+                </div>
+                <div>${list.length ? streakRowsHtml(list) : emptyHtml(emptyText, '<i class="ph ph-fire"></i>')}</div>
+                <div class="card-body">
+                    <div class="hint" data-i18n="ranking.chuoiGiaiThich">Chuỗi được tính từ hôm nay ngược về trước. Hôm nay chưa học thì chuỗi chưa đứt — vẫn còn cả ngày để giữ, nhưng bỏ trọn một ngày là chuỗi quay về 0.</div>
+                </div>
+            </div>`;
+
+        box.querySelectorAll('[data-streak-mode]').forEach(button =>
+            button.addEventListener('click', () => {
+                if (streakMode === button.dataset.streakMode) return;
+                streakMode = button.dataset.streakMode;
+                renderStreak();
+            }));
+    }
+
+    let top5deptPeriod = '';
+    let top5deptId = Auth.profile?.departmentId || '';
+    let departmentList = [];
+
+    const isDeptLocked = (isHeadOfDepartment || isDirector) && !!Auth.profile?.departmentId;
+
+    async function renderTop5Dept() {
+        const box = document.getElementById('tab-top5dept');
+        if (departmentList.length === 0) departmentList = await API.get('/department');
+        if (isDeptLocked) top5deptId = Auth.profile.departmentId;
+        else if (!top5deptId) top5deptId = departmentList[0]?.id || '';
+
+        const departmentPickerHtml = isDeptLocked
+            ? `<div class="badge blue" style="padding:9px 16px;font-size:13.5px"><i class="ph ph-buildings"></i> ${esc(departmentList.find(d => String(d.id) === String(top5deptId))?.name || '')}</div>`
+            : `<select id="top5deptDepartment" aria-label="Chọn phòng ban để xem xếp hạng">
+                ${departmentList.map(d => `<option value="${d.id}" ${String(d.id) === String(top5deptId) ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
+              </select>`;
+
+        box.innerHTML = `
+            <div class="top5dept-toolbar">
+                ${departmentPickerHtml}
+                ${periodFilterHtml('top5deptPeriod', top5deptPeriod, { inline: true })}
+            </div>
+            <div id="top5dept-list">${skeletonHtml('list', { count: 5 })}</div>`;
+
+        document.getElementById('top5deptDepartment')?.addEventListener('change', (e) => { top5deptId = e.target.value; renderTop5Dept(); });
+        document.getElementById('top5deptPeriod').addEventListener('change', (e) => { top5deptPeriod = e.target.value; renderTop5Dept(); });
+        document.getElementById('top5deptPeriodClear')?.addEventListener('click', () => { top5deptPeriod = ''; renderTop5Dept(); });
+        enhanceSearchableSelect(document.getElementById('top5deptDepartment'),
+            { placeholder: t('course-detail.goTenViTri', 'Gõ tên vị trí...') });
+        await loadTop5DeptList();
+    }
+
+    async function loadTop5DeptList() {
+        const list0 = document.getElementById('top5dept-list');
+        if (!top5deptId) { list0.innerHTML = emptyHtml(t('ranking.chuaXacDinhDuocPhongBan', 'Chưa xác định được phòng ban.'), '<i class="ph ph-buildings"></i>'); return; }
+        try {
+            const query = new URLSearchParams({ top: 5, departmentId: top5deptId });
+            appendPeriodQuery(query, top5deptPeriod);
+            const list = await API.get(`/ranking/leaderboard?${query}`);
+            const departmentName = departmentList.find(d => String(d.id) === String(top5deptId))?.name || '';
+            list0.innerHTML = `
+                <div class="card">
+                    <div class="card-head"><h3><i class="ph-fill ph-users-three"></i> Top 5 nhân viên xuất sắc — ${esc(departmentName)}</h3>
+                        <span class="small muted">${periodLabel(top5deptPeriod)}</span></div>
+                    <div>${list.length ? leaderboardRowsHtml(list) : emptyHtml(t('ranking.chuaCoAiGhiDiemTrongKhoangThoi', 'Chưa có ai ghi điểm trong khoảng thời gian này.'), '<i class="ph ph-trophy"></i>')}</div>
+                </div>`;
+        } catch (ex) { list0.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    function periodFilterHtml(inputId, value, { inline = false } = {}) {
+        const controls = `
+            <input type="month" id="${inputId}" value="${esc(value)}" aria-label="Lọc theo tháng"${inline ? '' : ' style="width:170px"'}>
+            ${value ? `<button data-i18n="ranking.xoaLoc" type="button" class="btn ghost sm" id="${inputId}Clear">Xóa lọc</button>` : ''}`;
+        // inline: ô lọc được nhét thẳng vào một hàng flex có sẵn (.top5dept-toolbar) để nó là con trực tiếp
+        // của hàng đó — bọc thêm một lớp nữa thì lớp bọc mang margin-bottom riêng sẽ đẩy ô lọc lệch lên
+        // so với ô chọn phòng ban bên cạnh, và bề rộng cũng không khớp được với ô kia.
+        if (inline) return controls;
+        return `<div class="flex gap-sm" style="align-items:center;margin-bottom:10px">${controls}</div>`;
+    }
+
+    function appendPeriodQuery(query, period) {
+        if (!period) return;
+        const [year, month] = period.split('-');
+        query.set('year', +year);
+        query.set('month', +month);
+    }
+
+    function periodLabel(period) {
+        if (!period) return t('ranking.toanThoiGian', 'Toàn thời gian');
+        const [year, month] = period.split('-');
+        return `Tháng ${+month}/${year}`;
+    }
+
+    async function renderManage() {
+        if (isDirector) return renderManageDepartmentReward();
+        if (!isAdmin) return;
+        const box = document.getElementById('tab-manage');
+        box.innerHTML = skeletonHtml('list', { count: 5, avatar: false });
+
+        try {
+            tierList = await API.get('/ranking/tier');
+
+            box.innerHTML = `
+                <div class="card">
+                    <div class="card-head"><h3>${tierList.length} bậc hạng</h3>
+                        <button data-i18n="ranking.themBacHang2" class="btn sm" id="btn-new-tier">+ Thêm bậc hạng</button></div>
+                    <div class="table-wrap"><table>
+                        <thead><tr><th></th><th data-i18n="organization.ten2">Tên</th><th data-i18n="ranking.diemToiThieu2">Điểm tối thiểu</th><th data-i18n="ranking.phanThuong">Phần thưởng</th>
+                            <th data-i18n="ranking.khoMaVoucher" class="text-center">Kho mã voucher</th><th class="text-right"></th></tr></thead>
+                        <tbody>${tierList.length ? tierList.map(t => `
+                            <tr>
+                                <td style="font-size:24px;color:${t.colorHex}">${tierIcon(t.icon)}</td>
+                                <td><b>${esc(t.name)}</b></td>
+                                <td>${t.minPoints}</td>
+                                <td class="small muted">${esc(t.rewardDescription || '—')}</td>
+                                <td class="text-center">
+                                    <button class="btn ghost sm" data-code="${t.id}">${t.availableCodeCount} còn trống · ${t.usedCodeCount} đã cấp</button>
+                                </td>
+                                <td class="text-right nowrap">
+                                    <button data-i18n="common.edit" class="btn ghost sm" data-edit="${t.id}">Sửa</button>
+                                    <button data-i18n="common.delete" class="btn ghost sm" data-del="${t.id}">Xóa</button>
+                                </td>
+                            </tr>`).join('') : `<tr><td colspan="6">${emptyHtml(t('ranking.chuaCoBacHangNaoBamThemBacHang', 'Chưa có bậc hạng nào. Bấm "Thêm bậc hạng" để bắt đầu.'), '<i class="ph ph-trophy"></i>')}</td></tr>`}
+                        </tbody>
+                    </table></div>
+                </div>`;
+
+            document.getElementById('btn-new-tier').addEventListener('click', () => openTierForm());
+            box.querySelectorAll('[data-edit]').forEach(b =>
+                b.addEventListener('click', () => openTierForm(tierList.find(t => t.id == b.dataset.edit))));
+            box.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+                if (!await confirmDialog(t('ranking.xoaBacHangNay', 'Xóa bậc hạng này?'), { danger: true, okText: t('common.delete', 'Xóa') })) return;
+                try { toastOk((await API.del(`/ranking/tier/${b.dataset.del}`)).message); renderManage(); }
+                catch (ex) { toastErr(ex.message); }
+            }));
+            box.querySelectorAll('[data-code]').forEach(b =>
+                b.addEventListener('click', () => openCodeModal(tierList.find(t => t.id == b.dataset.code))));
+        } catch (ex) { box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    async function renderManageDepartmentReward() {
+        const box = document.getElementById('tab-manage');
+        box.innerHTML = skeletonHtml('list', { count: 5, avatar: false });
+
+        try {
+            tierList = await API.get('/ranking/tier');
+
+            box.innerHTML = `
+                <div class="card">
+                    <div class="card-head"><h3 data-i18n="ranking.phanThuongRiengCuaPhongBan">Phần thưởng riêng của phòng ban</h3>
+                        <span data-i18n="ranking.chiNhanVienPhongBanCuaBanThayD" class="small muted">Chỉ nhân viên phòng ban của bạn thấy được phần thưởng này, không ảnh hưởng tới bậc hạng hay phòng ban khác.</span></div>
+                    <div class="table-wrap"><table>
+                        <thead><tr><th></th><th data-i18n="ranking.bacHang">Bậc hạng</th><th data-i18n="ranking.diemToiThieu2">Điểm tối thiểu</th><th data-i18n="ranking.phanThuongRiengCuaPhongBan">Phần thưởng riêng của phòng ban</th><th class="text-right"></th></tr></thead>
+                        <tbody>${tierList.length ? tierList.map(t => `
+                            <tr>
+                                <td style="font-size:24px;color:${t.colorHex}">${tierIcon(t.icon)}</td>
+                                <td><b>${esc(t.name)}</b></td>
+                                <td>${t.minPoints}</td>
+                                <td><input type="text" class="dept-reward-input" data-tier="${t.id}" maxlength="300"
+                                    value="${esc(t.departmentRewardDescription || '')}" data-i18n-ph="ranking.vdThem1NgayNghiPhep" placeholder="VD: Thêm 1 ngày nghỉ phép"></td>
+                                <td class="text-right"><button data-i18n="common.save" class="btn sm" data-save-reward="${t.id}">Lưu</button></td>
+                            </tr>`).join('') : `<tr><td colspan="5">${emptyHtml(t('ranking.chuaCoBacHangNaoLienHeAdminDeT', 'Chưa có bậc hạng nào — liên hệ Admin để tạo trước.'), '<i class="ph ph-trophy"></i>')}</td></tr>`}
+                        </tbody>
+                    </table></div>
+                </div>`;
+
+            box.querySelectorAll('[data-save-reward]').forEach(b => b.addEventListener('click', async () => {
+                const tierId = b.dataset.saveReward;
+                const rewardDescription = box.querySelector(`.dept-reward-input[data-tier="${tierId}"]`).value.trim();
+                try {
+                    if (rewardDescription) await API.put(`/ranking/department-reward/${tierId}`, { rewardDescription });
+                    else await API.del(`/ranking/department-reward/${tierId}`);
+                    toastOk(t('ranking.daLuuPhanThuong', 'Đã lưu phần thưởng.'));
+                } catch (ex) { toastErr(ex.message); }
+            }));
+        } catch (ex) { box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    let tierPickerReady = false;
+
+    function openTierForm(tier) {
+        if (!tierPickerReady) { tierPickerReady = true; buildTierPicker(); }
+
+        document.getElementById('tier-title').textContent = tier ? 'Sửa bậc hạng' : t('ranking.themBacHang', 'Thêm bậc hạng');
+        document.getElementById('t-id').value = tier?.id || '';
+        // Bậc hạng cũ còn lưu tên icon Phosphor: quy đổi ngay lúc mở biểu mẫu để ô chọn sáng đúng emoji,
+        // và để lần Lưu sau ghi đè giá trị mới xuống CSDL.
+        document.getElementById('t-icon').value = tier ? tierEmoji(tier.icon) : '';
+        document.getElementById('t-name').value = tier?.name || '';
+        document.getElementById('t-minpoints').value = tier?.minPoints ?? 0;
+        document.getElementById('t-color').value = tier?.colorHex || '#cd7f32';
+        document.getElementById('t-reward').value = tier?.rewardDescription || '';
+        document.getElementById('t-order').value = tier?.orderIndex ?? 0;
+
+        document.getElementById('t-icon-search').value = '';
+        currentIconGroup = TIER_ICON_GROUP_LIST[0].key;
+        renderIconGrid();
+        refreshTierPreview();
+        openModal('modal-tier');
+    }
+
+    // Mỗi ô của bộ chọn là một emoji kèm từ khóa tìm kiếm (cả tiếng Việt lẫn tiếng Anh) — ô tìm kiếm dò
+    // trong keyword chứ không dò trong ký tự emoji, vì gõ emoji trên bàn phím máy tính là chuyện khó.
+    const TIER_ICON_GROUP_LIST = [
+        {
+            key: 'award', label: 'Huy chương & Cúp', iconList: [
+                ['🏆', 'cup trophy cúp vô địch giải'], ['🥇', 'vàng gold huy chương nhất'],
+                ['🥈', 'bạc silver huy chương nhì'], ['🥉', 'đồng bronze huy chương ba'],
+                ['🎖️', 'huân chương military medal quân'], ['🏅', 'huy chương medal thể thao'],
+                ['👑', 'vương miện crown vua quán quân'], ['💎', 'kim cương diamond ngọc'],
+                ['💍', 'nhẫn ring cưới'], ['🎗️', 'nơ ribbon dải ruy băng'],
+                ['📜', 'chứng nhận certificate bằng scroll giấy khen'], ['🎁', 'quà gift phần thưởng hộp'],
+                ['🎉', 'chúc mừng party confetti pháo giấy'], ['🎊', 'confetti bóng chúc mừng'],
+                ['🍾', 'champagne sâm banh khui'], ['🥂', 'cụng ly cheers nâng ly'],
+                ['🪙', 'xu coin đồng tiền'], ['💰', 'túi tiền money bag giàu'],
+                ['💵', 'tiền cash dollar đô'], ['🧧', 'lì xì bao đỏ red envelope'],
+                ['🎫', 'vé ticket voucher'], ['🗝️', 'chìa khóa key cổ'],
+                ['🏵️', 'hoa hồng rosette huy hiệu'], ['⚜️', 'huy hiệu fleur hoa bách hợp'],
+            ],
+        },
+        {
+            key: 'star', label: 'Sao & Ánh sáng', iconList: [
+                ['⭐', 'sao star ngôi sao'], ['🌟', 'sao sáng glowing star lấp lánh'],
+                ['✨', 'lấp lánh sparkles tỏa sáng'], ['💫', 'sao xoay dizzy vòng'],
+                ['🌠', 'sao băng shooting star'], ['☀️', 'mặt trời sun nắng'],
+                ['🌞', 'mặt trời sun cười nắng'], ['🌝', 'trăng moon mặt trăng cười'],
+                ['🌙', 'trăng lưỡi liềm crescent moon'], ['🌜', 'trăng moon đêm'],
+                ['🔥', 'lửa fire cháy hot'], ['⚡', 'sét lightning tia chớp điện'],
+                ['💡', 'bóng đèn lightbulb ý tưởng sáng kiến'], ['🌈', 'cầu vồng rainbow'],
+                ['☄️', 'sao chổi comet meteor thiên thạch'], ['🪐', 'hành tinh planet thổ tinh'],
+                ['🌍', 'trái đất earth globe địa cầu'], ['🔆', 'sáng bright độ sáng'],
+                ['🎆', 'pháo hoa fireworks'], ['🎇', 'pháo bông sparkler'],
+                ['💥', 'nổ boom bùng'], ['🌀', 'xoáy cyclone vòng xoáy'],
+                ['🔮', 'quả cầu crystal ball tiên tri'], ['🕯️', 'nến candle'],
+            ],
+        },
+        {
+            key: 'shield', label: 'Khiên & Bảo vệ', iconList: [
+                ['🛡️', 'khiên shield bảo vệ phòng thủ'], ['⚔️', 'kiếm sword song kiếm chiến'],
+                ['🗡️', 'dao kiếm dagger'], ['🏰', 'lâu đài castle thành'],
+                ['🏯', 'thành nhật castle tháp'], ['🔒', 'khóa lock bảo mật'],
+                ['🔐', 'khóa chìa lock key bảo mật'], ['🔑', 'chìa khóa key'],
+                ['🚨', 'báo động siren còi khẩn cấp'], ['🦺', 'áo phản quang safety vest bảo hộ'],
+                ['⛑️', 'mũ cứu hộ helmet bảo hộ'], ['🧯', 'bình chữa cháy extinguisher pccc'],
+                ['🚧', 'rào chắn barrier công trường'], ['⚓', 'mỏ neo anchor'],
+                ['🎯', 'bia target đích mục tiêu'], ['🏹', 'cung tên bow archery bắn'],
+                ['🚩', 'cờ flag'], ['🏁', 'cờ đích checkered flag về đích'],
+                ['⚖️', 'cân scales công lý cân bằng'], ['🔨', 'búa hammer'],
+                ['🧿', 'bùa hộ mệnh amulet mắt'], ['🪖', 'mũ lính helmet quân đội'],
+                ['✊', 'nắm đấm fist quyết tâm'], ['💪', 'cơ bắp muscle mạnh khỏe'],
+            ],
+        },
+        {
+            key: 'learn', label: 'Học tập', iconList: [
+                ['🎓', 'tốt nghiệp graduation mũ cử nhân học'], ['📚', 'sách books chồng sách'],
+                ['📖', 'sách mở open book đọc'], ['📕', 'sách book giáo trình'],
+                ['📝', 'ghi chép note bài tập'], ['✏️', 'bút chì pencil viết'],
+                ['🖊️', 'bút pen viết'], ['🖍️', 'bút màu crayon'],
+                ['📐', 'thước ê ke ruler đo'], ['📏', 'thước ruler đo'],
+                ['🧠', 'não brain trí tuệ thông minh'], ['💭', 'suy nghĩ thought ý tưởng'],
+                ['🔬', 'kính hiển vi microscope nghiên cứu'], ['🧪', 'ống nghiệm test tube thí nghiệm'],
+                ['🧬', 'dna gen sinh học'], ['🔭', 'kính thiên văn telescope'],
+                ['🧭', 'la bàn compass định hướng'], ['🗺️', 'bản đồ map lộ trình'],
+                ['🌐', 'địa cầu globe internet toàn cầu'], ['🗣️', 'nói speaking thuyết trình'],
+                ['🧑‍🏫', 'giáo viên teacher giảng dạy'], ['🎒', 'ba lô backpack cặp sách'],
+                ['📊', 'biểu đồ chart thống kê'], ['📈', 'tăng trưởng chart up tiến bộ'],
+            ],
+        },
+        {
+            key: 'sport', label: 'Thể thao', iconList: [
+                ['🏋️', 'tạ barbell gym tập'], ['⚽', 'bóng đá soccer football'],
+                ['🏀', 'bóng rổ basketball'], ['🏐', 'bóng chuyền volleyball'],
+                ['🏈', 'bóng bầu dục football rugby'], ['⚾', 'bóng chày baseball'],
+                ['🎾', 'tennis quần vợt'], ['🏓', 'bóng bàn ping pong'],
+                ['🥊', 'boxing găng đấm'], ['🏸', 'cầu lông badminton'],
+                ['⛳', 'golf gôn'], ['🎳', 'bowling'],
+                ['🏒', 'hockey khúc côn cầu'], ['🏏', 'cricket'],
+                ['🏃', 'chạy run chạy bộ'], ['🚴', 'đạp xe bike xe đạp'],
+                ['🏊', 'bơi swim bơi lội'], ['🥾', 'leo núi hike giày leo'],
+                ['⛷️', 'trượt tuyết ski'], ['👟', 'giày sneaker thể thao'],
+                ['⏱️', 'bấm giờ timer đồng hồ'], ['💓', 'nhịp tim heartbeat sức khỏe'],
+                ['🤸', 'nhào lộn gymnastics thể dục'], ['🥋', 'võ martial arts đai'],
+            ],
+        },
+        {
+            key: 'nature', label: 'Thiên nhiên', iconList: [
+                ['🍀', 'cỏ bốn lá clover may mắn'], ['🌿', 'lá leaf cây cỏ'],
+                ['🌳', 'cây tree cổ thụ'], ['🌲', 'thông evergreen tùng'],
+                ['🌴', 'dừa palm cọ'], ['🌱', 'mầm plant sprout nảy mầm'],
+                ['🌸', 'hoa flower anh đào'], ['🌺', 'hoa dâm bụt hibiscus'],
+                ['🌷', 'hoa tulip'], ['🌻', 'hướng dương sunflower'],
+                ['🌵', 'xương rồng cactus'], ['⛰️', 'núi mountain đỉnh'],
+                ['🏝️', 'đảo island biển'], ['🌊', 'sóng waves biển'],
+                ['💧', 'giọt nước drop nước'], ['❄️', 'tuyết snowflake bông tuyết'],
+                ['☁️', 'mây cloud'], ['⛅', 'mây nắng cloud sun'],
+                ['🌬️', 'gió wind thổi'], ['🦋', 'bướm butterfly'],
+                ['🐦', 'chim bird'], ['🐟', 'cá fish'],
+                ['🐾', 'dấu chân paw thú cưng'], ['🐎', 'ngựa horse phi'],
+            ],
+        },
+        {
+            key: 'work', label: 'Công việc', iconList: [
+                ['👷', 'công nhân worker thợ'], ['🔧', 'cờ lê wrench sửa chữa'],
+                ['🔩', 'bu lông ốc vít nut bolt'], ['🧰', 'hộp dụng cụ toolbox đồ nghề'],
+                ['⚙️', 'bánh răng gear cơ khí cài đặt'], ['🏗️', 'cần cẩu crane xây dựng'],
+                ['🚜', 'máy kéo tractor nông nghiệp'], ['🏭', 'nhà máy factory xưởng'],
+                ['🏢', 'tòa nhà office văn phòng'], ['🏬', 'trung tâm thương mại store'],
+                ['🏠', 'nhà house ngôi nhà'], ['💼', 'cặp briefcase công sở'],
+                ['🧳', 'vali suitcase công tác'], ['🩺', 'ống nghe stethoscope y tế'],
+                ['⛏️', 'cuốc pickaxe khai thác'], ['🪛', 'tua vít screwdriver'],
+                ['🪜', 'thang ladder trèo'], ['🚚', 'xe tải truck vận chuyển'],
+                ['📦', 'thùng box package kiện hàng'], ['🖥️', 'máy tính computer màn hình'],
+                ['⌨️', 'bàn phím keyboard'], ['🧱', 'gạch brick xây'],
+                ['🚛', 'xe container truck đầu kéo'], ['🛠️', 'búa cờ lê tools sửa chữa'],
+            ],
+        },
+        {
+            key: 'shape', label: 'Hình khối', iconList: [
+                ['🔵', 'tròn xanh circle blue hình tròn'], ['🔴', 'tròn đỏ circle red'],
+                ['🟢', 'tròn xanh lá circle green'], ['🟡', 'tròn vàng circle yellow'],
+                ['🟣', 'tròn tím circle purple'], ['⚫', 'tròn đen circle black'],
+                ['⚪', 'tròn trắng circle white'], ['🔶', 'thoi cam diamond orange'],
+                ['🔷', 'thoi xanh diamond blue'], ['🔸', 'thoi nhỏ cam diamond small'],
+                ['🔹', 'thoi nhỏ xanh diamond small'], ['🟥', 'vuông đỏ square red'],
+                ['🟦', 'vuông xanh square blue'], ['🟨', 'vuông vàng square yellow'],
+                ['🟩', 'vuông lá square green'], ['🔺', 'tam giác đỏ triangle up'],
+                ['🔻', 'tam giác xuống triangle down'], ['♦️', 'rô diamond bài'],
+                ['♠️', 'bích spade bài'], ['♥️', 'cơ heart bài tim'],
+                ['♣️', 'tép club bài nhép'], ['✅', 'tick check đúng hoàn thành'],
+                ['🔰', 'huy hiệu beginner người mới'], ['♾️', 'vô cực infinity'],
+            ],
+        },
+    ].map(group => ({
+        ...group,
+        iconList: group.iconList.map(([char, keyword]) => ({ char, keyword })),
+    }));
+
+    // Bậc hạng tạo trước khi bộ chọn chuyển sang emoji còn lưu tên icon Phosphor ("medal", "trophy"...).
+    // Dữ liệu cũ trong CSDL để nguyên, chỉ quy đổi lúc hiển thị — admin mở ra lưu lại là ghi đè bằng emoji.
+    const LEGACY_PHOSPHOR_EMOJI = {
+        'medal': '🏅', 'medal-military': '🎖️', 'trophy': '🏆', 'crown': '👑', 'crown-simple': '👑',
+        'crown-cross': '👑', 'seal-check': '✅', 'seal': '🏵️', 'certificate': '📜', 'ranking': '📊',
+        'confetti': '🎉', 'gift': '🎁', 'sparkle': '✨', 'star-four': '✨', 'hand-heart': '🤲',
+        'cheers': '🥂', 'champagne': '🍾', 'coin': '🪙', 'coins': '🪙', 'money': '💰',
+        'treasure-chest': '💰', 'piggy-bank': '🐷', 'ticket': '🎫', 'hand-coins': '💰',
+
+        'star': '⭐', 'star-half': '⭐', 'shooting-star': '🌠', 'sun': '☀️', 'sun-dim': '🌤️',
+        'moon': '🌙', 'moon-stars': '🌙', 'lightning': '⚡', 'lightning-a': '⚡', 'fire': '🔥',
+        'fire-simple': '🔥', 'flame': '🔥', 'lightbulb': '💡', 'lightbulb-filament': '💡',
+        'rainbow': '🌈', 'meteor': '☄️', 'planet': '🪐', 'diamond': '💎', 'diamonds-four': '🔷',
+        'spiral': '🌀', 'pinwheel': '🌀', 'aperture': '🔆', 'atom': '⚛️',
+
+        'shield': '🛡️', 'shield-check': '🛡️', 'shield-star': '🛡️', 'shield-plus': '🛡️',
+        'shield-checkered': '🛡️', 'shield-chevron': '🛡️', 'lock-key': '🔐', 'lock-laminated': '🔒',
+        'key': '🔑', 'castle-turret': '🏰', 'sword': '⚔️', 'hand-fist': '✊', 'lifebuoy': '🛟',
+        'anchor': '⚓', 'target': '🎯', 'crosshair': '🎯', 'flag': '🚩', 'flag-banner': '🚩',
+        'flag-checkered': '🏁', 'flag-pennant': '🚩', 'seal-percent': '🏷️', 'bank': '🏦',
+        'scales': '⚖️', 'gavel': '⚖️',
+
+        'graduation-cap': '🎓', 'student': '🧑‍🎓', 'book': '📕', 'book-open': '📖',
+        'book-bookmark': '📗', 'books': '📚', 'notebook': '📓', 'chalkboard-teacher': '🧑‍🏫',
+        'exam': '📝', 'brain': '🧠', 'head-circuit': '🧠', 'compass': '🧭', 'compass-tool': '📐',
+        'ruler': '📏', 'pencil': '✏️', 'pen-nib': '🖊️', 'microscope': '🔬', 'flask': '⚗️',
+        'test-tube': '🧪', 'globe': '🌐', 'translate': '🗣️', 'presentation-chart': '📊',
+        'chart-line-up': '📈',
+
+        'barbell': '🏋️', 'soccer-ball': '⚽', 'basketball': '🏀', 'volleyball': '🏐',
+        'football': '🏈', 'baseball': '⚾', 'tennis-ball': '🎾', 'ping-pong': '🏓',
+        'boxing-glove': '🥊', 'racquet': '🏸', 'golf': '⛳', 'bowling-ball': '🎳',
+        'hockey': '🏒', 'cricket': '🏏', 'person-simple-run': '🏃', 'person-simple-bike': '🚴',
+        'person-simple-swim': '🏊', 'person-simple-hike': '🥾', 'person-simple-ski': '⛷️',
+        'sneaker-move': '👟', 'timer': '⏱️', 'heartbeat': '💓', 'pulse': '💓',
+
+        'leaf': '🌿', 'tree': '🌳', 'tree-evergreen': '🌲', 'tree-palm': '🌴', 'plant': '🌱',
+        'flower': '🌸', 'flower-lotus': '🪷', 'flower-tulip': '🌷', 'cactus': '🌵',
+        'mountains': '⛰️', 'island': '🏝️', 'waves': '🌊', 'drop': '💧', 'snowflake': '❄️',
+        'cloud': '☁️', 'cloud-sun': '⛅', 'wind': '🌬️', 'butterfly': '🦋', 'bird': '🐦',
+        'fish': '🐟', 'paw-print': '🐾', 'horse': '🐎', 'feather': '🪶', 'clover': '🍀',
+
+        'hard-hat': '👷', 'wrench': '🔧', 'hammer': '🔨', 'toolbox': '🧰', 'gear': '⚙️',
+        'gear-six': '⚙️', 'crane': '🏗️', 'crane-tower': '🏗️', 'bulldozer': '🚜',
+        'tractor': '🚜', 'factory': '🏭', 'buildings': '🏢', 'building-office': '🏢',
+        'warehouse': '🏭', 'blueprint': '📐', 'briefcase': '💼', 'briefcase-metal': '💼',
+        'first-aid-kit': '🩹', 'fire-extinguisher': '🧯', 'traffic-cone': '🚧',
+        'shipping-container': '📦', 'truck': '🚚', 'ladder': '🪜', 'screwdriver': '🪛',
+
+        'circle': '🔵', 'circle-wavy-check': '✅', 'circle-half': '🌗', 'square': '🟦',
+        'hexagon': '🔷', 'pentagon': '🔶', 'triangle': '🔺', 'octagon': '🛑', 'cube': '🧊',
+        'sphere': '🔵', 'cylinder': '🥁', 'infinity': '♾️', 'yin-yang': '☯️', 'peace': '☮️',
+        'asterisk': '✳️', 'dots-nine': '🔳', 'grid-four': '🔳', 'squares-four': '🔳',
+        'stack': '📚', 'stack-simple': '📚', 'polygon': '🔷', 'shapes': '🔷',
+        'number-circle-one': '1️⃣', 'number-square-one': '1️⃣',
+    };
+
+    const TIER_COLOR_LIST = [
+        { hex: '#cd7f32', name: 'Đồng' },
+        { hex: '#9ca3af', name: 'Bạc' },
+        { hex: '#d4af37', name: 'Vàng' },
+        { hex: '#00a1e6', name: 'Bạch kim' },
+        { hex: '#8b5cf6', name: 'Kim cương' },
+        { hex: '#ef4444', name: 'Bậc cao nhất' },
+    ];
+
+    let currentIconGroup = TIER_ICON_GROUP_LIST[0].key;
+
+    function buildTierPicker() {
+        const swatchRow = document.getElementById('t-swatch-row');
+        swatchRow.insertAdjacentHTML('afterbegin', TIER_COLOR_LIST.map(color => `
+            <button type="button" class="tier-swatch" data-color="${color.hex}"
+                    style="background:${color.hex}" title="${esc(color.name)}"></button>`).join(''));
+
+        swatchRow.querySelectorAll('[data-color]').forEach(btn => btn.addEventListener('click', () => {
+            document.getElementById('t-color').value = btn.dataset.color;
+            refreshTierPreview();
+        }));
+
+        document.getElementById('t-icon-tabs').innerHTML = TIER_ICON_GROUP_LIST.map(group => `
+            <button type="button" class="tier-icon-tab ${group.key === currentIconGroup ? 'active' : ''}"
+                    data-group="${group.key}">${esc(group.label)}</button>`).join('');
+
+        document.getElementById('t-icon-tabs').querySelectorAll('[data-group]').forEach(btn =>
+            btn.addEventListener('click', () => {
+                currentIconGroup = btn.dataset.group;
+                document.getElementById('t-icon-search').value = '';
+                renderIconGrid();
+            }));
+
+        document.getElementById('t-icon-search').addEventListener('input', renderIconGrid);
+        document.getElementById('t-color').addEventListener('input', refreshTierPreview);
+        document.getElementById('t-name').addEventListener('input', refreshTierPreview);
+        document.getElementById('t-minpoints').addEventListener('input', refreshTierPreview);
+    }
+
+    function renderIconGrid() {
+        const keyword = document.getElementById('t-icon-search').value.trim().toLowerCase();
+        const selected = document.getElementById('t-icon').value;
+
+        // Tìm kiếm quét toàn bộ các nhóm, và bỏ emoji trùng nhau vì cùng một emoji có mặt ở nhiều nhóm.
+        const iconList = keyword
+            ? [...new Map(TIER_ICON_GROUP_LIST
+                .flatMap(g => g.iconList)
+                .filter(x => x.keyword.includes(keyword))
+                .map(x => [x.char, x])).values()]
+            : (TIER_ICON_GROUP_LIST.find(g => g.key === currentIconGroup)?.iconList ?? []);
+
+        document.querySelectorAll('.tier-icon-tab').forEach(tab =>
+            tab.classList.toggle('active', !keyword && tab.dataset.group === currentIconGroup));
+
+        const grid = document.getElementById('t-icon-grid');
+        grid.innerHTML = iconList.length
+            ? iconList.map(x => `
+                <button type="button" class="tier-icon-cell ${x.char === selected ? 'active' : ''}"
+                        data-icon="${esc(x.char)}" title="${esc(x.keyword)}">${esc(x.char)}</button>`).join('')
+            : `<div class="tier-icon-empty">${esc(t('ranking.khongTimThayBieuTuong',
+                    'Không tìm thấy biểu tượng nào khớp "{keyword}".', { keyword }))}</div>`;
+
+        grid.querySelectorAll('[data-icon]').forEach(btn => btn.addEventListener('click', () => {
+            document.getElementById('t-icon').value = btn.dataset.icon;
+            grid.querySelectorAll('[data-icon]').forEach(x => x.classList.toggle('active', x === btn));
+            refreshTierPreview();
+        }));
+    }
+
+    function refreshTierPreview() {
+        const icon = document.getElementById('t-icon').value.trim();
+        const color = document.getElementById('t-color').value;
+        const name = document.getElementById('t-name').value.trim();
+        const point = document.getElementById('t-minpoints').value;
+
+        const badge = document.getElementById('t-preview-badge');
+        badge.style.background = color;
+        badge.innerHTML = icon ? `<span class="tier-emoji">${esc(icon)}</span>` : '<span class="tier-emoji">❔</span>';
+
+        document.getElementById('t-preview-name').textContent = name || '—';
+        document.getElementById('t-preview-point').textContent = point
+            ? t('ranking.tuDiem', 'từ {point} điểm', { point: Number(point).toLocaleString(Lang.locale) }) : '';
+        document.getElementById('t-icon-name').innerHTML = icon
+            ? `${esc(t('ranking.dangChon', 'Đang chọn'))}: <b class="tier-emoji">${esc(icon)}</b>` : '';
+
+        document.querySelectorAll('[data-color]').forEach(btn =>
+            btn.classList.toggle('active', btn.dataset.color.toLowerCase() === color.toLowerCase()));
+    }
+
+    async function saveTier(e) {
+        e.preventDefault();
+        const id = document.getElementById('t-id').value;
+        const body = {
+            icon: document.getElementById('t-icon').value.trim(),
+            name: document.getElementById('t-name').value.trim(),
+            minPoints: +document.getElementById('t-minpoints').value || 0,
+            colorHex: document.getElementById('t-color').value,
+            rewardDescription: document.getElementById('t-reward').value.trim() || null,
+            orderIndex: +document.getElementById('t-order').value || 0,
+        };
+        try {
+            if (id) await API.put(`/ranking/tier/${id}`, body); else await API.post('/ranking/tier', body);
+            toastOk(t('ranking.daLuuBacHang', 'Đã lưu bậc hạng.'));
+            closeModal('modal-tier');
+            renderManage();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    let currentCodeTierId = null;
+
+    async function openCodeModal(tier) {
+        currentCodeTierId = tier.id;
+        document.getElementById('code-title').innerHTML = `${tierIcon(tier.icon)} Kho mã voucher — ${esc(tier.name)}`;
+        document.getElementById('c-codes').value = '';
+        openModal('modal-code');
+        await loadCodeList();
+    }
+
+    async function loadCodeList() {
+        const tbody = document.getElementById('code-tbody');
+        tbody.innerHTML = skeletonHtml('table', { rows: 5, cols: 5 });
+        try {
+            const list = await API.get(`/ranking/tier/${currentCodeTierId}/code`);
+            tbody.innerHTML = list.length ? list.map(c => `
+                <tr>
+                    <td><code>${esc(c.code)}</code></td>
+                    <td>${c.isUsed ? '<span data-i18n="course-detail.daCap" class="badge gray">Đã cấp</span>' : '<span data-i18n="ranking.conTrong" class="badge green">Còn trống</span>'}</td>
+                    <td class="small">${esc(c.assignedToUserName || '—')}</td>
+                    <td class="small nowrap">${c.assignedAt ? formatDate(c.assignedAt, true) : '—'}</td>
+                    <td class="text-right">${c.isUsed ? '' : `<button data-i18n="common.delete" class="btn ghost sm" data-del-code="${c.id}">Xóa</button>`}</td>
+                </tr>`).join('') : `<tr><td colspan="5">${emptyHtml(t('ranking.khoMaDangTrong', 'Kho mã đang trống.'), '<i class="ph ph-ticket"></i>')}</td></tr>`;
+
+            tbody.querySelectorAll('[data-del-code]').forEach(b => b.addEventListener('click', async () => {
+                if (!await confirmDialog(t('ranking.xoaMaNay', 'Xóa mã này?'), { danger: true, okText: t('common.delete', 'Xóa') })) return;
+                try { await API.del(`/ranking/code/${b.dataset.delCode}`); loadCodeList(); renderManage(); }
+                catch (ex) { toastErr(ex.message); }
+            }));
+        } catch (ex) { tbody.innerHTML = `<tr><td colspan="5">${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</td></tr>`; }
+    }
+
+    async function addCode() {
+        const codes = document.getElementById('c-codes').value;
+        if (!codes.trim()) { toastErr(t('ranking.chuaNhapMaNao', 'Chưa nhập mã nào.')); return; }
+        try {
+            toastOk((await API.post(`/ranking/tier/${currentCodeTierId}/code`, { codes })).message);
+            document.getElementById('c-codes').value = '';
+            loadCodeList();
+            renderManage();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    // ==================== QUẢN LÝ NHIỆM VỤ TUẦN (Admin) ====================
+    // Nhiệm vụ tuần là ô "Nhiệm vụ tuần này" trên trang Tổng quan của người học. Đặt chung trang Xếp hạng
+    // vì cùng ăn một nguồn dữ liệu với bậc hạng — nhật ký cộng điểm — nên sửa nhiệm vụ mà quên nhìn bảng
+    // điểm là chuyện rất dễ xảy ra nếu hai thứ nằm ở hai màn hình khác nhau.
+
+    // Tên loại hoạt động do API trả về đúng bằng tên trong enum PointReason. Dịch ở đây thay vì để API trả
+    // sẵn câu tiếng Việt, để đổi ngôn ngữ trên thanh công cụ thì ô xổ xuống đổi theo.
+    const ACTIVITY_LABEL = {
+        LessonCompleted: () => t('ranking.hoatDongBaiHoc', 'Hoàn thành một bài học'),
+        QuizPassed: () => t('ranking.hoatDongBaiKiemTra', 'Vượt qua một bài kiểm tra'),
+        CourseCompleted: () => t('ranking.hoatDongKhoaHoc', 'Hoàn thành một khóa học'),
+        SimulationCompleted: () => t('ranking.hoatDongMoPhong', 'Hoàn thành một lượt mô phỏng 3D'),
+        DailyLogin: () => t('ranking.hoatDongDangNhap', 'Đăng nhập trong ngày'),
+        DailyStudyTime: () => t('ranking.hoatDongThoiGianHoc', 'Học đủ số phút trong ngày'),
+        VideoQuestionPassed: () => t('ranking.hoatDongCauHoiVideo', 'Trả lời đúng câu hỏi trong video'),
+    };
+    const activityLabel = (name) => (ACTIVITY_LABEL[name] || (() => name))();
+
+    let missionList = [];
+    let activityList = [];
+    let pointRuleList = [];
+
+    /// Tên loại hoạt động -> giá trị số mà API nhận khi lưu.
+    const activityValue = (name) => activityList.find(a => a.name === name)?.value ?? 0;
+
+    /**
+     * Thẻ "Điểm cho mỗi hoạt động" — nơi quản trị viên tự đặt mỗi hoạt động đáng bao nhiêu điểm.
+     *
+     * Đặt ngay trên bảng nhiệm vụ tuần thay vì một tab riêng: hai thứ này luôn được cân cùng lúc. Đặt mức
+     * thưởng cho một nhiệm vụ mà không nhìn thấy hoạt động lẻ đáng mấy điểm thì con số thưởng chỉ là đoán.
+     */
+    function pointRuleCardHtml() {
+        return `
+            <div class="card">
+                <div class="card-head">
+                    <div>
+                        <h3>${esc(t('ranking.diemHoatDong', 'Điểm cho mỗi hoạt động'))}</h3>
+                        <div class="small muted">${esc(t('ranking.diemHoatDongSub',
+                            'Số điểm xếp hạng cộng cho học viên mỗi lần họ làm xong một hoạt động.'))}</div>
+                    </div>
+                    <button class="btn sm" id="btn-save-point-rule">${esc(t('common.save', 'Lưu'))}</button>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-4">
+                        ${pointRuleList.map(r => `
+                            <div class="field">
+                                <label for="pr-${r.value}">${esc(activityLabel(r.name))}</label>
+                                <input type="number" id="pr-${r.value}" data-point-rule="${r.value}"
+                                       min="0" max="10000" step="1" value="${r.point}">
+                                ${r.threshold == null ? '' : `
+                                    <div class="pr-threshold">
+                                        <label for="pt-${r.value}">${esc(t('ranking.khiHocDu', 'khi học đủ'))}</label>
+                                        <input type="number" id="pt-${r.value}" data-point-threshold="${r.value}"
+                                               min="1" max="1440" step="1" value="${r.threshold}">
+                                        <span>${esc(t('ranking.phutMoiNgay', 'phút/ngày'))}</span>
+                                    </div>`}
+                            </div>`).join('')}
+                    </div>
+                    <div class="hint">${esc(t('ranking.diemHoatDongHint',
+                        'Mức mới chỉ áp dụng cho những lần cộng điểm từ lúc lưu trở đi — điểm học viên đã nhận giữ nguyên, không ai bị tụt hạng vì bạn hạ một con số. Để 0 nếu muốn hoạt động vẫn được ghi nhận và đếm cho nhiệm vụ tuần nhưng không cộng điểm.'))}</div>
+                </div>
+            </div>`;
+    }
+
+    async function renderMissionManage() {
+        if (!isAdmin) return;
+        const box = document.getElementById('tab-mission');
+        box.innerHTML = skeletonHtml('list', { count: 5, avatar: false });
+
+        try {
+            // Danh sách loại hoạt động không đổi trong một phiên làm việc nên chỉ tải một lần.
+            // Bảng điểm tải lại MỖI lần mở tab chứ không nhớ như danh sách loại hoạt động: đây là số
+            // quản trị viên vừa sửa xong, hiện lại số cũ là làm họ tưởng lưu hỏng.
+            [missionList, activityList, pointRuleList] = await Promise.all([
+                API.get('/dashboard/mission'),
+                activityList.length ? activityList : API.get('/dashboard/mission/activity'),
+                API.get('/dashboard/point-rule'),
+            ]);
+
+            const activeCount = missionList.filter(m => m.isActive).length;
+
+            box.innerHTML = `
+                ${pointRuleCardHtml()}
+                <div class="card" style="margin-top:18px">
+                    <div class="card-head">
+                        <h3>${activeCount} ${esc(t('ranking.nhiemVuDangHien', 'nhiệm vụ đang hiện'))}${
+                            missionList.length > activeCount
+                                ? ` <span class="small muted">· ${missionList.length - activeCount} ${esc(t('ranking.dangTat', 'đang tắt'))}</span>`
+                                : ''}</h3>
+                        <button data-i18n="ranking.themNhiemVu2" class="btn sm" id="btn-new-mission">+ Thêm nhiệm vụ</button>
+                    </div>
+                    <div class="table-wrap"><table>
+                        <thead><tr>
+                            <th data-i18n="ranking.thuTu" style="width:60px">Thứ tự</th>
+                            <th data-i18n="ranking.tenNhiemVu3">Tên nhiệm vụ</th>
+                            <th data-i18n="ranking.hoatDongDuocDem2">Hoạt động được đếm</th>
+                            <th data-i18n="ranking.chiTieu" class="text-center">Chỉ tiêu / tuần</th>
+                            <th data-i18n="ranking.diemThuong" class="text-center">Điểm thưởng</th>
+                            <th data-i18n="dashboard.colStatus">Trạng thái</th>
+                            <th class="text-right"></th>
+                        </tr></thead>
+                        <tbody>${missionList.length ? missionList.map(m => `
+                            <tr>
+                                <td>${m.orderIndex}</td>
+                                <td><b>${esc(m.label)}</b></td>
+                                <td class="small">${esc(activityLabel(m.activity))}</td>
+                                <td class="text-center"><b>${m.target}</b></td>
+                                <td class="text-center">${m.rewardPoint > 0 ? `<b>+${m.rewardPoint}</b>` : '—'}</td>
+                                <td>${m.isActive
+                                    ? `<span class="badge green">${esc(t('ranking.dangHien', 'Đang hiện'))}</span>`
+                                    : `<span class="badge gray">${esc(t('ranking.dangTat2', 'Đang tắt'))}</span>`}</td>
+                                <td class="text-right nowrap">
+                                    <button class="btn ghost sm" data-toggle="${m.id}">${esc(m.isActive
+                                        ? t('ranking.tat', 'Tắt') : t('ranking.bat', 'Bật'))}</button>
+                                    <button data-i18n="common.edit" class="btn ghost sm" data-edit-mission="${m.id}">Sửa</button>
+                                    <button data-i18n="common.delete" class="btn ghost sm" data-del-mission="${m.id}">Xóa</button>
+                                </td>
+                            </tr>`).join('') : `<tr><td colspan="7">${emptyHtml(t('ranking.chuaCoNhiemVuNao', 'Chưa có nhiệm vụ nào. Bấm "Thêm nhiệm vụ" để bắt đầu.'), '<i class="ph ph-target"></i>')}</td></tr>`}
+                        </tbody>
+                    </table></div>
+                    <div class="hint" style="padding:12px 16px" data-i18n="ranking.nhiemVuHint">Tiến độ nhiệm vụ được đếm lại từ đầu mỗi thứ Hai, dựa trên chính nhật ký cộng điểm — nên sửa chỉ tiêu lúc nào cũng được, không người học nào mất tiến độ. Điểm thưởng cộng thẳng vào điểm xếp hạng ngay khi người học làm đủ chỉ tiêu, mỗi tuần một lần, kèm một thông báo cho họ. Hạ chỉ tiêu xuống dưới số người ta đã làm được thì họ nhận thưởng ở lần hoạt động kế tiếp trong tuần.</div>
+                </div>`;
+
+            document.getElementById('btn-save-point-rule').addEventListener('click', savePointRuleList);
+            document.getElementById('btn-new-mission').addEventListener('click', () => openMissionForm());
+            box.querySelectorAll('[data-edit-mission]').forEach(b =>
+                b.addEventListener('click', () => openMissionForm(missionList.find(m => m.id == b.dataset.editMission))));
+
+            box.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', async () => {
+                const mission = missionList.find(m => m.id == b.dataset.toggle);
+                try {
+                    await API.put(`/dashboard/mission/${mission.id}`, {
+                        label: mission.label, reason: activityValue(mission.activity),
+                        target: mission.target, rewardPoint: mission.rewardPoint,
+                        orderIndex: mission.orderIndex, isActive: !mission.isActive,
+                    });
+                    toastOk(mission.isActive
+                        ? t('ranking.daTatNhiemVu', 'Đã tắt nhiệm vụ.')
+                        : t('ranking.daBatNhiemVu', 'Đã bật nhiệm vụ.'));
+                    renderMissionManage();
+                } catch (ex) { toastErr(ex.message); }
+            }));
+
+            box.querySelectorAll('[data-del-mission]').forEach(b => b.addEventListener('click', async () => {
+                if (!await confirmDialog(
+                    t('ranking.xoaNhiemVuNay', 'Xóa nhiệm vụ này? Muốn giữ lại đề bài thì bấm "Tắt" thay vì xóa.'),
+                    { danger: true, okText: t('common.delete', 'Xóa') })) return;
+                try { toastOk((await API.del(`/dashboard/mission/${b.dataset.delMission}`)).message); renderMissionManage(); }
+                catch (ex) { toastErr(ex.message); }
+            }));
+        } catch (ex) { box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    /** Lưu cả bảng điểm trong một lượt: bốn con số này là một chính sách, sửa xong mới bấm lưu. */
+    async function savePointRuleList() {
+        const itemList = [...document.querySelectorAll('[data-point-rule]')].map(input => {
+            const reason = +input.dataset.pointRule;
+            const thresholdInput = document.querySelector(`[data-point-threshold="${reason}"]`);
+            return {
+                reason,
+                point: Math.max(0, Math.min(10000, Math.round(+input.value || 0))),
+                // Không có ô ngưỡng nghĩa là loại này không dùng ngưỡng — gửi null chứ không gửi 0, để
+                // server phân biệt được "không dùng" với "ngưỡng bằng 0".
+                threshold: thresholdInput ? Math.max(1, Math.min(1440, Math.round(+thresholdInput.value || 1))) : null,
+            };
+        });
+
+        try {
+            const result = await API.put('/dashboard/point-rule', { itemList });
+            toastOk(result.message);
+            // Vẽ lại cả tab: ô xổ xuống "Hoạt động được đếm" trong form nhiệm vụ hiện số điểm lấy từ bảng
+            // này, để nguyên thì nó còn ghi số cũ ngay cạnh số vừa sửa.
+            activityList = [];
+            await renderMissionManage();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    function openMissionForm(mission) {
+        document.getElementById('mission-title').textContent = mission
+            ? t('ranking.suaNhiemVu', 'Sửa nhiệm vụ') : t('ranking.themNhiemVu', 'Thêm nhiệm vụ');
+        document.getElementById('m-id').value = mission?.id || '';
+        document.getElementById('m-label').value = mission?.label || '';
+        document.getElementById('m-target').value = mission?.target ?? 1;
+        document.getElementById('m-reward').value = mission?.rewardPoint ?? 10;
+        // Nhiệm vụ mới xếp xuống cuối danh sách, thay vì chen lên đầu bằng số 0.
+        document.getElementById('m-order').value = mission?.orderIndex
+            ?? (missionList.reduce((max, m) => Math.max(max, m.orderIndex), 0) + 1);
+        document.getElementById('m-active').checked = mission ? mission.isActive : true;
+
+        document.getElementById('m-reason').innerHTML = activityList.map(a =>
+            `<option value="${a.value}" ${mission && a.name === mission.activity ? 'selected' : ''}>${esc(activityLabel(a.name))} (+${a.point})</option>`).join('');
+
+        refreshMissionPreview();
+        openModal('modal-mission');
+    }
+
+    ['m-label', 'm-target', 'm-reward'].forEach(id =>
+        document.getElementById(id).addEventListener('input', refreshMissionPreview));
+
+    /// Dựng đúng dòng nhiệm vụ như trang Tổng quan sẽ hiện, để người đặt nhiệm vụ nhìn thấy câu chữ của
+    /// mình nằm trong đúng cái khung nó sẽ nằm — nhất là khi chỉ tiêu phải tự viết vào tên.
+    function refreshMissionPreview() {
+        const label = document.getElementById('m-label').value.trim()
+            || t('ranking.tenNhiemVuMau', 'Tên nhiệm vụ sẽ hiện ở đây');
+        const target = +document.getElementById('m-target').value || 1;
+        const reward = +document.getElementById('m-reward').value || 0;
+
+        document.getElementById('m-preview').innerHTML = `
+            <div class="dash-mission">
+                <span class="tick"><i class="ph-bold ph-check"></i></span>
+                <span class="label">${esc(label)}<small>0/${target}</small></span>
+                ${reward > 0 ? `<span class="gain">+${reward}</span>` : ''}
+            </div>`;
+    }
+
+    async function saveMission(e) {
+        e.preventDefault();
+        const id = document.getElementById('m-id').value;
+        const body = {
+            label: document.getElementById('m-label').value.trim(),
+            reason: +document.getElementById('m-reason').value,
+            target: +document.getElementById('m-target').value || 1,
+            rewardPoint: +document.getElementById('m-reward').value || 0,
+            orderIndex: +document.getElementById('m-order').value || 0,
+            isActive: document.getElementById('m-active').checked,
+        };
+        try {
+            if (id) await API.put(`/dashboard/mission/${id}`, body); else await API.post('/dashboard/mission', body);
+            toastOk(t('ranking.daLuuNhiemVu', 'Đã lưu nhiệm vụ.'));
+            closeModal('modal-mission');
+            renderMissionManage();
+        } catch (ex) { toastErr(ex.message); }
+    }
+})();
+</script>
+</body>
+</html>

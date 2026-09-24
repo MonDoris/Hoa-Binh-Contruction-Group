@@ -1,0 +1,839 @@
+<!-- File: wwwroot/pages/approval-workflow.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script src="/js/head.js"></script>
+    <title data-i18n="approval-workflow.title">Luồng cấp duyệt · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+    <style>
+        /* ================= BẢNG MÀU ================= */
+        /* Mượn thẳng biến của style.css chứ không tự dựng một bộ màu thứ hai: app đổi màu theo CẢ
+           [data-theme] LẪN @media (prefers-color-scheme), nên một bộ màu riêng chỉ nghe [data-theme] sẽ để
+           lại cảnh vỏ trang tối mà nội dung trang trắng khi máy để "theo hệ thống" ở chế độ tối. Giữ tên
+           --aw-* để phần dưới của tệp không phải sửa lại từng dòng. */
+        :root {
+            --aw-primary: var(--primary);
+            --aw-primary-hover: var(--primary-dark);
+            --aw-primary-soft: var(--primary-light);
+            --aw-surface: var(--surface);
+            --aw-surface-alt: var(--bg);
+            --aw-bg: var(--bg);
+            --aw-border: var(--border);
+            --aw-text-main: var(--text);
+            --aw-text-muted: var(--text-muted);
+            --aw-shadow-card: var(--shadow);
+            --aw-shadow-drawer: var(--shadow-lg);
+            --aw-danger: var(--danger);
+            --aw-success: var(--success);
+        }
+
+        /* ================= HEADER & TOOLBAR ================= */
+        .aw-header-container {
+            display: flex; justify-content: space-between; align-items: flex-end; 
+            margin-bottom: 24px; flex-wrap: wrap; gap: 16px;
+        }
+        
+        .aw-tabs {
+            display: inline-flex; background: var(--aw-surface); border: 1px solid var(--aw-border);
+            border-radius: 12px; padding: 6px; gap: 4px; box-shadow: var(--aw-shadow-card);
+        }
+        .aw-tab {
+            border: none; background: transparent; cursor: pointer; padding: 10px 20px;
+            border-radius: 8px; font-size: 0.95rem; font-weight: 600; color: var(--aw-text-muted);
+            display: inline-flex; align-items: center; gap: 8px; transition: 0.3s;
+        }
+        .aw-tab:hover { color: var(--aw-text-main); }
+        .aw-tab.active { background: var(--aw-primary); color: #fff; box-shadow: var(--shadow-primary); }
+
+        .aw-filter-wrap {
+            display: flex; align-items: center; gap: 12px; background: var(--aw-surface);
+            padding: 8px 16px; border-radius: 12px; border: 1px solid var(--aw-border); box-shadow: var(--aw-shadow-card);
+        }
+        .aw-filter-wrap label { font-size: 0.85rem; font-weight: 600; color: var(--aw-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .aw-filter-wrap select { min-width: 250px; border: none; background: var(--aw-surface-alt); padding: 8px 12px; border-radius: 6px; color: var(--aw-text-main); }
+
+        /* ================= GRID CARDS (THAY THẾ TABLE) ================= */
+        .workflow-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px;
+        }
+        
+        .wf-card {
+            background: var(--aw-surface); border: 1px solid var(--aw-border); border-radius: 16px;
+            padding: 24px; display: flex; flex-direction: column; gap: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--aw-shadow-card); position: relative; overflow: hidden;
+        }
+        .wf-card:hover { transform: translateY(-4px); border-color: var(--aw-primary); box-shadow: var(--shadow-lg); }
+        
+        .wf-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .wf-title { font-size: 1.1rem; font-weight: 700; color: var(--aw-text-main); margin-bottom: 4px; line-height: 1.4; }
+        .wf-desc { font-size: 0.85rem; color: var(--aw-text-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        
+        .wf-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 16px; border-top: 1px dashed var(--aw-border); }
+        .wf-badge {
+            font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 20px;
+            display: inline-flex; align-items: center; gap: 4px;
+        }
+        .badge-dept { background: var(--aw-surface-alt); color: var(--aw-text-main); border: 1px solid var(--aw-border); }
+        .badge-active { background: rgba(16, 185, 129, 0.1); color: var(--aw-success); }
+        .badge-inactive { background: rgba(100, 116, 139, 0.1); color: var(--aw-text-muted); }
+        .badge-default { background: var(--aw-primary-soft); color: var(--aw-primary-hover); }
+
+        .wf-steps-preview {
+            display: flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--aw-text-muted);
+            background: var(--aw-surface-alt); padding: 8px 12px; border-radius: 8px; overflow-x: auto; white-space: nowrap;
+        }
+        .wf-steps-preview::-webkit-scrollbar { height: 2px; }
+        .wf-steps-preview::-webkit-scrollbar-thumb { background: var(--aw-border); }
+
+        .wf-actions { position: absolute; top: 16px; right: 16px; display: flex; gap: 6px; opacity: .55; transition: 0.2s; }
+        .wf-card:hover .wf-actions, .wf-card:focus-within .wf-actions { opacity: 1; }
+        .btn-icon {
+            width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+            background: var(--aw-surface-alt); color: var(--aw-text-muted); border: 1px solid var(--aw-border); cursor: pointer; transition: 0.2s;
+        }
+        .btn-icon:hover { color: var(--aw-primary); border-color: var(--aw-primary); background: var(--aw-surface); }
+        .btn-icon.del:hover { color: var(--aw-danger); border-color: var(--aw-danger); }
+
+        /* ================= SIDE DRAWER ================= */
+        /* Khung trượt phải dùng .modal-mask.dock-right của style.css — nhờ vậy Esc, bấm ra nền và màn hình
+           hẹp đều hoạt động y như mọi hộp thoại khác. Ở đây chỉ nới bề rộng và đổi nền cho vừa nội dung. */
+        #modal-workflow .modal { width: min(820px, 100vw); background: var(--aw-bg); }
+
+        .drawer-header {
+            padding: 20px 32px; background: var(--aw-surface); border-bottom: 1px solid var(--aw-border);
+            display: flex; justify-content: space-between; align-items: center; gap: 16px;
+        }
+        .drawer-header h3 { font-size: 1.25rem; font-weight: 700; color: var(--aw-text-main); margin: 0; }
+        /* Ô lưới giữa của .modal (grid-template-rows: auto 1fr auto). min-height:0 là thứ cho phép nó co lại
+           mà cuộn được — thiếu nó thì ô lưới phình theo nội dung và chân drawer bị đẩy khỏi màn hình. */
+        .drawer-body { padding: 28px 32px; overflow-y: auto; min-height: 0; }
+        .drawer-footer {
+            padding: 16px 32px; background: var(--aw-surface); border-top: 1px solid var(--aw-border);
+            display: flex; justify-content: flex-end; gap: 12px;
+        }
+
+        /* ================= FORM ELEMENTS MỚI ================= */
+        .glass-panel {
+            background: var(--aw-surface); border: 1px solid var(--aw-border);
+            border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: var(--aw-shadow-card);
+        }
+        .panel-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--aw-primary); margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+
+        .fg { margin-bottom: 20px; }
+        .fg label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; color: var(--aw-text-main); }
+        .clean-input {
+            width: 100%; background: var(--aw-surface-alt); border: 1px solid var(--aw-border);
+            padding: 12px 16px; border-radius: 10px; font-size: 0.95rem; color: var(--aw-text-main); transition: 0.2s;
+        }
+        .clean-input:focus { outline: none; border-color: var(--aw-primary); box-shadow: 0 0 0 3px var(--aw-primary-soft); background: var(--aw-surface); }
+
+        /* NÚT GẠT IOS STYLE */
+        .switch-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed var(--aw-border); }
+        .switch-row:last-child { border-bottom: none; }
+        .switch-info strong { display: block; font-size: 0.95rem; color: var(--aw-text-main); }
+        .switch-info span { font-size: 0.8rem; color: var(--aw-text-muted); }
+        .neo-switch { position: relative; width: 44px; height: 24px; display: inline-block; }
+        .neo-switch input { opacity: 0; width: 0; height: 0; }
+        .neo-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--aw-border); transition: .3s; border-radius: 34px; }
+        .neo-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .neo-switch input:checked + .neo-slider { background-color: var(--aw-primary); }
+        .neo-switch input:checked + .neo-slider:before { transform: translateX(20px); }
+
+        /* ================= TIMELINE STEP BUILDER ================= */
+        .timeline-container { position: relative; margin-left: 12px; padding-left: 24px; border-left: 2px dashed var(--aw-border); }
+        .step-node {
+            background: var(--aw-surface); border: 1px solid var(--aw-border); border-radius: 16px;
+            padding: 20px; margin-bottom: 24px; position: relative; box-shadow: var(--aw-shadow-card);
+            animation: slideIn 0.3s ease;
+        }
+        .step-node:hover { border-color: var(--aw-primary); }
+        
+        .step-marker {
+            position: absolute; left: -41px; top: 24px; width: 32px; height: 32px;
+            background: var(--aw-surface); border: 2px solid var(--aw-primary); color: var(--aw-primary);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.9rem; z-index: 2; box-shadow: 0 0 0 4px var(--aw-bg);
+        }
+
+        .step-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .step-actions-bar {
+            position: absolute; right: 16px; top: -14px; background: var(--aw-surface);
+            border: 1px solid var(--aw-border); border-radius: 8px; display: flex; padding: 2px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .btn-step-act {
+            background: none; border: none; width: 28px; height: 28px; border-radius: 6px;
+            color: var(--aw-text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-step-act:hover { background: var(--aw-surface-alt); color: var(--aw-text-main); }
+        .btn-step-act.danger:hover { color: var(--aw-danger); background: rgba(239, 68, 68, 0.1); }
+
+        .btn-add-node {
+            width: 100%; padding: 16px; background: transparent; border: 2px dashed var(--aw-border);
+            border-radius: 12px; color: var(--aw-text-muted); font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.3s;
+        }
+        .btn-add-node:hover { border-color: var(--aw-primary); color: var(--aw-primary); background: var(--aw-primary-soft); }
+
+        .btn-primary { background: var(--aw-primary); color: white; border: none; padding: 10px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-primary:hover { background: var(--aw-primary-hover); transform: translateY(-1px); box-shadow: var(--shadow-primary); }
+        .btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Nút phụ ("Hủy") của chân drawer và hộp thoại nhân bản. Trước đây mượn .btn-icon — vốn là ô vuông
+           32px cho nút biểu tượng trên thẻ — nên nó thấp hơn hẳn nút chính đứng cạnh. */
+        .btn-ghost {
+            background: var(--aw-surface); color: var(--aw-text-main); border: 1px solid var(--aw-border);
+            padding: 10px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+        .btn-ghost:hover { background: var(--aw-surface-alt); border-color: var(--aw-text-muted); }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        
+        @media (max-width: 768px) {
+            .step-grid { grid-template-columns: 1fr; }
+            #modal-workflow .modal { width: 100%; border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+<div class="main">
+    <div class="content" style="max-width: 1440px; margin: 0 auto;">
+        
+        <p id="scopeNote" style="margin: 0 0 20px; color: var(--aw-text-muted); font-size: 0.95rem; max-width: 760px;"></p>
+
+        <div class="aw-header-container" id="aw-toolbar">
+            <div class="aw-tabs" id="aw-tabs" style="display:none">
+                <button type="button" class="aw-tab active" data-tab="department">
+                    <i class="ph-duotone ph-buildings"></i> Cấp Phòng ban
+                </button>
+                <button type="button" class="aw-tab" data-tab="company">
+                    <i class="ph-duotone ph-globe-hemisphere-east"></i> Cấp Công ty
+                </button>
+            </div>
+            <div class="aw-filter-wrap" id="aw-filter-wrap" style="display:none">
+                <label for="aw-filter-department"><i class="ph ph-funnel"></i> Lọc</label>
+                <select id="aw-filter-department"></select>
+            </div>
+        </div>
+
+        <!-- VÙNG LƯỚI CHỨA WORKFLOW CARDS -->
+        <div id="workflow-list" class="workflow-grid">
+            <!-- Nội dung sẽ được render qua JS -->
+        </div>
+
+    </div>
+</div>
+
+<!-- ================= SIDE DRAWER FORM ================= -->
+<div class="modal-mask dock-right" id="modal-workflow">
+    <div class="modal">
+        <div class="drawer-header">
+            <h3 id="modal-title">Tạo luồng duyệt</h3>
+            <button type="button" class="btn-icon" onclick="closeModal('modal-workflow')" aria-label="Đóng"><i class="ph ph-x"></i></button>
+        </div>
+        
+        <!-- KHÔNG đặt display/height cho form: style.css cho .modal > form { display: contents } để
+             .drawer-body và .drawer-footer trở thành ô lưới trực tiếp của .modal (auto / 1fr / auto).
+             Đặt display:flex + height:100% ở đây sẽ cộng thêm một khung cao bằng cả drawer BÊN DƯỚI phần
+             đầu, đẩy nút "Lưu thiết lập" xuống dưới mép màn hình. -->
+        <form id="workflow-form">
+            <div class="drawer-body">
+                <input type="hidden" id="f-id">
+
+                <!-- THÔNG TIN CHUNG -->
+                <div class="glass-panel">
+                    <div class="panel-title"><i class="ph-duotone ph-info"></i> Thông tin cơ bản</div>
+                    
+                    <div class="fg">
+                        <label for="f-name">Tên luồng duyệt <span style="color: var(--aw-danger);">*</span></label>
+                        <input id="f-name" class="clean-input" required maxlength="150" placeholder="VD: Duyệt 3 cấp khóa học chuyên môn">
+                    </div>
+                    
+                    <div class="fg">
+                        <label for="f-description">Mô tả (Tùy chọn)</label>
+                        <textarea id="f-description" class="clean-input" rows="2" maxlength="500" placeholder="Áp dụng cho trường hợp nào..."></textarea>
+                    </div>
+
+                    <div class="fg" id="f-department-group">
+                        <label for="f-workflow-department">Phòng ban sở hữu</label>
+                        <select id="f-workflow-department" class="clean-input"></select>
+                    </div>
+                    
+                    <div class="fg" style="display: none;" id="f-department-fixed">
+                        <label>Phòng ban sở hữu</label>
+                        <div class="clean-input" style="background: var(--aw-bg); display:flex; align-items:center; gap:8px;">
+                            <i class="ph-fill ph-buildings" style="color:var(--aw-primary);"></i>
+                            <span id="f-department-fixed-name" style="font-weight:600;"></span>
+                        </div>
+                    </div>
+
+                    <div class="switch-row">
+                        <div class="switch-info">
+                            <strong>Trạng thái Hoạt động</strong>
+                            <span>Cho phép sử dụng luồng này</span>
+                        </div>
+                        <label class="neo-switch"><input type="checkbox" id="f-active" checked><span class="neo-slider"></span></label>
+                    </div>
+                    <div class="switch-row">
+                        <div class="switch-info">
+                            <strong>Luồng Mặc định</strong>
+                            <span>Tự động chọn khi tạo khóa học mới</span>
+                        </div>
+                        <label class="neo-switch"><input type="checkbox" id="f-default"><span class="neo-slider"></span></label>
+                    </div>
+                </div>
+
+                <!-- CẤU HÌNH BƯỚC DUYỆT (TIMELINE) -->
+                <div class="glass-panel" style="margin-bottom: 0;">
+                    <div class="panel-title"><i class="ph-duotone ph-git-branch"></i> Trình tự phê duyệt</div>
+                    
+                    <div class="timeline-container" id="step-list">
+                        <!-- Các bước (Node) chèn bằng JS -->
+                    </div>
+                    
+                    <button type="button" class="btn-add-node" id="btn-add-step">
+                        <i class="ph ph-plus-circle" style="font-size: 1.2rem;"></i> Thêm Trạm Duyệt
+                    </button>
+                </div>
+            </div>
+            
+            <div class="drawer-footer">
+                <button type="button" class="btn-ghost" onclick="closeModal('modal-workflow')">Hủy</button>
+                <button type="submit" class="btn-primary">
+                    <i class="ph ph-check-circle" style="margin-right: 6px;"></i> Lưu thiết lập
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= MODAL NHÂN BẢN (Giữ nguyên cấu trúc nhỏ gọn) ================= -->
+<div class="modal-mask" id="modal-clone">
+    <div class="modal" style="max-width:520px; border-radius: 16px; background: var(--aw-surface);">
+        <div class="modal-head" style="border-bottom: 1px solid var(--aw-border); padding: 20px;">
+            <h3 style="color: var(--aw-text-main); font-weight: 700; margin:0;">Nhân bản Luồng</h3>
+            <button class="close-x" type="button" onclick="closeModal('modal-clone')">×</button>
+        </div>
+        <form id="clone-form">
+            <div class="modal-body" style="padding: 24px;">
+                <p class="small muted" id="clone-source" style="margin-top:0; padding: 12px; background: var(--aw-surface-alt); border-radius: 8px;"></p>
+                <div class="fg" id="clone-department-field">
+                    <label for="c-department">Nhân bản sang phòng ban <span style="color:var(--aw-danger)">*</span></label>
+                    <select id="c-department" class="clean-input"></select>
+                </div>
+                <div class="fg" id="clone-target-fixed" style="display:none">
+                    <label>Nhân bản về phòng ban</label>
+                    <div class="clean-input" style="background: var(--aw-surface-alt); display:flex; align-items:center; gap:8px;">
+                        <i class="ph-fill ph-buildings" style="color:var(--aw-primary)"></i>
+                        <b id="clone-target-name"></b>
+                    </div>
+                </div>
+                <div class="fg" style="margin-top:16px;">
+                    <label for="c-name">Tên bản sao (Tùy chọn)</label>
+                    <input id="c-name" class="clean-input" maxlength="150" placeholder="Hệ thống tự đặt nếu bỏ trống">
+                </div>
+            </div>
+            <div class="modal-foot" style="padding: 20px; border-top: 1px solid var(--aw-border);">
+                <button type="button" class="btn-ghost" onclick="closeModal('modal-clone')">Hủy</button>
+                <button type="submit" class="btn-primary">Tạo bản sao</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    await Lang.ready;
+
+    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc'], 'approval-workflow.view')) return;
+    
+    mountLayout('approval-workflow', t('menu.approval-workflow', 'Luồng cấp duyệt'),
+        t('approval-workflow.subtitle', 'Quản lý các quy trình phê duyệt nội dung khóa học'));
+
+    const isAdmin = Auth.isAdmin;
+    const canViewCompany = isAdmin || Auth.hasRole('Trưởng phòng') || Auth.hasRole('Giám Đốc');
+    const myDepartmentId = Auth.profile?.departmentId ?? null;
+    const myDepartmentName = Auth.profile?.departmentName || 'phòng ban của bạn';
+
+    const canCreate = Auth.can('approval-workflow.create') ?? true;
+    const canUpdate = Auth.can('approval-workflow.update') ?? true;
+    const canDelete = Auth.can('approval-workflow.delete') ?? true;
+
+    let currentTab = 'department';
+
+    const listContainer = document.getElementById('workflow-list');
+    const tabBox = document.getElementById('aw-tabs');
+    const filterWrap = document.getElementById('aw-filter-wrap');
+    const filterSelect = document.getElementById('aw-filter-department');
+    const scopeNote = document.getElementById('scopeNote');
+
+    const [roleList, departmentList] = await Promise.all([
+        API.get('/approvalworkflow/role-option'),
+        API.get('/department')
+    ]);
+    const activeRoleList = roleList;
+
+    buildFilterOption();
+    syncScopeUi();
+
+    tabBox.querySelectorAll('.aw-tab').forEach(btn =>
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+
+    function switchTab(tab) {
+        if (currentTab === tab) return;
+        currentTab = tab;
+        tabBox.querySelectorAll('.aw-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
+        buildFilterOption();
+        syncScopeUi();
+        load();
+    }
+
+    filterSelect.addEventListener('change', load);
+
+    document.body.addEventListener('click', (e) => { if(e.target.closest('#btn-new')) openForm(); });
+    document.getElementById('btn-add-step').addEventListener('click', () => addStepRow());
+    document.getElementById('workflow-form').addEventListener('submit', save);
+    document.getElementById('clone-form').addEventListener('submit', saveClone);
+
+    await load();
+
+    function showDepartmentBadge() { return isAdmin || currentTab === 'company'; }
+    function isCompanyTab() { return currentTab === 'company'; }
+
+    function buildFilterOption() {
+        const exceptId = (!isAdmin && isCompanyTab()) ? myDepartmentId : null;
+        filterSelect.innerHTML = '<option value="">— Tất cả phòng ban —</option>'
+            + '<option value="shared">Luồng dùng chung (Global)</option>'
+            + departmentList.filter(d => d.id !== exceptId)
+                .map(d => `<option value="${d.id}">${esc(d.name)} (${esc(d.code)})</option>`).join('');
+        filterSelect.value = '';
+        enhanceSearchableSelect(filterSelect, { placeholder: 'Tìm phòng ban...' });
+    }
+
+    function syncScopeUi() {
+        const showTab = canViewCompany && !isAdmin;
+        const showFilter = isAdmin || isCompanyTab();
+        tabBox.style.display = showTab ? '' : 'none';
+        filterWrap.style.display = showFilter ? '' : 'none';
+        document.getElementById('aw-toolbar').style.display = (showTab || showFilter) ? 'flex' : 'none';
+
+        setTopbarAction(canCreate && !isCompanyTab()
+            ? `<button class="btn-primary" id="btn-new"><i class="ph ph-plus" style="margin-right: 8px;"></i> Tạo Workflow Mới</button>`
+            : '');
+
+        scopeNote.textContent = isAdmin
+            ? 'Quản lý toàn bộ luồng duyệt của hệ thống. Sử dụng bộ lọc để xem theo từng phòng ban.'
+            : isCompanyTab()
+                ? `Thư viện luồng từ các phòng ban khác. Bạn có thể tham khảo và nhân bản về không gian của ${myDepartmentName}.`
+                : `Không gian làm việc của ${myDepartmentName}. Nơi cấu hình định tuyến phê duyệt nội dung.`;
+    }
+
+
+    async function load() {
+        listContainer.innerHTML = Array(6).fill(`
+            <div class="wf-card" style="min-height: 180px;" aria-hidden="true">
+                <div class="skel skel-title skel-w-60"></div>
+                <div class="skel skel-line skel-w-90"></div>
+                <div class="skel skel-btn skel-w-full"></div>
+                <div class="skel skel-line sm skel-w-40" style="margin-top: auto;"></div>
+            </div>`).join('');
+
+        const query = new URLSearchParams();
+        if (isAdmin || isCompanyTab()) {
+            const filter = filterSelect.value;
+            if (filter === 'shared') query.set('sharedOnly', 'true');
+            else if (filter) query.set('departmentId', filter);
+        }
+        const url = (isCompanyTab() ? '/approvalworkflow/company' : '/approvalworkflow')
+            + (query.toString() ? `?${query}` : '');
+
+        try {
+            const list = await API.get(url);
+            if (!list.length) {
+                listContainer.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 60px; background: var(--aw-surface); border-radius: 16px; border: 1px dashed var(--aw-border); color: var(--aw-text-muted);">
+                    <i class="ph-duotone ph-git-branch" style="font-size: 64px; color: var(--aw-border); margin-bottom: 16px;"></i>
+                    <p style="font-size: 1.1rem;">Chưa có dữ liệu Workflow.</p>
+                </div>`;
+                return;
+            }
+            
+            listContainer.innerHTML = list.map(w => renderCard(w)).join('');
+            bindCardActions(list);
+        } catch (ex) {
+            listContainer.innerHTML = `<div style="grid-column: 1/-1; color: var(--aw-danger); padding: 20px;">Lỗi tải dữ liệu: ${ex.message}</div>`;
+        }
+    }
+
+    function renderCard(w) {
+        const stepHtml = w.stepList.length
+            ? w.stepList.map((s, i) => `${i > 0 ? '<i class="ph-bold ph-caret-right" style="color:var(--aw-border); font-size:10px;"></i>' : ''} <span>${esc(s.name)}</span>`).join('')
+            : '<span style="font-style: italic;">Chưa thiết lập trạm duyệt</span>';
+
+        // Luồng toàn công ty luôn có nhãn Global, kể cả ở bảng phòng ban của người không phải Admin — không thì
+        // họ không phân biệt được luồng nào của riêng phòng mình, luồng nào cả công ty đang dùng.
+        const deptBadge = (showDepartmentBadge() || !w.departmentId) ? (w.departmentName
+            ? `<span class="wf-badge badge-dept"><i class="ph-fill ph-buildings"></i> ${esc(w.departmentName)}</span>` 
+            : `<span class="wf-badge badge-dept" style="border-style: dashed;"><i class="ph ph-globe"></i> Global</span>`) : '';
+
+        return `
+        <div class="wf-card">
+            <div class="wf-actions">${actionHtml(w)}</div>
+            <div class="wf-card-top">
+                <div style="padding-right: 80px;">
+                    <div class="wf-title">${esc(w.name)}</div>
+                    ${w.description ? `<div class="wf-desc">${esc(w.description)}</div>` : ''}
+                </div>
+            </div>
+            
+            <div class="wf-steps-preview">
+                <i class="ph-fill ph-flag-checkered" style="color: var(--aw-primary);"></i>
+                ${stepHtml}
+            </div>
+
+            <div class="wf-meta">
+                ${w.isActive ? '<span class="wf-badge badge-active">Hoạt động</span>' : '<span class="wf-badge badge-inactive">Tạm ngưng</span>'}
+                ${w.isDefault ? '<span class="wf-badge badge-default"><i class="ph-fill ph-push-pin"></i> Mặc định</span>' : ''}
+                ${deptBadge}
+                <span class="wf-badge" style="background: transparent; border: 1px solid var(--aw-border); margin-left: auto;">
+                    <i class="ph-fill ph-books"></i> ${w.courseCount} Khóa học
+                </span>
+            </div>
+        </div>`;
+    }
+
+    function actionHtml(w) {
+        if (isCompanyTab()) {
+            return canViewCompany ? `<button class="btn-icon" data-clone="${w.id}" title="Nhân bản về ${esc(myDepartmentName)}"><i class="ph ph-copy"></i></button>` : '';
+        }
+        return (isAdmin && canCreate ? `<button class="btn-icon" data-clone="${w.id}" title="Nhân bản"><i class="ph ph-copy"></i></button>` : '')
+            + (canUpdate ? `<button class="btn-icon" data-edit="${w.id}" title="Chỉnh sửa"><i class="ph ph-pencil-simple"></i></button>` : '')
+            + (canDelete ? `<button class="btn-icon del" data-del="${w.id}" title="Xóa"><i class="ph ph-trash"></i></button>` : '');
+    }
+
+    function bindCardActions(list) {
+        listContainer.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => openForm(list.find(x => x.id == b.dataset.edit))));
+        listContainer.querySelectorAll('[data-clone]').forEach(b => b.addEventListener('click', () => openCloneForm(list.find(x => x.id == b.dataset.clone))));
+        listContainer.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+            const item = list.find(x => x.id == b.dataset.del);
+            if (!await confirmDialog(`Xóa luồng cấp duyệt "${item?.name || ''}"?`, { danger: true, okText: 'Xóa' })) return;
+            try { const r = await API.del(`/approvalworkflow/${b.dataset.del}`); toastOk(r.message); load(); } catch (ex) { toastErr(ex.message); }
+        }));
+    }
+
+    /* NHÂN BẢN LUỒNG (Giữ modal giữa màn hình) */
+    let cloneSourceId = null;
+    function openCloneForm(workflow) {
+        if (!workflow) return;
+        cloneSourceId = workflow.id;
+        document.getElementById('clone-source').innerHTML = `Luồng gốc: <b>${esc(workflow.name)}</b><br><span style="font-size:0.8rem; color:var(--aw-text-muted);">${esc(workflow.departmentName || 'Global')}</span>`;
+        document.getElementById('c-name').value = '';
+        document.getElementById('clone-department-field').style.display = isAdmin ? '' : 'none';
+        document.getElementById('clone-target-fixed').style.display = isAdmin ? 'none' : '';
+        document.getElementById('clone-target-name').textContent = myDepartmentName;
+
+        const select = document.getElementById('c-department');
+        select.innerHTML = (workflow.departmentId ? '<option value="">— Global (Dùng chung) —</option>' : '')
+            + departmentList.filter(d => d.id !== workflow.departmentId)
+                .map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('');
+        select.value = '';
+        enhanceSearchableSelect(select, { placeholder: 'Tìm phòng ban...' });
+        openModal('modal-clone');
+    }
+
+    async function saveClone(e) {
+        e.preventDefault();
+        const departmentId = isAdmin ? (+document.getElementById('c-department').value || null) : myDepartmentId;
+        try {
+            const r = await API.post(`/approvalworkflow/${cloneSourceId}/clone`, { departmentId, name: document.getElementById('c-name').value.trim() || null });
+            toastOk(r.message);
+            closeModal('modal-clone');
+            if (isCompanyTab()) switchTab('department'); else await load();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    function departmentOptionHtml(selectedId, blankLabel) {
+        return `<option value="">${esc(blankLabel)}</option>` + departmentList.map(d => `<option value="${d.id}"${d.id === selectedId ? ' selected' : ''}>${esc(d.name)}</option>`).join('');
+    }
+
+    /* DRAWER FORM */
+    function openForm(workflow) {
+        document.getElementById('modal-title').textContent = workflow ? 'Cập nhật Workflow' : 'Xây dựng Workflow Mới';
+        document.getElementById('f-id').value = workflow?.id || '';
+        document.getElementById('f-name').value = workflow?.name || '';
+        document.getElementById('f-description').value = workflow?.description || '';
+
+        const departmentSelect = document.getElementById('f-workflow-department');
+        const formDepartmentId = isAdmin ? (workflow?.departmentId || '') : (workflow?.departmentId || myDepartmentId || '');
+        departmentSelect.innerHTML = departmentOptionHtml(formDepartmentId || null, '— Không gian chung (Global) —');
+        departmentSelect.value = formDepartmentId;
+        enhanceSearchableSelect(departmentSelect);
+
+        document.getElementById('f-department-group').style.display = isAdmin ? '' : 'none';
+        document.getElementById('f-department-fixed').style.display = isAdmin ? 'none' : '';
+        document.getElementById('f-department-fixed-name').textContent = myDepartmentName;
+        
+        if (!departmentSelect._boundStepSync) {
+            departmentSelect._boundStepSync = true;
+            departmentSelect.addEventListener('change', () => document.querySelectorAll('#step-list .step-node').forEach(row => row._syncApproverMode?.()));
+        }
+        document.getElementById('f-active').checked = workflow ? workflow.isActive : true;
+        document.getElementById('f-default').checked = !!workflow?.isDefault;
+
+        document.getElementById('step-list').innerHTML = '';
+        (workflow?.stepList?.length ? workflow.stepList : [null]).forEach(step => addStepRow(step));
+        
+        openModal('modal-workflow');
+    }
+
+    function addStepRow(step) {
+        const box = document.getElementById('step-list');
+        const row = document.createElement('div');
+        row.className = 'step-node';
+        row.innerHTML = `
+            <div class="step-marker"></div>
+            <div class="step-actions-bar">
+                <button type="button" class="btn-step-act" title="Lên"><i class="ph ph-caret-up"></i></button>
+                <button type="button" class="btn-step-act" title="Xuống"><i class="ph ph-caret-down"></i></button>
+                <button type="button" class="btn-step-act danger del" title="Xóa Trạm"><i class="ph ph-trash"></i></button>
+            </div>
+            
+            <div class="step-grid">
+                <div class="fg" style="margin: 0;">
+                    <label>Định danh trạm (VD: Lead check)</label>
+                    <input type="text" class="clean-input s-name" maxlength="100" value="${esc(step?.name || '')}" placeholder="Tên trạm...">
+                </div>
+                <div class="fg" style="margin: 0;">
+                    <label>Vai trò kiểm duyệt *</label>
+                    <select class="clean-input s-role">
+                        <option value="">— Chỉ định vai trò —</option>
+                        ${activeRoleList.map(r => `<option value="${r.id}">${esc(roleLabel(r.name))}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+
+            <div class="step-grid" style="margin-top: 16px;">
+                <div class="fg" style="margin: 0;">
+                    <label>Phương thức phê duyệt</label>
+                    <select class="clean-input s-approver-mode">
+                        <option value="0">Tất cả người có vai trò (Any)</option>
+                        <option value="2">Cố định đích danh 1 cá nhân</option>
+                    </select>
+                </div>
+                <div class="fg s-fixed-user-wrap" style="margin: 0; display: none;">
+                    <label>Người duyệt đích danh *</label>
+                    <select class="clean-input s-fixed-user"><option value="">— Chọn vai trò trước —</option></select>
+                </div>
+            </div>
+
+            <div style="background: var(--aw-surface-alt); border-radius: 12px; padding: 16px; margin-top: 20px; border: 1px dashed var(--aw-border);">
+                <div class="switch-row" style="padding-top: 0;">
+                    <div class="switch-info">
+                        <strong>Trạm này thuộc phòng ban khác</strong>
+                        <span>Mặc định: Cùng phòng ban với người tạo nội dung</span>
+                    </div>
+                    <label class="neo-switch"><input type="checkbox" class="s-cross-dept"><span class="neo-slider"></span></label>
+                </div>
+                <div class="fg s-department-wrap" style="margin-top: 16px; margin-bottom: 0; display: none;">
+                    <select class="clean-input s-department">
+                        <option value="">— Chọn phòng ban định tuyến —</option>
+                        ${departmentList.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+
+            <div class="switch-row" style="margin-top: 12px; padding-bottom: 0; border: none;">
+                <div class="switch-info">
+                    <strong>Ủy quyền (Delegation)</strong>
+                    <span>Cho phép người duyệt tại trạm này ủy quyền cho người khác</span>
+                </div>
+                <label class="neo-switch"><input type="checkbox" class="s-delegate" ${step?.allowDelegate ? 'checked' : ''}><span class="neo-slider"></span></label>
+            </div>
+        `;
+
+        row.querySelector('.s-role').value = step?.roleId || '';
+        const stepDepartment = row.querySelector('.s-department');
+        const stepDepartmentWrap = row.querySelector('.s-department-wrap');
+        const crossDepartment = row.querySelector('.s-cross-dept');
+
+        stepDepartment.value = step?.departmentId || '';
+        crossDepartment.checked = !!step?.departmentId;
+        stepDepartmentWrap.style.display = crossDepartment.checked ? 'block' : 'none';
+
+        crossDepartment.addEventListener('change', () => {
+            stepDepartmentWrap.style.display = crossDepartment.checked ? 'block' : 'none';
+            if (!crossDepartment.checked) { stepDepartment.value = ''; enhanceSearchableSelect(stepDepartment); }
+            row._syncApproverMode?.();
+        });
+
+        const APPROVER_MODE = { AnyOfRole: 0, PickOne: 1, FixedUser: 2 };
+        const stepMode = APPROVER_MODE[step?.approverMode] ?? 0;
+        row.querySelector('.s-approver-mode').value = stepMode === APPROVER_MODE.PickOne ? 0 : stepMode;
+        bindApproverMode(row, step?.fixedUserId || '');
+
+        row.querySelector('.del').addEventListener('click', () => { 
+            row.style.opacity = '0'; row.style.transform = 'translateX(20px)';
+            setTimeout(() => { row.remove(); renumberStep(); }, 300);
+        });
+        
+        row.querySelectorAll('.btn-step-act')[0].addEventListener('click', () => {
+            const prev = row.previousElementSibling; if (prev) { box.insertBefore(row, prev); renumberStep(); }
+        });
+        row.querySelectorAll('.btn-step-act')[1].addEventListener('click', () => {
+            const next = row.nextElementSibling; if (next) { box.insertBefore(next, row); renumberStep(); }
+        });
+
+        box.appendChild(row);
+        enhanceSearchableSelect(row.querySelector('.s-role'));
+        enhanceSearchableSelect(row.querySelector('.s-department'));
+        renumberStep();
+    }
+
+    const userListCache = new Map();
+    async function userListOfRole(roleId, departmentId) {
+        if (!roleId) return [];
+        const key = `${roleId}|${departmentId || ''}`;
+        if (!userListCache.has(key)) {
+            const query = `/approvalworkflow/approver-option?roleId=${roleId}` + (departmentId ? `&departmentId=${departmentId}` : '');
+            userListCache.set(key, await API.get(query) || []);
+        }
+        return userListCache.get(key);
+    }
+
+    function effectiveDepartmentIdOf(row) {
+        return +row.querySelector('.s-department').value || +document.getElementById('f-workflow-department').value || 0;
+    }
+
+    function bindApproverMode(row, selectedUserId) {
+        const modeSelect = row.querySelector('.s-approver-mode');
+        const roleSelect = row.querySelector('.s-role');
+        const wrap = row.querySelector('.s-fixed-user-wrap');
+        const userSelect = row.querySelector('.s-fixed-user');
+
+        const sync = async (keepSelected) => {
+            const mode = +modeSelect.value;
+            wrap.style.display = mode === 2 ? 'block' : 'none'; // 2 = FixedUser
+            if (mode !== 2) return;
+
+            const departmentId = effectiveDepartmentIdOf(row);
+            const wanted = keepSelected ? userSelect.value : '';
+            const userList = await userListOfRole(roleSelect.value, departmentId);
+
+            if (!roleSelect.value) {
+                userSelect.innerHTML = '<option value="">— Chọn vai trò trước —</option>';
+            } else if (!userList.length) {
+                userSelect.innerHTML = '<option value="">— Không tìm thấy nhân sự —</option>';
+            } else {
+                userSelect.innerHTML = '<option value="">— Tìm & Chọn nhân sự —</option>' +
+                    userList.map(u => `<option value="${u.id}">${esc(u.fullName)}${u.departmentName ? ' · ' + esc(u.departmentName) : ''}</option>`).join('');
+            }
+            userSelect.value = wanted || '';
+            enhanceSearchableSelect(userSelect, { placeholder: 'Gõ tên nhân sự...' });
+        };
+
+        modeSelect.addEventListener('change', () => sync(false));
+        roleSelect.addEventListener('change', () => sync(false));
+        row.querySelector('.s-department').addEventListener('change', () => sync(false));
+        row._syncApproverMode = () => sync(true);
+
+        userSelect.value = selectedUserId || '';
+        sync(true);
+    }
+
+    function renumberStep() {
+        document.querySelectorAll('#step-list .step-node').forEach((row, i) => { 
+            row.querySelector('.step-marker').textContent = i + 1; 
+        });
+    }
+
+    /**
+     * Hỏi người dựng luồng có áp dụng cho toàn công ty không.
+     * Trả về: null = toàn công ty (luồng dùng chung); số = id phòng ban sở hữu; undefined = không lưu nữa.
+     * "Không" dùng phòng ban đang chọn trên form (Admin) hoặc phòng ban của chính người dựng (vai trò khác).
+     */
+    async function askWorkflowScope() {
+        const departmentSelect = document.getElementById('f-workflow-department');
+        const selectedId = isAdmin ? (+departmentSelect.value || null) : myDepartmentId;
+        const selectedName = isAdmin
+            ? (departmentList.find(d => d.id === selectedId)?.name || null)
+            : myDepartmentName;
+
+        const answer = await confirmDialog(
+            'Bạn có muốn áp dụng luồng cấp duyệt này cho toàn công ty không? '
+            + 'Chọn "Có" thì mọi phòng ban đều thấy và chọn được luồng này cho khóa học của mình. '
+            + (selectedName
+                ? `Chọn "Không" thì chỉ phòng ban ${selectedName} dùng được.`
+                : 'Chọn "Không" thì bạn cần chọn "Phòng ban sở hữu" trước khi lưu.'),
+            { title: 'Phạm vi áp dụng', okText: 'Có, toàn công ty', cancelText: 'Không' });
+
+        if (answer === null) return undefined;
+        if (answer) return null;
+
+        if (!selectedId) {
+            toastErr('Hãy chọn "Phòng ban sở hữu" cho luồng rồi bấm Lưu lại.');
+            return undefined;
+        }
+        return selectedId;
+    }
+
+    async function save(e) {
+        e.preventDefault();
+        const rowList = [...document.querySelectorAll('#step-list .step-node')];
+        if (!rowList.length) { toastErr('Vui lòng tạo ít nhất một Trạm Duyệt.'); return; }
+        if (rowList.some(row => !row.querySelector('.s-role').value)) { toastErr('Vui lòng chỉ định vai trò cho tất cả các trạm.'); return; }
+        if (rowList.some(row => row.querySelector('.s-cross-dept').checked && !row.querySelector('.s-department').value)) {
+            toastErr('Trạm đang bật "Thuộc phòng ban khác" nhưng chưa chọn phòng ban.'); return;
+        }
+        if (rowList.some(row => +row.querySelector('.s-approver-mode').value === 2 && !row.querySelector('.s-fixed-user').value)) {
+            toastErr('Trạm đang đặt "Cố định đích danh 1 cá nhân" nhưng chưa chỉ định người.'); return;
+        }
+
+        if (!document.getElementById('f-name').value.trim()) { toastErr('Vui lòng nhập tên luồng cấp duyệt.'); return; }
+
+        const departmentId = await askWorkflowScope();
+        if (departmentId === undefined) return;   // đóng hộp thoại / chưa chọn được phòng ban -> chưa lưu
+
+        const body = {
+            name: document.getElementById('f-name').value.trim(),
+            description: document.getElementById('f-description').value.trim() || null,
+            departmentId,
+            isActive: document.getElementById('f-active').checked,
+            isDefault: document.getElementById('f-default').checked,
+            stepList: rowList.map(row => ({
+                name: row.querySelector('.s-name').value.trim() || null,
+                roleId: +row.querySelector('.s-role').value,
+                departmentId: +row.querySelector('.s-department').value || null,
+                allowDelegate: row.querySelector('.s-delegate').checked,
+                approverMode: +row.querySelector('.s-approver-mode').value,
+                fixedUserId: +row.querySelector('.s-fixed-user').value || null
+            }))
+        };
+
+        const id = document.getElementById('f-id').value;
+        const btnSave = e.target.querySelector('button[type="submit"]');
+        const originalText = btnSave.innerHTML;
+        btnSave.innerHTML = '<i class="ph ph-spinner ph-spin" style="margin-right: 6px;"></i> Đang xử lý...';
+        btnSave.disabled = true;
+
+        try {
+            const r = id ? await API.put(`/approvalworkflow/${id}`, body) : await API.post('/approvalworkflow', body);
+            toastOk(r.message);
+            closeModal('modal-workflow');
+            load();
+        } catch (ex) { toastErr(ex.message); } finally {
+            btnSave.innerHTML = originalText;
+            btnSave.disabled = false;
+        }
+    }
+})();
+</script>
+</body>
+</html>

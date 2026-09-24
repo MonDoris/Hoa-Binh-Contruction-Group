@@ -1,0 +1,178 @@
+<!-- File: wwwroot/pages/translation.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="translation.pageTitle">Dịch ngôn ngữ · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/translation.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content tr-page">
+
+        <!-- Thẻ của từng ngôn ngữ, kèm tiến độ dịch. Bấm để chọn ngôn ngữ đích. -->
+        <div class="tr-langs" id="tr-langs"></div>
+
+        <div class="tr-filters">
+            <div class="tr-search">
+                <i class="ph ph-magnifying-glass"></i>
+                <input id="f-keyword" maxlength="100"
+                       data-i18n-ph="translation.timTheoKhoaHoacNoiDung" placeholder="Tìm theo khóa hoặc nội dung...">
+                <kbd class="tr-kbd">/</kbd>
+            </div>
+
+            <div class="tr-select">
+                <select id="f-group" aria-label="Lọc theo màn hình"></select>
+                <i class="ph ph-caret-down"></i>
+            </div>
+
+            <div class="tr-select">
+                <select id="f-source" aria-label="Lọc theo nguồn">
+                    <option value="" data-i18n="translation.moiNguon">Mọi nguồn</option>
+                    <option value="system" data-i18n="translation.cuaHeThong">Của hệ thống</option>
+                    <option value="custom" data-i18n="translation.congTyTuThem">Công ty tự thêm</option>
+                    <option value="customized" data-i18n="translation.daSuaKhacBanGoc">Đã sửa khác bản gốc</option>
+                </select>
+                <i class="ph ph-caret-down"></i>
+            </div>
+
+            <div class="tr-pair">
+                <span class="tr-pair-label" data-i18n="translation.nguon">Nguồn</span>
+                <button type="button" class="tr-pill" id="pair-source"></button>
+                <i class="ph ph-arrow-right tr-pair-arrow"></i>
+                <span class="tr-pair-label" data-i18n="translation.dich">Đích</span>
+                <button type="button" class="tr-pill target" id="pair-target"></button>
+            </div>
+        </div>
+
+        <div class="tr-chips" id="tr-chips"></div>
+
+        <!-- Thanh tiến độ khi đang nhờ AI dịch hàng loạt. Dịch cả nghìn câu mất vài phút và chia thành
+             nhiều lô: không có thanh này thì người dùng chỉ thấy màn hình đứng im, không biết còn bao lâu
+             và cũng không có đường dừng lại giữa chừng. -->
+        <div class="tr-ai-bar" id="tr-ai-bar" hidden>
+            <i class="ph ph-sparkle"></i>
+            <span class="tr-ai-text" id="tr-ai-text"></span>
+            <span class="tr-ai-track"><span class="tr-ai-fill" id="tr-ai-fill"></span></span>
+            <button type="button" class="btn ghost sm" id="tr-ai-stop" data-i18n="translation.aiDung">Dừng</button>
+        </div>
+
+        <div class="tr-board">
+            <table class="tr-table">
+                <thead><tr id="tr-head"></tr></thead>
+                <tbody id="tbody"></tbody>
+            </table>
+            <div class="tr-foot">
+                <div class="tr-foot-left" id="tr-foot-left"></div>
+                <div class="tr-pager" id="tr-pager"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== NGĂN KÉO CHI TIẾT MỘT KHÓA ==================== -->
+<div class="tr-drawer-mask" id="drawer-mask"></div>
+<aside class="tr-drawer" id="drawer" aria-hidden="true">
+    <div class="tr-drawer-head">
+        <div class="tr-drawer-title">
+            <h3 data-i18n="translation.chiTietKhoa">Chi tiết khóa dịch</h3>
+            <div class="tr-key" id="drawer-key"></div>
+        </div>
+        <button class="close-x" type="button" id="drawer-close">×</button>
+    </div>
+    <div class="tr-drawer-body" id="drawer-body"></div>
+    <div class="tr-drawer-foot" id="drawer-foot"></div>
+</aside>
+
+<!-- ==================== THÊM THUẬT NGỮ ==================== -->
+<div class="modal-mask" id="modal-add">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="translation.themThuatNguMoi">Thêm thuật ngữ mới</h3>
+            <button class="close-x" type="button" onclick="closeModal('modal-add')">×</button></div>
+        <form id="add-form">
+            <div class="modal-body">
+                <div class="field">
+                    <label for="a-key" data-i18n="translation.khoaDich">Khóa dịch *</label>
+                    <input id="a-key" required maxlength="150" placeholder="VD: congtruong.gianGiao">
+                    <div class="hint" data-i18n="translation.khoaDichHint">Chỉ dùng chữ không dấu, số và các dấu . - _ — đặt theo dạng "nhóm.tenGoi" để dễ tìm sau này. Đây là mã kỹ thuật mà lập trình viên gắn vào giao diện, không phải chữ người dùng nhìn thấy.</div>
+                </div>
+                <div id="a-lang-box"></div>
+                <div class="field">
+                    <label for="a-note" data-i18n="translation.ghiChu">Ghi chú</label>
+                    <input id="a-note" maxlength="500" placeholder="VD: theo thuật ngữ hồ sơ thầu của phòng Kỹ thuật">
+                    <div class="hint" data-i18n="translation.ghiChuHint">Ghi lại vì sao chọn cách dịch này — người sau đọc sẽ không tưởng là dịch sai rồi sửa ngược lại.</div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-add')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn tr-primary">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==================== THÊM NGÔN NGỮ ==================== -->
+<div class="modal-mask" id="modal-lang">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="translation.themNgonNguMoi">Thêm ngôn ngữ mới</h3>
+            <button class="close-x" type="button" onclick="closeModal('modal-lang')">×</button></div>
+        <form id="lang-form">
+            <div class="modal-body">
+                <p class="hint" data-i18n="translation.themNgonNguGiaiThich">Thêm một ngôn ngữ để mọi người bấm nút lá cờ ở góc trên bên phải là chuyển sang xem giao diện bằng tiếng đó. Sau khi thêm, bảng dịch bên dưới sẽ có thêm một cột để bạn dịch dần.</p>
+
+                <div class="field">
+                    <label for="l-preset" data-i18n="translation.chonNgonNgu">Chọn ngôn ngữ *</label>
+                    <select id="l-preset" required></select>
+                </div>
+
+                <div class="field">
+                    <label for="l-name" data-i18n="translation.tenHienThi">Tên gọi hiển thị *</label>
+                    <input id="l-name" required maxlength="80" placeholder="VD: 日本語">
+                    <div class="hint" data-i18n="translation.tenHienThiHint">Tên này xuất hiện ở đầu cột trong bảng dịch và khi người dùng đổi ngôn ngữ. Thường viết bằng chính tiếng đó để người bản xứ nhận ra, nhưng bạn sửa lại thành "Tiếng Nhật" cũng được.</div>
+                </div>
+
+                <!-- Hai ô kỹ thuật bên dưới chỉ hiện khi chọn "Ngôn ngữ khác": với ngôn ngữ có sẵn trong danh
+                     sách, hệ thống đã biết điền gì nên không cần hỏi. -->
+                <div class="field hidden" id="l-code-field">
+                    <label for="l-code" data-i18n="translation.maNgonNgu">Mã ngôn ngữ *</label>
+                    <input id="l-code" maxlength="10" placeholder="ja">
+                    <div class="hint" data-i18n="translation.maNgonNguHint">Mã 2 chữ cái theo chuẩn quốc tế của ngôn ngữ đó (tra "mã ISO 639-1" nếu chưa rõ). Hệ thống dùng mã này để lưu bản dịch nên thêm xong không đổi được.</div>
+                </div>
+
+                <div class="field hidden" id="l-locale-field">
+                    <label for="l-locale" data-i18n="translation.theLocale">Kiểu hiển thị ngày và số</label>
+                    <input id="l-locale" maxlength="20" placeholder="ja-JP">
+                    <div class="hint" data-i18n="translation.theLocaleHint">Quyết định ngày tháng và con số hiện theo thói quen nước nào (VD 25/12/2026 hay 12/25/2026). Bỏ trống cũng được.</div>
+                </div>
+
+                <div class="field">
+                    <label for="l-copy" data-i18n="translation.dichTamTu">Bắt đầu từ bản dịch nào</label>
+                    <select id="l-copy"></select>
+                    <div class="hint" data-i18n="translation.dichTamTuHint">Ngôn ngữ mới cần có sẵn chữ để bạn sửa dần. Chọn "Tiếng Việt" thì bảng dịch có đủ các dòng bằng tiếng Việt, bạn sửa dòng nào thì dòng đó thành tiếng mới. Chọn "Để trống" thì bảng dịch rỗng, và chỗ nào chưa dịch sẽ hiện tạm tiếng Việt.</div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-lang')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn tr-primary">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<input type="file" id="csv-file" accept=".csv,text/csv" hidden aria-label="Chọn tệp CSV bản dịch">
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/translation.js"></script>
+</body>
+</html>

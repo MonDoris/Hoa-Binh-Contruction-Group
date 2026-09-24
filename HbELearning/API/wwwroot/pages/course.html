@@ -1,0 +1,460 @@
+<!-- File: wwwroot/pages/course.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="course.quanLyKhoaHocHbELearning">Quản lý khóa học · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="card">
+            <div class="card-head">
+                <div class="flex">
+                    <input type="search" id="keyword" data-i18n-ph="course.timTheoTenHoacMaKhoaHoc" placeholder="Tìm theo tên hoặc mã khóa học..." style="width:280px">
+                    <select id="filter-status" aria-label="Lọc theo trạng thái" style="width:170px">
+                        <option data-i18n="course.tatCaTrangThai" value="">Tất cả trạng thái</option>
+                        <option data-i18n="status.Draft" value="0">Bản nháp</option>
+                        <option data-i18n="course.tuChoi" value="6">Từ chối</option>
+                        <option data-i18n="course.choTruongPhongDuyet" value="3">Chờ Trưởng phòng duyệt</option>
+                        <option data-i18n="course.choGiamDocDuyet" value="4">Chờ Giám Đốc duyệt</option>
+                        <option data-i18n="course.choGiamDocNhanSuDuyet" value="5">Chờ Giám Đốc Nhân sự duyệt</option>
+                        <option data-i18n="course.choDuyet" value="7">Chờ duyệt (theo luồng cấp duyệt)</option>
+                        <option data-i18n="status.Published" value="1">Đã xuất bản</option>
+                        <option data-i18n="status.Archived" value="2">Lưu trữ</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-wrap"><table>
+                <thead><tr>
+                    <th data-i18n="index.stat-course">Khóa học</th><th data-i18n="dashboard.colStatus">Trạng thái</th><th data-i18n="course-detail.noiDung" class="text-center">Nội dung</th>
+                    <th class="text-center" data-i18n="role.Học viên">Học viên</th><th data-i18n="course-detail.thoiLuong">Thời lượng</th><th data-i18n="course.nguoiTao">Người tạo</th>
+                    <th data-i18n="course.thaoTac" class="text-right">Thao tác</th>
+                </tr></thead>
+                <tbody id="tbody"></tbody>
+            </table></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-course">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 data-i18n="course.taoKhoaHoc" id="modal-title">Tạo khóa học</h3>
+            <button class="close-x" onclick="closeModal('modal-course')">×</button>
+        </div>
+        <form id="course-form">
+            <div class="modal-body">
+                <input type="hidden" id="f-id">
+
+                <div class="form-section"><i class="ph-fill ph-book-bookmark"></i> <span data-i18n="course.thongTinKhoaHoc">Thông tin khóa học</span></div>
+                <div class="row">
+                    <div class="field" id="f-department-row"><label for="f-department" data-i18n="course.phongBan">Phòng ban *</label><select id="f-department"></select></div>
+                    <div class="field" id="f-code-row" style="display:none"><label for="f-code" data-i18n="course.maKhoaHoc">Mã khóa học</label><input id="f-code" disabled></div>
+                    <div class="field"><label for="f-duration" data-i18n="course-detail.thoiLuongPhut">Thời lượng (phút)</label><input type="number" id="f-duration" min="0" value="60"></div>
+                </div>
+                <div class="field"><label for="f-title" data-i18n="course.tenKhoaHoc">Tên khóa học *</label><input id="f-title" required maxlength="250"></div>
+                <div class="field">
+                    <label for="f-workflow" data-i18n="course.luongCapDuyet">Luồng cấp duyệt</label>
+                    <select id="f-workflow"></select>
+                    <div class="hint" id="f-workflow-hint"></div>
+                </div>
+                <div class="field">
+                    <label for="f-thumb-file" data-i18n="course.anhDaiDienKhoaHoc">Ảnh đại diện khóa học</label>
+                    <div id="f-thumb-preview"></div>
+                    <input type="file" id="f-thumb-file" accept="image/*">
+                    <div data-i18n="course.chuaCoAnhSeDungAnhMacDinh" class="hint" id="f-thumb-hint">Chưa có ảnh — sẽ dùng ảnh mặc định.</div>
+                    <input type="hidden" id="f-thumbnail">
+                </div>
+                <!-- Ô "Mô tả" đã được gỡ khỏi biểu mẫu theo yêu cầu. Giá trị cũ vẫn được GIỮ NGUYÊN qua input ẩn này thay vì gửi null — nếu không, mỗi lần mở ra sửa một thứ khác là mô tả đã nhập trước đó bị xóa sạch mà không ai biết. -->
+                <input type="hidden" id="f-description">
+                <div class="form-section"><i class="ph-fill ph-target"></i> <span data-i18n="course.dieuKienHoanThanh">Điều kiện hoàn thành</span></div>
+                <div class="row">
+                    <div class="field"><label for="f-passScore" data-i18n="course-detail.diemDat">Điểm đạt (%)</label><input type="number" id="f-passScore" min="0" max="100" value="70"></div>
+                    <div class="field"><label for="f-deadlineDay" data-i18n="course.soNgayHoanThanh">Số ngày hoàn thành</label><input type="number" id="f-deadlineDay" min="1" data-i18n-ph="course.khongGioiHan" placeholder="Không giới hạn"></div>
+                </div>
+                <label class="check"><input type="checkbox" id="f-mandatory"> Khóa học bắt buộc</label>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-course')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-delegate">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 data-i18n="course.uyQuyenDuyetXuatBan">Ủy quyền duyệt xuất bản</h3>
+            <button class="close-x" onclick="closeModal('modal-delegate')">×</button>
+        </div>
+        <div class="modal-body">
+            <p class="small muted">Chọn <b>một</b> nhân viên cùng phòng ban với bạn được phép Duyệt / Từ chối khóa học thay bạn ở bước cuối
+                (khi khóa học đang chờ Giám Đốc Nhân sự duyệt xuất bản). Tên người này sẽ hiện ở bước cuối trên lộ trình duyệt của bạn.</p>
+            <label class="check" style="border-bottom:1px solid var(--border, #eee);padding-bottom:8px;margin-bottom:8px">
+                <input type="radio" name="delegate-user" id="delegate-none" value="">
+                <b data-i18n="course.khongUyQuyenChoAi">Không ủy quyền cho ai</b>
+            </label>
+            <div id="delegate-candidate-list"></div>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-delegate')">Hủy</button>
+            <button data-i18n="common.save" type="button" class="btn" id="btn-save-delegate">Lưu</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.isLoggedIn) { location.href = '/login.html'; return; }
+    // Người được ủy quyền duyệt bước cuối (nhân viên phòng Nhân sự) cần vào được trang này để duyệt,
+    // dù vai trò của họ không nằm trong danh sách quản lý khóa học thông thường.
+    if (!Auth.isApprovalDelegate && !Auth.isWorkflowApprover && Auth.can('course.view') !== true
+        && !(Auth.can('course.view') === null && ['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc'].some(x => Auth.hasRole(x)))) {
+        alert(t('course-detail.banKhongCoQuyenTruyCapChucNang', 'Bạn không có quyền truy cập chức năng này.'));
+        location.href = '/pages/dashboard.html';
+        return;
+    }
+    mountLayout('course', t('menu.course', 'Quản lý khóa học'), t('course.xayDungNoiDungDaoTaoChoDoanhNg', 'Xây dựng nội dung đào tạo cho doanh nghiệp'));
+
+    // Admin không soạn nội dung — trên khóa học chỉ xem, lưu trữ và xóa (xem RoleName.ContentAuthor ở server).
+    const canCreate = Auth.can('course.create') ?? Auth.isTrainer;
+
+    const tbody = document.getElementById('tbody');
+    let timer = null;
+
+    const departmentList = await API.get('/department');
+    const hrDepartmentId = departmentList.find(d => d.isHrDepartment)?.id;
+    // Lựa chọn "Tất cả phòng ban" dành cho khóa học dùng chung: mã sinh ra theo tiền tố ALL (ALL-001) thay
+    // vì tiền tố phòng ban, và khóa học áp dụng cho toàn công ty. Đặt ngay dưới dòng gợi ý, tách khỏi danh
+    // sách phòng ban bằng một <optgroup> — thả lẫn vào 39 phòng ban thì phải cuộn mới thấy.
+    document.getElementById('f-department').innerHTML =
+        '<option data-i18n="course-detail.chonPhongBan" value="">— Chọn phòng ban —</option>'
+        + `<option value="all">— ${esc(t('course.tatCaPhongBan', 'Tất cả phòng ban'))} —</option>`
+        + `<optgroup label="${esc(t('account.phongBan', 'Phòng ban'))}">`
+        + departmentList.map(d => `<option value="${d.id}">${esc(d.name)} (${esc(d.code)})</option>`).join('')
+        + '</optgroup>';
+    // Gần trăm phòng ban trong một ô xổ xuống thì không ai cuộn nổi — cho gõ để lọc (bỏ dấu cũng khớp).
+    enhanceSearchableSelect(document.getElementById('f-department'),
+        { placeholder: t('course.goTenPhongBan', 'Gõ tên hoặc mã phòng ban...') });
+
+    // Luồng cấp duyệt do Admin định nghĩa sẵn — người soạn chỉ việc chọn một luồng cho khóa học của mình.
+    // Chỉ người được tạo/sửa khóa học mới gọi được API này; vai trò khác (Trưởng phòng, Giám Đốc...) vào trang
+    // này chỉ để duyệt nên nhận 403 — nuốt lỗi và để danh sách rỗng, không chặn cả trang vì một ô chọn họ không dùng tới.
+    let workflowOptionList = [];
+    if (canCreate || Auth.isTrainer) {
+        try { workflowOptionList = await API.get('/approvalworkflow/option'); }
+        catch { workflowOptionList = []; }
+    }
+
+    // Chỉ chính Giám Đốc Nhân sự (Giám Đốc của phòng ban đánh dấu IsHrDepartment) được ủy quyền duyệt bước cuối.
+    const isHrDirector = Auth.hasRole('Giám Đốc') && Auth.profile?.departmentId != null && Auth.profile.departmentId === hrDepartmentId;
+
+    const topbarActionHtml =
+        (canCreate ? '<button data-i18n="course.taoKhoaHoc2" class="btn" id="btn-new">+ Tạo khóa học</button>' : '') +
+        (isHrDirector ? '<button class="btn ghost" id="btn-delegate" style="margin-left:8px"><i class="ph ph-user-switch"></i> <span data-i18n="course.uyQuyenDuyet">Ủy quyền duyệt</span></button>' : '');
+    if (topbarActionHtml) setTopbarAction(topbarActionHtml);
+
+    if (canCreate) document.getElementById('btn-new').addEventListener('click', () => openForm());
+    if (isHrDirector) document.getElementById('btn-delegate').addEventListener('click', openDelegateModal);
+    document.getElementById('filter-status').addEventListener('change', load);
+    // Từ khóa gõ ở ô tìm kiếm trên thanh trên được chuyển sang đây qua URL — điền sẵn vào ô lọc của trang
+    // để người dùng thấy mình đang xem kết quả của từ khóa nào và sửa tiếp được.
+    const keywordFromUrl = qs('keyword');
+    if (keywordFromUrl) document.getElementById('keyword').value = keywordFromUrl;
+
+    document.getElementById('keyword').addEventListener('input', () => {
+        clearTimeout(timer); timer = setTimeout(load, 350);
+    });
+    document.getElementById('course-form').addEventListener('submit', save);
+    document.getElementById('f-thumb-file').addEventListener('change', uploadThumbnail);
+
+    await load();
+
+    async function load() {
+        tbody.innerHTML = skeletonHtml('table', { rows: 6, cols: 7 });
+        const keyword = document.getElementById('keyword').value.trim();
+        const status = document.getElementById('filter-status').value;
+
+        const query = new URLSearchParams({ page: 1, pageSize: 100 });
+        if (keyword) query.set('keyword', keyword);
+        if (status !== '') query.set('status', status);
+
+        try {
+            const result = await API.get(`/course?${query}`);
+            tbody.innerHTML = result.item.length ? result.item.map(rowHtml).join('')
+                : `<tr><td colspan="7">${emptyHtml(t('course.chuaCoKhoaHocNaoBamTaoKhoaHocD', 'Chưa có khóa học nào. Bấm "Tạo khóa học" để bắt đầu.'), '<i class="ph ph-books"></i>')}</td></tr>`;
+            bindRow(result.item);
+        } catch (ex) {
+            tbody.innerHTML = `<tr><td colspan="7">${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</td></tr>`;
+        }
+    }
+
+    function rowHtml(c) {
+        const trackHtml = approvalTrackHtml(c, workflowOptionList);
+        return `<tr>
+            <td><a href="/pages/course-detail.html?id=${c.id}"><b>${esc(c.title)}</b></a>
+                <div class="small muted">${esc(c.code)}${c.isMandatory ? ' · <span data-i18n="course.batBuoc" class="badge orange">Bắt buộc</span>' : ''}</div></td>
+            <td>${statusBadge(c.status)}</td>
+            <td class="text-center small">${esc(t('course.baiDe', '{lesson} bài · {quiz} đề', { lesson: c.lessonCount, quiz: c.quizCount }))}</td>
+            <td class="text-center">${c.enrollmentCount}</td>
+            <td class="nowrap">${formatDuration(c.durationMinutes)}</td>
+            <td class="small">${esc(c.createdByName)}<div class="muted">${formatDate(c.createdAt)}</div></td>
+            <td class="text-right nowrap">
+                <a data-i18n="course-detail.noiDung" class="btn ghost sm" href="/pages/course-detail.html?id=${c.id}">Nội dung</a>
+                ${isOwnTrainerCourse(c) && (c.status === 'Draft' || c.status === 'Rejected')
+                    ? `<button data-i18n="common.edit" class="btn ghost sm" data-edit="${c.id}" style="background-color: yellow">Sửa</button>`
+                    : isOwnTrainerCourse(c) ? `<button class="btn ghost sm" data-view="${c.id}">Xem</button>` : ''}
+                ${courseWorkflowActionsHtml(c, hrDepartmentId)}
+                ${Auth.isAdmin ? `<button data-i18n="common.delete" class="btn ghost sm" data-del="${c.id}" style="background-color: red; color: white">Xóa</button>` : ''}
+            </td>
+        </tr>
+        ${trackHtml ? `<tr class="approval-track-row"><td colspan="7">${trackHtml}</td></tr>` : ''}`;
+    }
+
+    /** Trưởng Nhóm (không phải Admin) đang xem đúng khóa học do chính mình tạo — điều kiện chung để quyết
+     * định hiện nút "Sửa" (còn ở trạng thái Nháp/Từ chối) hay "Xem" (đã gửi duyệt, không sửa được nữa). */
+    function isOwnTrainerCourse(c) {
+        return !Auth.isAdmin && Auth.isTrainer && c.createdById === Auth.profile?.id;
+    }
+
+    function bindRow(list) {
+        tbody.querySelectorAll('[data-edit]').forEach(b =>
+            b.addEventListener('click', () => openForm(list.find(x => x.id == b.dataset.edit))));
+        tbody.querySelectorAll('[data-view]').forEach(b =>
+            b.addEventListener('click', () => openForm(list.find(x => x.id == b.dataset.view), true)));
+
+        bindCourseWorkflowButtons(tbody, load);
+
+        tbody.querySelectorAll('[data-del]').forEach(b =>
+            b.addEventListener('click', async () => {
+                if (!await confirmDialog(t('course.xoaKhoaHocNayToanBoBaiHocBaiKi', 'Xóa khóa học này? Toàn bộ bài học, bài kiểm tra và lộ trình liên quan sẽ bị xóa theo.'), { danger: true, okText: t('common.delete', 'Xóa') })) return;
+                try {
+                    const r = await API.del(`/course/${b.dataset.del}`);
+                    toastOk(r.message);
+                    load();
+                } catch (ex) { toastErr(ex.message); }
+            }));
+    }
+
+    /** Xem trước ảnh đại diện khóa học đang chọn, kèm nút gỡ ảnh. */
+    function renderThumbPreview(url) {
+        const box = document.getElementById('f-thumb-preview');
+        if (!url) { box.innerHTML = ''; return; }
+        box.innerHTML = `
+            <img src="${esc(url)}" style="max-width:100%;max-height:160px;border-radius:8px;display:block;margin-bottom:8px;object-fit:cover">
+            <div class="flex gap-sm" style="align-items:center">
+                <button type="button" class="btn ghost sm" id="btn-remove-thumb" style="margin-left:auto"><i class="ph ph-x"></i> <span data-i18n="course.xoaAnh">Xóa ảnh</span></button>
+            </div>`;
+        document.getElementById('btn-remove-thumb').addEventListener('click', () => {
+            document.getElementById('f-thumbnail').value = '';
+            document.getElementById('f-thumb-hint').textContent = t('course.chuaCoAnhSeDungAnhMacDinh', 'Chưa có ảnh — sẽ dùng ảnh mặc định.');
+            renderThumbPreview('');
+        });
+    }
+
+    async function uploadThumbnail(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const hint = document.getElementById('f-thumb-hint');
+        hint.textContent = t('course-detail.dangTaiLen', 'Đang tải lên...');
+        try {
+            const r = await API.upload(file, 'course');
+            document.getElementById('f-thumbnail').value = r.url;
+            hint.textContent = '';
+            renderThumbPreview(r.url);
+            toastOk(t('course.taiAnhThanhCong', 'Tải ảnh thành công.'));
+        } catch (ex) { hint.textContent = t('course.loiTaiAnh', 'Lỗi tải ảnh.'); toastErr(ex.message); }
+    }
+
+    let isReadOnlyForm = false;
+
+    /** Sau khi gửi duyệt, Trưởng Nhóm không được sửa nội dung khóa học nữa (đang chờ duyệt) — mở form này ở
+     * chế độ chỉ xem: khóa hết input, ẩn nút Lưu, chỉ để họ xem lại những gì đã gửi. */
+    function openForm(course, readOnly = false) {
+        isReadOnlyForm = readOnly;
+        document.getElementById('modal-title').textContent = readOnly ? 'Xem khóa học' : (course ? 'Sửa khóa học' : t('course.taoKhoaHoc', 'Tạo khóa học'));
+        document.getElementById('f-id').value = course?.id || '';
+        document.getElementById('f-title').value = course?.title || '';
+        document.getElementById('f-description').value = course?.description || '';
+        document.getElementById('f-duration').value = course?.durationMinutes ?? 60;
+        document.getElementById('f-passScore').value = course?.passScore ?? 70;
+        document.getElementById('f-deadlineDay').value = course?.deadlineDay ?? '';
+        document.getElementById('f-mandatory').checked = !!course?.isMandatory;
+        document.getElementById('f-thumb-file').value = '';
+        document.getElementById('f-thumbnail').value = course?.thumbnailUrl || '';
+        document.getElementById('f-thumb-hint').textContent = course?.thumbnailUrl ? '' : t('course.chuaCoAnhSeDungAnhMacDinh', 'Chưa có ảnh — sẽ dùng ảnh mặc định.');
+        renderThumbPreview(course?.thumbnailUrl || '');
+        renderWorkflowField(course, readOnly);
+
+        ['f-title', 'f-duration', 'f-passScore', 'f-deadlineDay', 'f-mandatory', 'f-thumb-file'].forEach(id =>
+            document.getElementById(id).disabled = readOnly);
+        document.getElementById('f-thumb-file').style.display = readOnly ? 'none' : '';
+        document.getElementById('f-thumb-hint').style.display = readOnly ? 'none' : '';
+        document.getElementById('btn-remove-thumb')?.style.setProperty('display', readOnly ? 'none' : '');
+        document.querySelector('#course-form button[type="submit"]').style.display = readOnly ? 'none' : '';
+
+        // Mã khóa học do hệ thống tự sinh theo phòng ban khi tạo mới, không thể sửa sau đó.
+        const isEdit = !!course;
+        document.getElementById('f-department-row').style.display = isEdit ? 'none' : '';
+        // Cố ý KHÔNG dùng thuộc tính required ở đây: thẻ <select> gốc đã được ẩn đi (xem
+        // enhanceSearchableSelect), mà trình duyệt từ chối gửi form khi ô không hợp lệ lại là ô không nhìn thấy được —
+        // bấm Lưu sẽ không có gì xảy ra và cũng không báo gì. Kiểm tra tay trong save() thay thế.
+        document.getElementById('f-department').value = '';
+        enhanceSearchableSelect(document.getElementById('f-department'));
+        document.getElementById('f-code-row').style.display = isEdit ? '' : 'none';
+        document.getElementById('f-code').value = course?.code || '';
+
+        openModal('modal-course');
+    }
+
+    /**
+     * Dựng ô chọn "Luồng cấp duyệt" cho khóa học đang mở.
+     *
+     * Khóa học đã gửi duyệt thì khóa ô này lại: server cũng từ chối đổi luồng giữa chừng (bước đang chờ
+     * được ghi theo SỐ THỨ TỰ, đổi luồng là số đó trỏ sang một bước hoàn toàn khác), nên để bấm được rồi báo lỗi
+     * chỉ tốn công người dùng.
+     *
+     * Luồng khóa học đang dùng có thể đã bị Admin cho ngừng hoạt động — không còn trong danh sách chọn nữa. Vẫn
+     * phải chèn nó vào, nếu không ô chọn sẽ hiển thị "không qua cấp duyệt" và một lần bấm Lưu là gỡ luồng thật.
+     *
+     * Đây là TOÀN BỘ phần chuỗi duyệt mà người soạn quyết định: người duyệt của từng bước do người dựng luồng
+     * ghim sẵn trong định nghĩa luồng, biểu mẫu này không còn ô chọn người duyệt nào. Danh sách luồng cũng đã
+     * được server lọc theo phòng ban của người soạn (chỉ luồng phòng mình + luồng dùng chung).
+     */
+    function renderWorkflowField(course, readOnly) {
+        const select = document.getElementById('f-workflow');
+        const hint = document.getElementById('f-workflow-hint');
+        const isEdit = !!course;
+        const locked = readOnly || (isEdit && course.status !== 'Draft' && course.status !== 'Rejected');
+
+        const optionList = [...workflowOptionList];
+        if (course?.approvalWorkflowId && !optionList.some(x => x.id === course.approvalWorkflowId))
+            optionList.push({
+                id: course.approvalWorkflowId,
+                name: course.approvalWorkflowName || t('course.luongDaNgung', 'Luồng đã ngừng hoạt động'),
+                stepNameList: course.approvalStepNameList || []
+            });
+
+        // Kèm tên phòng ban của luồng: luồng được nhân bản qua lại giữa các phòng nên hai luồng trùng tên là
+        // chuyện thường, không ghi phòng ban ra thì ô chọn có hai dòng giống hệt nhau.
+        select.innerHTML = `<option value="">— ${esc(t('course.khongQuaCapDuyet', 'Không chọn (dùng chuỗi duyệt mặc định)'))} —</option>`
+            + optionList.map(w => `<option value="${w.id}">${esc(w.name)}${w.departmentName ? ' · ' + esc(w.departmentName) : ''}</option>`).join('');
+
+        // Khóa học mới: chọn sẵn luồng Admin đã đánh dấu mặc định.
+        select.value = isEdit
+            ? (course.approvalWorkflowId || '')
+            : (workflowOptionList.find(x => x.isDefault)?.id || '');
+        select.disabled = locked;
+        // Gọi sau khi đã dựng lại <option> và gán value/disabled — lần đầu là dựng ô chọn gõ được, những lần
+        // sau chỉ đồng bộ lại nhãn hiển thị theo lựa chọn hiện tại.
+        enhanceSearchableSelect(select, { placeholder: t('course.goTenLuong', 'Gõ tên luồng...') });
+
+        const showHint = () => {
+            const chosen = optionList.find(x => x.id === +select.value);
+            hint.textContent = chosen?.stepNameList?.length
+                ? `${t('course.cacBuocDuyet', 'Các bước duyệt')}: ${chosen.stepNameList.join(' → ')}`
+                : t('course.khongChonLuongThiChayChuoiMacDinh',
+                    'Không chọn luồng thì khóa học chạy chuỗi duyệt mặc định: Trưởng phòng → Giám Đốc → Giám Đốc Nhân sự.');
+        };
+        select.onchange = showHint;
+        showHint();
+
+        if (locked && isEdit && !readOnly)
+            hint.textContent += ' · ' + t('course.daGuiDuyetKhongDoiLuong', 'Khóa học đã gửi duyệt nên không đổi được luồng.');
+    }
+
+    async function save(e) {
+        e.preventDefault();
+        if (isReadOnlyForm) return;
+        const id = document.getElementById('f-id').value;
+        const deadline = document.getElementById('f-deadlineDay').value;
+
+        const body = {
+            title: document.getElementById('f-title').value.trim(),
+            description: document.getElementById('f-description').value || null,
+            thumbnailUrl: document.getElementById('f-thumbnail').value || null,
+            durationMinutes: +document.getElementById('f-duration').value || 0,
+            passScore: +document.getElementById('f-passScore').value || 0,
+            deadlineDay: deadline ? +deadline : null,
+            isMandatory: document.getElementById('f-mandatory').checked,
+            approvalWorkflowId: +document.getElementById('f-workflow').value || null
+        };
+        // Chỉ gửi phòng ban khi TẠO MỚI — mã khóa học đã sinh ra rồi thì không đổi được nữa.
+        if (!id) {
+            const department = document.getElementById('f-department').value;
+            if (!department) { toastErr(t('course.vuiLongChonPhongBan', 'Vui lòng chọn phòng ban.')); return; }
+            body.allDepartment = department === 'all';
+            body.departmentId = body.allDepartment ? null : (+department || null);
+        }
+
+        try {
+            if (id) await API.put(`/course/${id}`, body);
+            else await API.post('/course', body);
+            toastOk(t('course.daLuuKhoaHoc', 'Đã lưu khóa học.'));
+            closeModal('modal-course');
+            load();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    // ==================== ỦY QUYỀN DUYỆT (Giám Đốc Nhân sự) ====================
+    // Ứng viên là nhân viên CÙNG PHÒNG BAN với Giám Đốc — server tự lọc theo phòng ban của người đang đăng nhập.
+    // Chỉ ủy quyền được cho MỘT người nên dùng ô tròn (radio) chung một nhóm với lựa chọn "Không ủy quyền cho ai",
+    // thu hồi và đổi người thành cùng một thao tác thay vì phải nhớ bỏ tick người cũ.
+    async function openDelegateModal() {
+        const listBox = document.getElementById('delegate-candidate-list');
+        const noneOption = document.getElementById('delegate-none');
+        listBox.innerHTML = skeletonHtml('list', { count: 4, avatar: false });
+        noneOption.checked = true;
+        openModal('modal-delegate');
+
+        try {
+            const candidateList = await API.get('/approvaldelegate/candidates');
+            if (!candidateList.length) {
+                listBox.innerHTML = emptyHtml(t('course.chuaCoNhanVienNaoCungPhongBan', 'Phòng ban của bạn chưa có nhân viên nào để ủy quyền.'), '<i class="ph ph-users"></i>');
+                return;
+            }
+
+            listBox.innerHTML = candidateList.map(c => `
+                <label class="check" style="display:block;padding:4px 0">
+                    <input type="radio" name="delegate-user" value="${c.userId}" ${c.isDelegated ? 'checked' : ''}>
+                    ${esc(c.fullName)} <span class="small muted">(${esc(c.employeeCode)}${c.positionName ? ' — ' + esc(c.positionName) : ''})</span>
+                </label>`).join('');
+
+            noneOption.checked = !candidateList.some(c => c.isDelegated);
+        } catch (ex) {
+            listBox.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        }
+    }
+
+    document.getElementById('btn-save-delegate').addEventListener('click', async () => {
+        const picked = document.querySelector('input[name="delegate-user"]:checked');
+        const userId = picked && picked.value ? +picked.value : null;
+        try {
+            const r = await API.put('/approvaldelegate', { userId });
+            toastOk(r.message);
+            closeModal('modal-delegate');
+            // Thanh lộ trình duyệt hiện tên người được ủy quyền ở bước cuối — nạp lại để thấy ngay tên vừa đổi.
+            await load();
+        } catch (ex) { toastErr(ex.message); }
+    });
+})();
+</script>
+</body>
+</html>

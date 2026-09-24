@@ -1,0 +1,12 @@
+# Server STUN/TURN tự triển khai cho tính năng "Phòng học online" của HB E-Learning.
+# network_mode: host để tránh Docker NAT làm rối dải cổng relay (min-port/max-port) — chỉ dùng
+# được trên Linux (VPS thật). Xem README.md cùng thư mục để biết các bước triển khai đầy đủ.
+services:
+  coturn:
+    image: coturn/coturn:4.6
+    container_name: hbelearning-turn
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: ["-c", "/etc/coturn/turnserver.conf"]

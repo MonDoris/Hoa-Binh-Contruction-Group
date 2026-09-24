@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="vi" class="lp">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="home.pageTitle">HB E-Learning · Nền tảng đào tạo doanh nghiệp</title>
+    <meta name="description" data-i18n-content="home.metaDesc" content="Nền tảng E-Learning quản lý toàn bộ vòng đời đào tạo nội bộ: xây dựng khóa học, lộ trình học tập, kiểm tra đánh giá và cấp chứng nhận xác thực bằng QR Code.">
+
+    <!--    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Phosphor Icons — bản vendor cục bộ trong /css/phosphor, KHÔNG gọi unpkg: mọi trang khác của hệ
+         thống đều dùng bản này, và mạng nội bộ công ty chặn CDN là cả trang mất sạch biểu tượng. -->
+    <link rel="stylesheet" href="/css/phosphor/regular.css">
+    <link rel="stylesheet" href="/css/phosphor/bold.css">
+    <link rel="stylesheet" href="/css/phosphor/fill.css">
+    <link rel="stylesheet" href="/css/phosphor/duotone.css">
+
+    <style>
+        :root {
+            --primary: #6caddf;
+            --primary-hover: #5a9bc8;
+            --primary-light: rgba(108, 173, 223, 0.15);
+            --primary-glow: rgba(108, 173, 223, 0.4);
+
+            --bg-body: #f8fafc;
+            --surface: rgba(255, 255, 255, 0.85); /* Trong suốt nhẹ cho Glassmorphism */
+            --nav-bg: rgba(255, 255, 255, 0.7);
+            --card-edge: rgba(255, 255, 255, 0.5);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: rgba(226, 232, 240, 0.8);
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --blob-opacity: 0.4;
+
+            /* Khung kết quả tra cứu chứng nhận — js/index.js dựng bằng inline style nên phải đi qua biến.
+               Đổi tên mấy biến --lp-* này là kết quả tra cứu mất màu, phải sửa cả js/index.js. */
+            --lp-text-muted: #64748b;
+            --lp-ok-bg: #f0fdf4;
+            --lp-ok-border: #bbf7d0;
+            --lp-ok-text: #166534;
+            --lp-bad-bg: #fee2e2;
+            --lp-bad-border: #fecaca;
+            --lp-bad-text: #991b1b;
+            --lp-row-border: rgba(0, 0, 0, 0.05);
+            --lp-th: #475569;
+
+            color-scheme: light;
+        }
+
+        /* ---------- Bảng màu TỐI ----------
+           Hai lớp chọn, giống css/style.css:
+             • [data-theme="dark"]  — người dùng tự bấm nút chuyển nền.
+             • prefers-color-scheme — máy đang để nền tối mà người dùng CHƯA chọn gì (js/theme.js gỡ hẳn
+               thuộc tính data-theme trong trường hợp đó). Thiếu khối này thì máy để nền tối vẫn ra nền trắng. */
+        [data-theme='dark'] {
+            --primary-light: rgba(108, 173, 223, 0.18);
+            --primary-glow: rgba(108, 173, 223, 0.25);
+
+            --bg-body: #0f172a;
+            --surface: rgba(30, 41, 59, 0.85);
+            --nav-bg: rgba(30, 41, 59, 0.72);
+            --card-edge: rgba(148, 163, 184, 0.16);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: rgba(51, 65, 85, 0.9);
+            --blob-opacity: 0.22;
+
+            --lp-text-muted: #94a3b8;
+            --lp-ok-bg: #14321f;
+            --lp-ok-border: #1e5b38;
+            --lp-ok-text: #86efac;
+            --lp-bad-bg: #3b1717;
+            --lp-bad-border: #7f1d1d;
+            --lp-bad-text: #fca5a5;
+            --lp-row-border: rgba(255, 255, 255, 0.07);
+            --lp-th: #93a3bd;
+
+            color-scheme: dark;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme='light']) {
+                --primary-light: rgba(108, 173, 223, 0.18);
+                --primary-glow: rgba(108, 173, 223, 0.25);
+
+                --bg-body: #0f172a;
+                --surface: rgba(30, 41, 59, 0.85);
+                --nav-bg: rgba(30, 41, 59, 0.72);
+                --card-edge: rgba(148, 163, 184, 0.16);
+                --text-main: #f1f5f9;
+                --text-muted: #94a3b8;
+                --border: rgba(51, 65, 85, 0.9);
+                --blob-opacity: 0.22;
+
+                --lp-text-muted: #94a3b8;
+                --lp-ok-bg: #14321f;
+                --lp-ok-border: #1e5b38;
+                --lp-ok-text: #86efac;
+                --lp-bad-bg: #3b1717;
+                --lp-bad-border: #7f1d1d;
+                --lp-bad-text: #fca5a5;
+                --lp-row-border: rgba(255, 255, 255, 0.07);
+                --lp-th: #93a3bd;
+
+                color-scheme: dark;
+            }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Manrope', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        a { text-decoration: none; color: inherit; }
+
+        /* Thanh điều hướng nổi sẽ che mất phần đầu của mục vừa cuộn tới nếu không chừa khoảng này. */
+        section[id], .hero-verify-wrap { scroll-margin-top: 110px; }
+
+        /* --- ANIMATIONS SỐNG ĐỘNG --- */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+        @keyframes floatReverse {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(15px); }
+            100% { transform: translateY(0px); }
+        }
+        @keyframes blobMove {
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0px, 0px) scale(1); }
+        }
+
+        /* Áp dụng Animation Load */
+        .animate-up { animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+
+        /* Máy đang bật "giảm chuyển động" thì tắt hết hiệu ứng — nếu không, phần tử .animate-up giữ
+           nguyên opacity:0 và trang trắng trơn với người đã bật cài đặt này. */
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            .animate-up { animation: none; opacity: 1; }
+            .blob, .stat-1, .stat-2, .stat-3 { animation: none; }
+        }
+
+        /* Nút bấm */
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 14px 28px; border-radius: 12px; font-weight: 700;
+            transition: all 0.3s ease; cursor: pointer; border: none;
+            position: relative; overflow: hidden;
+            font-family: inherit; font-size: 1rem;
+        }
+        .btn-primary {
+            background: var(--primary); color: #fff;
+            box-shadow: 0 8px 20px var(--primary-glow);
+        }
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px var(--primary-glow);
+            background: var(--primary-hover);
+        }
+
+        /* Nav nổi (Glassmorphism) */
+        .modern-nav {
+            position: fixed ; top: 20px; left: 10%; transform: translateX(-50%);
+            width: 95%; max-width: 1200px; background: var(--nav-bg);
+            padding: 12px 24px; border-radius: 100px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05); z-index: 100;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            animation: fadeUp 0.5s ease forwards;
+        }
+        .nav-brand { font-weight: 800; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; color: var(--primary); }
+        .nav-links { display: flex; gap: 24px; align-items: center; font-weight: 600; }
+        /* Gạch chân chỉ dành cho liên kết chữ, KHÔNG áp lên nút "Đăng nhập" (nút cũng là thẻ <a>). */
+        .nav-links .nav-link { position: relative; }
+        .nav-links .nav-link::after {
+            content: ''; position: absolute; width: 0; height: 2px;
+            bottom: -4px; left: 0; background-color: var(--primary);
+            transition: width 0.3s ease;
+        }
+        .nav-links .nav-link:hover::after { width: 100%; }
+
+        /* Nút đổi nền sáng/tối và nút đổi ngôn ngữ — js/theme.js, js/language.js tự đổ nội dung vào. */
+        .theme-switch, .lang-switch {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            min-width: 40px; height: 40px; padding: 0 10px;
+            border: 1px solid var(--border); border-radius: 100px;
+            background: transparent; color: var(--text-main);
+            font-family: inherit; font-size: 1rem; font-weight: 600; cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .theme-switch:hover, .lang-switch:hover { border-color: var(--primary); color: var(--primary); }
+        .lang-switch svg, .lang-switch img { width: 20px; height: 14px; border-radius: 2px; display: block; }
+
+        /* Background Blob siêu động */
+        .bg-shapes { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; overflow: hidden; z-index: -1; pointer-events: none; }
+        .blob {
+            position: absolute; border-radius: 50%; filter: blur(80px);
+            opacity: var(--blob-opacity); animation: blobMove 10s infinite alternate ease-in-out;
+        }
+        .blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #6caddf; }
+        .blob-2 { bottom: 10%; right: -5%; width: 600px; height: 600px; background: #b3d4f0; animation-delay: 2s; }
+
+        /* --- Split Hero --- */
+        .hero-split {
+            min-height: 100vh; display: grid; grid-template-columns: 1.2fr 0.8fr;
+            align-items: center; max-width: 1300px; margin: 0 auto; padding: 140px 24px 60px; gap: 60px;
+            position: relative;
+        }
+        .hero-content h1 { font-size: 4.2rem; font-weight: 800; line-height: 1.1; margin-bottom: 24px; letter-spacing: -1px; }
+        .hero-content h1 .accent {
+            color: var(--primary);
+            background: linear-gradient(120deg, #6caddf, #3b82f6);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-content p { font-size: 1.2rem; color: var(--text-muted); margin-bottom: 40px; max-width: 600px; }
+
+        .hero-verify-box {
+            background: var(--surface); padding: 12px; border-radius: 16px;
+            border: 1px solid var(--border); display: flex; gap: 12px;
+            box-shadow: 0 20px 40px rgba(108, 173, 223, 0.1); max-width: 500px;
+            backdrop-filter: blur(10px); transition: all 0.3s ease;
+        }
+        .hero-verify-box:focus-within { box-shadow: 0 20px 40px rgba(108, 173, 223, 0.25); transform: translateY(-2px); border-color: var(--primary); }
+        .hero-verify-box input {
+            flex: 1; border: none; background: transparent; outline: none;
+            padding: 0 12px; font-family: inherit; font-size: 1rem; color: var(--text-main);
+        }
+        /* Khung kết quả do js/index.js dựng — rỗng thì không chiếm chỗ. */
+        #lp-verify-result { max-width: 500px; margin-top: 20px; text-align: left; }
+        #lp-verify-result:empty { display: none; }
+
+        /* Nhóm Stat Cards lơ lửng */
+        .stat-card-group { display: flex; flex-direction: column; gap: 24px; position: relative; }
+        .stat-card {
+            background: var(--surface); padding: 24px; border-radius: var(--radius-lg);
+            border: 1px solid var(--card-edge); box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+            display: flex; align-items: center; gap: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+
+        .stat-card .icon {
+            width: 64px; height: 64px; flex: 0 0 64px; border-radius: 18px;
+            background: linear-gradient(135deg, var(--primary-light), var(--card-edge)); color: var(--primary);
+            display: flex; align-items: center; justify-content: center; font-size: 32px;
+            box-shadow: inset 0 2px 4px rgba(255,255,255,0.8);
+        }
+        .stat-card h3 { font-size: 2.2rem; font-weight: 800; line-height: 1; margin-bottom: 4px; color: var(--primary); }
+        .stat-card p { font-weight: 600; color: var(--text-muted); }
+
+        /* --- Bento Box Layout Tương Tác Mạnh --- */
+        .bento-section { padding: 100px 24px; max-width: 1300px; margin: 0 auto; }
+        .bento-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: 260px; gap: 24px; margin-top: 48px;
+        }
+        .bento-item {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); padding: 32px;
+            display: flex; flex-direction: column; justify-content: space-between;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Hover nảy lên */
+            position: relative; overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.02);
+        }
+        .bento-item::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at top right, var(--primary-light), transparent 70%);
+            opacity: 0; transition: opacity 0.4s ease;
+        }
+        .bento-item:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: var(--primary);
+            box-shadow: 0 20px 40px var(--primary-light);
+        }
+        .bento-item:hover::before { opacity: 1; }
+
+        .span-2 { grid-column: span 2; }
+        .span-row-2 { grid-row: span 2; }
+
+        .bento-item.primary-bg {
+            background: linear-gradient(135deg, var(--primary), #4a90e2);
+            color: #fff; border: none; box-shadow: 0 15px 30px var(--primary-glow);
+        }
+        .bento-item.primary-bg p { color: rgba(255,255,255,0.9); }
+        .bento-icon { font-size: 3rem; margin-bottom: 20px; color: var(--primary); z-index: 1; position: relative; transition: transform 0.3s ease; }
+        .bento-item:hover .bento-icon { transform: scale(1.1) rotate(-5deg); }
+        .bento-item.primary-bg .bento-icon { color: #fff; }
+        .bento-content { position: relative; z-index: 1; }
+        .bento-content h3 { color: var(--text-main); font-size: 1.3rem; margin-bottom: 8px; }
+        .bento-content p { color: var(--text-muted); }
+        .bento-item.primary-bg .bento-content h3 { color: #fff; font-size: 1.5rem; }
+
+        /* --- Quy trình (thanh điều hướng đang trỏ tới #process) --- */
+        .process-flow { display: flex; gap: 24px; margin-top: 48px; overflow-x: auto; padding-bottom: 20px; }
+        .flow-step {
+            flex: 1; min-width: 210px; background: var(--surface); padding: 24px;
+            border-radius: var(--radius-md); border: 1px solid var(--border);
+            backdrop-filter: blur(10px); position: relative; transition: all 0.3s ease;
+        }
+        .flow-step:hover { transform: translateY(-6px); border-color: var(--primary); }
+        .flow-num { font-size: 3rem; font-weight: 800; color: var(--primary-light); position: absolute; top: 10px; right: 20px; line-height: 1; }
+        .flow-step h4 { font-size: 1.1rem; font-weight: 700; margin: 24px 0 8px; position: relative; z-index: 2; }
+        .flow-step p { font-size: 0.9rem; color: var(--text-muted); position: relative; z-index: 2; }
+
+        /* Footer */
+        .modern-footer { padding: 60px 24px; text-align: center; border-top: 1px solid var(--border); margin-top: 40px; }
+        .modern-footer a:hover { color: var(--primary); }
+
+        /* ---------- Lớp che loading và thông báo nổi ----------
+           js/api.js chèn sẵn #global-loading-overlay vào mọi trang và js/app.js dựng .toast khi cần. Bản
+           gốc của mấy lớp này nằm trong css/style.css — trang chủ KHÔNG nạp file đó (nó là bộ giao diện của
+           khu quản trị), nên phải khai báo lại ở đây. Bỏ đi là dòng chữ "Đang xử lý..." nằm trơ ở cuối trang
+           suốt ngày và thông báo lỗi hiện ra như chữ trần. */
+        #global-loading-overlay {
+            position: fixed; inset: 0; z-index: 700;
+            background: rgba(255, 255, 255, .6);
+            display: none; align-items: center; justify-content: center;
+        }
+        [data-theme='dark'] #global-loading-overlay { background: rgba(15, 23, 42, .6); }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme='light']) #global-loading-overlay { background: rgba(15, 23, 42, .6); }
+        }
+        #global-loading-overlay.active { display: flex; }
+        .global-loading-box { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+        .global-loading-text { font-size: 14px; font-weight: 600; color: var(--text-muted); letter-spacing: .3px; }
+        .spinner-lg {
+            width: 48px; height: 48px; border: 4px solid var(--border);
+            border-top-color: var(--primary); border-radius: 50%;
+            animation: spin .7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #toast-box { position: fixed; top: 18px; right: 18px; z-index: 500; display: grid; gap: 10px; }
+        .toast {
+            background: var(--surface); border-left: 4px solid var(--primary);
+            padding: 13px 18px; border-radius: 8px; box-shadow: 0 20px 40px rgba(15, 23, 42, .18);
+            min-width: 260px; max-width: 400px; font-size: 13.5px;
+            animation: slideIn .25s ease;
+        }
+        .toast.ok { border-left-color: #16a34a; }
+        .toast.err { border-left-color: #dc2626; }
+        @keyframes slideIn { from { transform: translateX(110%); opacity: 0; } }
+
+        @media (max-width: 992px) {
+            .hero-split { grid-template-columns: 1fr; text-align: center; gap: 40px; padding-top: 150px; }
+            .hero-verify-box { margin: 0 auto; }
+            #lp-verify-result { margin-left: auto; margin-right: auto; }
+            .stat-1, .stat-2, .stat-3 { transform: translateX(0); }
+            .bento-grid { grid-template-columns: repeat(2, 1fr); }
+            /* Chỉ giấu liên kết tới các mục, GIỮ nút đổi nền / đổi ngôn ngữ / đăng nhập:
+               giấu cả cụm là người dùng điện thoại mất luôn đường vào hệ thống. */
+            .nav-links .nav-link { display: none; }
+            .nav-links { gap: 12px; }
+        }
+        @media (max-width: 768px) {
+            .bento-grid { grid-template-columns: 1fr; grid-auto-rows: auto; }
+            .bento-item { min-height: 230px; }
+            .span-2 { grid-column: span 1; }
+            .span-row-2 { grid-row: span 1; }
+            .hero-content h1 { font-size: 2.6rem; }
+            .hero-verify-box { flex-direction: column; }
+            .process-flow { flex-direction: column; }
+            .modern-nav { padding: 10px 16px; }
+            .nav-brand { font-size: 1rem; }
+        }
+    </style>
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+
+<!-- Nền động -->
+<div class="bg-shapes">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+</div>
+
+<nav class="modern-nav">
+    <a href="/" class="nav-brand">
+        <i class="ph-fill ph-graduation-cap" style="font-size: 1.8rem;"></i> HB E-Learning
+    </a>
+    <div class="nav-links">
+        <a href="#ecosystem" class="nav-link" data-i18n="home.navEcosystem">Hệ sinh thái</a>
+        <a href="#process" class="nav-link" data-i18n="home.navProcess">Quy trình</a>
+        <button class="theme-switch" type="button" id="themeSwitch"></button>
+        <button class="lang-switch" type="button" id="langSwitch"></button>
+        <a href="/login.html" class="btn btn-primary" style="padding: 10px 20px;"><i class="ph-bold ph-sign-in"></i> <span data-i18n="home.login">Đăng nhập</span></a>
+    </div>
+</nav>
+
+<header class="hero-split">
+    <div class="hero-content animate-up">
+        <h1><span data-i18n="home.heroTitle" class="accent">Cùng học, cùng làm, cùng tỏa sáng</span></h1>
+        <p class="animate-up delay-1" data-i18n="home.heroLead">Quản lý toàn bộ vòng đời học tập: từ phân bổ lộ trình, làm bài kiểm tra trắc nghiệm đến tự động sinh chứng nhận tích hợp QR Code.</p>
+
+        <!-- id="verify": đích cuộn tới khi mở trang bằng liên kết ?code=... in trên chứng nhận (js/index.js). -->
+        <div class="hero-verify-wrap animate-up delay-2" id="verify">
+            <div class="hero-verify-box">
+                <input type="text" id="lp-code" data-i18n-ph="home.verifyPh" placeholder="Nhập số hiệu, VD: HBE-2026-000001">
+                <button class="btn btn-primary" id="lp-btn-verify"><i class="ph-bold ph-magnifying-glass"></i> <span data-i18n="home.verifyBtn">Kiểm tra</span></button>
+            </div>
+            <div id="lp-verify-result"></div>
+        </div>
+    </div>
+
+    <!-- id="lp-stat": js/index.js đổ số liệu thật từ /report/public-stat vào đây; API lỗi thì giấu cả cụm.
+         Để "—" chứ không để số mẫu, tránh hiện con số bịa trong lúc chờ API trả về. -->
+    <div class="hero-visual stat-card-group animate-up delay-3" id="lp-stat">
+        <div class="stat-card stat-1">
+            <div class="icon"><i class="ph-duotone ph-books"></i></div>
+            <div>
+                <h3 id="stat-course">—</h3>
+                <p data-i18n="home.statCourse">Khóa học hiện hành</p>
+            </div>
+        </div>
+        <div class="stat-card stat-2">
+            <div class="icon"><i class="ph-duotone ph-exam"></i></div>
+            <div>
+                <h3 id="stat-quiz">—</h3>
+                <p data-i18n="home.statQuiz">Bài kiểm tra</p>
+            </div>
+        </div>
+        <div class="stat-card stat-3">
+            <div class="icon"><i class="ph-duotone ph-certificate"></i></div>
+            <div>
+                <h3 id="stat-cert">—</h3>
+                <p data-i18n="home.statCert">Chứng nhận cấp phát</p>
+            </div>
+        </div>
+    </div>
+</header>
+
+<section class="bento-section" id="ecosystem">
+    <div class="animate-up" style="text-align: center;">
+        <h2 style="font-size: 2.5rem; font-weight: 800; color: var(--text-main);" data-i18n="home.ecoTitle">Hệ sinh thái toàn diện</h2>
+        <p style="color: var(--text-muted); font-size: 1.1rem; margin-top: 10px;" data-i18n="home.ecoLead">Chuyển động mượt mà, phản hồi ngay lập tức cho từng tương tác.</p>
+    </div>
+
+    <div class="bento-grid">
+        <div class="bento-item span-2 primary-bg animate-up delay-1">
+            <i class="ph-duotone ph-shield-check bento-icon"></i>
+            <div class="bento-content">
+                <h3 data-i18n="home.ecoAdmin">Không gian Quản trị viên</h3>
+                <p data-i18n="home.ecoAdminDesc">Kiểm soát dữ liệu doanh nghiệp. Thiết lập sơ đồ tổ chức, quản lý phân quyền và thu hồi/cấp phát chứng nhận tự động.</p>
+            </div>
+        </div>
+
+        <div class="bento-item span-row-2 animate-up delay-2">
+            <i class="ph-duotone ph-git-merge bento-icon"></i>
+            <div class="bento-content">
+                <h3 data-i18n="home.ecoPath">Lộ trình tuần tự</h3>
+                <p data-i18n="home.ecoPathDesc">Ràng buộc người học hoàn thành học liệu A mới được truy cập B.</p>
+            </div>
+        </div>
+
+        <div class="bento-item animate-up delay-3">
+            <i class="ph-duotone ph-chart-line-up bento-icon"></i>
+            <div class="bento-content">
+                <h3 data-i18n="home.ecoDash">Dashboard Real-time</h3>
+                <p data-i18n="home.ecoDashDesc">Cập nhật tiến độ theo thời gian thực.</p>
+            </div>
+        </div>
+
+        <!-- THỨ TỰ CÓ Ý NGHĨA: khối ngang này phải đứng TRƯỚC khối "Trưởng nhóm". Lưới tự xếp theo thứ tự
+             trong HTML, mà khối dọc bên trên đã chiếm cột 3 của cả hai hàng — để khối 1 ô lên trước thì khối
+             ngang không còn hai cột liền nhau ở hàng 2, phải rơi xuống hàng 3 và bỏ trống hai ô. -->
+        <div class="bento-item span-2 animate-up delay-2">
+            <div style="display: flex; gap: 24px; align-items: center; height: 100%;">
+                <div style="background: var(--primary-light); border-radius: 50%; padding: 20px;">
+                    <i class="ph-duotone ph-device-mobile bento-icon" style="margin:0; font-size: 3.5rem;"></i>
+                </div>
+                <div class="bento-content">
+                    <h3 style="font-size: 1.5rem;" data-i18n="home.ecoLearner">Trải nghiệm đa nền tảng</h3>
+                    <p data-i18n="home.ecoLearnerDesc">Giao diện phản hồi siêu tốc trên Mobile. Nhận chứng chỉ số mọi lúc mọi nơi.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bento-item animate-up delay-1">
+            <i class="ph-duotone ph-chalkboard-teacher bento-icon"></i>
+            <div class="bento-content">
+                <h3 data-i18n="home.ecoTrainer">Trưởng nhóm</h3>
+                <p data-i18n="home.ecoTrainerDesc">Biên soạn ngân hàng câu hỏi, bài tập.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- QUY TRÌNH — thanh điều hướng có liên kết "#process" nên mục này phải tồn tại, nếu không bấm vào là
+     không đi đâu cả. -->
+<section class="bento-section" id="process" style="padding-top: 20px;">
+    <div class="animate-up" style="text-align: center;">
+        <h2 style="font-size: 2.5rem; font-weight: 800;" data-i18n="home.procTitle">Quy trình số hóa 100%</h2>
+        <p style="color: var(--text-muted); font-size: 1.1rem; margin-top: 10px;" data-i18n="home.procLead">Khép kín từ bài giảng đầu tiên đến khi nhận chứng chỉ.</p>
+    </div>
+
+    <div class="process-flow">
+        <div class="flow-step animate-up delay-1">
+            <div class="flow-num">1</div>
+            <h4 data-i18n="home.proc1">Xây dựng dữ liệu</h4>
+            <p data-i18n="home.proc1Desc">Upload video, tài liệu và tạo câu hỏi thi.</p>
+        </div>
+        <div class="flow-step animate-up delay-2">
+            <div class="flow-num">2</div>
+            <h4 data-i18n="home.proc2">Phân công</h4>
+            <p data-i18n="home.proc2Desc">Gán lộ trình theo phòng ban &amp; vị trí.</p>
+        </div>
+        <div class="flow-step animate-up delay-3">
+            <div class="flow-num">3</div>
+            <h4 data-i18n="home.proc3">Học &amp; Thi</h4>
+            <p data-i18n="home.proc3Desc">Hệ thống tự động chấm điểm và đánh giá.</p>
+        </div>
+        <div class="flow-step animate-up delay-3" style="border-color: var(--primary); background: var(--primary-light);">
+            <div class="flow-num" style="color: var(--primary);">4</div>
+            <h4 style="color: var(--primary);" data-i18n="home.proc4">Cấp chứng nhận</h4>
+            <p data-i18n="home.proc4Desc">Phát hành chứng chỉ xác thực bằng mã QR.</p>
+        </div>
+    </div>
+</section>
+
+<footer class="modern-footer">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 1.5rem; margin-bottom: 16px;">
+        <i class="ph-fill ph-graduation-cap" style="color: var(--primary);"></i> HB E-Learning
+    </div>
+    <p style="color: var(--text-muted); margin-bottom: 24px;" data-i18n="home.footerTagline">Giải pháp E-Learning nền tảng mạnh mẽ cho doanh nghiệp.</p>
+    <p style="margin-bottom: 24px; font-weight: 600;">
+<a href="/login.html" data-i18n="home.footerLogin">Đăng nhập</a> &nbsp;&middot;&nbsp;
+        <a href="/pages/verify.html" data-i18n="home.footerVerify">Tra cứu chứng nhận</a>
+    </p>
+    <p style="font-size: 0.9rem; color: var(--text-muted); opacity: 0.8;" data-i18n="home.footerCopyright">
+        &copy; 2026 &middot; Kiến trúc bởi ASP.NET Core &amp; Entity Framework Core
+    </p>
+</footer>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/index.js"></script>
+</body>
+</html>
+ript>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/index.js"></script>
+</body>
+</html>

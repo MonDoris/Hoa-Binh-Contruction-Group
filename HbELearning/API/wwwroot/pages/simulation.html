@@ -1,0 +1,577 @@
+<!-- File: wwwroot/pages/simulation.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="simulation.moPhong3dHbELearning">Mô phỏng 3D · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Ngoại lệ duy nhất trong dự án dùng ES module CDN (Three.js không còn phát hành bản UMD/global) —
+         mọi thư viện khác (Chart.js, Quill) tải qua <script src> global như thường lệ.
+
+         Trang này KHÔNG biết mình đang dựng cảnh nào: nó chỉ lo nghiệp vụ bài học (gọi API, chấm điểm,
+         bảng xử lý tình huống), còn cảnh 3D được tra theo SceneKey của kịch bản trong js/sim-registry.js
+         rồi nạp động — nhờ vậy thêm một bối cảnh mới không phải sửa gì ở đây. -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="card">
+            <div class="card-head">
+                <h3 data-i18n="simulation.dangTaiMoPhong" id="sim-title">Đang tải mô phỏng...</h3>
+                <div class="sim-tabs hidden" id="sim-tabs"></div>
+                <span id="sim-meta" class="small muted"></span>
+            </div>
+            <div class="card-body" style="padding:0">
+                <div class="sim-stage" id="sim-stage" style="height:min(74vh,660px)">
+                    <div class="sim-canvas-wrap" id="sim-wrap">
+                        <div class="sim-loading" id="sim-loading">
+                            <span class="spinner"></span>
+                            <span data-i18n="simulation.dangKhoiTaoCanh3d" class="sim-loading-text" id="sim-loading-text">Đang khởi tạo cảnh 3D...</span>
+                            <!-- Model bối cảnh thường nặng vài chục MB; không có thanh tiến trình thì người
+                                 học chỉ thấy vòng xoay đứng yên hàng chục giây và tưởng hệ thống treo. -->
+                            <div class="sim-progress hidden" id="sim-progress"><span id="sim-progress-bar"></span></div>
+                        </div>
+
+                        <div class="sim-hud hidden" id="sim-hud">
+                            <div class="chip" id="chip-score"><span data-i18n="certificate.diem" class="label">Điểm</span> <span id="score-value">0</span></div>
+                            <div class="chip"><span data-i18n="simulation.daXuLy" class="label">Đã xử lý</span> <span id="progress-value">0/0</span></div>
+                            <div class="chip hidden" id="chip-step"><span data-i18n="simulation.buocTiepTheo" class="label">Bước tiếp theo</span> <span id="step-value"></span></div>
+                        </div>
+
+                        <div class="sim-tools hidden" id="sim-tools">
+                            <button type="button" id="btn-brief" data-i18n-title="simulation.xemLaiNhiemVuDuocGiao" title="Xem lại nhiệm vụ được giao">
+                                <i class="ph-bold ph-clipboard-text"></i> <span data-i18n="simulation.nhiemVu">Nhiệm vụ</span>
+                            </button>
+                            <button type="button" id="btn-reset-view" data-i18n-title="simulation.veGocNhinTongThe" title="Về góc nhìn tổng thể">
+                                <i class="ph-bold ph-arrows-out"></i> <span data-i18n="simulation.gocNhinTongThe">Góc nhìn tổng thể</span>
+                            </button>
+                            <!-- Chỉ có nghĩa với model 3D nên được ẩn/hiện theo loại bối cảnh trong mã bên dưới. -->
+                            <button type="button" id="btn-auto-rotate" class="hidden" title="Tự xoay quanh vật thể">
+                                <i class="ph-bold ph-arrows-clockwise"></i> <span data-i18n="simulation.tuXoay">Tự xoay</span>
+                            </button>
+                            <button type="button" id="btn-brightness" title="Tăng / giảm độ sáng">
+                                <i class="ph-bold ph-sun"></i> <span data-i18n="simulation.doSang" id="brightness-label">Độ sáng</span>
+                            </button>
+                            <button type="button" id="btn-fullscreen" title="Toàn màn hình">
+                                <i class="ph-bold ph-corners-out"></i> <span data-i18n="simulation.toanManHinh">Toàn màn hình</span>
+                            </button>
+                        </div>
+
+                        <div class="sim-hint hidden" id="sim-hint">
+                            <i class="ph-bold ph-hand-pointing"></i>
+                            <span id="sim-hint-text"></span>
+                        </div>
+
+                        <!-- Bảng giao nhiệm vụ nhập vai: hiện đè lên cảnh trước khi bắt đầu, và mở lại được
+                             bất cứ lúc nào bằng nút "Nhiệm vụ" ở góc trên. -->
+                        <div class="sim-brief hidden" id="sim-brief">
+                            <div class="sim-brief-card" id="sim-brief-card"></div>
+                        </div>
+
+                        <div class="sim-panel" id="sim-panel">
+                            <button type="button" class="close-x btn ghost sm" id="btn-close-panel">×</button>
+                            <div id="sim-panel-body"></div>
+                        </div>
+                    </div>
+
+                    <!-- Khung xem model tham khảo của bên thứ ba (nếu bối cảnh có khai báo): chỉ dựng iframe ở
+                         lần bấm đầu tiên để không tải thêm vài MB cho người học chỉ dùng phần mô phỏng. -->
+                    <div class="sim-embed hidden" id="sim-embed" style="height:100%"></div>
+                </div>
+
+                <div class="sim-credit hidden" id="sim-credit"></div>
+                <div id="sim-result-box"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script type="module">
+import { getSimScene } from '/js/sim-registry.js';
+
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.require()) return;
+
+    const enrollmentId = parseInt(qs('enrollmentId') || '0', 10);
+    const scenarioSceneId = parseInt(qs('scenarioSceneId') || '0', 10);
+    if (!enrollmentId || !scenarioSceneId) { location.href = '/pages/my-course.html'; return; }
+
+    mountLayout('my-course', t('course-detail.moPhong3d', 'Mô phỏng 3D'), '');
+    setTopbarAction(`
+        <button class="btn ghost sm" id="btn-back"><i class="ph ph-arrow-left"></i> <span data-i18n="simulation.loTrinhHoc">Lộ trình học</span></button>
+        <button data-i18n="simulation.ketThucMoPhong" class="btn sm" id="btn-finish" disabled>Kết thúc mô phỏng</button>`);
+    document.getElementById('btn-back').addEventListener('click', () =>
+        location.href = `/pages/learn.html?enrollmentId=${enrollmentId}`);
+
+    const stageEl = document.getElementById('sim-stage');
+    const wrapEl = document.getElementById('sim-wrap');
+    const embedEl = document.getElementById('sim-embed');
+    const creditEl = document.getElementById('sim-credit');
+    const hudEl = document.getElementById('sim-hud');
+    const toolsEl = document.getElementById('sim-tools');
+    const hintEl = document.getElementById('sim-hint');
+    const tabsEl = document.getElementById('sim-tabs');
+    const briefEl = document.getElementById('sim-brief');
+    const panelEl = document.getElementById('sim-panel');
+    const panelBodyEl = document.getElementById('sim-panel-body');
+    const loadingTextEl = document.getElementById('sim-loading-text');
+    document.getElementById('btn-close-panel').addEventListener('click', closePanel);
+
+    let start;
+    try {
+        start = await API.post(`/scenario/${scenarioSceneId}/start?enrollmentId=${enrollmentId}`);
+    } catch (ex) {
+        document.getElementById('sim-loading').innerHTML =
+            `<i class="ph ph-warning" style="font-size:32px"></i><span>${esc(ex.message)}</span>`;
+        return;
+    }
+
+    // Bối cảnh 3D + thuật ngữ hiển thị đều lấy từ kịch bản, không cứng trong trang: kịch bản kiểm tra hiện
+    // trường nói "điểm nguy cơ", kịch bản quy trình nói "bước".
+    const sceneDef = getSimScene(start.sceneKey);
+    // Tên bối cảnh lấy theo Thư viện 3D (server gửi kèm); chuỗi trong sim-registry.js chỉ là dự phòng cho
+    // dữ liệu cũ chưa có bản ghi thư viện.
+    const sceneName = start.sceneName || sceneDef.label;
+    const isSequential = !!start.isSequential;
+    // Bối cảnh dựng sẵn khai báo phần chữ bằng chuỗi cố định, còn bối cảnh tự tải lên khai báo bằng hàm —
+    // vì cùng một key "custom" có thể là model 3D, ảnh 360° hay ảnh phẳng, mỗi thứ một cách thao tác.
+    const sceneText = (value) => (typeof value === 'function' ? value(start) : value);
+    const noun = sceneText(sceneDef.pointNoun);
+
+    document.getElementById('sim-title').textContent = start.title;
+    document.getElementById('sim-meta').textContent = `Lượt chơi #${start.attemptNo} · Điểm đạt ${start.passScore}%`;
+    document.getElementById('sim-hint-text').innerHTML = sceneText(sceneDef.hintHtml);
+    loadingTextEl.textContent = sceneText(sceneDef.loadingText);
+
+    const attemptId = start.attemptId;
+    // Luôn sắp theo OrderIndex: với mô phỏng quy trình, thứ tự này CHÍNH LÀ nội dung cần học.
+    const nodeList = [...start.nodeList].sort((a, b) => a.orderIndex - b.orderIndex);
+    const answeredNodeIdSet = new Set(start.answeredNodeIdList);
+    let score = start.score;
+
+    updateScoreHud();
+    updateFinishButton();
+
+    // ==================== DỰNG CẢNH 3D ====================
+    let world;
+    try {
+        const createWorld = await sceneDef.load();
+        // Tham số thứ ba chỉ có ý nghĩa với bối cảnh tự tải lên (sim-asset-scene.js đọc tệp từ đây); các
+        // cảnh dựng sẵn nhận thừa một đối số và bỏ qua, nên không phải sửa gì trong chúng.
+        const progressEl = document.getElementById('sim-progress');
+        const progressBarEl = document.getElementById('sim-progress-bar');
+        world = await createWorld(wrapEl, (text, percent) => {
+            loadingTextEl.textContent = text;
+            // Chỉ hiện thanh khi máy chủ có báo tổng dung lượng; không có số thật thì thanh chạy giả còn
+            // gây hiểu nhầm hơn là không có.
+            if (typeof percent === 'number') {
+                progressEl.classList.remove('hidden');
+                progressBarEl.style.width = `${percent}%`;
+            }
+        }, {
+            assetUrl: start.assetUrl,
+            assetType: start.assetType,
+            // Người trong cảnh do người soạn bài đặt (bảng ScenarioCharacter) — học viên phải nhìn thấy
+            // đúng cảnh đã dựng, kể cả những người chỉ đứng cho sinh động chứ không mang tình huống nào.
+            characterList: start.characterList || [],
+            characterScale: start.characterScale,
+        });
+    } catch (ex) {
+        document.getElementById('sim-loading').innerHTML =
+            `<i class="ph ph-warning" style="font-size:32px"></i>
+             <span data-i18n="simulation.khongDungDuocCanh3dHayThuTrinh">Không dựng được cảnh 3D. Hãy thử trình duyệt khác có hỗ trợ WebGL.</span>`;
+        console.error(ex);
+        return;
+    }
+
+    // Marker: nút DOM nổi trên canvas, được sim-kit.js chiếu về đúng tọa độ 3D mỗi khung hình. Phải tạo
+    // TRƯỚC khi mở khóa giao diện để người học không bấm vào cảnh trống.
+    const markerElMap = new Map();
+    nodeList.forEach((node, index) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'hotspot';
+        btn.addEventListener('click', () => onMarkerClick(node));
+        wrapEl.appendChild(btn);
+        markerElMap.set(node.id, btn);
+        world.addMarker(node.id, node.positionX, node.positionY, node.positionZ, btn, node.attachedCharacterId);
+        paintMarker(node, index);
+    });
+    refreshMarkerState();
+
+    document.getElementById('sim-loading').remove();
+    [hudEl, toolsEl, hintEl].forEach(el => el.classList.remove('hidden'));
+    document.getElementById('btn-reset-view').addEventListener('click', () => world.resetCamera());
+    document.getElementById('btn-brief').addEventListener('click', () => openBrief());
+    setupViewerTool();
+
+    // ==================== CÔNG CỤ TRÌNH XEM 3D ====================
+    /** Tự xoay / độ sáng / toàn màn hình. Các cảnh dựng sẵn (công trường, văn phòng) chưa có những hàm này
+     *  nên nút nào không được cảnh hỗ trợ thì ẩn hẳn, thay vì hiện ra rồi bấm không có tác dụng. */
+    function setupViewerTool() {
+        const rotateBtn = document.getElementById('btn-auto-rotate');
+        if (world.canAutoRotate) {
+            rotateBtn.classList.remove('hidden');
+            rotateBtn.addEventListener('click', () => {
+                const on = world.setAutoRotate(!world.isAutoRotating());
+                rotateBtn.classList.toggle('active', on);
+            });
+        }
+
+        // Ba mức sáng bấm vòng: đủ để cứu một model quá tối hoặc một ảnh 360° chụp ngược sáng, mà không phải
+        // đặt thêm thanh trượt chiếm chỗ trên khung hình vốn đã chật.
+        const brightnessBtn = document.getElementById('btn-brightness');
+        const brightnessLevelList = [1, 1.35, 1.75, 0.7];
+        let brightnessIndex = 0;
+        if (typeof world.setBrightness === 'function') {
+            brightnessBtn.addEventListener('click', () => {
+                brightnessIndex = (brightnessIndex + 1) % brightnessLevelList.length;
+                const level = world.setBrightness(brightnessLevelList[brightnessIndex]);
+                const brightnessLabel = t('simulation.doSang', 'Độ sáng');
+                document.getElementById('brightness-label').textContent =
+                    level === 1 ? brightnessLabel : `${brightnessLabel} ${Math.round(level * 100)}%`;
+                brightnessBtn.classList.toggle('active', level !== 1);
+            });
+        } else {
+            brightnessBtn.classList.add('hidden');
+        }
+
+        const fullscreenBtn = document.getElementById('btn-fullscreen');
+        fullscreenBtn.addEventListener('click', () => {
+            if (document.fullscreenElement) document.exitFullscreen();
+            else stageEl.requestFullscreen?.().catch(() => toastErr('Trình duyệt không cho phép toàn màn hình.'));
+        });
+        // Người dùng thoát toàn màn hình bằng phím Esc chứ không bấm lại nút — không nghe sự kiện này thì
+        // nhãn nút kẹt ở trạng thái sai.
+        document.addEventListener('fullscreenchange', () => {
+            const on = !!document.fullscreenElement;
+            fullscreenBtn.querySelector('span').textContent = on
+                ? t('simulation.thoatToanManHinh', 'Thoát toàn màn hình')
+                : t('simulation.toanManHinh', 'Toàn màn hình');
+            fullscreenBtn.querySelector('i').className = on ? 'ph-bold ph-corners-in' : 'ph-bold ph-corners-out';
+        });
+    }
+
+    // ==================== BẢNG GIAO NHIỆM VỤ (nhập vai) ====================
+    function openBrief() {
+        const maxScore = start.maxScore;
+        document.getElementById('sim-brief-card').innerHTML = `
+            <div class="sim-brief-head">
+                <i class="ph-bold ph-clipboard-text"></i>
+                <div>
+                    <div data-i18n="simulation.nhiemVuDuocGiao" class="small muted">Nhiệm vụ được giao</div>
+                    <h3>${esc(start.title)}</h3>
+                </div>
+            </div>
+            ${start.description ? `<p class="sim-brief-text">${esc(start.description)}</p>` : ''}
+            <div class="sim-brief-stat">
+                <div><b>${nodeList.length}</b><span>${esc(noun)} cần xử lý</span></div>
+                <div><b>${maxScore}</b><span data-i18n="simulation.diemToiDa">điểm tối đa</span></div>
+                <div><b>${start.passScore}%</b><span data-i18n="simulation.deDat">để đạt</span></div>
+            </div>
+            <p class="small muted">
+                ${isSequential
+                    ? `<i class="ph ph-list-numbers"></i> Đây là một quy trình: các ${esc(noun)} mở khóa lần lượt, phải xong ${esc(noun)} trước mới sang ${esc(noun)} sau.`
+                    : `<i class="ph ph-magnifying-glass"></i> Bạn có thể xử lý các ${esc(noun)} theo thứ tự bất kỳ.`}
+                Chọn đúng được cộng điểm, chọn sai bị trừ điểm và điểm có thể xuống dưới 0.
+            </p>
+            <div class="text-right"><button data-i18n="my-course.batDau" class="btn" id="btn-brief-close">Bắt đầu</button></div>`;
+        document.getElementById('btn-brief-close').addEventListener('click', () => briefEl.classList.add('hidden'));
+        briefEl.classList.remove('hidden');
+    }
+
+    // Chỉ tự mở khi bắt đầu một lượt mới; đang chơi dở mà tải lại trang thì vào thẳng cảnh.
+    if (answeredNodeIdSet.size === 0) openBrief();
+
+    // ==================== MARKER ====================
+    /** Vẽ lại một marker theo trạng thái hiện tại của nó. `result` chỉ có khi vừa trả lời xong. */
+    function paintMarker(node, index, result = null) {
+        const el = markerElMap.get(node.id);
+        const answered = answeredNodeIdSet.has(node.id);
+        const label = `${index + 1}. ${esc(node.title)}`;
+
+        if (answered) {
+            const correct = result ? result.isCorrect : null;
+            el.className = 'hotspot resolved' + (correct === false ? ' wrong' : '');
+            el.innerHTML = `<i class="ph-bold ph-${correct === false ? 'x' : 'check'}"></i>
+                            <span class="tip">${label}</span>`;
+            return;
+        }
+        // Mô phỏng quy trình: đánh số thứ tự ngay trên marker — người học nhìn là biết đang ở bước mấy.
+        el.className = 'hotspot';
+        el.innerHTML = `${isSequential ? `<span class="num">${index + 1}</span>` : '<i class="ph-bold ph-warning"></i>'}
+                        <span class="tip">${label}</span>`;
+    }
+
+    /** Bước hiện hành của một mô phỏng quy trình = ${noun} chưa xử lý có thứ tự nhỏ nhất. */
+    function currentNode() {
+        return nodeList.find(n => !answeredNodeIdSet.has(n.id)) ?? null;
+    }
+
+    /** Khóa các bước phía sau khi kịch bản yêu cầu làm tuần tự. Server cũng chặn việc này (xem
+     *  ScenarioController.Answer) — ở đây chỉ là để người học nhìn thấy được thứ tự, không phải hàng rào. */
+    function refreshMarkerState() {
+        const active = currentNode();
+        document.getElementById('chip-step').classList.toggle('hidden', !isSequential || !active);
+        if (isSequential && active) {
+            const activeIndex = nodeList.indexOf(active);
+            document.getElementById('step-value').textContent = `${activeIndex + 1}. ${active.title}`;
+        }
+        if (!isSequential) return;
+
+        nodeList.forEach(node => {
+            const el = markerElMap.get(node.id);
+            if (answeredNodeIdSet.has(node.id)) return;
+            const locked = active && node.id !== active.id;
+            el.classList.toggle('locked', !!locked);
+        });
+    }
+
+    function onMarkerClick(node) {
+        if (isSequential && !answeredNodeIdSet.has(node.id)) {
+            const active = currentNode();
+            if (active && active.id !== node.id) {
+                toastErr(`Hãy hoàn thành bước ${nodeList.indexOf(active) + 1} — ${active.title} — trước.`);
+                world.focus(active.positionX, active.positionY, active.positionZ);
+                return;
+            }
+        }
+        world.focus(node.positionX, node.positionY, node.positionZ);
+        openNode(node);
+    }
+
+    // ==================== CHUYỂN CHẾ ĐỘ XEM (cảnh mô phỏng ↔ model tham khảo) ====================
+    // Model tham khảo (nếu bối cảnh có) được nhúng qua iframe Sketchfab, tức là một ngữ cảnh WebGL RIÊNG do
+    // bên thứ ba điều khiển — không thể đưa vào cùng cảnh với mô phỏng, cũng không gắn được marker lên. Vì
+    // vậy nó đứng thành một tab tư liệu bên cạnh, và khi tab đó bật thì vòng lặp render của cảnh mô phỏng
+    // dừng hẳn để không có hai bộ WebGL cùng chạy.
+    if (sceneDef.reference) {
+        const ref = sceneDef.reference;
+        tabsEl.innerHTML = `
+            <button type="button" class="active" data-view="scene">
+                <i class="ph-bold ph-cube"></i><span>${esc(sceneName)}</span>
+            </button>
+            <button type="button" data-view="model">
+                <i class="ph-bold ${esc(ref.tabIcon)}"></i><span>${esc(ref.tabLabel)}</span>
+            </button>`;
+        tabsEl.classList.remove('hidden');
+        tabsEl.addEventListener('click', ev => {
+            const btn = ev.target.closest('button[data-view]');
+            if (!btn || btn.classList.contains('active')) return;
+            tabsEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+            setView(btn.dataset.view, ref);
+        });
+    }
+
+    function setView(view, ref) {
+        const isScene = view === 'scene';
+        wrapEl.classList.toggle('hidden', !isScene);
+        embedEl.classList.toggle('hidden', isScene);
+        creditEl.classList.toggle('hidden', isScene);
+        world.setRunning(isScene);
+        if (isScene) { closePanel(); return; }
+
+        const modelUrl = `https://sketchfab.com/3d-models/${ref.title.toLowerCase().replace(/\s+/g, '-')}-${ref.modelId}`;
+        creditEl.innerHTML = `
+            <i class="ph ph-info"></i>
+            <span>Mô hình <a href="${modelUrl}" target="_blank" rel="nofollow noopener">${esc(ref.title)}</a>
+            của <a href="https://sketchfab.com/${esc(ref.author)}" target="_blank" rel="nofollow noopener">${esc(ref.author)}</a>
+            trên <a href="https://sketchfab.com" target="_blank" rel="nofollow noopener">Sketchfab</a>.</span>`;
+
+        if (embedEl.childElementCount === 0) {
+            embedEl.innerHTML = `
+                <iframe title="${esc(ref.title)}" frameborder="0" allowfullscreen
+                        mozallowfullscreen="true" webkitallowfullscreen="true"
+                        allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking
+                        execution-while-out-of-viewport execution-while-not-rendered web-share
+                        src="https://sketchfab.com/models/${ref.modelId}/embed?autospin=0.3&autostart=1&ui_theme=dark"></iframe>`;
+        }
+    }
+
+    // ==================== BẢNG XỬ LÝ TÌNH HUỐNG ====================
+    function openNode(node) {
+        const index = nodeList.indexOf(node);
+        const answered = answeredNodeIdSet.has(node.id);
+        panelBodyEl.innerHTML = `
+            <div class="small muted" style="margin-bottom:6px">${isSequential ? `Bước ${index + 1}/${nodeList.length}` : `${esc(noun)} ${index + 1}/${nodeList.length}`}</div>
+            <h3 style="margin-bottom:10px;padding-right:28px">${esc(node.title)}</h3>
+            <p class="small muted mb">${esc(node.situationText)}</p>
+            ${nodeMediaHtml(node.mediaUrl)}
+            <div class="small muted" style="margin-bottom:6px"><b data-i18n="simulation.banXuLyTheNao">Bạn xử lý thế nào?</b></div>
+            <div id="node-choice-list">
+                ${node.choiceList.map(c => `<div class="option" data-choice="${c.id}" style="cursor:pointer">
+                    <span><i class="ph ph-circle"></i></span><span>${esc(c.content)}</span></div>`).join('')}
+            </div>
+            <div id="node-feedback-box"></div>`;
+
+        if (answered) {
+            panelBodyEl.querySelector('#node-choice-list').innerHTML =
+                `<div class="small muted"><i class="ph ph-check-circle"></i> Bạn đã xử lý ${esc(noun)} này.</div>`;
+        } else {
+            panelBodyEl.querySelectorAll('[data-choice]').forEach(el =>
+                el.addEventListener('click', () => submitChoice(node, +el.dataset.choice)));
+        }
+
+        openPanel();
+    }
+
+    /** Ảnh/video minh họa kèm tình huống (nếu người soạn bài có gắn). Nhận diện theo đuôi tệp vì URL do
+     *  chính hệ thống sinh ra khi tải lên, không phải liên kết ngoài. */
+    function nodeMediaHtml(mediaUrl) {
+        if (!mediaUrl) return '';
+        const isVideo = /\.(mp4|webm)$/i.test(mediaUrl);
+        return isVideo
+            ? `<video class="sim-node-media" src="${esc(mediaUrl)}" controls preload="metadata"></video>`
+            : `<img class="sim-node-media" src="${esc(mediaUrl)}" alt="">`;
+    }
+
+    async function submitChoice(node, choiceId) {
+        panelBodyEl.querySelectorAll('[data-choice]').forEach(el => el.style.pointerEvents = 'none');
+        let result;
+        try {
+            result = await API.post(`/scenario/attempt/${attemptId}/answer`, { nodeId: node.id, choiceId });
+        } catch (ex) {
+            toastErr(ex.message);
+            panelBodyEl.querySelectorAll('[data-choice]').forEach(el => el.style.pointerEvents = '');
+            return;
+        }
+
+        answeredNodeIdSet.add(node.id);
+        score = result.newScore;
+        updateScoreHud();
+        updateFinishButton();
+        popScore(result.pointsEarned);
+        paintMarker(node, nodeList.indexOf(node), result);
+        refreshMarkerState();
+
+        panelBodyEl.querySelectorAll('[data-choice]').forEach(el => {
+            const id = +el.dataset.choice;
+            if (id === result.correctChoiceId) el.classList.add('correct');
+            else if (id === choiceId) el.classList.add('wrong');
+        });
+
+        const next = currentNode();
+        document.getElementById('node-feedback-box').innerHTML = `
+            <div class="mt" style="padding-top:14px;border-top:1px solid var(--border)">
+                <b style="color:${result.isCorrect ? 'var(--success)' : 'var(--danger)'}">
+                    ${result.isCorrect ? '<i class="ph ph-check-circle"></i> Xử lý đúng' : '<i class="ph ph-x-circle"></i> Xử lý chưa đúng'}
+                    (${result.pointsEarned >= 0 ? '+' : ''}${result.pointsEarned} điểm)
+                </b>
+                ${result.feedback ? `<p class="small muted mt">${esc(result.feedback)}</p>` : ''}
+                ${next ? `<button class="btn ghost sm mt" id="btn-next-node">
+                    Tới ${esc(noun)} tiếp theo: ${esc(next.title)} <i class="ph ph-arrow-right"></i></button>` : ''}
+            </div>`;
+
+        document.getElementById('btn-next-node')?.addEventListener('click', () => {
+            world.focus(next.positionX, next.positionY, next.positionZ);
+            openNode(next);
+        });
+    }
+
+    function popScore(delta) {
+        const chip = document.getElementById('chip-score');
+        const pop = document.createElement('span');
+        pop.className = 'score-pop ' + (delta >= 0 ? 'pos' : 'neg');
+        pop.textContent = (delta >= 0 ? '+' : '') + delta;
+        const rect = chip.getBoundingClientRect();
+        const wrapRect = wrapEl.getBoundingClientRect();
+        pop.style.left = `${rect.left - wrapRect.left + rect.width / 2}px`;
+        pop.style.top = `${rect.top - wrapRect.top}px`;
+        wrapEl.appendChild(pop);
+        pop.addEventListener('animationend', () => pop.remove());
+    }
+
+    function updateScoreHud() {
+        document.getElementById('score-value').textContent = score;
+        document.getElementById('progress-value').textContent = `${answeredNodeIdSet.size}/${nodeList.length}`;
+        const chip = document.getElementById('chip-score');
+        chip.classList.toggle('score-neg', score < 0);
+        chip.classList.toggle('score-pos', score > 0);
+    }
+
+    function updateFinishButton() {
+        document.getElementById('btn-finish').disabled = answeredNodeIdSet.size < nodeList.length;
+    }
+
+    function openPanel() { panelEl.classList.add('open'); }
+    function closePanel() { panelEl.classList.remove('open'); }
+
+    document.getElementById('btn-finish').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-finish');
+        btn.disabled = true;
+        btn.textContent = t('fp.processing', 'Đang xử lý...');
+        try {
+            const result = await API.post(`/scenario/attempt/${attemptId}/finish`);
+            renderResult(result);
+        } catch (ex) { toastErr(ex.message); btn.disabled = false; btn.textContent = t('simulation.ketThucMoPhong', 'Kết thúc mô phỏng'); }
+    });
+
+    function renderResult(r) {
+        // Giải phóng hẳn ngữ cảnh WebGL trước khi gỡ khung cảnh: chỉ remove() phần tử thì driver vẫn giữ
+        // texture/shader của cả cảnh trong bộ nhớ GPU cho tới khi bộ dọn rác của trình duyệt đụng tới.
+        world.dispose();
+        stageEl.remove();
+        creditEl.remove();
+        tabsEl.remove();
+        setTopbarAction(`<button class="btn ghost sm" id="btn-back2"><i class="ph ph-arrow-left"></i> <span data-i18n="simulation.loTrinhHoc">Lộ trình học</span></button>`);
+        document.getElementById('btn-back2').addEventListener('click', () =>
+            location.href = `/pages/learn.html?enrollmentId=${enrollmentId}`);
+
+        document.getElementById('sim-title').textContent = r.title;
+        document.getElementById('sim-meta').textContent = `Lượt chơi #${r.attemptNo}`;
+
+        document.getElementById('sim-result-box').innerHTML = `
+            <div style="padding:20px">
+                <div class="grid grid-3 mb">
+                    <div class="stat ${r.score < 0 ? 'bad' : ''}"><div data-i18n="simulation.diemDatDuoc" class="label">Điểm đạt được</div><div class="value">${r.score}/${r.maxScore}</div></div>
+                    <div class="stat"><div data-i18n="simulation.tiLeDiem" class="label">Tỉ lệ điểm</div><div class="value">${r.scorePercent}%</div></div>
+                    ${resultTile(r.isPassed)}
+                </div>
+                <div id="result-item-list">
+                    ${r.itemList.map((it, i) => `
+                        <div class="question">
+                            <div class="q-head">
+                                <div class="q-no" style="background:${it.isCorrect ? 'var(--success)' : 'var(--danger)'}">${i + 1}</div>
+                                <div style="flex:1">
+                                    <b>${esc(it.nodeTitle)}</b>
+                                    <div class="small muted">Đã chọn: ${esc(it.choiceContent)} (${it.pointsEarned >= 0 ? '+' : ''}${it.pointsEarned} điểm)</div>
+                                    ${it.feedback ? `<div class="small muted mt">${esc(it.feedback)}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>`).join('')}
+                </div>
+                <div class="flex-between mt" style="border-top:1px solid var(--border);padding-top:16px">
+                    <span data-i18n="simulation.banCoTheChoiLaiDeCaiThienDiemS" class="small muted">Bạn có thể chơi lại để cải thiện điểm số bất cứ lúc nào.</span>
+                    <div class="flex gap-sm">
+                        <button data-i18n="simulation.choiLai" class="btn ghost" onclick="location.reload()">Chơi lại</button>
+                        <a data-i18n="simulation.quayLaiLoTrinhHoc" class="btn" href="/pages/learn.html?enrollmentId=${enrollmentId}">Quay lại lộ trình học</a>
+                    </div>
+                </div>
+            </div>`;
+    }
+})();
+</script>
+</body>
+</html>

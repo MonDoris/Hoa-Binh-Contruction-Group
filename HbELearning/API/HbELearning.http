@@ -1,0 +1,260 @@
+### File: HbELearning.http
+### Công cụ test API — cài extension "REST Client" (humao.rest-client) trong VS Code
+### Bấm "Send Request" phía trên từng khối ###
+
+@host = https://localhost:7294
+@adminEmail = admin@hbelearning.vn
+@adminPassword = Admin@123
+@learnerEmail = learner@hbelearning.vn
+@learnerPassword = Learner@123
+
+### ==================== 1. ĐĂNG NHẬP ====================
+# @name loginAdmin
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+###
+@adminToken = {{loginAdmin.response.body.token}}
+
+# @name loginLearner
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{learnerEmail}}",
+  "password": "{{learnerPassword}}"
+}
+
+###
+@learnerToken = {{loginLearner.response.body.token}}
+
+### Thông tin tài khoản đang đăng nhập
+GET {{host}}/api/auth/me
+Authorization: Bearer {{adminToken}}
+
+### Danh sách vai trò
+GET {{host}}/api/auth/role
+Authorization: Bearer {{adminToken}}
+
+### ==================== 2. TỔ CHỨC ====================
+### Danh sách phòng ban
+GET {{host}}/api/department
+Authorization: Bearer {{adminToken}}
+
+### Danh sách vị trí công việc
+GET {{host}}/api/position
+Authorization: Bearer {{adminToken}}
+
+### Danh sách người dùng (phân trang + lọc)
+GET {{host}}/api/user?page=1&pageSize=20
+Authorization: Bearer {{adminToken}}
+
+### Tạo người dùng mới
+POST {{host}}/api/user
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "employeeCode": "NV010",
+  "fullName": "Le Van Test",
+  "email": "test@hbelearning.vn",
+  "password": "Test@123",
+  "roleId": 3,
+  "departmentId": 1,
+  "positionId": 1
+}
+
+### ==================== 3. KHÓA HỌC ====================
+# @name createCourse
+POST {{host}}/api/course
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "code": "AT-001",
+  "title": "An toàn thông tin cơ bản",
+  "description": "Khóa học bắt buộc về bảo mật thông tin nội bộ.",
+  "durationMinutes": 90,
+  "passScore": 70,
+  "isMandatory": true,
+  "deadlineDay": 30
+}
+
+### Danh sách khóa học
+GET {{host}}/api/course?page=1&pageSize=20
+Authorization: Bearer {{adminToken}}
+
+### Chi tiết khóa học
+GET {{host}}/api/course/1
+Authorization: Bearer {{adminToken}}
+
+### Thêm đối tượng đào tạo mục tiêu (phòng ban IT)
+POST {{host}}/api/course/1/target
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{ "departmentId": 1 }
+
+### ==================== 4. BÀI HỌC ====================
+POST {{host}}/api/lesson
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "courseId": 1,
+  "title": "Bài 1 - Nhận diện tấn công Phishing",
+  "content": "<h3>Phishing là gì?</h3><p>Nội dung bài học...</p>",
+  "contentType": 0,
+  "durationMinutes": 30,
+  "orderIndex": 1,
+  "isActive": true
+}
+
+### Danh sách bài học của khóa
+GET {{host}}/api/lesson/by-course/1
+Authorization: Bearer {{adminToken}}
+
+### ==================== 5. BÀI KIỂM TRA ====================
+POST {{host}}/api/quiz
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "courseId": 1,
+  "title": "Kiểm tra cuối khóa - An toàn thông tin",
+  "passScore": 70,
+  "timeLimitMinutes": 20,
+  "maxAttempt": 3,
+  "isFinalExam": true,
+  "shuffleQuestion": true,
+  "isActive": true
+}
+
+### Thêm câu hỏi
+POST {{host}}/api/quiz/1/question
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "content": "Dấu hiệu nào sau đây cảnh báo một email lừa đảo?",
+  "questionType": 0,
+  "score": 1,
+  "orderIndex": 1,
+  "explanation": "Email lừa đảo thường tạo cảm giác khẩn cấp.",
+  "answerList": [
+    { "content": "Người gửi lạ, yêu cầu gấp", "isCorrect": true,  "orderIndex": 1 },
+    { "content": "Email từ đồng nghiệp quen",  "isCorrect": false, "orderIndex": 2 },
+    { "content": "Có chữ ký công ty",          "isCorrect": false, "orderIndex": 3 }
+  ]
+}
+
+### Xem bài kiểm tra kèm đáp án (chỉ Admin/Trainer)
+GET {{host}}/api/quiz/1/manage
+Authorization: Bearer {{adminToken}}
+
+### ==================== 6. LỘ TRÌNH HỌC TẬP ====================
+### Tự sinh lộ trình từ bài học + bài kiểm tra hiện có
+POST {{host}}/api/learningpath/auto-generate/1
+Authorization: Bearer {{adminToken}}
+
+### Xem lộ trình
+GET {{host}}/api/learningpath/by-course/1
+Authorization: Bearer {{adminToken}}
+
+### ==================== 7. XUẤT BẢN & PHÂN CÔNG ====================
+### Xuất bản khóa học (0=Draft, 1=Published, 2=Archived)
+PATCH {{host}}/api/course/1/status?status=1
+Authorization: Bearer {{adminToken}}
+
+### Phân công cho danh sách người học
+POST {{host}}/api/enrollment/assign
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "courseId": 1,
+  "userIdList": [3]
+}
+
+### Phân công hàng loạt theo phòng ban
+POST {{host}}/api/enrollment/assign-by-target
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "courseId": 1,
+  "departmentId": 1
+}
+
+### ==================== 8. NGƯỜI HỌC HỌC BÀI ====================
+### Khóa học của tôi
+GET {{host}}/api/enrollment/my
+Authorization: Bearer {{learnerToken}}
+
+### Chi tiết + lộ trình học tập
+GET {{host}}/api/enrollment/1
+Authorization: Bearer {{learnerToken}}
+
+### Bắt đầu học bài
+POST {{host}}/api/progress/lesson/start?enrollmentId=1&lessonId=1
+Authorization: Bearer {{learnerToken}}
+
+### Cập nhật thời gian học / vị trí video
+POST {{host}}/api/progress/lesson/heartbeat?enrollmentId=1&lessonId=1&timeSpentSecond=60&lastPositionSecond=120
+Authorization: Bearer {{learnerToken}}
+
+### Hoàn thành bài học
+POST {{host}}/api/progress/lesson/complete?enrollmentId=1&lessonId=1
+Authorization: Bearer {{learnerToken}}
+
+### ==================== 9. LÀM BÀI KIỂM TRA ====================
+# @name startQuiz
+POST {{host}}/api/quiz/1/start?enrollmentId=1
+Authorization: Bearer {{learnerToken}}
+
+###
+@attemptId = {{startQuiz.response.body.attemptId}}
+
+### Nộp bài (thay answerId theo kết quả trả về từ startQuiz)
+POST {{host}}/api/quiz/attempt/{{attemptId}}/submit
+Authorization: Bearer {{learnerToken}}
+Content-Type: application/json
+
+{
+  "answerList": [
+    { "questionId": 1, "selectedAnswerIdList": [1] }
+  ]
+}
+
+### Xem lại kết quả
+GET {{host}}/api/quiz/attempt/1/result
+Authorization: Bearer {{learnerToken}}
+
+### ==================== 10. CHỨNG NHẬN ====================
+### Chứng nhận của tôi
+GET {{host}}/api/certificate/my
+Authorization: Bearer {{learnerToken}}
+
+### Xác thực công khai qua mã QR (KHÔNG cần token)
+GET {{host}}/api/certificate/verify/PASTE_VERIFICATION_CODE_HERE
+
+### ==================== 11. BÁO CÁO ====================
+GET {{host}}/api/report/overview
+Authorization: Bearer {{adminToken}}
+
+###
+GET {{host}}/api/report/course
+Authorization: Bearer {{adminToken}}
+
+###
+GET {{host}}/api/report/department
+Authorization: Bearer {{adminToken}}
+
+###
+GET {{host}}/api/report/learner
+Authorization: Bearer {{adminToken}}

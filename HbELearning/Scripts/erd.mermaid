@@ -1,0 +1,30 @@
+erDiagram
+    ROLE       ||--o{ USER            : "phan quyen"
+    DEPARTMENT ||--o{ POSITION        : "chua"
+    DEPARTMENT ||--o{ USER            : "thuoc ve"
+    POSITION   ||--o{ USER            : "giu vi tri"
+
+    USER       ||--o{ COURSE          : "tao (Trainer)"
+    COURSE     ||--o{ COURSE_TARGET   : "danh cho"
+    DEPARTMENT ||--o{ COURSE_TARGET   : "muc tieu"
+    POSITION   ||--o{ COURSE_TARGET   : "muc tieu"
+
+    COURSE     ||--o{ LESSON          : "gom"
+    COURSE     ||--o{ QUIZ            : "gom"
+    COURSE     ||--|| LEARNING_PATH   : "co lo trinh"
+    LEARNING_PATH ||--o{ PATH_ITEM    : "gom buoc"
+    LESSON     ||--o{ PATH_ITEM       : "duoc tham chieu"
+    QUIZ       ||--o{ PATH_ITEM       : "duoc tham chieu"
+
+    QUIZ       ||--o{ QUESTION        : "gom"
+    QUESTION   ||--o{ ANSWER          : "co dap an"
+
+    USER       ||--o{ ENROLLMENT      : "duoc phan cong"
+    COURSE     ||--o{ ENROLLMENT      : "duoc phan cong"
+    ENROLLMENT ||--o{ LESSON_PROGRESS : "theo doi tien do"
+    LESSON     ||--o{ LESSON_PROGRESS : "cua bai hoc"
+    ENROLLMENT ||--o{ QUIZ_ATTEMPT    : "lan lam bai"
+    QUIZ       ||--o{ QUIZ_ATTEMPT    : "cua bai kiem tra"
+    QUIZ_ATTEMPT ||--o{ ATTEMPT_DETAIL : "chi tiet tra loi"
+    QUESTION   ||--o{ ATTEMPT_DETAIL  : "cua cau hoi"
+    ENROLLMENT ||--|| CERTIFICATE     : "cap chung nhan"

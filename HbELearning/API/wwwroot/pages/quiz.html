@@ -1,0 +1,286 @@
+<!-- File: wwwroot/pages/quiz.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="quiz.baiKiemTraHbELearning">Bài kiểm tra · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content" id="content"></div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.require()) return;
+
+    const mode = qs('mode');
+    const enrollmentId = parseInt(qs('enrollmentId') || '0', 10);
+    const quizId = parseInt(qs('quizId') || '0', 10);
+    const attemptId = parseInt(qs('attemptId') || '0', 10);
+
+    const content = document.getElementById('content');
+    let quiz = null, countdownTimer = null, submitted = false;
+
+    mountLayout('my-course', t('index.stat-quiz', 'Bài kiểm tra'), '');
+    setTopbarAction(`<a href="${enrollmentId ? `/pages/learn.html?enrollmentId=${enrollmentId}` : '/pages/my-course.html'}" class="btn ghost sm"><i class="ph ph-arrow-left"></i> <span data-i18n="quiz.quayLaiKhoaHoc">Quay lại khóa học</span></a>`);
+
+    if (attemptId) await showResult(attemptId);
+    else if (mode === 'history') await showHistory();
+    else await startQuiz();
+
+    // ==================== BẮT ĐẦU LÀM BÀI ====================
+    async function startQuiz() {
+        content.innerHTML = skeletonHtml('detail', { lines: 5 });
+        try {
+            quiz = await API.post(`/quiz/${quizId}/start?enrollmentId=${enrollmentId}`);
+        } catch (ex) {
+            content.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+            return;
+        }
+
+        document.querySelector('.topbar h1').textContent = quiz.quizTitle;
+
+        content.innerHTML = `
+            <div class="quiz-layout">
+                <div class="card">
+                    <div class="card-head">
+                        <div>
+                            <h3>Lượt làm bài thứ ${quiz.attemptNo}/${quiz.maxAttempt}</h3>
+                            <div class="small muted">${quiz.questionList.length} câu hỏi · Điểm đạt: ${quiz.passScore}</div>
+                        </div>
+                        <div class="timer" id="timer">--:--</div>
+                    </div>
+                    <div class="card-body">
+                        <form id="quiz-form">
+                            ${quiz.questionList.map((q, i) => questionHtml(q, i)).join('')}
+                        </form>
+                    </div>
+                    <div class="card-head" style="border-top:1px solid var(--border);border-bottom:none">
+                        <span class="small muted" id="answered-count"></span>
+                        <button data-i18n="quiz.nopBai" class="btn success" id="btn-submit">Nộp bài</button>
+                    </div>
+                </div>
+
+                <!-- Bảng câu hỏi: nhìn một cái là biết đề có mấy câu, đã làm tới đâu, còn sót câu nào — thứ mà
+                     một đề dài phải cuộn hết lên xuống mới nắm được. Bấm số là nhảy thẳng tới câu đó. -->
+                <div class="card quiz-nav-card">
+                    <div class="card-head"><h3 data-i18n="quiz.bangCauHoi">Bảng câu hỏi</h3></div>
+                    <div class="card-body">
+                        <div class="quiz-nav-count" id="quiz-nav-count"></div>
+                        <div class="qgrid" id="quiz-nav-grid"></div>
+                        <div class="qgrid-legend">
+                            <span><i></i> ${esc(t('quiz.chuaTraLoi', 'Chưa trả lời'))}</span>
+                            <span><i class="lg-passed"></i> ${esc(t('quiz.daTraLoi', 'Đã trả lời'))}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        document.getElementById('btn-submit').addEventListener('click', () => submit(false));
+        document.getElementById('quiz-form').addEventListener('change', updateCount);
+        renderQuizNav();
+        updateCount();
+        startCountdown(new Date(quiz.deadlineAt));
+
+        window.addEventListener('beforeunload', (e) => {
+            if (!submitted) { e.preventDefault(); e.returnValue = ''; }
+        });
+    }
+
+    function questionHtml(question, index) {
+        const multiple = question.questionType === 'MultipleChoice';
+        const inputType = multiple ? 'checkbox' : 'radio';
+
+        return `<div class="question" id="q-${question.id}">
+            <div class="q-head">
+                <div class="q-no">${index + 1}</div>
+                <div>
+                    <div><b>${esc(question.content)}</b></div>
+                    <div class="small muted">${multiple ? 'Chọn nhiều đáp án' : t('course-detail.chonMotDapAn', 'Chọn một đáp án')} · ${question.score} điểm</div>
+                </div>
+            </div>
+            ${question.answerList.map(a => `
+                <label class="option">
+                    <input type="${inputType}" name="q_${question.id}" value="${a.id}">
+                    <span>${esc(a.content)}</span>
+                </label>`).join('')}
+        </div>`;
+    }
+
+    /** Một câu đã có đáp án được chọn hay chưa.
+     *  Khai báo dạng function chứ không phải const arrow: startQuiz() gọi updateCount() ngay khi vừa dựng xong
+     *  đề bài, tại thời điểm đó một "const isAnswered = ..." đặt ở đây vẫn còn trong Temporal Dead Zone —
+     *  updateCount ném ReferenceError, startQuiz đổ vỡ giữa chừng nên đồng hồ đếm ngược không bao giờ khởi
+     *  động, mà lỗi thì chìm vào promise không ai bắt nên console sạch trơn. */
+    function isAnswered(question) {
+        return !!document.querySelector(`input[name="q_${question.id}"]:checked`);
+    }
+
+    /** Vẽ bảng câu hỏi. Bấm một số thì cuộn tới đúng câu đó và nháy viền cho dễ định vị. */
+    function renderQuizNav() {
+        const grid = document.getElementById('quiz-nav-grid');
+        grid.innerHTML = quiz.questionList.map((q, i) =>
+            `<button type="button" class="qgrid-item" data-goto="${q.id}"
+                     title="Câu ${i + 1}: ${esc(q.content)}">${i + 1}</button>`).join('');
+
+        grid.querySelectorAll('[data-goto]').forEach(button => {
+            button.addEventListener('click', () => {
+                const box = document.getElementById(`q-${button.dataset.goto}`);
+                if (!box) return;
+                box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Đánh dấu tạm câu vừa nhảy tới: cuộn xong giữa một đề dài toàn câu giống nhau thì không biết
+                // mình đang đứng ở câu nào nữa.
+                box.classList.add('q-flash');
+                setTimeout(() => box.classList.remove('q-flash'), 1200);
+            });
+        });
+    }
+
+    function updateCount() {
+        const answered = quiz.questionList.filter(isAnswered).length;
+        document.getElementById('answered-count').textContent =
+            `Đã trả lời ${answered}/${quiz.questionList.length} câu hỏi`;
+
+        const count = document.getElementById('quiz-nav-count');
+        if (count) count.innerHTML = `<b>${answered}</b>/${quiz.questionList.length} câu đã trả lời`;
+
+        // Tô ô của những câu đã chọn đáp án. Chỉ hai trạng thái (chưa làm / đã làm): lúc đang làm bài chưa
+        // chấm nên hệ thống không biết câu nào đúng, tô thêm màu "đã đạt" là nói dối học viên.
+        quiz.questionList.forEach(q => {
+            const cell = document.querySelector(`#quiz-nav-grid [data-goto="${q.id}"]`);
+            if (cell) cell.classList.toggle('passed', isAnswered(q));
+        });
+    }
+
+    function startCountdown(deadline) {
+        const el = document.getElementById('timer');
+        countdownTimer = setInterval(() => {
+            const left = Math.max(0, Math.floor((deadline - new Date()) / 1000));
+            const mm = String(Math.floor(left / 60)).padStart(2, '0');
+            const ss = String(left % 60).padStart(2, '0');
+            el.textContent = `${mm}:${ss}`;
+            el.classList.toggle('danger', left <= 60);
+
+            if (left <= 0) {
+                clearInterval(countdownTimer);
+                toastErr(t('quiz.hetGioHeThongTuDongNopBai', 'Hết giờ! Hệ thống tự động nộp bài.'));
+                submit(true);
+            }
+        }, 500);
+    }
+
+    async function submit(auto) {
+        if (submitted) return;
+        if (!auto && !await confirmDialog(t('quiz.banChacChanMuonNopBaiSauKhiNop', 'Bạn chắc chắn muốn nộp bài? Sau khi nộp không thể sửa đáp án.'), { okText: t('quiz.nopBai', 'Nộp bài') })) return;
+
+        submitted = true;
+        clearInterval(countdownTimer);
+
+        const button = document.getElementById('btn-submit');
+        if (button) { button.disabled = true; button.textContent = t('quiz.dangChamDiem', 'Đang chấm điểm...'); }
+
+        const answerList = quiz.questionList.map(q => ({
+            questionId: q.id,
+            selectedAnswerIdList: [...document.querySelectorAll(`input[name="q_${q.id}"]:checked`)]
+                .map(el => parseInt(el.value, 10))
+        }));
+
+        try {
+            const result = await API.post(`/quiz/attempt/${quiz.attemptId}/submit`, { answerList });
+            renderResult(result);
+        } catch (ex) {
+            submitted = false;
+            toastErr(ex.message);
+            if (button) { button.disabled = false; button.textContent = t('quiz.nopBai', 'Nộp bài'); }
+        }
+    }
+
+    // ==================== KẾT QUẢ ====================
+    async function showResult(id) {
+        content.innerHTML = skeletonHtml('stats', { count: 4 }) + skeletonHtml('detail', { lines: 5 });
+        try { renderResult(await API.get(`/quiz/attempt/${id}/result`)); }
+        catch (ex) { content.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    function renderResult(result) {
+        document.querySelector('.topbar h1').textContent = `Kết quả · ${result.quizTitle}`;
+
+        content.innerHTML = `
+            <div class="grid grid-4 mb">
+                ${resultTile(result.isPassed, { foot: `${t('quiz.diemDatToiThieu', 'Điểm đạt tối thiểu')}: ${result.passScore}` })}
+                <div class="stat accent"><div data-i18n="quiz.diemSoThang100" class="label">Điểm số (thang 100)</div><div class="value">${result.score}</div></div>
+                <div class="stat"><div data-i18n="quiz.soCauDung" class="label">Số câu đúng</div><div class="value">${result.correctCount}/${result.totalQuestion}</div></div>
+                <div class="stat"><div data-i18n="quiz.luotLamBai" class="label">Lượt làm bài</div><div class="value">${result.attemptNo}</div>
+                    <div class="foot">${formatDate(result.submittedAt, true)}</div></div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <h3 data-i18n="quiz.chiTietDapAn">Chi tiết đáp án</h3>
+                    <a href="/pages/learn.html?enrollmentId=${enrollmentId}" class="btn ghost sm"><i class="ph ph-arrow-left"></i> <span data-i18n="quiz.veLoTrinhKhoaHoc">Về lộ trình khóa học</span></a>
+                </div>
+                <div class="card-body">
+                    ${result.itemList.map((item, i) => `
+                        <div class="question">
+                            <div class="q-head">
+                                <div class="q-no" style="background:${item.isCorrect ? 'var(--success)' : 'var(--danger)'}">
+                                    ${item.isCorrect ? '<i class="ph-bold ph-check"></i>' : '<i class="ph-bold ph-x"></i>'}
+                                </div>
+                                <div>
+                                    <div><b>Câu ${i + 1}. ${esc(item.content)}</b></div>
+                                    <div class="small muted">Điểm: ${item.earnedScore}/${item.maxScore}</div>
+                                </div>
+                            </div>
+                            ${item.explanation ? `<div class="small" style="background:var(--info-light);padding:10px 13px;border-radius:8px;margin-top:8px">
+                                <i class="ph ph-lightbulb"></i> ${esc(item.explanation)}</div>` : ''}
+                        </div>`).join('')}
+                </div>
+            </div>`;
+    }
+
+    // ==================== LỊCH SỬ LÀM BÀI ====================
+    async function showHistory() {
+        content.innerHTML = skeletonHtml('list', { count: 4, avatar: false });
+        try {
+            const list = await API.get(`/quiz/${quizId}/my-attempt?enrollmentId=${enrollmentId}`);
+            content.innerHTML = `
+                <div class="card">
+                    <div class="card-head"><h3 data-i18n="quiz.lichSuLamBai">Lịch sử làm bài</h3></div>
+                    <div class="table-wrap"><table>
+                        <thead><tr><th data-i18n="quiz.luot">Lượt</th><th data-i18n="certificate.diem">Điểm</th><th data-i18n="learn.ketQua">Kết quả</th><th data-i18n="my-course.batDau">Bắt đầu</th><th data-i18n="quiz.nopBai">Nộp bài</th><th class="text-right"></th></tr></thead>
+                        <tbody>${list.length ? list.map(a => `
+                            <tr>
+                                <td>Lần ${a.attemptNo}</td>
+                                <td><b>${a.score}</b></td>
+                                <td>${a.isPassed ? '<span data-i18n="my-course.dat" class="badge green">Đạt</span>' : '<span data-i18n="my-course.chuaDat" class="badge red">Chưa đạt</span>'}</td>
+                                <td class="nowrap">${formatDate(a.startedAt, true)}</td>
+                                <td class="nowrap">${formatDate(a.submittedAt, true)}</td>
+                                <td class="text-right"><a data-i18n="quiz.xemChiTiet" class="btn ghost sm" href="/pages/quiz.html?attemptId=${a.id}&enrollmentId=${enrollmentId}">Xem chi tiết</a></td>
+                            </tr>`).join('') : `<tr><td colspan="6">${emptyHtml(t('quiz.chuaCoLuotLamBaiNao', 'Chưa có lượt làm bài nào.'))}</td></tr>`}
+                        </tbody>
+                    </table></div>
+                </div>`;
+        } catch (ex) {
+            content.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        }
+    }
+})();
+</script>
+</body>
+</html>

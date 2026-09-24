@@ -1,0 +1,12 @@
+{
+  "name": "hbelearning-tools",
+  "private": true,
+  "type": "module",
+  "description": "Công cụ dựng tài nguyên 3D cho HbELearning — không phải một gói xuất bản, chỉ để chạy Scripts/*.mjs.",
+  "devDependencies": {
+    "@gltf-transform/core": "^4.0.0",
+    "@gltf-transform/functions": "^4.0.0",
+    "fbx2gltf": "^0.9.7",
+    "sharp": "^0.33.0"
+  }
+}

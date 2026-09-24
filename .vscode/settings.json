@@ -1,0 +1,18 @@
+{
+    // Ẩn thư mục kết quả biên dịch và gói npm khỏi cây thư mục: mỗi project trong bốn project đều sinh
+    // bin/ và obj/ riêng, để hiện hết thì bốn lớp kiến trúc bị chìm giữa đống thư mục máy sinh ra.
+    // Muốn xem lại thì đổi true thành false (hoặc xóa hẳn dòng đó).
+    "files.exclude": {
+        "**/bin": true,
+        "**/obj": true,
+        "**/node_modules": true
+    },
+    // Bỏ qua chúng khi tìm kiếm toàn văn, nếu không mỗi lần tìm sẽ ra hàng nghìn kết quả trong DLL.
+    "search.exclude": {
+        "**/bin": true,
+        "**/obj": true,
+        "**/node_modules": true
+    },
+    // Chỉ rõ solution để tiện ích C# không phải tự dò (workspace này có tệp .docx và thư mục deploy lẫn vào).
+    "dotnet.defaultSolution": "HbELearning/HbELearning.sln"
+}

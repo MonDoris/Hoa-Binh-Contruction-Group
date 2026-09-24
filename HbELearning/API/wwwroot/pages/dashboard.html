@@ -1,0 +1,547 @@
+﻿<!-- File: wwwroot/pages/dashboard.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="dashboard.pageTitle">Tổng quan · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content" id="content"></div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.require()) return;
+    mountLayout('dashboard', t('menu.dashboard', 'Tổng quan'), `${greeting()}, ${Auth.profile.fullName}`);
+
+    // Khai báo TRƯỚC lời gọi render bên dưới. Đặt xuống cạnh discoverHtml() cho gần chỗ dùng thì đẹp mắt
+    // hơn, nhưng renderLearner() chạy ngay ở dòng dưới đây — lúc đó một "let" nằm phía sau vẫn còn trong
+    // Temporal Dead Zone và đọc vào là lỗi "Cannot access before initialization".
+    let cardDataList = [];
+
+    const content = document.getElementById('content');
+    content.innerHTML = skeletonHtml('stats', { count: 4 }) + skeletonHtml('cards', { count: 6 });
+
+    try {
+        // Trưởng Nhóm vừa soạn nội dung vừa là người được giao khóa để học, nên đi nhánh riêng: giữ
+        // nguyên bố cục của học viên rồi kẹp thêm phần quản lý. Admin và Tổng Giám Đốc không có lộ trình
+        // học của riêng mình nên vẫn chỉ thấy số liệu.
+        content.innerHTML = Auth.isTrainer
+            ? await renderTrainer()
+            : (Auth.isAdmin || Auth.isManagingDirector)
+                ? await renderManager()
+                : await renderLearner();
+        bindCourseFilter();
+        bindSelfEnroll();
+        // Nút Duyệt / Từ chối trong khối "Khóa học chờ bạn duyệt" dùng chung bộ xử lý với trang Quản lý
+        // khóa học. Duyệt xong thì dựng lại cả trang: khóa vừa duyệt phải rời khỏi danh sách chờ, mà nó
+        // cũng có thể vừa được xuất bản và xuất hiện ở phần khóa học có thể học bên dưới.
+        bindCourseWorkflowButtons(content, () => location.reload());
+    } catch (ex) {
+        content.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+    }
+
+    function greeting() {
+        const hour = new Date().getHours();
+        if (hour >= 6 && hour < 12) return t('greeting.morning', 'Chào buổi sáng');
+        if (hour >= 12 && hour < 14) return t('greeting.noon', 'Chào buổi trưa');
+        if (hour >= 14 && hour < 18) return t('greeting.afternoon', 'Chào buổi chiều');
+        if (hour >= 18 && hour < 24) return t('greeting.evening', 'Chào buổi tối');
+        return t('greeting.night', 'Chúc bạn ngủ ngon');
+    }
+
+    // ==================== NGƯỜI HỌC ====================
+    async function renderLearner() {
+        // Gọi song song và cho phép hỏng lẻ: mỗi ô là một mảng độc lập, một API lỗi không được kéo cả
+        // trang xuống trạng thái lỗi.
+        const [enrollmentList, availableList, dashboard, rankStatus, leaderboard, pendingApprovalList] = await Promise.all([
+            API.get('/enrollment/my'),
+            API.getSilent('/course/my-available').catch(() => []),
+            API.getSilent('/dashboard/learner').catch(() => null),
+            API.getSilent('/ranking/me').catch(() => null),
+            API.getSilent('/ranking/leaderboard?top=4').catch(() => []),
+            loadPendingApprovalList(),
+        ]);
+
+        return `<div class="dash-layout">
+            <div>
+                ${pendingApprovalHtml(pendingApprovalList)}
+                ${heroHtml(enrollmentList, rankStatus)}
+                ${discoverHtml(enrollmentList, availableList)}
+            </div>
+            <aside class="dash-side">
+                ${missionHtml(dashboard)}
+                ${streakHtml(dashboard)}
+                ${leaderboardHtml(leaderboard)}
+            </aside>
+        </div>`;
+    }
+
+    // ---------- Khóa học đang chờ chính người này duyệt ----------
+    //
+    // Trưởng phòng và Giám Đốc là người ĐI DUYỆT nhưng trang Tổng quan của họ vốn chỉ có phần người học —
+    // muốn biết có gì đang chờ mình thì phải tự nhớ mà mở trang Quản lý khóa học. Việc chờ duyệt là việc
+    // chặn người khác: khóa học nằm im ở đó thì học viên không được giao bài, nên nó phải nằm ngay đầu
+    // trang đầu tiên họ nhìn thấy sau khi đăng nhập.
+
+    /** Khóa học ở trạng thái chờ duyệt mà CHÍNH người đang đăng nhập được duyệt.
+     *
+     *  Lọc bằng canApproveCourse() dùng chung với trang Quản lý khóa học chứ không tự đoán lại theo vai trò:
+     *  luồng cấp duyệt do Admin định nghĩa có thể giao một bước cho phòng ban khác hẳn phòng ban người tạo,
+     *  đoán theo vai trò là kê ra những khóa mở vào không bấm được gì. */
+    async function loadPendingApprovalList() {
+        // Người soạn nội dung và Admin không nằm trong chuỗi duyệt — khỏi gọi API cho một khối chắc chắn rỗng.
+        if (Auth.isAdmin || Auth.isTrainer) return { courseList: [], hrDepartmentId: null };
+
+        try {
+            const [result, departmentList] = await Promise.all([
+                API.getSilent('/course?page=1&pageSize=100'),
+                API.getSilent('/department').catch(() => []),
+            ]);
+            const hrDepartmentId = departmentList.find(d => d.isHrDepartment)?.id ?? null;
+
+            return {
+                courseList: (result?.item || []).filter(c => canApproveCourse(c, hrDepartmentId)),
+                hrDepartmentId
+            };
+        } catch {
+            // Hỏng phần này thì bỏ qua cả khối, không kéo cả trang Tổng quan xuống trạng thái lỗi.
+            return { courseList: [], hrDepartmentId: null };
+        }
+    }
+
+    function pendingApprovalHtml({ courseList, hrDepartmentId }) {
+        // Không có gì chờ thì không hiện khối rỗng: với người vài tuần mới có một khóa cần duyệt, một ô
+        // "chưa có gì" thường trực chỉ chiếm chỗ của phần họ thật sự dùng hằng ngày.
+        if (!courseList.length) return '';
+
+        const rowHtml = courseList.map(c => `
+            <tr>
+                <td><a href="/pages/course-detail.html?id=${c.id}"><b>${esc(c.title)}</b></a>
+                    <div class="small muted">${esc(c.code)} · ${esc(t('course.nguoiTao', 'Người tạo'))}: ${esc(c.createdByName)}</div></td>
+                <td>${statusBadge(c.status)}
+                    ${c.approvalWorkflowName ? `<div class="small muted">${esc(pendingStepLabel(c))}</div>` : ''}</td>
+                <td class="small nowrap">${formatDate(c.createdAt)}</td>
+                <td class="text-right nowrap">${courseWorkflowActionsHtml(c, hrDepartmentId)}</td>
+            </tr>`).join('');
+
+        return `<section class="card mb">
+            <div class="card-head">
+                <h3><i class="ph-fill ph-stamp"></i> ${esc(t('dashboard.pendingApprovalTitle', 'Khóa học chờ bạn duyệt'))}
+                    <span class="badge orange">${courseList.length}</span></h3>
+                <a class="btn ghost sm" href="/pages/course.html">
+                    ${esc(t('menu.course', 'Quản lý khóa học'))} <i class="ph-bold ph-arrow-right"></i></a>
+            </div>
+            <div class="table-wrap"><table>
+                <thead><tr>
+                    <th>${esc(t('dashboard.colCourse', 'Khóa học'))}</th>
+                    <th>${esc(t('dashboard.colStatus', 'Trạng thái'))}</th>
+                    <th>${esc(t('course.ngayGui', 'Ngày gửi'))}</th>
+                    <th class="text-right">${esc(t('course.thaoTac', 'Thao tác'))}</th>
+                </tr></thead>
+                <tbody>${rowHtml}</tbody>
+            </table></div>
+        </section>`;
+    }
+
+    /** Tên bước đang chờ của khóa học chạy theo luồng cấp duyệt — "Bước 2/3: Giám Đốc IT duyệt". */
+    function pendingStepLabel(course) {
+        const stepNameList = course.approvalStepNameList || [];
+        const stepName = stepNameList[course.currentStepOrder - 1];
+
+        return stepName
+            ? `${course.approvalWorkflowName} · ${t('dashboard.stepOfTotal', 'Bước {current}/{total}', { current: course.currentStepOrder, total: stepNameList.length })}: ${stepName}`
+            : course.approvalWorkflowName;
+    }
+
+    // ---------- Hero "Tiếp tục học" ----------
+    function heroHtml(enrollmentList, rankStatus) {
+        // Khóa đang học dở, ưu tiên cái sắp tới hạn nhất — đó là việc cần làm trước, không phải cái mới nhận.
+        const current = enrollmentList
+            .filter(x => x.status !== 'Completed' && x.status !== 'Cancelled')
+            .sort((a, b) => (a.dueDate ? new Date(a.dueDate) : Infinity) - (b.dueDate ? new Date(b.dueDate) : Infinity))[0];
+
+        if (!current) {
+            return `<div class="dash-hero">
+                <div class="dash-hero-main">
+                    <span class="dash-hero-tag"><i class="ph-fill ph-confetti"></i> ${esc(t('dashboard.heroDoneTag', 'Không còn việc tồn'))}</span>
+                    <h2>${esc(t('dashboard.heroDoneTitle', 'Bạn đã học xong mọi khóa được giao'))}</h2>
+                    <div class="where">${esc(t('dashboard.heroDoneSub', 'Xem danh sách khóa học phù hợp bên dưới để học thêm.'))}</div>
+                </div>
+            </div>`;
+        }
+
+        const percent = Math.round(Number(current.progressPercent) || 0);
+        // Vòng tròn bên phải hiện tiến độ tới CẤP BẬC kế tiếp nếu có; chưa có dữ liệu xếp hạng thì hiện
+        // lại chính tiến độ khóa học, thay vì để một ô trống.
+        const ringPercent = rankStatus?.nextTier ? Math.round(Number(rankStatus.progressPercent) || 0) : percent;
+        const ringNote = rankStatus?.nextTier
+            ? t('dashboard.heroRingTier', 'Còn {point} điểm nữa lên hạng {tier}',
+                { point: rankStatus.pointsToNext, tier: rankStatus.nextTier.name })
+            : t('dashboard.heroRingCourse', 'Tiến độ khóa học đang học');
+
+        return `<div class="dash-hero">
+            <div class="dash-hero-main">
+                <span class="dash-hero-tag"><i class="ph-fill ph-play-circle"></i> ${esc(t('dashboard.heroTag', 'Tiếp tục học'))}</span>
+                <h2>${esc(current.courseTitle)}</h2>
+                <div class="where">${esc(current.courseCode)}${current.dueDate
+                    ? ` · ${esc(t('account.hanHoanThanh', 'Hạn hoàn thành'))}: ${formatDate(current.dueDate)}` : ''}
+                    ${current.isOverdue ? ` · <b>${esc(t('dashboard.overdue', 'Quá hạn'))}</b>` : ''}</div>
+                <div class="dash-hero-foot">
+                    <div class="dash-hero-bar">
+                        <div class="meta">
+                            <span>${esc(statusText(current.status))}</span><span>${percent}%</span>
+                        </div>
+                        <div class="track"><span style="width:${percent}%"></span></div>
+                    </div>
+                    <a class="btn-light" href="/pages/learn.html?enrollmentId=${current.id}">
+                        ${esc(percent > 0 ? t('my-course.hocTiep', 'Học tiếp') : t('my-course.batDau', 'Bắt đầu'))}
+                        <i class="ph-bold ph-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="dash-ring-box">
+                <div class="dash-ring" style="--value:${ringPercent}%"><i>${ringPercent}%</i></div>
+                <small>${esc(ringNote)}</small>
+            </div>
+        </div>`;
+    }
+
+    function statusText(status) {
+        return {
+            Assigned: t('dashboard.notStarted', 'Chưa bắt đầu'),
+            InProgress: t('dashboard.inProgress', 'Đang học'),
+            Completed: t('dashboard.completed', 'Đã hoàn thành'),
+        }[status] || status;
+    }
+
+    // ---------- Khám phá khóa học ----------
+    // Gộp khóa ĐƯỢC GIAO và khóa PHÙ HỢP vào một lưới, phân biệt bằng nhãn trên thẻ. Tách hai khu riêng thì
+    // người học phải nhìn hai chỗ mới biết mình có gì để học.
+    function discoverHtml(enrollmentList, availableList) {
+        const assignedList = enrollmentList.map(x => ({
+            kind: x.status === 'Completed' ? 'done' : 'assigned',
+            id: x.courseId,
+            href: `/pages/learn.html?enrollmentId=${x.id}`,
+            title: x.courseTitle,
+            code: x.courseCode,
+            thumbnailUrl: x.thumbnailUrl,
+            percent: Math.round(Number(x.progressPercent) || 0),
+            isOverdue: x.isOverdue,
+            hasCertificate: x.hasCertificate,
+        }));
+
+        const suggestList = availableList.map(x => ({
+            kind: 'suggest',
+            id: x.id,
+            href: null,
+            title: x.title,
+            code: x.code,
+            thumbnailUrl: x.thumbnailUrl,
+            durationMinutes: x.durationMinutes,
+            lessonCount: x.lessonCount,
+            enrollmentCount: x.enrollmentCount,
+            teacher: x.createdByName,
+            suggestReason: x.suggestReason,
+        }));
+
+        cardDataList = [...assignedList, ...suggestList];
+
+        const filterList = [
+            { key: 'all', label: t('dashboard.tatCa', 'Tất cả'), icon: 'ph-squares-four' },
+            { key: 'assigned', label: t('dashboard.inProgress', 'Đang học'), icon: 'ph-book-open' },
+            { key: 'done', label: t('dashboard.completed', 'Đã hoàn thành'), icon: 'ph-seal-check' },
+            { key: 'suggest', label: t('my-course.khoaHocPhuHopVoiBan', 'Khóa học phù hợp với bạn'), icon: 'ph-sparkle' },
+        ].map(f => {
+            const count = f.key === 'all' ? cardDataList.length : cardDataList.filter(x => x.kind === f.key).length;
+            return `<button type="button" class="dash-chip ${f.key === 'all' ? 'active' : ''}" data-filter="${f.key}">
+                <i class="ph ${f.icon}"></i> ${esc(f.label)} <span class="count">${count}</span></button>`;
+        }).join('');
+
+        return `
+            <div class="dash-head">
+                <div>
+                    <h3>${esc(t('dashboard.discoverTitle', 'Khám phá khóa học'))}</h3>
+                    <p>${esc(t('dashboard.discoverSub', 'Chọn một khóa để học tiếp hoặc bắt đầu'))} — ${cardDataList.length} ${esc(t('dashboard.ketQua', 'kết quả'))}</p>
+                </div>
+                <a class="btn ghost sm" href="/pages/my-course.html">
+                    ${esc(t('menu.my-course', 'Khóa học của tôi'))} <i class="ph-bold ph-arrow-right"></i></a>
+            </div>
+            <div class="dash-chips">${filterList}</div>
+            <div class="dash-grid" id="dash-grid">${cardDataList.map(cardHtml).join('')}</div>`;
+    }
+
+    /** Màu nền ảnh bìa suy ra từ tên khóa học — khóa nào chưa có ảnh vẫn có một mảng màu riêng, ổn định qua
+     *  các lần tải (không random), nên người dùng nhận ra thẻ quen thuộc bằng màu. */
+    function thumbBackground(title) {
+        const paletteList = [
+            'linear-gradient(135deg,#00a1e6,#0369a1)', 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+            'linear-gradient(135deg,#f43f5e,#be123c)', 'linear-gradient(135deg,#f59e0b,#c2410c)',
+            'linear-gradient(135deg,#10b981,#047857)', 'linear-gradient(135deg,#06b6d4,#0e7490)',
+        ];
+        let hash = 0;
+        for (const ch of String(title || '')) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+        return paletteList[hash % paletteList.length];
+    }
+
+    function cardHtml(item) {
+        const tagText = { assigned: t('dashboard.duocGiao', 'Được giao'), done: t('dashboard.completed', 'Đã hoàn thành'), suggest: t('dashboard.deXuat', 'Đề xuất') }[item.kind];
+
+        const stateHtml = item.kind === 'done'
+            ? `<span class="dash-thumb-state"><i class="ph-fill ph-check-circle"></i> ${esc(t('dashboard.completed', 'Đã hoàn thành'))}</span>`
+            : item.isOverdue
+                ? `<span class="dash-thumb-state warn"><i class="ph-fill ph-warning"></i> ${esc(t('dashboard.overdue', 'Quá hạn'))}</span>`
+                : '';
+
+        const metaHtml = item.kind === 'suggest'
+            ? `<div class="dash-thumb-meta">
+                   ${item.durationMinutes ? `<span><i class="ph ph-clock"></i> ${esc(formatDuration(item.durationMinutes))}</span>` : ''}
+                   ${item.lessonCount ? `<span><i class="ph ph-book-open"></i> ${item.lessonCount} ${esc(t('dashboard.bai', 'bài'))}</span>` : ''}
+               </div>`
+            : '';
+
+        // Khóa đề xuất chưa có lộ trình học của riêng người này nên không có nút vào học — thay bằng nút tự
+        // đăng ký (xử lý ở bindSelfEnroll), đăng ký xong mới thành khóa "Được giao" có nút Bắt đầu.
+        const footHtml = item.kind === 'suggest'
+            ? `<button type="button" class="btn sm" data-enroll="${item.id}">
+                   <i class="ph ph-plus-circle"></i> ${esc(t('suggest.enroll', 'Đăng ký học'))}</button>`
+            : `<a class="btn sm" href="${item.href}">
+                   ${esc(item.kind === 'done' ? t('my-course.xemLai', 'Xem lại') : item.percent > 0 ? t('my-course.hocTiep', 'Học tiếp') : t('my-course.batDau', 'Bắt đầu'))}
+                   <i class="ph-bold ph-arrow-right"></i></a>`;
+
+        return `<article class="dash-card" data-kind="${item.kind}">
+            <div class="dash-thumb" style="background:${thumbBackground(item.title)}">
+                ${item.thumbnailUrl ? `<img src="${esc(item.thumbnailUrl)}" alt="">` : '<i class="ph ph-book-bookmark"></i>'}
+                <span class="dash-thumb-tag">${esc(tagText)}</span>
+                ${stateHtml}
+                ${metaHtml}
+            </div>
+            <div class="dash-card-body">
+                <h4>${esc(item.title)}</h4>
+                ${item.teacher ? `<div class="dash-teacher">
+                        <span class="avatar">${esc(initial(item.teacher))}</span> ${esc(item.teacher)}</div>` : ''}
+                <div class="dash-card-stat">
+                    <span><i class="ph ph-hash"></i> ${esc(item.code)}</span>
+                    ${item.enrollmentCount ? `<span><i class="ph ph-users"></i> ${item.enrollmentCount.toLocaleString(Lang.locale)}</span>` : ''}
+                </div>
+                ${item.kind === 'suggest'
+                    ? (item.suggestReason ? `<div class="dash-card-stat"><span><i class="ph ph-sparkle"></i> ${esc(suggestReasonText(item.suggestReason))}</span></div>` : '')
+                    : `
+                    <div class="dash-card-prog">
+                        <div class="meta"><span>${esc(t('account.tienDo', 'Tiến độ'))}</span><span>${item.percent}%</span></div>
+                        <div class="track"><span style="width:${item.percent}%"></span></div>
+                    </div>`}
+            </div>
+            <div class="dash-card-foot">${footHtml}</div>
+        </article>`;
+    }
+
+    /** Lọc ngay trong lưới đã dựng, không gọi lại API — dữ liệu đã nằm sẵn trong bộ nhớ. */
+    function bindCourseFilter() {
+        const grid = document.getElementById('dash-grid');
+        if (!grid) return;
+
+        // Chỉ lấy chip trong .dash-chips — boxchat cũng có nút [data-filter] ("Chưa đọc", "Nhóm"...), nếu chọn
+        // toàn trang thì bấm tab của boxchat sẽ lọc luôn lưới khóa học (key 'unread' → lưới rỗng).
+        const chipList = document.querySelectorAll('.dash-chips [data-filter]');
+        chipList.forEach(chip => chip.addEventListener('click', () => {
+            chipList.forEach(x => x.classList.toggle('active', x === chip));
+            const key = chip.dataset.filter;
+            const list = key === 'all' ? cardDataList : cardDataList.filter(x => x.kind === key);
+            grid.innerHTML = list.length
+                ? list.map(cardHtml).join('')
+                : `<div style="grid-column:1/-1">${emptyHtml(t('dashboard.khongCoKhoaNao', 'Không có khóa học nào ở mục này.'), '<i class="ph ph-book-open"></i>')}</div>`;
+        }));
+    }
+
+    /** Nút "Đăng ký học" trên thẻ khóa đề xuất. Gắn một lần vào lưới (ủy quyền sự kiện) vì lọc chip dựng lại
+     *  thẻ bằng innerHTML. Đăng ký xong thì tải lại trang: khóa phải chuyển sang nhóm "Được giao", số đếm trên
+     *  các chip và ô tổng quan cũng đổi theo. */
+    function bindSelfEnroll() {
+        const grid = document.getElementById('dash-grid');
+        if (!grid) return;
+        grid.addEventListener('click', async (e) => {
+            const b = e.target.closest('[data-enroll]');
+            if (!b) return;
+            const item = cardDataList.find(x => x.kind === 'suggest' && x.id == b.dataset.enroll);
+            if (!item) return;
+            b.disabled = true;
+            if (await selfEnrollCourse(item.id, item.title)) location.reload();
+            else b.disabled = false;
+        });
+    }
+
+    // ---------- Nhiệm vụ tuần này ----------
+    function missionHtml(dashboard) {
+        // Quản trị viên có thể tắt hết nhiệm vụ (xem tab "Quản lý nhiệm vụ" trong trang Xếp hạng) — khi đó
+        // bỏ hẳn ô này thay vì hiện một khung rỗng với thanh tiến độ 0/0 không nói lên điều gì.
+        if (!dashboard || !dashboard.missionList.length) return '';
+        const doneCount = dashboard.missionList.filter(x => x.isDone).length;
+
+        return `<section class="dash-panel">
+            <div class="dash-panel-head">
+                <h4><i class="ph-fill ph-target"></i> ${esc(t('dashboard.missionTitle', 'Nhiệm vụ tuần này'))}</h4>
+                <span class="tally">${doneCount}/${dashboard.missionList.length}</span>
+            </div>
+            ${dashboard.missionList.map(m => `
+                <div class="dash-mission ${m.isDone ? 'done' : ''}">
+                    <span class="tick"><i class="ph-bold ph-check"></i></span>
+                    <span class="label">${esc(m.label)}
+                        <small>${Math.min(m.current, m.target)}/${m.target}</small></span>
+                    ${m.point > 0 ? `<span class="gain" title="${esc(t('dashboard.missionRewardTip', 'Điểm thưởng khi làm đủ chỉ tiêu'))}">+${m.point}</span>` : ''}
+                </div>`).join('')}
+            <div class="dash-card-prog" style="margin-top:10px">
+                <div class="track"><span style="width:${Math.round(doneCount / Math.max(1, dashboard.missionList.length) * 100)}%"></span></div>
+            </div>
+        </section>`;
+    }
+
+    // ---------- Chuỗi ngày học ----------
+    function streakHtml(dashboard) {
+        if (!dashboard) return '';
+
+        return `<section class="dash-panel">
+            <div class="dash-panel-head">
+                <h4><i class="ph-fill ph-fire" style="color:#ea580c"></i>
+                    ${esc(t('dashboard.streakTitle', 'Chuỗi {day} ngày', { day: dashboard.streakDay }))}</h4>
+                <span class="tally">+${dashboard.weekPoint} ${esc(t('dashboard.diemTuan', 'điểm tuần này'))}</span>
+            </div>
+            <div class="dash-streak-row">
+                ${dashboard.dayList.map(d => `
+                    <div class="dash-streak-day ${d.hasActivity ? 'on' : ''} ${d.isToday ? 'today' : ''}"
+                         title="${formatDate(d.date)}">
+                        <div class="dot">${d.hasActivity ? '<i class="ph-fill ph-fire"></i>' : ''}</div>
+                        <small>${esc(d.weekdayLabel)}</small>
+                    </div>`).join('')}
+            </div>
+            <div class="hint" style="margin-top:10px">${esc(dashboard.streakDay > 0
+                ? t('dashboard.streakKeep', 'Học thêm hôm nay để giữ chuỗi.')
+                : t('dashboard.streakStart', 'Hoàn thành một bài học để bắt đầu chuỗi.'))}</div>
+        </section>`;
+    }
+
+    // ---------- Top tuần này ----------
+    function leaderboardHtml(list) {
+        if (!list?.length) return '';
+
+        return `<section class="dash-panel">
+            <div class="dash-panel-head">
+                <h4><i class="ph-fill ph-trophy" style="color:#d97706"></i> ${esc(t('dashboard.topWeek', 'Top xếp hạng'))}</h4>
+            </div>
+            ${list.map(x => `
+                <div class="dash-rank ${x.rank <= 3 ? 'top' : ''} ${x.isMe ? 'me' : ''}">
+                    <span class="no">${x.rank}</span>
+                    ${x.avatarUrl ? `<img class="avatar" src="${esc(x.avatarUrl)}" alt="">`
+                                  : `<span class="avatar">${esc(initial(x.fullName))}</span>`}
+                    <span class="who">${esc(x.isMe ? t('dashboard.ban', 'Bạn') : x.fullName)}</span>
+                    <span class="pt">${x.totalPoints.toLocaleString(Lang.locale)}</span>
+                </div>`).join('')}
+            <a class="btn ghost sm" style="width:100%;justify-content:center;margin-top:10px" href="/pages/ranking.html">
+                ${esc(t('dashboard.xemBangDayDu', 'Xem bảng đầy đủ'))} <i class="ph-bold ph-arrow-right"></i></a>
+        </section>`;
+    }
+
+    // ==================== TRƯỞNG NHÓM ====================
+    // Trưởng Nhóm là người soạn nội dung NHƯNG cũng được giao khóa để học như mọi nhân viên khác, nên
+    // trang này giữ nguyên bố cục của học viên (hero "Tiếp tục học", lưới khám phá khóa học, cột phải
+    // nhiệm vụ / chuỗi ngày / xếp hạng) và kẹp thêm phần quản lý: số liệu toàn cảnh ở trên đầu, bảng
+    // hiệu quả các khóa học ở cuối trang.
+    async function renderTrainer() {
+        // Hai phần độc lập nhau: số liệu quản lý hỏng thì vẫn phải dựng được phần người học, vì đó mới là
+        // việc họ làm hằng ngày.
+        const [learnerHtml, managerData] = await Promise.all([
+            renderLearner(),
+            loadManagerData().catch(() => null),
+        ]);
+
+        if (!managerData) return learnerHtml;
+
+        return managerStatHtml(managerData.overview)
+            + learnerHtml
+            + coursePerformanceHtml(managerData.courseReport, 'mt');
+    }
+
+    // ==================== QUẢN TRỊ / GIẢNG VIÊN ====================
+    async function renderManager() {
+        const { overview, courseReport } = await loadManagerData();
+        return managerStatHtml(overview) + coursePerformanceHtml(courseReport);
+    }
+
+    async function loadManagerData() {
+        const [overview, courseReport] = await Promise.all([
+            API.get('/report/overview'),
+            API.get('/report/course'),
+        ]);
+        return { overview, courseReport };
+    }
+
+    /** Bốn ô số liệu toàn cảnh của mảng đào tạo. */
+    function managerStatHtml(overview) {
+        const statList = [
+            { icon: 'ph-users', color: '#00a1e6', label: t('dashboard.activeUser', 'Người dùng hoạt động'), value: overview.activeUser, foot: t('dashboard.totalAccount', 'Tổng {count} tài khoản', { count: overview.totalUser }) },
+            { icon: 'ph-books', color: '#8b5cf6', label: t('dashboard.publishedCourse', 'Khóa học đã xuất bản'), value: overview.publishedCourse, foot: t('dashboard.totalCourse', 'Tổng {count} khóa học', { count: overview.totalCourse }) },
+            { icon: 'ph-check-circle', color: '#10b981', label: t('dashboard.completionRate', 'Tỷ lệ hoàn thành'), value: overview.completionRate + '%', foot: t('dashboard.enrollmentRatio', '{done} / {total} lượt đào tạo', { done: overview.completedEnrollment, total: overview.totalEnrollment }) },
+            { icon: 'ph-alarm', color: '#f43f5e', label: t('dashboard.overdue', 'Quá hạn'), value: overview.overdueEnrollment, foot: t('dashboard.needReminder', 'Cần nhắc nhở ngay') },
+        ].map(s => `
+            <div class="dash-panel">
+                <div style="width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff;font-size:19px;margin-bottom:11px;background:${s.color}">
+                    <i class="ph-fill ${s.icon}"></i></div>
+                <div style="font-size:12.5px;color:var(--text-muted);font-weight:600">${esc(s.label)}</div>
+                <div style="font-size:27px;font-weight:800;letter-spacing:-.6px;margin:2px 0 6px">${esc(String(s.value))}</div>
+                <div style="font-size:11.5px;color:var(--text-muted)">${esc(s.foot)}</div>
+            </div>`).join('');
+
+        return `<div class="dash-grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-bottom:20px">${statList}</div>`;
+    }
+
+    /** Bảng hiệu quả các khóa học. `extraClass` để chỗ gọi tự đặt khoảng cách với khối đứng trước nó. */
+    function coursePerformanceHtml(courseReport, extraClass = '') {
+        const rowList = courseReport.slice(0, 8).map(c => `
+            <tr>
+                <td><a href="/pages/course-detail.html?id=${c.courseId}"><b>${esc(c.courseTitle)}</b></a>
+                    <div class="small muted">${esc(c.courseCode)}</div></td>
+                <td class="text-center">${c.assignedCount}</td>
+                <td class="text-center">${c.completedCount}</td>
+                <td style="min-width:150px">${progressBar(c.completionRate)}</td>
+                <td class="text-center"><b>${c.averageScore ?? '—'}</b></td>
+            </tr>`).join('');
+
+        return `
+            <div class="card${extraClass ? ' ' + extraClass : ''}">
+                <div class="card-head">
+                    <h3>${esc(t('dashboard.coursePerformance', 'Hiệu quả các khóa học'))}</h3>
+                    <a class="btn ghost sm" href="/pages/report.html">
+                        ${esc(t('dashboard.viewFullReport', 'Xem báo cáo đầy đủ'))} <i class="ph-bold ph-arrow-right"></i></a>
+                </div>
+                <div class="table-wrap"><table>
+                    <thead><tr>
+                        <th>${esc(t('dashboard.colCourse', 'Khóa học'))}</th>
+                        <th class="text-center">${esc(t('dashboard.colAssigned', 'Phân công'))}</th>
+                        <th class="text-center">${esc(t('dashboard.colCompleted', 'Hoàn thành'))}</th>
+                        <th>${esc(t('dashboard.colRate', 'Tỷ lệ'))}</th>
+                        <th class="text-center">${esc(t('dashboard.colAvgScore', 'Điểm TB'))}</th>
+                    </tr></thead>
+                    <tbody>${rowList || `<tr><td colspan="5">${emptyHtml(t('dashboard.noCourse', 'Chưa có khóa học nào.'))}</td></tr>`}</tbody>
+                </table></div>
+            </div>`;
+    }
+})();
+</script>
+</body>
+</html>

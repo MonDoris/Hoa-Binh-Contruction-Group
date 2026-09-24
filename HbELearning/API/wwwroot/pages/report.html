@@ -1,0 +1,396 @@
+<!-- File: wwwroot/pages/report.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="report.baoCaoDaoTaoHbELearning">Báo cáo đào tạo · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Trang này chỉ giữ những gì thật sự của riêng nó: khay tab căn giữa và ngăn kéo hồ sơ bên phải.
+           Card, bảng, nút, huy hiệu đều lấy từ css/style.css — trước đây trang tự dựng lại cả bộ bằng mã
+           màu ghi cứng (#18181b, #fafafa, #e4e4e7...) kèm !important, nên bật nền tối là trang báo cáo
+           vẫn trắng nguyên trong khi phần còn lại của hệ thống đã tối. */
+
+        /* Khay tab căn giữa; hình dáng tab lấy từ css/style.css. */
+        .tabs-container { display: flex; justify-content: center; margin-bottom: 24px; }
+
+        /* ====================================================
+           NGĂN KÉO HỒ SƠ NGƯỜI HỌC (PANEL BÊN PHẢI)
+           ==================================================== */
+        .drawer-overlay {
+            position: fixed; inset: 0; background: rgba(9, 9, 11, .4);
+            opacity: 0; visibility: hidden; transition: .3s ease; z-index: 1000;
+        }
+        .drawer-overlay.open { opacity: 1; visibility: visible; }
+
+        .drawer-panel {
+            position: fixed; top: 0; right: -480px; width: 100%; max-width: 450px; height: 100vh;
+            background: var(--surface); box-shadow: -4px 0 24px rgba(0, 0, 0, .1);
+            transition: .4s cubic-bezier(.25, 1, .5, 1); z-index: 1001;
+            display: flex; flex-direction: column;
+        }
+        .drawer-panel.open { right: 0; }
+
+        .drawer-header {
+            padding: 24px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: flex-start;
+        }
+        .drawer-body { padding: 24px; overflow-y: auto; flex: 1; background: var(--bg); }
+
+        .close-drawer {
+            width: 32px; height: 32px; border: none; border-radius: 8px;
+            background: var(--bg); color: var(--text-muted); font-size: 18px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: .2s;
+        }
+        .close-drawer:hover { background: var(--border); color: var(--text); }
+
+        .drawer-avatar {
+            width: 48px; height: 48px; border-radius: 12px;
+            background: var(--primary); color: #fff; font-weight: 700; font-size: 18px;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+        }
+
+        .drawer-course-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow-xs);
+        }
+
+        /* Chấm tròn màu đứng trước tên trạng thái trong bảng. */
+        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    </style>
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content" style="padding-top: 24px;">
+        
+        <!-- Khối KPI Overview (Sẽ được JS hiển thị) -->
+        <div id="overview"></div>
+        
+        <!-- Vùng chứa Biểu đồ -->
+        <div class="card mb" id="chart-container" style="display: none; padding: 32px; margin-bottom: 32px;">
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <h3 data-i18n="report.tyTrongTrangThaiHocTap" style="font-size: 16px; font-weight: 600; margin-bottom: 24px; color: var(--text);">Tỷ trọng học tập</h3>
+                <div style="width: 260px; height: 260px;">
+                    <canvas id="overviewChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tabs chuyển đổi báo cáo (Segmented Control) -->
+        <div class="tabs-container">
+            <div class="tabs">
+                <button class="active" data-tab="course"><i class="ph ph-books"></i> <span data-i18n="report.theoKhoaHoc">Theo khóa học</span></button>
+                <button data-tab="department"><i class="ph ph-buildings"></i> <span data-i18n="report.theoPhongBan">Theo phòng ban</span></button>
+                <button data-tab="learner"><i class="ph ph-user"></i> <span data-i18n="report.theoNguoiHoc">Theo người học</span></button>
+            </div>
+        </div>
+        
+        <!-- Các Panel của Tab -->
+        <div class="tab-panel active" id="tab-course"></div>
+        <div class="tab-panel" id="tab-department"></div>
+        <div class="tab-panel" id="tab-learner"></div>
+    </div>
+</div>
+
+<!-- ====================================================
+     DRAWER: KHU VỰC HIỂN THỊ CHI TIẾT NGƯỜI HỌC 
+     ==================================================== -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer-panel" id="drawer-panel">
+    <div class="drawer-header">
+        <div id="drawer-user-info"></div>
+        <button class="close-drawer" onclick="closeDrawer()"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script>
+(async function () {
+    await Lang.ready;
+
+    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'report.view')) return;
+
+    const isHeadOfDepartment = Auth.hasRole('Trưởng phòng');
+    const isDirector = Auth.hasRole('Giám Đốc');
+
+    mountLayout('report', t('report.baoCaoDaoTao', 'Báo cáo đào tạo'), isHeadOfDepartment || isDirector
+        ? t('report.thongKeKetQuaDaoTaoCuaPhongBan', 'Thống kê kết quả đào tạo của phòng ban bạn quản lý')
+        : t('report.thongKeKetQuaDaoTaoToanDoanhNg', 'Thống kê tổng quan toàn doanh nghiệp'));
+    
+    // Nút in báo cáo style Minimal
+    setTopbarAction('<button class="btn outline sm" onclick="window.print()"><i class="ph ph-printer"></i> <span data-i18n="report.inBaoCao">Xuất Báo Cáo</span></button>');
+
+    if (isHeadOfDepartment) {
+        document.getElementById('overview').style.display = 'none';
+        document.getElementById('chart-container').style.display = 'none';
+        document.querySelector('.tabs-container').style.display = 'none';
+        document.getElementById('tab-learner').classList.add('active');
+    } else if (isDirector) {
+        document.getElementById('overview').style.display = 'none';
+        document.getElementById('chart-container').style.display = 'none';
+        document.querySelector('[data-tab="course"]').style.display = 'none';
+        document.querySelector('[data-tab="course"]').classList.remove('active');
+        document.getElementById('tab-course').classList.remove('active');
+        document.querySelector('[data-tab="department"]').classList.add('active');
+        document.getElementById('tab-department').classList.add('active');
+    }
+
+    // Logic chuyển Tab
+    document.querySelectorAll('.tabs button').forEach(button => {
+        button.addEventListener('click', () => {
+            document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            button.classList.add('active');
+            document.getElementById(`tab-${button.dataset.tab}`).classList.add('active');
+            loadTab(button.dataset.tab);
+        });
+    });
+
+    // ==========================================
+    // 1. TẢI OVERVIEW & VẼ BIỂU ĐỒ
+    // ==========================================
+    let overviewChartInstance = null;
+
+    async function loadOverview() {
+        const box = document.getElementById('overview');
+        box.innerHTML = skeletonHtml('stats', { count: 4 }) + skeletonHtml('block', { height: '260px' });
+        try {
+            const o = await API.get('/report/overview');
+            
+            // Vẽ 4 KPI theo dạng Dashboard SaaS
+            box.innerHTML = `
+                <div class="grid grid-4 mb">
+                    <div class="stat">
+                        <div class="label" data-i18n="report.tongLuotDaoTao">Lượt phân công</div>
+                        <div class="value">${o.totalEnrollment}</div>
+                        <div class="foot">${o.publishedCourse} khóa học khả dụng</div>
+                    </div>
+                    <div class="stat ok">
+                        <div class="label" data-i18n="dashboard.completionRate">Hoàn thành</div>
+                        <div class="value">${o.completionRate}%</div>
+                        <div class="foot">${o.completedEnrollment} lượt đã đạt</div>
+                    </div>
+                    <div class="stat accent">
+                        <div class="label" data-i18n="dashboard.averageProgress">Tiến độ chung</div>
+                        <div class="value">${o.averageProgress}%</div>
+                        <div class="foot">${o.inProgressEnrollment} đang diễn ra</div>
+                    </div>
+                    <div class="stat ${o.overdueEnrollment ? 'bad' : ''}">
+                        <div class="label" data-i18n="dashboard.overdue">Quá hạn</div>
+                        <div class="value">${o.overdueEnrollment}</div>
+                        <div class="foot">${o.notStartedEnrollment} chưa bắt đầu</div>
+                    </div>
+                </div>`;
+
+            document.getElementById('chart-container').style.display = 'block'; 
+            const ctx = document.getElementById('overviewChart').getContext('2d');
+            if (overviewChartInstance) overviewChartInstance.destroy();
+
+            const chartData = [ o.completedEnrollment || 0, o.inProgressEnrollment || 0, o.notStartedEnrollment || 0, o.overdueEnrollment || 0 ];
+
+            if (chartData.reduce((a, b) => a + b, 0) === 0) {
+                document.getElementById('chart-container').style.display = 'none';
+                return;
+            }
+
+            // Chart phong cách Clean: Màu bệt, viền mỏng
+            overviewChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Hoàn thành', t('dashboard.inProgress', 'Đang học'), t('dashboard.notStarted', 'Chưa bắt đầu'), t('dashboard.overdue', 'Quá hạn')],
+                    datasets: [{
+                        data: chartData,
+                        backgroundColor: [cssVar('--success'), cssVar('--primary'), cssVar('--border'), cssVar('--danger')],
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: '80%', // Vòng donut mỏng tinh tế
+                    animation: { duration: 800 },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 6, font: { family: 'inherit', size: 12 } } },
+                        tooltip: { backgroundColor: cssVar('--text'), cornerRadius: 4, padding: 10 }
+                    }
+                }
+            });
+
+        } catch (ex) { 
+            box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); 
+            document.getElementById('chart-container').style.display = 'none';
+        }
+    }
+
+    // ==========================================
+    // 2. TẢI CÁC TAB BÁO CÁO
+    // ==========================================
+    let learnerList = [];
+
+    async function loadTab(tab) {
+        const box = document.getElementById(`tab-${tab}`);
+        box.innerHTML = skeletonHtml('list', { count: 6, avatar: false });
+        try {
+            const list = await API.get(`/report/${tab}`);
+            if (tab === 'course') box.innerHTML = courseTable(list);
+            else if (tab === 'department') box.innerHTML = departmentTable(list);
+            else {
+                learnerList = list;
+                box.innerHTML = learnerTable(list);
+                box.querySelectorAll('[data-learner-detail]').forEach(button =>
+                    button.addEventListener('click', () => showLearnerDetail(+button.dataset.learnerDetail)));
+            }
+        } catch (ex) { box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    // ==========================================
+    // 3. HIỂN THỊ CHI TIẾT NGƯỜI HỌC (DRAWER)
+    // ==========================================
+    const getInitials = (name) => {
+        if(!name) return '?';
+        return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    };
+
+    async function showLearnerDetail(userId) {
+        const learner = learnerList.find(x => x.userId === userId);
+        if (!learner) return;
+
+        document.getElementById('drawer-overlay').classList.add('open');
+        document.getElementById('drawer-panel').classList.add('open');
+
+        document.getElementById('drawer-user-info').innerHTML = `
+            <div class="drawer-avatar">${getInitials(learner.fullName)}</div>
+            <h3 style="margin:0; font-size: 18px; font-weight:600; color: var(--text);">${esc(learner.fullName)}</h3>
+            <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">ID: ${esc(learner.employeeCode)} • ${esc(learner.departmentName || '—')}</div>
+        `;
+
+        const body = document.getElementById('drawer-body');
+        body.innerHTML = skeletonHtml('stats', { count: 2 }) + skeletonHtml('list', { count: 4, avatar: false });
+
+        try {
+            const courseList = await API.get(`/enrollment/by-user/${userId}`);
+            
+            body.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+                    <div style="background: var(--surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Hoàn thành</div>
+                        <div style="font-size: 20px; font-weight: 600; margin-top: 4px;">${learner.completedCount} <span style="color:var(--text-muted); font-size:14px;">/ ${learner.assignedCount}</span></div>
+                    </div>
+                    <div style="background: var(--surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Tiến độ trung bình</div>
+                        <div style="font-size: 20px; font-weight: 600; margin-top: 4px;">${learner.averageProgress}%</div>
+                    </div>
+                </div>
+
+                <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text);">Lịch sử đào tạo</div>
+                
+                ${courseList.length ? courseList.map((c) => {
+                    const isDone = c.progressPercent === 100;
+                    return `
+                    <div class="drawer-course-card">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">${esc(c.courseTitle)}</div>
+                            ${c.isOverdue ? '<span style="color:var(--danger); font-size:12px; font-weight:500;">Quá hạn</span>' : ''}
+                        </div>
+                        
+                        <div style="display:flex; justify-content:space-between; font-size:13px; color: var(--text-muted); margin-bottom:8px;">
+                            <span>Tiến độ: <strong style="color: ${isDone ? 'var(--success)' : 'var(--text)'}">${c.progressPercent}%</strong></span>
+                            <span>Điểm: <strong>${c.finalScore ?? '—'}</strong></span>
+                        </div>
+                        
+                        <div class="progress ${isDone ? 'done' : ''}"><span style="width:${c.progressPercent}%"></span></div>
+                    </div>
+                `}).join('') : emptyHtml(t('report.chuaDuocPhanCongKhoaHocNao', 'Chưa có khóa học.'), '<i class="ph ph-books" style="font-size: 32px; color:var(--text-muted);"></i>')}
+            `;
+        } catch (ex) { body.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    window.closeDrawer = function() {
+        document.getElementById('drawer-overlay').classList.remove('open');
+        document.getElementById('drawer-panel').classList.remove('open');
+    }
+
+    // ==========================================
+    // 4. TIỆN ÍCH DỰNG BẢNG
+    // ==========================================
+    const wrap = (title, head, rows, colspan) => `
+        <div class="card">
+            <div class="card-head"><h3>${title}</h3></div>
+            <div class="table-wrap"><table>
+                <thead><tr>${head}</tr></thead>
+                <tbody>${rows || `<tr><td colspan="${colspan}" style="text-align:center; padding: 40px;">${emptyHtml(t('common.empty', 'Chưa có dữ liệu.'), '<i class="ph ph-list" style="font-size:24px; color:var(--text-muted)"></i>')}</td></tr>`}</tbody>
+            </table></div>
+        </div>`;
+
+    const getStatusColor = (status) => {
+        if(status === 'Completed') return '<span class="status-dot" style="background:var(--success)"></span> Hoàn thành';
+        if(status === 'InProgress') return '<span class="status-dot" style="background:var(--primary)"></span> Đang học';
+        return '<span class="status-dot" style="background:var(--text-muted)"></span> Chưa bắt đầu';
+    };
+
+    const courseTable = (list) => wrap(t('report.hieuQuaTheoKhoaHoc', 'Báo cáo theo khóa học'),
+        `<th>Khóa học</th><th>Trạng thái</th><th class="text-center">Phân công</th>
+         <th class="text-center">Hoàn thành</th><th class="text-center">Quá hạn</th>
+         <th style="width:200px">Tỷ lệ hoàn thành</th><th class="text-center">Điểm TB</th><th class="text-center">Chứng nhận</th>`,
+        list.map((c) => `<tr>
+            <td><div style="font-weight:600;">${esc(c.courseTitle)}</div><div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${esc(c.courseCode)}</div></td>
+            <td style="font-size:13px;">${getStatusColor(c.status)}</td>
+            <td class="text-center">${c.assignedCount}</td>
+            <td class="text-center" style="color: #10b981; font-weight: 500;">${c.completedCount}</td>
+            <td class="text-center">${c.overdueCount > 0 ? `<span style="color:var(--danger); font-weight:600">${c.overdueCount}</span>` : '0'}</td>
+            <td>${progressBar(c.completionRate)}</td>
+            <td class="text-center" style="font-weight: 500;">${c.averageScore ?? '—'}</td>
+            <td class="text-center">${c.certificateCount > 0 ? c.certificateCount : '0'}</td>
+        </tr>`).join(''), 8);
+
+    const departmentTable = (list) => wrap(t('report.ketQuaDaoTaoTheoPhongBan', 'Báo cáo theo phòng ban'),
+        `<th>Phòng ban</th><th class="text-center">Nhân sự</th><th class="text-center">Lượt phân công</th>
+         <th class="text-center">Hoàn thành</th><th style="width:220px">Tỷ lệ hoàn thành</th><th class="text-center">Điểm TB</th>`,
+        list.map((d) => `<tr>
+            <td><div style="font-weight:600;">${esc(d.departmentName)}</div><div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${esc(d.departmentCode)}</div></td>
+            <td class="text-center">${d.userCount}</td>
+            <td class="text-center">${d.assignedCount}</td>
+            <td class="text-center" style="color: #10b981; font-weight: 500;">${d.completedCount}</td>
+            <td>${progressBar(d.completionRate)}</td>
+            <td class="text-center" style="font-weight: 500;">${d.averageScore ?? '—'}</td>
+        </tr>`).join(''), 6);
+
+    const learnerTable = (list) => wrap(t('report.ketQuaDaoTaoTheoNguoiHoc', 'Báo cáo theo nhân sự'),
+        `<th>Họ và tên</th><th>Phòng ban</th><th class="text-center">Phân công</th>
+         <th class="text-center">Hoàn thành</th><th class="text-center">Quá hạn</th>
+         <th style="width:180px">Tiến độ TB</th><th class="text-center">Điểm TB</th><th class="no-print"></th>`,
+        list.map((u) => `<tr>
+            <td><div style="font-weight:600;">${esc(u.fullName)}</div><div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${esc(u.employeeCode)}</div></td>
+            <td style="font-size:13px; color:var(--text-muted);">${esc(u.departmentName || '—')}</td>
+            <td class="text-center">${u.assignedCount}</td>
+            <td class="text-center" style="color:#10b981; font-weight:500;">${u.completedCount}</td>
+            <td class="text-center">${u.overdueCount > 0 ? `<span style="color:var(--danger); font-weight:600">${u.overdueCount}</span>` : '0'}</td>
+            <td>${progressBar(u.averageProgress)}</td>
+            <td class="text-center" style="font-weight:500;">${u.averageScore ?? '—'}</td>
+            <td class="text-right no-print"><button class="btn outline sm" data-learner-detail="${u.userId}">Chi tiết</button></td>
+        </tr>`).join(''), 8);
+
+    // ==========================================
+    // 5. KHỞI TẠO TRANG
+    // ==========================================
+    if (isHeadOfDepartment) { await loadTab('learner'); } 
+    else if (isDirector) { await loadTab('department'); } 
+    else { await loadOverview(); await loadTab('course'); }
+})();
+</script>
+</body>
+</html>
