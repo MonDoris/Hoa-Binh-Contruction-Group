@@ -35,9 +35,10 @@ public sealed class CurrentUser : ICurrentUser
     // coi là Trưởng phòng và mất sạch những gì vừa kế thừa.
     public bool IsAdmin => IsInRole(RoleName.Admin);
     public bool IsTrainer => IsInRole(RoleName.Trainer);
+    public bool IsInstructor => IsInRole(RoleName.Instructor);
     public bool IsHeadOfDepartment => IsInRole(RoleName.HeadOfDepartment);
     public bool IsDirector => IsInRole(RoleName.Director);
-    public bool IsManager => IsAdmin || IsTrainer;
+    public bool IsManager => IsAdmin || IsTrainer || IsInstructor;
 
     /// <summary>Các cấp này phải đọc được nội dung thì mới duyệt được — trước đây họ rơi vào nhánh "học viên",
     /// bị đòi bản ghi phân công học và nhận 403. Khớp RoleName.CourseViewers dùng cho [Authorize].</summary>

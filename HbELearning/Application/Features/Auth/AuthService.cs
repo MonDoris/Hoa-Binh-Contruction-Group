@@ -32,9 +32,11 @@ public class AuthService : IAuthService
     private readonly IEmailService _email;
     private readonly IRankingEngine _rankingService;
     private readonly ICurrentUser _currentUser;
+    private readonly ILogger<AuthService> _logger;
 
-    public AuthService(IAppDbContext db, ITokenService tokenService, IZaloZnsService zaloZns, IEsmsService esms, IEmailService email, IRankingEngine rankingService, ICurrentUser currentUser, IPasswordHasher passwordHasher)
+    public AuthService(IAppDbContext db, ITokenService tokenService, IZaloZnsService zaloZns, IEsmsService esms, IEmailService email, IRankingEngine rankingService, ICurrentUser currentUser, IPasswordHasher passwordHasher, ILogger<AuthService> logger)
     {
+        _logger = logger;
         _passwordHasher = passwordHasher;
         _db = db;
         _tokenService = tokenService;
@@ -144,6 +146,12 @@ public class AuthService : IAuthService
         if (!_passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
             return Result.Invalid(new MessageResponse("Mật khẩu hiện tại không đúng."));
 
+        if (PasswordPolicy.Validate(request.NewPassword, user.Email, user.UserName, user.EmployeeCode) is string weak)
+            return Result.Invalid(new MessageResponse(weak));
+
+        if (_passwordHasher.Verify(request.NewPassword, user.PasswordHash))
+            return Result.Invalid(new MessageResponse("Mật khẩu mới phải khác mật khẩu hiện tại."));
+
         user.PasswordHash = _passwordHasher.Hash(request.NewPassword);
         await _db.SaveChangesAsync();
 
@@ -204,7 +212,14 @@ public class AuthService : IAuthService
             else if (channel == "sms") await _esms.SendOtpAsync(user.PhoneNumber!, otpCode);
             else await _email.SendOtpAsync(user.Email, otpCode);
         }
-        catch (Exception ex) { return Result.ExternalServiceFailed(new MessageResponse($"Không thể gửi OTP: {ex.Message}")); }
+        catch (Exception ex)
+        {
+            // Điểm cuối này KHÔNG cần đăng nhập. Lời của thư viện SMTP / Zalo / eSMS mang theo địa chỉ máy
+            // chủ thư, tài khoản dùng để gửi và mã lỗi của nhà cung cấp — không được để nó đi ra ngoài.
+            _logger.LogError(ex, "Gui OTP that bai qua kenh {Channel}", channel);
+            return Result.ExternalServiceFailed(new MessageResponse(
+                $"Chưa gửi được mã OTP qua {channelLabel} lúc này. Vui lòng thử lại, hoặc chọn kênh khác."));
+        }
 
         return Result.Success(new MessageResponse(genericMessage));
     }
@@ -261,6 +276,12 @@ public class AuthService : IAuthService
         if (otpRequest.User.LockedOutAt is not null)
             return Result.Invalid(new MessageResponse(LockedOutMessage));
 
+        // Kiểm quy tắc Ở ĐÂY chứ không chỉ ở màn hình đổi mật khẩu: đây cũng là một lối đặt mật khẩu mới,
+        // và là lối mà người dùng đang vội nhất (vừa quên mật khẩu, vừa chờ OTP) nên dễ gõ đại nhất.
+        if (PasswordPolicy.Validate(request.NewPassword, otpRequest.User.Email, otpRequest.User.UserName,
+                otpRequest.User.EmployeeCode) is string weak)
+            return Result.Invalid(new MessageResponse(weak));
+
         otpRequest.User.PasswordHash = _passwordHasher.Hash(request.NewPassword);
         otpRequest.IsUsed = true;
         await _db.SaveChangesAsync();
@@ -270,6 +291,19 @@ public class AuthService : IAuthService
 
     private static string HashToken(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+
+    public async Task<Result> CreateHubTicket()
+    {
+        // Nạp đủ vai trò như lúc đăng nhập: vé mang đúng bộ claim của thẻ thường nên hub vẫn xét quyền được.
+        var user = await _db.User
+            .Include(x => x.Role).ThenInclude(r => r.ParentRole)
+            .FirstOrDefaultAsync(x => x.Id == _currentUser.UserId);
+        if (user is null) return Result.NotFound();
+        if (!user.IsActive || user.LockedOutAt is not null) return Result.Forbidden();
+
+        var (ticket, expiresAt) = _tokenService.CreateHubTicket(user);
+        return Result.Success(new HubTicketResponse(ticket, expiresAt));
+    }
 
     public async Task<Result> GetRole()
     {

@@ -191,6 +191,78 @@ public class CertificateService : ICertificateService
         return Result.Success(new MessageResponse("Đã thu hồi chứng nhận."));
     }
 
+    /// <summary>Trần số dòng của danh sách in — một danh sách dài hơn thế này thì nên lọc theo phòng ban / khoảng
+    /// ngày chứ không ai in nổi, và trình duyệt dựng bảng vài chục nghìn dòng cũng treo.</summary>
+    private const int MaxRegisterRow = 5000;
+
+    /// <summary>Tên đơn vị cấp in trên dòng của chứng nhận nội bộ.</summary>
+    private const string InternalIssuerName = "HB E-Learning";
+
+    public async Task<Result> GetRegister(string? source, int? departmentId, DateTime? from, DateTime? to, string? keyword)
+    {
+        var includeInternal = source is null or "" or "internal";
+        var includeExternal = source is null or "" or "external";
+        var fromDate = from?.Date;
+        var toDate = to?.Date.AddDays(1);   // gồm trọn ngày cuối
+        var k = string.IsNullOrWhiteSpace(keyword) ? null : keyword.Trim().ToLower();
+
+        var rowList = new List<CertificateRegisterRowDto>();
+
+        if (includeInternal)
+        {
+            var query = _db.Certificate.AsNoTracking().Where(x => !x.IsRevoked);
+            if (departmentId.HasValue) query = query.Where(x => x.Enrollment.User.DepartmentId == departmentId);
+            if (fromDate.HasValue) query = query.Where(x => x.IssuedAt >= fromDate);
+            if (toDate.HasValue) query = query.Where(x => x.IssuedAt < toDate);
+            if (k is not null)
+                query = query.Where(x => x.Enrollment.User.FullName.ToLower().Contains(k)
+                    || x.Enrollment.User.EmployeeCode.ToLower().Contains(k)
+                    || x.Enrollment.Course.Title.ToLower().Contains(k));
+
+            rowList.AddRange(await query
+                .Take(MaxRegisterRow)
+                .Select(x => new CertificateRegisterRowDto(
+                    "Internal", x.Enrollment.UserId, x.Enrollment.User.EmployeeCode, x.Enrollment.User.FullName,
+                    x.Enrollment.User.Department != null ? x.Enrollment.User.Department.Name : null,
+                    x.Enrollment.User.Position != null ? x.Enrollment.User.Position.Name : null,
+                    x.Enrollment.Course.Title, InternalIssuerName, x.CertificateNo, x.IssuedAt, x.ExpiredAt))
+                .ToListAsync());
+        }
+
+        if (includeExternal)
+        {
+            // Chỉ giấy ĐÃ XÁC NHẬN: danh sách in ra là hồ sơ năng lực chính thức, giấy chưa ai đối chiếu (hay đã bị
+            // từ chối) mà lọt vào đây là danh sách mất giá trị.
+            var query = _db.ExternalCertificate.AsNoTracking().Where(x => x.Status == ExternalCertificateStatus.Approved);
+            if (departmentId.HasValue) query = query.Where(x => x.User.DepartmentId == departmentId);
+            if (fromDate.HasValue) query = query.Where(x => x.IssuedAt >= fromDate);
+            if (toDate.HasValue) query = query.Where(x => x.IssuedAt < toDate);
+            if (k is not null)
+                query = query.Where(x => x.User.FullName.ToLower().Contains(k)
+                    || x.User.EmployeeCode.ToLower().Contains(k)
+                    || x.Title.ToLower().Contains(k)
+                    || x.Issuer.ToLower().Contains(k));
+
+            rowList.AddRange(await query
+                .Take(MaxRegisterRow)
+                .Select(x => new CertificateRegisterRowDto(
+                    "External", x.UserId, x.User.EmployeeCode, x.User.FullName,
+                    x.User.Department != null ? x.User.Department.Name : null,
+                    x.User.Position != null ? x.User.Position.Name : null,
+                    x.Title, x.Issuer, x.CertificateNo, x.IssuedAt, x.ExpiredAt))
+                .ToListAsync());
+        }
+
+        // Xếp theo phòng ban rồi theo người, mỗi người các giấy theo ngày cấp — thứ tự người đọc bản in dò tìm.
+        var ordered = rowList
+            .OrderBy(x => x.DepartmentName ?? "￿")
+            .ThenBy(x => x.FullName)
+            .ThenBy(x => x.IssuedAt)
+            .Take(MaxRegisterRow)
+            .ToList();
+        return Result.Success(ordered);
+    }
+
     /// <summary>Truy vấn những người bậc THẤP HƠN người đang đăng nhập, trong phạm vi họ quản. Trả về null
     /// nếu vai trò này không quản ai (Học viên, hoặc một vai trò tự tạo chưa gán vai trò cha).</summary>
     private async Task<IQueryable<User>?> SubordinateQueryAsync()

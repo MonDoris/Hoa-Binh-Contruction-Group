@@ -8,12 +8,15 @@ public class CourseService : ICourseService
     private readonly IAppDbContext _db;
     private readonly INotificationDispatcher _notificationService;
     private readonly ICurrentUser _currentUser;
+    private readonly IScormPackageStorage _scormStorage;
 
-    public CourseService(IAppDbContext db, INotificationDispatcher notificationService, ICurrentUser currentUser)
+    public CourseService(IAppDbContext db, INotificationDispatcher notificationService, ICurrentUser currentUser,
+        IScormPackageStorage scormStorage)
     {
         _db = db;
         _notificationService = notificationService;
         _currentUser = currentUser;
+        _scormStorage = scormStorage;
     }
 
     public async Task<Result> GetList(string? keyword, CourseStatus? status, int? departmentId, int? positionId, int page = 1, int pageSize = 20)
@@ -98,11 +101,14 @@ public class CourseService : ICourseService
                 x.DurationMinutes, x.PassScore, x.IsMandatory,
                 LessonCount = x.LessonList.Count(l => l.IsActive),
                 QuizCount = x.QuizList.Count(q => q.IsActive),
+                ScormPackageCount = x.ScormPackageList.Count(p => p.Kind == ScormPackageKind.Imported),
                 EnrollmentCount = x.EnrollmentList.Count,
                 x.CreatedById,
                 CreatedByName = x.CreatedBy.FullName,
                 CreatedByDepartmentId = x.CreatedBy.DepartmentId,
                 x.CreatedAt,
+                x.StartDate,
+                x.EndDate,
                 x.RejectionReason,
                 x.RejectedByRoleName,
                 x.HrApproverUserId,
@@ -161,6 +167,7 @@ public class CourseService : ICourseService
                 x.DurationMinutes, x.PassScore, x.IsMandatory,
                 x.LessonCount, x.QuizCount, x.EnrollmentCount,
                 x.CreatedById, x.CreatedByName, x.CreatedByDepartmentId, x.CreatedAt,
+                x.StartDate, x.EndDate,
                 x.RejectionReason, x.RejectedByRoleName,
                 ResolveHrApproverLabel(x.HrApproverUserId, x.HrApproverIsDelegate, x.HrApproverName,
                     viewerIsHrDirector, activeDelegateName),
@@ -171,7 +178,8 @@ public class CourseService : ICourseService
                 ResolveCurrentStepApproverName(x.Status, currentStep,
                     designatedUserId.HasValue ? designatedNameMap.GetValueOrDefault(designatedUserId.Value) : null,
                     activeDelegateName, rejectedByNameMap.GetValueOrDefault(x.Id)),
-                CanReassignApprover(x.Status, currentStep));
+                CanReassignApprover(x.Status, currentStep),
+                ScormPackageCount: x.ScormPackageCount);
         }).ToList();
 
         return Result.Success(new PagedResult<CourseListDto>(itemList, total, page, pageSize));
@@ -254,7 +262,8 @@ public class CourseService : ICourseService
         return Result.Success(new CourseDetailDto(
             course.Id, course.Code, course.Title, course.Description, course.ThumbnailUrl,
             course.Status.ToString(), course.DurationMinutes, course.PassScore, course.IsMandatory,
-            course.DeadlineDay, course.CreatedById, course.CreatedBy.FullName, course.CreatedBy.DepartmentId,
+            course.DeadlineDay, course.StartDate, course.EndDate,
+            course.CreatedById, course.CreatedBy.FullName, course.CreatedBy.DepartmentId,
             course.CreatedAt, course.UpdatedAt, course.RejectionReason, course.RejectedByRoleName, hrApproverLabel,
             targetList, lessonList, quizList,
             course.ApprovalWorkflowId, course.ApprovalWorkflow?.Name, course.CurrentStepOrder,
@@ -286,11 +295,14 @@ public class CourseService : ICourseService
                 x.DurationMinutes, x.PassScore, x.IsMandatory,
                 LessonCount = x.LessonList.Count(l => l.IsActive),
                 QuizCount = x.QuizList.Count(q => q.IsActive),
+                ScormPackageCount = x.ScormPackageList.Count(p => p.Kind == ScormPackageKind.Imported),
                 EnrollmentCount = x.EnrollmentList.Count,
                 x.CreatedById,
                 CreatedByName = x.CreatedBy.FullName,
                 CreatedByDepartmentId = x.CreatedBy.DepartmentId,
                 x.CreatedAt,
+                x.StartDate,
+                x.EndDate,
                 x.RejectionReason,
                 x.RejectedByRoleName,
                 x.HrApproverUserId,
@@ -310,12 +322,14 @@ public class CourseService : ICourseService
             x.DurationMinutes, x.PassScore, x.IsMandatory,
             x.LessonCount, x.QuizCount, x.EnrollmentCount,
             x.CreatedById, x.CreatedByName, x.CreatedByDepartmentId, x.CreatedAt,
+            x.StartDate, x.EndDate,
             x.RejectionReason, x.RejectedByRoleName,
             ResolveHrApproverLabel(x.HrApproverUserId, x.HrApproverIsDelegate, x.HrApproverName, viewerIsHrDirector),
             SuggestReason: x.MatchDepartment && x.MatchPosition ? "DepartmentPosition"
                 : x.MatchDepartment ? "Department"
                 : x.MatchPosition ? "Position"
-                : "All")).ToList();
+                : "All",
+            ScormPackageCount: x.ScormPackageCount)).ToList();
 
         return Result.Success(list);
     }
@@ -339,6 +353,9 @@ public class CourseService : ICourseService
             codePrefix = department.Code;
         }
 
+        if (!TryGetCoursePeriod(request, out var startDate, out var endDate))
+            return Result.Invalid(new MessageResponse(InvalidCoursePeriodMessage));
+
         var workflowId = await ResolveWorkflowIdAsync(request.ApprovalWorkflowId);
         if (request.ApprovalWorkflowId.HasValue && workflowId is null)
             return Result.Invalid(new MessageResponse("Luồng cấp duyệt không hợp lệ hoặc đã ngừng hoạt động."));
@@ -355,6 +372,8 @@ public class CourseService : ICourseService
             PassScore = request.PassScore,
             IsMandatory = request.IsMandatory,
             DeadlineDay = request.DeadlineDay,
+            StartDate = startDate,
+            EndDate = endDate,
             CreatedById = _currentUser.UserId,
             Status = CourseStatus.Draft,
             ApprovalWorkflowId = workflowId
@@ -363,11 +382,22 @@ public class CourseService : ICourseService
         _db.Course.Add(course);
         await _db.SaveChangesAsync();
 
-        return Result.Created(nameof(GetById), new { id = course.Id }, new MessageResponse($"Đã tạo khóa học #{course.Id} với mã {code}."));
+        return Result.Created(nameof(GetById), new { id = course.Id }, new MessageResponse($"Đã tạo khóa học #{course.Id} với mã {code}.", course.Id));
     }
 
     /// <summary>Tiền tố mã cho khóa học dùng chung toàn công ty, thay cho mã phòng ban.</summary>
     private const string AllDepartmentCodePrefix = "ALL";
+
+    private const string InvalidCoursePeriodMessage = "Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.";
+
+    /// <summary>Khung thời gian của khóa học đã cắt về phần ngày. Trả false khi ngày kết thúc đứng trước ngày bắt
+    /// đầu — ô trống thì [Required] ở CourseRequest đã chặn từ trước, tới đây cả hai đều có giá trị.</summary>
+    private static bool TryGetCoursePeriod(CourseRequest request, out DateTime startDate, out DateTime endDate)
+    {
+        startDate = request.StartDate!.Value.Date;
+        endDate = request.EndDate!.Value.Date;
+        return endDate >= startDate;
+    }
 
     /// <summary>Tên chuẩn của bước duyệt cuối. Vừa là nhãn hiển thị, vừa là giá trị ghi vào RejectedByRoleName
     /// — giao diện dò đúng bước bị từ chối bằng cách so chuỗi này, nên đổi ở đây là đổi cả hai nơi.</summary>
@@ -392,6 +422,8 @@ public class CourseService : ICourseService
         var course = await _db.Course.FirstOrDefaultAsync(x => x.Id == id);
         if (course is null) return Result.NotFound(new MessageResponse("Không tìm thấy khóa học."));
         if (course.CreatedById != _currentUser.UserId) return Result.Forbidden();
+        if (!TryGetCoursePeriod(request, out var startDate, out var endDate))
+            return Result.Invalid(new MessageResponse(InvalidCoursePeriodMessage));
 
         course.Title = request.Title.Trim();
         course.Description = request.Description;
@@ -400,6 +432,8 @@ public class CourseService : ICourseService
         course.PassScore = request.PassScore;
         course.IsMandatory = request.IsMandatory;
         course.DeadlineDay = request.DeadlineDay;
+        course.StartDate = startDate;
+        course.EndDate = endDate;
 
         // Đổi luồng cấp duyệt giữa chừng sẽ làm CurrentStepOrder trỏ sang một bước hoàn toàn khác của luồng mới —
         // khóa học đang chờ Trưởng phòng bỗng nhảy sang chờ Giám Đốc mà không ai gửi duyệt lại. Chỉ cho đổi khi khóa
@@ -488,15 +522,35 @@ public class CourseService : ICourseService
         if (!course.LessonList.Any(l => l.IsActive))
             return Result.Invalid(new MessageResponse("Khóa học chưa có bài học nào, không thể gửi duyệt."));
 
+        var now = DateTime.Now;
+        var fromStatus = course.Status;
+
+        // Giảng Viên xuất bản trực tiếp mà không qua chuỗi duyệt
+        if (_currentUser.IsInstructor)
+        {
+            course.PublishDirectly(now);
+            _db.CourseApprovalHistory.Add(new CourseApprovalHistory
+            {
+                CourseId = course.Id, ActorUserId = _currentUser.UserId, ActorRoleName = _currentUser.Role,
+                StepName = "Xuất bản trực tiếp", FromStatus = fromStatus, ToStatus = course.Status
+            });
+            await _db.SaveChangesAsync();
+
+            var publishRecipientList = await GetCourseAudienceUserIdListAsync(course);
+            publishRecipientList.Add(_currentUser.UserId);
+            await _notificationService.NotifyCourseWorkflowAsync(course.Id, publishRecipientList.Distinct().ToList(),
+                NotificationType.CoursePublished, "Khóa học đã được xuất bản",
+                $"Khóa học \"{course.Title}\" của {course.CreatedBy.FullName} đã được xuất bản.");
+
+            return Result.Success(new MessageResponse("Khóa học đã được xuất bản."));
+        }
+
         // Khóa học có chọn luồng cấp duyệt thì đi theo đúng các bước của luồng đó; không chọn thì chạy chuỗi duyệt
         // cố định Trưởng phòng -> Giám Đốc -> Giám Đốc Nhân sự như trước.
         var workflowStepList = await GetWorkflowStepListAsync(course.ApprovalWorkflowId);
         if (course.ApprovalWorkflowId.HasValue && workflowStepList.Count == 0)
             return Result.Invalid(new MessageResponse(
                 "Luồng cấp duyệt của khóa học chưa có bước nào, không thể gửi duyệt. Hãy chọn luồng khác hoặc báo Admin bổ sung bước."));
-
-        var fromStatus = course.Status;
-        var now = DateTime.Now;
 
         if (workflowStepList.Count > 0)
         {
@@ -1169,7 +1223,7 @@ public class CourseService : ICourseService
                 return true;
         }
 
-        if (_currentUser.IsTrainer) return course.CreatedById == _currentUser.UserId;
+        if (_currentUser.IsTrainer || _currentUser.IsInstructor) return course.CreatedById == _currentUser.UserId;
 
         if (_currentUser.IsHeadOfDepartment || _currentUser.IsDirector)
         {
@@ -1288,8 +1342,18 @@ public class CourseService : ICourseService
         if (await _db.Enrollment.AnyAsync(x => x.CourseId == id))
             return Result.Invalid(new MessageResponse("Khóa học đã có người học, không thể xóa. Hãy chuyển sang trạng thái Archived."));
 
+        // Gói SCORM: bản xem thử và bước lộ trình trỏ tới gói không tự lan truyền (NoAction) — dọn trước; tệp đã
+        // giải nén trên đĩa dọn SAU khi xóa thành công, để lỗi CSDL không để lại khóa học trỏ vào thư mục đã mất.
+        var scormKeyList = await _db.ScormPackage.Where(x => x.CourseId == id).Select(x => x.StorageKey).ToListAsync();
+        if (scormKeyList.Count > 0)
+        {
+            _db.ScormRegistration.RemoveRange(_db.ScormRegistration.Where(x => x.ScormPackage.CourseId == id));
+            _db.PathItem.RemoveRange(_db.PathItem.Where(x => x.ScormPackage != null && x.ScormPackage.CourseId == id));
+        }
+
         _db.Course.Remove(course);
         await _db.SaveChangesAsync();
+        foreach (var key in scormKeyList) _scormStorage.Delete(key);
         return Result.Success(new MessageResponse("Đã xóa khóa học."));
     }
 

@@ -65,6 +65,12 @@ public class Course
     /// <summary>Số ngày hoàn thành kể từ khi được phân công (null = không giới hạn).</summary>
     public int? DeadlineDay { get; set; }
 
+    /// <summary>Ngày khóa học bắt đầu và kết thúc — bắt buộc với mọi khóa học. Chỉ lưu phần ngày (00:00),
+    /// EndDate luôn >= StartDate (CourseService kiểm). Khác <see cref="DeadlineDay"/>: hai mốc này là khung thời
+    /// gian của cả khóa học, còn DeadlineDay tính hạn riêng cho từng người kể từ lúc họ được phân công.</summary>
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+
     public int CreatedById { get; set; }
     public User CreatedBy { get; set; } = null!;
 
@@ -75,6 +81,7 @@ public class Course
     public ICollection<Lesson> LessonList { get; set; } = new List<Lesson>();
     public ICollection<Quiz> QuizList { get; set; } = new List<Quiz>();
     public ICollection<ScenarioScene> ScenarioSceneList { get; set; } = new List<ScenarioScene>();
+    public ICollection<ScormPackage> ScormPackageList { get; set; } = new List<ScormPackage>();
     public ICollection<CourseTarget> CourseTargetList { get; set; } = new List<CourseTarget>();
     public ICollection<Enrollment> EnrollmentList { get; set; } = new List<Enrollment>();
 
@@ -153,6 +160,15 @@ public class Course
             CurrentStepOrder = nextStepOrder.Value;
         }
         UpdatedAt = now;
+    }
+
+    /// <summary>Giảng Viên xuất bản trực tiếp mà không qua chuỗi duyệt. Chỉ từ trạng thái Draft hoặc Rejected.</summary>
+    public void PublishDirectly(DateTime now)
+    {
+        EnsureCanBeSubmitted();
+        ClearPreviousDecision(now);
+        Status = CourseStatus.Published;
+        CurrentStepOrder = 0;
     }
 
     /// <summary>Từ chối ở bước đang chờ (của bất kỳ chuỗi duyệt nào).

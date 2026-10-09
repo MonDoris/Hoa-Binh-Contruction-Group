@@ -15,11 +15,18 @@ public class ImportService : IImportService
     private readonly IWordQuestionParser _wordQuestionParser;
     private readonly IFileService _fileService;
     private readonly IAppDbContext _db;
+    private readonly IHtmlSanitizer _htmlSanitizer;
+    private readonly ILogger<ImportService> _logger;
+    private readonly ILearningPathService _learningPathService;
 
     public ImportService(IDataImportService dataImportService, IWordHtmlConverter wordHtmlConverter,
         IPowerPointHtmlConverter powerPointHtmlConverter, IWordQuestionParser wordQuestionParser,
-        IFileService fileService, IAppDbContext db)
+        IFileService fileService, IAppDbContext db, IHtmlSanitizer htmlSanitizer,
+        ILogger<ImportService> logger, ILearningPathService learningPathService)
     {
+        _learningPathService = learningPathService;
+        _htmlSanitizer = htmlSanitizer;
+        _logger = logger;
         _dataImportService = dataImportService;
         _wordHtmlConverter = wordHtmlConverter;
         _powerPointHtmlConverter = powerPointHtmlConverter;
@@ -61,7 +68,7 @@ public class ImportService : IImportService
             return Result.Success(await _dataImportService.ImportQuestionAsync(quizId, stream, format));
         }
         catch (KeyNotFoundException ex) { return Result.NotFound(new MessageResponse(ex.Message)); }
-        catch (Exception ex) { return Result.Invalid(new MessageResponse($"Không đọc được file {format.ToVietnameseLabel()}: {ex.Message}")); }
+        catch (Exception ex) { return Result.Invalid(new MessageResponse(UnreadableFileMessage(ex, format, file))); }
     }
 
     public async Task<Result> ImportLesson(int courseId, FileUpload file)
@@ -75,7 +82,7 @@ public class ImportService : IImportService
             return Result.Success(await _dataImportService.ImportLessonAsync(courseId, stream, format));
         }
         catch (KeyNotFoundException ex) { return Result.NotFound(new MessageResponse(ex.Message)); }
-        catch (Exception ex) { return Result.Invalid(new MessageResponse($"Không đọc được file {format.ToVietnameseLabel()}: {ex.Message}")); }
+        catch (Exception ex) { return Result.Invalid(new MessageResponse(UnreadableFileMessage(ex, format, file))); }
     }
 
     // ==================================================================
@@ -150,7 +157,7 @@ public class ImportService : IImportService
         }
         catch (Exception ex)
         {
-            return (null, $"Không đọc được file {format.ToVietnameseLabel()}: {ex.Message}");
+            return (null, UnreadableFileMessage(ex, format, file));
         }
 
         if (sheet.GroupList.Count == 0)
@@ -218,6 +225,7 @@ public class ImportService : IImportService
                 };
                 _db.Quiz.Add(quiz);
                 await _db.SaveChangesAsync();
+                await _learningPathService.AppendResourceAsync(courseId, PathItemType.Quiz, quiz.Id);
                 createdQuizCount++;
             }
 
@@ -431,7 +439,7 @@ public class ImportService : IImportService
         }
         catch (Exception ex)
         {
-            return Result.Invalid(new MessageResponse($"Không đọc được tài liệu: {ex.Message}"));
+            return Result.Invalid(new MessageResponse(UnreadableDocumentMessage(ex, file)));
         }
     }
 
@@ -467,13 +475,14 @@ public class ImportService : IImportService
 
             _db.Lesson.Add(lesson.Lesson);
             await _db.SaveChangesAsync();
+            await _learningPathService.AppendResourceAsync(courseId, PathItemType.Lesson, lesson.Lesson.Id);
 
             return Result.Success(new DocumentImportResultDto(
                 lesson.Lesson.Id, lesson.Lesson.Title, lesson.Mode, lesson.ImageCount,
                 lesson.Lesson.ResourceUrl, lesson.Message));
         }
         catch (ArgumentException ex) { return Result.Invalid(new MessageResponse(ex.Message)); }
-        catch (Exception ex) { return Result.Invalid(new MessageResponse($"Không đọc được tài liệu: {ex.Message}")); }
+        catch (Exception ex) { return Result.Invalid(new MessageResponse(UnreadableDocumentMessage(ex, file))); }
     }
 
     /// <summary>
@@ -515,7 +524,10 @@ public class ImportService : IImportService
             CourseId = courseId,
             Title = SectionTitle(x.Section, file, result.SectionList.Count > 1),
             ContentType = LessonContentType.Text,
-            Content = x.Section.Html,
+            // Bộ chuyển của hệ thống đã mã hóa phần chữ, nhưng nó chép nguyên ĐỊA CHỈ của siêu liên kết
+            // trong file Word — một liên kết "javascript:..." gài sẵn trong tài liệu sẽ chạy khi người học
+            // bấm vào. Cho qua bộ lọc một lượt nữa cho dứt điểm.
+            Content = _htmlSanitizer.Sanitize(x.Section.Html),
             OrderIndex = nextOrder + order,
             DurationMinutes = 0,
             IsActive = true
@@ -523,6 +535,8 @@ public class ImportService : IImportService
 
         _db.Lesson.AddRange(lessonList);
         await _db.SaveChangesAsync();
+        foreach (var lesson in lessonList)
+            await _learningPathService.AppendResourceAsync(courseId, PathItemType.Lesson, lesson.Id);
 
         var message = lessonList.Count == 1
             ? "Đã dựng lại nội dung Word thành bài học"
@@ -607,7 +621,7 @@ public class ImportService : IImportService
             CourseId = courseId,
             Title = string.IsNullOrWhiteSpace(result.Title) ? fallbackTitle : result.Title!,
             ContentType = LessonContentType.Text,
-            Content = result.Html,
+            Content = _htmlSanitizer.Sanitize(result.Html),
             ResourceUrl = original.Url,
             OrderIndex = order,
             DurationMinutes = 0,
@@ -617,6 +631,30 @@ public class ImportService : IImportService
 
     /// <summary>Định dạng suy ra từ phần mở rộng của chính file tải lên, không nhận từ tham số riêng: người
     /// dùng chọn nhầm mục trong menu rồi lại tải lên file khác kiểu thì hệ thống vẫn đọc đúng.</summary>
+    /// <summary>
+    /// Câu báo "không đọc được tệp" gửi cho người dùng, kèm ghi nhật ký lỗi thật.
+    ///
+    /// KHÔNG đính kèm lời của ngoại lệ: ClosedXML / OpenXml / PdfPig báo lỗi bằng tiếng Anh kỹ thuật và
+    /// thường kèm đường dẫn tuyệt đối trên máy chủ. Người soạn nội dung đọc cũng không hiểu, mà lại lộ
+    /// cấu trúc thư mục của máy chủ ra ngoài. Chi tiết nằm trong nhật ký cho bộ phận kỹ thuật.
+    /// </summary>
+    private string UnreadableFileMessage(Exception exception, ImportFormat format, FileUpload? file)
+    {
+        _logger.LogError(exception, "Khong doc duoc tep nhap lieu {FileName} ({Format})",
+            file?.FileName, format);
+
+        return $"Không đọc được file {format.ToVietnameseLabel()}. Hãy kiểm tra file có đúng định dạng và "
+               + "đúng bộ cột như file mẫu không, hoặc mở bằng Excel/Word rồi lưu lại một lần trước khi tải lên.";
+    }
+
+    private string UnreadableDocumentMessage(Exception exception, FileUpload? file)
+    {
+        _logger.LogError(exception, "Khong doc duoc tai lieu {FileName}", file?.FileName);
+
+        return "Không đọc được tài liệu này. Hãy mở bằng Word / PowerPoint rồi lưu lại dạng .docx / .pptx "
+               + "và thử lại; file hỏng hoặc bị đặt mật khẩu bảo vệ thì hệ thống không mở được.";
+    }
+
     private static (ImportFormat Format, string? Error) Validate(FileUpload? file)
     {
         if (file is null || file.Length == 0)

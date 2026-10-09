@@ -5,7 +5,16 @@ public record OverviewReportDto(
     int TotalUser, int ActiveUser, int TotalCourse, int PublishedCourse,
     int TotalEnrollment, int CompletedEnrollment, int InProgressEnrollment,
     int NotStartedEnrollment, int OverdueEnrollment,
-    int TotalCertificate, decimal CompletionRate, decimal AverageProgress);
+    int TotalCertificate, decimal CompletionRate, decimal AverageProgress,
+    int CertificateThisMonth, int PendingGift, int PendingGiftUser);
+
+/// <summary>Số lượt đào tạo hoàn thành / chưa hoàn thành của một mốc thời gian.</summary>
+/// <param name="Period">Tháng (1–12) ở chuỗi theo tháng, hoặc năm (VD 2026) ở chuỗi theo năm.</param>
+public record CompletionTrendPointDto(int Period, int CompletedCount, int NotCompletedCount);
+
+/// <summary>Số liệu cho hai biểu đồ cột ở trang Tổng quan: đủ 12 tháng của <paramref name="Year"/>, và từng năm.</summary>
+public record CompletionTrendDto(int Year,
+    IReadOnlyList<CompletionTrendPointDto> MonthList, IReadOnlyList<CompletionTrendPointDto> YearList);
 
 public record CourseReportDto(
     int CourseId, string CourseCode, string CourseTitle, string Status,

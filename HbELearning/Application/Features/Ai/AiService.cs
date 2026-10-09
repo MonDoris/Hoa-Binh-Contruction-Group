@@ -29,6 +29,11 @@ public class AiService : IAiService
     private readonly IAppDbContext _db;
     private readonly ILogger<AiService> _logger;
 
+    /// <summary>Câu báo chung khi gọi máy chủ AI thất bại. Chi tiết (địa chỉ máy chủ AI, tên model, lời của
+    /// thư viện HTTP) chỉ vào nhật ký — người dùng cuối không cần và cũng không nên thấy.</summary>
+    private const string AiFailureMessage =
+        "Máy chủ AI đang không phản hồi. Vui lòng thử lại sau ít phút; nếu vẫn lỗi, báo quản trị hệ thống.";
+
     public AiService(IAiContentService ai, IDocumentProcessingService documentProcessing, IEmbeddingService embedding, IAppDbContext db, ILogger<AiService> logger)
     {
         _ai = ai;
@@ -155,7 +160,10 @@ public class AiService : IAiService
         }
         catch (Exception ex)
         {
-            return Result.ExternalServiceFailed(new MessageResponse($"Không thể tạo nội dung bằng AI: {ex.Message}"));
+            // Không ghép lời ngoại lệ vào câu trả về: nó mang theo địa chỉ máy chủ AI nội bộ và tên model
+            // đang chạy. Chi tiết vào nhật ký cho người quản trị.
+            _logger.LogError(ex, "Goi may chu AI that bai khi soan noi dung bai hoc");
+            return Result.ExternalServiceFailed(new MessageResponse(AiFailureMessage));
         }
     }
 
@@ -211,7 +219,7 @@ public class AiService : IAiService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Soan noi dung bai hoc bang AI that bai (stream).");
-            await events.SendAsync("error", new MessageResponse($"Không thể tạo nội dung bằng AI: {ex.Message}"), CancellationToken.None);
+            await events.SendAsync("error", new MessageResponse(AiFailureMessage), CancellationToken.None);
         }
     }
 
@@ -265,7 +273,8 @@ public class AiService : IAiService
         }
         catch (Exception ex)
         {
-            return Result.ExternalServiceFailed(new MessageResponse($"Không thể tạo câu hỏi bằng AI: {ex.Message}"));
+            _logger.LogError(ex, "Goi may chu AI that bai khi sinh cau hoi kiem tra");
+            return Result.ExternalServiceFailed(new MessageResponse(AiFailureMessage));
         }
     }
 }

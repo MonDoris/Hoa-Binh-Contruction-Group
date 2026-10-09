@@ -6,7 +6,15 @@ namespace HbELearning.Infrastructure.Persistence.Seeding;
 /// <summary>Tạo dữ liệu mẫu tối thiểu để đăng nhập và thử nghiệm hệ thống.</summary>
 public static class DbSeeder
 {
-    public static async Task SeedAsync(AppDbContext db)
+    /// <summary>
+    /// Mật khẩu của các tài khoản demo nằm ngay trong mã nguồn này, nên chúng chỉ được phép tồn tại ở máy
+    /// phát triển. Trên hệ thống chạy thật, một tài khoản Admin có mật khẩu ai đọc mã nguồn cũng biết là
+    /// đường vào thẳng, không cần khai thác lỗ hổng nào cả.
+    ///
+    /// Vì vậy <see cref="SeedAsync"/> nhận thêm cờ này: chạy thật thì bỏ qua phần tạo tài khoản demo và ghi
+    /// một dòng nhắc tạo tài khoản quản trị đầu tiên bằng tay (hoặc qua biến môi trường).
+    /// </summary>
+    public static async Task SeedAsync(AppDbContext db, bool isDevelopment = true)
     {
         // ----- Đồng bộ danh sách Role -----
         // HasData trong AppDbContext chỉ áp dụng khi tạo schema mới (EnsureCreated trên DB rỗng).
@@ -26,7 +34,8 @@ public static class DbSeeder
         {
             new Role { Name = RoleName.ManagingDirector, Description = "Quản lý giám đốc, xem báo cáo và bảng xếp hạng toàn công ty" },
             new Role { Name = RoleName.Director,         Description = "Quản lý theo phòng ban, duyệt nội dung bài học do Trưởng phòng đưa lên" },
-            new Role { Name = RoleName.HeadOfDepartment, Description = "Duyệt nội dung bài học do Trưởng Nhóm tạo, báo cáo theo phòng ban" }
+            new Role { Name = RoleName.HeadOfDepartment, Description = "Duyệt nội dung bài học do Trưởng Nhóm tạo, báo cáo theo phòng ban" },
+            new Role { Name = RoleName.Instructor,       Description = "Tạo nội dung bài học, xuất bản khóa học mà không cần duyệt" }
         };
         foreach (var role in missingRoleList)
         {
@@ -44,7 +53,7 @@ public static class DbSeeder
         // không thấy menu mới, vì quyền của vai trò đã lưu từ trước không thể chứa khóa vừa được nghĩ ra.
         var systemRoleNameList = new[]
         {
-            RoleName.Admin, RoleName.Trainer, RoleName.Learner,
+            RoleName.Admin, RoleName.Trainer, RoleName.Instructor, RoleName.Learner,
             RoleName.ManagingDirector, RoleName.Director, RoleName.HeadOfDepartment
         };
 
@@ -96,7 +105,8 @@ public static class DbSeeder
         }
 
         // ----- Tài khoản mặc định -----
-        if (!await db.User.AnyAsync())
+        // CHỈ ở môi trường phát triển: xem ghi chú ở SeedAsync.
+        if (isDevelopment && !await db.User.AnyAsync())
         {
             var it = await db.Department.FirstAsync(x => x.Code == "IT");
             var dev = await db.Position.FirstAsync(x => x.Code == "DEV");

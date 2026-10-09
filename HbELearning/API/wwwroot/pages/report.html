@@ -126,6 +126,7 @@
 
     const isHeadOfDepartment = Auth.hasRole('Trưởng phòng');
     const isDirector = Auth.hasRole('Giám Đốc');
+    const defaultTab = isHeadOfDepartment ? 'learner' : isDirector ? 'department' : 'course';
 
     mountLayout('report', t('report.baoCaoDaoTao', 'Báo cáo đào tạo'), isHeadOfDepartment || isDirector
         ? t('report.thongKeKetQuaDaoTaoCuaPhongBan', 'Thống kê kết quả đào tạo của phòng ban bạn quản lý')
@@ -152,10 +153,7 @@
     // Logic chuyển Tab
     document.querySelectorAll('.tabs button').forEach(button => {
         button.addEventListener('click', () => {
-            document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            button.classList.add('active');
-            document.getElementById(`tab-${button.dataset.tab}`).classList.add('active');
+            showTab(button.dataset.tab, defaultTab);
             loadTab(button.dataset.tab);
         });
     });
@@ -387,9 +385,15 @@
     // ==========================================
     // 5. KHỞI TẠO TRANG
     // ==========================================
-    if (isHeadOfDepartment) { await loadTab('learner'); } 
-    else if (isDirector) { await loadTab('department'); } 
-    else { await loadOverview(); await loadTab('course'); }
+    // Trưởng phòng chỉ có đúng một thẻ (thanh thẻ bị ẩn) nên không cần đọc địa chỉ. Còn lại mở lại thẻ ghi trên địa
+    // chỉ trang (?tab=): tải lại trang, kể cả khi đổi ngôn ngữ, vẫn đứng nguyên thẻ đang xem.
+    if (isHeadOfDepartment) { await loadTab('learner'); }
+    else {
+        const startTab = tabFromUrl(defaultTab);
+        showTab(startTab, defaultTab);
+        if (!isDirector) await loadOverview();
+        await loadTab(startTab);
+    }
 })();
 </script>
 </body>

@@ -486,6 +486,9 @@ $RECYCLE.BIN/
 *.db-shm
 *.db-wal
 wwwroot/uploads/
+# Kho tệp riêng (giấy chứng nhận bên ngoài nhân viên quét lên...) — dữ liệu cá nhân, không bao giờ vào git.
+App_Data/private/
+App_Data/scorm/
 
 # Nguồn Mixamo và thư mục tạm của Scripts/build-character.mjs
 Scripts/character-source/**/.work/

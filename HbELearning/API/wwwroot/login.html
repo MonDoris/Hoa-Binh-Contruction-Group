@@ -163,7 +163,7 @@
 
         <div class="fp-step" id="fpStep3" hidden>
             <h3 data-i18n="fp.title3">Đặt mật khẩu mới</h3>
-            <p class="fp-desc" data-i18n="fp.desc3">Mật khẩu mới cần tối thiểu 6 ký tự.</p>
+            <p class="fp-desc" data-i18n="fp.desc3">Mật khẩu mới cần tối thiểu 8 ký tự, có cả chữ và số.</p>
             <div class="fp-error" id="fpError3"></div>
             <div class="input-group">
                 <label for="fpNewPassword" data-i18n="fp.newPassword">Mật khẩu mới</label>
@@ -559,7 +559,10 @@
         fpHideError(3);
         const newPassword = fpNewPasswordInput.value;
         const confirmPassword = fpConfirmPasswordInput.value;
-        if (newPassword.length < 6) { fpShowError(3, t('fp.errPwdShort', 'Mật khẩu mới tối thiểu 6 ký tự.')); return; }
+        // Kiểm bằng đúng bộ quy tắc của máy chủ (password.js) để người dùng không bị đá lại sau khi đã
+        // chờ OTP — máy chủ vẫn kiểm lại bằng PasswordPolicy.
+        const pwdError = passwordRuleError(newPassword, fpEmailInput.value.trim());
+        if (pwdError) { fpShowError(3, pwdError); return; }
         if (newPassword !== confirmPassword) { fpShowError(3, t('fp.errPwdMismatch', 'Mật khẩu xác nhận không khớp.')); return; }
 
         fpResetPasswordBtn.disabled = true;

@@ -32,6 +32,12 @@ public static class DependencyInjection
 
         // ---------- Tệp tin & tài liệu ----------
         services.AddScoped<IFileService, FileService>();
+        // Kho gói SCORM (giải nén, đọc manifest, đóng gói xuất) — không giữ trạng thái nên dùng chung một bản.
+        services.AddSingleton<IScormPackageStorage, ScormPackageStorage>();
+
+        // Bộ lọc HTML không giữ trạng thái và dựng khá tốn (nạp cấu hình AngleSharp) nên đăng ký một bản
+        // dùng chung cho cả tiến trình.
+        services.AddSingleton<IHtmlSanitizer, LessonHtmlSanitizer>();
         services.AddSingleton<IAppPaths, AppPaths>();
         services.AddSingleton<IMediaFileProcessor, MediaFileProcessor>();
         services.AddScoped<ICertificateQrCodeGenerator, CertificateQrCodeGenerator>();
@@ -51,6 +57,7 @@ public static class DependencyInjection
         services.AddHttpClient<IAiContentService, OllamaContentService>();
         services.AddHttpClient<IEmbeddingService, OllamaEmbeddingService>();
         services.AddHttpClient<IAiChatService, OllamaChatService>();
+        services.AddHttpClient<ICertificateReader, OllamaCertificateReader>();
 
         // ---------- Vòng lặp nền ----------
         // Ban cac loi nhac hoc tap nguoi hoc tu hen gio (xem StudyReminderWorker). Khac voi nhac nho theo
@@ -60,6 +67,9 @@ public static class DependencyInjection
         // Để AI tự học nội dung các khóa học đã xuất bản — ngay khi xuất bản/sửa bài, và quét lại định kỳ
         // (xem CourseKnowledgeSyncWorker).
         services.AddHostedService<CourseKnowledgeSyncWorker>();
+        // AI đối chiếu chứng nhận bên ngoài chưa có kết quả quét sẵn (xem ExternalCertificateVerifyWorker).
+        services.AddSingleton<IExternalCertificateVerifyQueue, ExternalCertificateVerifyQueue>();
+        services.AddHostedService<ExternalCertificateVerifyWorker>();
 
         return services;
     }

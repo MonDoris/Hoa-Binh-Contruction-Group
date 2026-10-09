@@ -8,12 +8,17 @@ public class LessonService : ILessonService
     private readonly IAppDbContext _db;
     private readonly ILearningService _learningService;
     private readonly ICurrentUser _currentUser;
+    private readonly IHtmlSanitizer _htmlSanitizer;
+    private readonly ILearningPathService _learningPathService;
 
-    public LessonService(IAppDbContext db, ILearningService learningService, ICurrentUser currentUser)
+    public LessonService(IAppDbContext db, ILearningService learningService, ICurrentUser currentUser,
+        IHtmlSanitizer htmlSanitizer, ILearningPathService learningPathService)
     {
         _db = db;
         _learningService = learningService;
         _currentUser = currentUser;
+        _htmlSanitizer = htmlSanitizer;
+        _learningPathService = learningPathService;
     }
 
     public async Task<Result> GetByCourse(int courseId)
@@ -82,7 +87,10 @@ public class LessonService : ILessonService
         {
             CourseId = request.CourseId,
             Title = request.Title.Trim(),
-            Content = request.Content,
+            // Nội dung bài học được đổ thẳng vào trang học bằng innerHTML để giữ bảng biểu của tài liệu
+            // nhập từ Word, nên thẻ chạy được mã phải bị cắt TẠI ĐÂY — trước khi vào database, chứ không
+            // phải lúc hiển thị: cùng một nội dung được hiện ở nhiều trang, sót một chỗ là hở cả hệ thống.
+            Content = _htmlSanitizer.Sanitize(request.Content),
             ContentType = request.ContentType,
             ResourceUrl = request.ResourceUrl,
             DurationMinutes = request.DurationMinutes,
@@ -93,8 +101,9 @@ public class LessonService : ILessonService
 
         _db.Lesson.Add(lesson);
         await _db.SaveChangesAsync();
+        await _learningPathService.AppendResourceAsync(lesson.CourseId, PathItemType.Lesson, lesson.Id, request.ParentItemId);
 
-        return Result.Success(new MessageResponse($"Đã tạo bài học #{lesson.Id}."));
+        return Result.Success(new MessageResponse($"Đã tạo bài học #{lesson.Id}.", lesson.Id));
     }
 
     public async Task<Result> CreateWithQuiz(LessonWithQuizRequest request)
@@ -109,7 +118,7 @@ public class LessonService : ILessonService
         {
             CourseId = request.Lesson.CourseId,
             Title = request.Lesson.Title.Trim(),
-            Content = request.Lesson.Content,
+            Content = _htmlSanitizer.Sanitize(request.Lesson.Content),
             ContentType = request.Lesson.ContentType,
             ResourceUrl = request.Lesson.ResourceUrl,
             DurationMinutes = request.Lesson.DurationMinutes,
@@ -140,40 +149,14 @@ public class LessonService : ILessonService
             quizId = quiz.Id;
         }
 
-        await AppendToLearningPathAsync(request.Lesson.CourseId, lesson.Id, quizId);
+        // Bài học thành một SCO của cấu trúc khóa học; bài kiểm tra kèm theo tự đứng ngay sau nó.
+        await _learningPathService.AppendResourceAsync(lesson.CourseId, PathItemType.Lesson, lesson.Id, request.Lesson.ParentItemId);
+        if (quizId.HasValue) await _learningPathService.AppendResourceAsync(lesson.CourseId, PathItemType.Quiz, quizId.Value);
 
         var message = quizId.HasValue
             ? $"Đã tạo bài học #{lesson.Id} kèm bài kiểm tra #{quizId}."
             : $"Đã tạo bài học #{lesson.Id}.";
         return Result.Success(new LessonWithQuizResponse(lesson.Id, quizId, message));
-    }
-
-    /// <summary>Nếu khóa học đã có lộ trình học tập, nối thêm bài học vừa tạo (và bài kiểm tra gắn theo, nếu có)
-    /// vào cuối lộ trình — quiz luôn ngay sau lesson để giữ đúng thứ tự "học xong bài mới tới bài kiểm tra".
-    /// Không tạo lộ trình mới nếu khóa học chưa có, để không ghi đè lựa chọn IsSequential của Trưởng Nhóm.</summary>
-    private async Task AppendToLearningPathAsync(int courseId, int lessonId, int? quizId)
-    {
-        var path = await _db.LearningPath.FirstOrDefaultAsync(x => x.CourseId == courseId);
-        if (path is null) return;
-
-        var order = (await _db.PathItem.Where(x => x.LearningPathId == path.Id)
-            .Select(x => (int?)x.OrderIndex).MaxAsync() ?? 0) + 1;
-
-        _db.PathItem.Add(new PathItem
-        {
-            LearningPathId = path.Id, ItemType = PathItemType.Lesson, LessonId = lessonId,
-            OrderIndex = order++, IsRequired = true
-        });
-        if (quizId.HasValue)
-        {
-            _db.PathItem.Add(new PathItem
-            {
-                LearningPathId = path.Id, ItemType = PathItemType.Quiz, QuizId = quizId.Value,
-                OrderIndex = order, IsRequired = true
-            });
-        }
-
-        await _db.SaveChangesAsync();
     }
 
     public async Task<Result> Update(int id, LessonRequest request)
@@ -182,7 +165,7 @@ public class LessonService : ILessonService
         if (lesson is null) return Result.NotFound(new MessageResponse("Không tìm thấy bài học."));
 
         lesson.Title = request.Title.Trim();
-        lesson.Content = request.Content;
+        lesson.Content = _htmlSanitizer.Sanitize(request.Content);
         lesson.ContentType = request.ContentType;
         lesson.ResourceUrl = request.ResourceUrl;
         lesson.DurationMinutes = request.DurationMinutes;

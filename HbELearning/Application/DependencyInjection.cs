@@ -27,6 +27,12 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IChatService, ChatService>();
         services.AddScoped<ICertificateService, CertificateService>();
+        services.AddScoped<IExternalCertificateService, ExternalCertificateService>();
+        services.AddScoped<ExternalCertificateVerifier>();
+        services.AddScoped<IScormService, ScormService>();
+        services.AddScoped<HbELearning.Application.Features.Scorm.Export.ScormCourseExporter>();
+        services.AddScoped<HbELearning.Application.Features.Scorm.CoursePackage.CourseOrganizationBuilder>();
+        services.AddScoped<HbELearning.Application.Features.Scorm.CoursePackage.CourseScormService>();
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IDepartmentService, DepartmentService>();

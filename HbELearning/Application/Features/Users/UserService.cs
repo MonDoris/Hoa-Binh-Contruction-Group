@@ -14,8 +14,12 @@ public class UserService : IUserService
     private readonly IDataImportService _dataImportService;
     private readonly ICurrentUser _currentUser;
 
-    public UserService(IAppDbContext db, IDataImportService dataImportService, ICurrentUser currentUser, IPasswordHasher passwordHasher)
+    private readonly ILogger<UserService> _logger;
+
+    public UserService(IAppDbContext db, IDataImportService dataImportService, ICurrentUser currentUser,
+        IPasswordHasher passwordHasher, ILogger<UserService> logger)
     {
+        _logger = logger;
         _passwordHasher = passwordHasher;
         _db = db;
         _dataImportService = dataImportService;
@@ -94,6 +98,9 @@ public class UserService : IUserService
         if (!await _db.Role.AnyAsync(x => x.Id == request.RoleId && x.IsActive))
             return Result.Invalid(new MessageResponse("Vai trò không hợp lệ."));
 
+        if (PasswordPolicy.Validate(request.Password, request.Email, userName) is string weak)
+            return Result.Invalid(new MessageResponse(weak));
+
         var user = new User
         {            
             EmployeeCode = await GenerateEmployeeCode(),
@@ -168,12 +175,20 @@ public class UserService : IUserService
             || await _db.OnlineClassRoom.AnyAsync(x => x.HostUserId == id)
             // Lượt đổi quà ở cửa hàng là sổ chi tiêu điểm, và khóa ngoại của nó để Restrict (xem
             // AppDbContext) — không chặn ở đây thì cú xóa chết ở tầng CSDL với một thông báo tiếng Anh khó hiểu.
-            || await _db.ShopRedemption.AnyAsync(x => x.UserId == id);
+            || await _db.ShopRedemption.AnyAsync(x => x.UserId == id)
+            // Chứng nhận bên ngoài là hồ sơ năng lực (kèm tệp quét trong kho riêng), khóa ngoại cũng Restrict —
+            // người đã gửi hoặc đã duyệt giấy thì dùng "Khóa" chứ không xóa.
+            || await _db.ExternalCertificate.AnyAsync(x => x.UserId == id || x.ReviewedById == id)
+            // Người đã nhập gói SCORM là tác giả nội dung (khóa ngoại Restrict) — giống khóa học đã tạo ở trên.
+            || await _db.ScormPackage.AnyAsync(x => x.CreatedById == id);
 
         if (hasActivity)
             return Result.Invalid(new MessageResponse(
                 "Tài khoản đã có dữ liệu hoạt động (khóa học, phân công, duyệt nội dung...) nên không thể xóa vĩnh viễn. Hãy dùng \"Khóa\" để vô hiệu hóa thay vì xóa."));
 
+        // Bản XEM THỬ gói SCORM (không gắn lượt học nào) chỉ có nghĩa với chính người xem — dọn theo. Khóa ngoại tới
+        // HBE_USER để NoAction (xem AppDbContext) nên không tự lan truyền.
+        _db.ScormRegistration.RemoveRange(_db.ScormRegistration.Where(x => x.UserId == id && x.IsPreview));
         _db.User.Remove(user);
         await _db.SaveChangesAsync();
         return Result.Success(new MessageResponse("Đã xóa tài khoản."));
@@ -184,7 +199,18 @@ public class UserService : IUserService
         var user = await _db.User.FirstOrDefaultAsync(x => x.Id == id);
         if (user is null) return Result.NotFound(new MessageResponse("Không tìm thấy người dùng."));
 
-        var newPassword = string.IsNullOrWhiteSpace(request?.NewPassword) ? "Hbe@12345" : request.NewPassword;
+        // Bỏ trống thì SINH NGẪU NHIÊN, không dùng lại một chuỗi cố định nữa: "Hbe@12345" nằm trong mã
+        // nguồn nên ai cũng biết, mà mật khẩu tạm thì rất hay được để nguyên không đổi. Chuỗi mới được trả
+        // về trong câu thông báo để quản trị viên đọc lại cho nhân viên.
+        var newPassword = string.IsNullOrWhiteSpace(request?.NewPassword)
+            ? GenerateTemporaryPassword()
+            : request.NewPassword;
+
+        // Quản trị viên tự gõ mật khẩu hộ người khác cũng phải theo đúng quy tắc: đây là lối hay được dùng
+        // để đặt một chuỗi cho dễ đọc qua điện thoại ("123456"), và mật khẩu đó thường không ai đổi lại.
+        if (PasswordPolicy.Validate(newPassword, user.Email, user.UserName, user.EmployeeCode) is string weak)
+            return Result.Invalid(new MessageResponse(weak));
+
         user.PasswordHash = _passwordHasher.Hash(newPassword);
 
         // Đặt lại mật khẩu cũng là mở khóa: gần như mọi tài khoản bị khóa đều vì chủ nhân quên mật khẩu, mà
@@ -194,6 +220,31 @@ public class UserService : IUserService
 
         await _db.SaveChangesAsync();
         return Result.Success(new MessageResponse($"Đã đặt lại mật khẩu thành: {newPassword}"));
+    }
+
+    /// <summary>
+    /// Mật khẩu tạm dùng một lần cho lệnh "đặt lại mật khẩu" của quản trị viên.
+    ///
+    /// Bỏ hẳn các ký tự dễ đọc nhầm khi đọc qua điện thoại (0/O, 1/l/I) — mật khẩu tạm gần như luôn được
+    /// truyền miệng, gõ nhầm một ký tự là nhân viên tốn thêm một lần gọi lên phòng IT, và sai ba lần thì
+    /// tài khoản khóa lại từ đầu.
+    /// </summary>
+    private static string GenerateTemporaryPassword()
+    {
+        const string letter = "abcdefghjkmnpqrstuvwxyz";
+        const string upper = "ABCDEFGHJKMNPQRSTUVWXYZ";
+        const string digit = "23456789";
+
+        var characterList = new List<char>
+        {
+            upper[System.Security.Cryptography.RandomNumberGenerator.GetInt32(upper.Length)]
+        };
+        for (var i = 0; i < 6; i++)
+            characterList.Add(letter[System.Security.Cryptography.RandomNumberGenerator.GetInt32(letter.Length)]);
+        for (var i = 0; i < 3; i++)
+            characterList.Add(digit[System.Security.Cryptography.RandomNumberGenerator.GetInt32(digit.Length)]);
+
+        return new string(characterList.ToArray());
     }
 
     public async Task<Result> Unlock(int id)
@@ -279,7 +330,12 @@ public class UserService : IUserService
         }
         catch (Exception ex)
         {
-            return Result.Invalid(new MessageResponse($"Không đọc được file Excel: {ex.Message}"));
+            // Không ghép lời của ngoại lệ vào câu trả về: ClosedXML báo lỗi kèm đường dẫn tuyệt đối trên
+            // máy chủ. Chi tiết vào nhật ký, người dùng nhận câu hướng dẫn xử lý.
+            _logger.LogError(ex, "Khong doc duoc file Excel khi nhap du lieu");
+            return Result.Invalid(new MessageResponse(
+                "Không đọc được file Excel. Hãy kiểm tra file có đúng bộ cột như file mẫu không, "
+                + "hoặc mở bằng Excel rồi lưu lại dạng .xlsx trước khi tải lên."));
         }
     }
 }

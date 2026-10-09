@@ -8,9 +8,12 @@ public class QuizService : IQuizService
     private readonly IAppDbContext _db;
     private readonly ILearningService _learningService;
     private readonly ICurrentUser _currentUser;
+    private readonly ILearningPathService _learningPathService;
 
-    public QuizService(IAppDbContext db, ILearningService learningService, ICurrentUser currentUser)
+    public QuizService(IAppDbContext db, ILearningService learningService, ICurrentUser currentUser,
+        ILearningPathService learningPathService)
     {
+        _learningPathService = learningPathService;
         _db = db;
         _learningService = learningService;
         _currentUser = currentUser;
@@ -71,7 +74,8 @@ public class QuizService : IQuizService
 
         _db.Quiz.Add(quiz);
         await _db.SaveChangesAsync();
-        return Result.Success(new MessageResponse($"Đã tạo bài kiểm tra #{quiz.Id}."));
+        await _learningPathService.AppendResourceAsync(quiz.CourseId, PathItemType.Quiz, quiz.Id, request.ParentItemId);
+        return Result.Success(new MessageResponse($"Đã tạo bài kiểm tra #{quiz.Id}.", quiz.Id));
     }
 
     public async Task<Result> Update(int id, QuizRequest request)

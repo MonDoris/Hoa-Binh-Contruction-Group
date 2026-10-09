@@ -6,7 +6,7 @@
 
 // ĐỔI SỐ NÀY mỗi lần sửa danh sách SHELL hoặc đổi chiến lược cache — tên cache đổi thì bản cũ bị xóa
 // sạch ở bước activate, người dùng không kẹt lại ở phiên bản cũ.
-const VERSION = 'v19';
+const VERSION = 'v26';
 const SHELL_CACHE = `hbe-shell-${VERSION}`;
 const PAGE_CACHE = `hbe-page-${VERSION}`;
 
@@ -25,8 +25,9 @@ const SHELL = [
     '/manifest.webmanifest',
 ];
 
-// Đường dẫn không bao giờ được cache.
-const NEVER_CACHE = ['/api/', '/hubs/', '/uploads/', '/swagger'];
+// Đường dẫn không bao giờ được cache. /scorm-content là nội dung các gói SCORM — cả một website mỗi gói, cache
+// vào đây là phình bộ nhớ của trình duyệt theo mọi gói từng mở.
+const NEVER_CACHE = ['/api/', '/hubs/', '/uploads/', '/swagger', '/scorm-content/'];
 
 self.addEventListener('install', event => {
     event.waitUntil((async () => {

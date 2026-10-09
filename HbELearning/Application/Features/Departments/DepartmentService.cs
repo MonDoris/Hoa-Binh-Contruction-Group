@@ -12,8 +12,12 @@ public class DepartmentService : IDepartmentService
 
     private readonly IDataImportService _dataImportService;
 
-    public DepartmentService(IAppDbContext db, IDataImportService dataImportService)
+    private readonly ILogger<DepartmentService> _logger;
+
+    public DepartmentService(IAppDbContext db, IDataImportService dataImportService,
+        ILogger<DepartmentService> logger)
     {
+        _logger = logger;
         _db = db;
         _dataImportService = dataImportService;
     }
@@ -144,7 +148,12 @@ public class DepartmentService : IDepartmentService
         }
         catch (Exception ex)
         {
-            return Result.Invalid(new MessageResponse($"Không đọc được file Excel: {ex.Message}"));
+            // Không ghép lời của ngoại lệ vào câu trả về: ClosedXML báo lỗi kèm đường dẫn tuyệt đối trên
+            // máy chủ. Chi tiết vào nhật ký, người dùng nhận câu hướng dẫn xử lý.
+            _logger.LogError(ex, "Khong doc duoc file Excel khi nhap du lieu");
+            return Result.Invalid(new MessageResponse(
+                "Không đọc được file Excel. Hãy kiểm tra file có đúng bộ cột như file mẫu không, "
+                + "hoặc mở bằng Excel rồi lưu lại dạng .xlsx trước khi tải lên."));
         }
     }
 }

@@ -31,7 +31,9 @@ public class ChangePasswordRequest
 {
     [Required] public string CurrentPassword { get; set; } = null!;
 
-    [Required, MinLength(6, ErrorMessage = "Mật khẩu mới tối thiểu 6 ký tự")]
+    // Quy tắc đầy đủ nằm ở PasswordPolicy và được kiểm ở tầng nghiệp vụ — ở đây chỉ chặn chuỗi rỗng.
+    // Đặt luật độ dài tại chỗ này nữa là có hai nguồn sự thật, sửa một bên quên bên kia.
+    [Required(ErrorMessage = "Chưa nhập mật khẩu mới")]
     public string NewPassword { get; set; } = null!;
 }
 
@@ -55,11 +57,15 @@ public class VerifyOtpRequest
 
 public record VerifyOtpResponse(string ResetToken);
 
+/// <summary>Vé vào kênh thời gian thực. Xem <see cref="ITokenService.CreateHubTicket"/> để biết vì sao nó
+/// không dùng chung thẻ đăng nhập.</summary>
+public record HubTicketResponse(string Ticket, DateTime ExpiresAt);
+
 public class ResetPasswordRequest
 {
     [Required(ErrorMessage = "Thiếu mã xác thực")]
     public string ResetToken { get; set; } = null!;
 
-    [Required, MinLength(6, ErrorMessage = "Mật khẩu mới tối thiểu 6 ký tự")]
+    [Required(ErrorMessage = "Chưa nhập mật khẩu mới")]
     public string NewPassword { get; set; } = null!;
 }

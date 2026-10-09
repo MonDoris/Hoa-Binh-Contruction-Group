@@ -11,9 +11,12 @@ public class ScenarioService : IScenarioService
     private readonly IAppDbContext _db;
     private readonly ILearningService _learningService;
     private readonly ICurrentUser _currentUser;
+    private readonly ILearningPathService _learningPathService;
 
-    public ScenarioService(IAppDbContext db, ILearningService learningService, ICurrentUser currentUser)
+    public ScenarioService(IAppDbContext db, ILearningService learningService, ICurrentUser currentUser,
+        ILearningPathService learningPathService)
     {
+        _learningPathService = learningPathService;
         _db = db;
         _learningService = learningService;
         _currentUser = currentUser;
@@ -82,7 +85,9 @@ public class ScenarioService : IScenarioService
 
         _db.ScenarioScene.Add(scene);
         await _db.SaveChangesAsync();
-        return Result.Success(new MessageResponse($"Đã tạo mô phỏng #{scene.Id}."));
+        // Mô phỏng vào cấu trúc ngay, nhưng chỉ được giao cho học viên khi đã có ít nhất một tình huống.
+        await _learningPathService.AppendResourceAsync(scene.CourseId, PathItemType.Simulation, scene.Id, request.ParentItemId);
+        return Result.Success(new MessageResponse($"Đã tạo mô phỏng #{scene.Id}.", scene.Id));
     }
 
     public async Task<Result> Update(int id, ScenarioSceneRequest request)

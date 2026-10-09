@@ -11,72 +11,352 @@
     <title>Trung tâm điểm thưởng · HB E-Learning</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        /* ---------- BỐ CỤC: RAIL TRÁI + NỘI DUNG ---------- */
-        /* Điều hướng chuyển từ thanh tab ngang sang cột trái. Lý do: trang này có tới năm khu vực, mà ba
-           trong số đó chỉ Admin thấy — thanh tab ngang vì thế dài ngắn khác nhau tùy người đăng nhập và
-           không còn chỗ cho bất cứ thứ gì khác. Cột trái thì luôn đủ chỗ, lại chứa được cả ví điểm và danh
-           sách nhóm sản phẩm ngay cạnh nơi cần dùng chúng. */
-        .shop-layout { display: grid; grid-template-columns: 272px minmax(0, 1fr); gap: 20px; align-items: start; }
-        .shop-rail { position: sticky; top: 14px; display: flex; flex-direction: column; gap: 14px; }
-
-        /* ---------- VÍ ĐIỂM (trên đầu rail) ---------- */
-        /* Con số khả dụng to hẳn và tách khỏi các con số phụ: người học mở cửa hàng ra chỉ hỏi đúng một
-           câu — "tôi còn tiêu được bao nhiêu". Mọi con số cùng cỡ thì phải đọc nhãn mới biết cái nào là nó. */
-        .rail-wallet {
-            border-radius: 16px; padding: 17px 18px 14px; color: #fff;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            box-shadow: var(--shadow);
+        /* ---------- MÀU CHỮ RIÊNG CỦA TRANG ---------- */
+        /* Chữ xanh lá / cam / đỏ ở cỡ nhỏ phải đậm hơn màu token một bậc mới đạt tương phản 4.5:1 trên nền
+           sáng. Sang nền tối thì ngược lại: màu token ở đó đã được làm sáng sẵn, dùng thẳng là đủ.
+           Đặt trên body chứ không trên khung nội dung: các hộp thoại nằm ngoài khung đó cũng dùng tới. */
+        body { --ok-ink: #15803d; --warn-ink: #b45309; --bad-ink: #b91c1c; --thumb-bg: #fff; }
+        :root[data-theme="dark"] body {
+            --ok-ink: var(--success); --warn-ink: var(--warning); --bad-ink: var(--danger); --thumb-bg: #1b2538;
         }
-        .rail-wallet .cap { font-size: 10.5px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; opacity: .88; }
-        .rail-wallet .big {
-            display: flex; align-items: center; gap: 9px; margin: 5px 0 13px;
-            font-size: 31px; font-weight: 800; letter-spacing: -1px; line-height: 1.1;
-        }
-        .rail-wallet .big i { font-size: 25px; opacity: .9; }
-        .rail-wallet .row {
-            display: flex; justify-content: space-between; gap: 10px;
-            font-size: 12.5px; padding: 6px 0; border-top: 1px solid rgba(255, 255, 255, .25);
-        }
-        .rail-wallet .row span { opacity: .88; }
-        .rail-wallet .row b { font-weight: 700; }
-
-        /* ---------- HỘP TRONG RAIL (điều hướng, nhóm sản phẩm) ---------- */
-        .rail-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 7px; }
-        .rail-cap {
-            font-size: 10.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
-            color: var(--text-muted); padding: 10px 12px 6px;
-        }
-        .rail-item {
-            width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 12px;
-            border: none; border-radius: 10px; background: none; cursor: pointer; text-align: left;
-            font: 600 13.5px/1.4 inherit; color: var(--text);
-        }
-        .rail-item:hover { background: var(--bg); }
-        .rail-item.active { background: var(--primary-light); color: var(--primary-dark); }
-        .rail-item > i { font-size: 18px; flex: none; }
-        .rail-item .txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .rail-item .num {
-            flex: none; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 8px;
-            background: var(--bg); color: var(--text-muted);
-        }
-        .rail-item.active .num { background: var(--surface); color: var(--primary-dark); }
-        /* Số việc đang chờ người quản trị xử lý — phải nhìn ra ngay kể cả khi đang ở khu vực khác. */
-        .rail-item .num.warn { background: var(--warning-light); color: #b45309; }
-        .rail-item.sm { font-size: 13px; font-weight: 500; padding: 7px 12px; }
-        .rail-item.sm.active { font-weight: 700; }
-
-        /* Màn hình hẹp: rail nằm trên, hai hộp của nó trải ngang và cuộn ngang thay vì xếp dọc chiếm
-           nửa màn hình đầu tiên. */
-        @media (max-width: 1000px) {
-            .shop-layout { grid-template-columns: 1fr; }
-            .shop-rail { position: static; }
-            .rail-box { display: flex; gap: 4px; overflow-x: auto; padding: 6px; }
-            .rail-cap { display: none; }
-            .rail-item { width: auto; white-space: nowrap; }
-            .rail-item .txt { overflow: visible; }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) body {
+                --ok-ink: var(--success); --warn-ink: var(--warning); --bad-ink: var(--danger); --thumb-bg: #1b2538;
+            }
         }
 
-        /* ---------- DÃY SỐ LIỆU ĐẦU KHU QUẢN TRỊ ---------- */
+        /* ---------- THANH KHU VỰC (tab ngang) ---------- */
+        /* Thay cho cột rail bên trái: người học chỉ có hai khu (Gian hàng, Lượt đổi của tôi), vậy mà rail
+           chiếm hẳn 272px và ba cái hộp, đẩy lưới quà vào một góc. Tab ngang trả lại toàn bộ chiều rộng cho
+           nội dung; nhóm Quản trị dạt sang phải nên người học và quản trị viên vẫn thấy cùng một bố cục.
+           Đường kẻ chân và vạch tab đang chọn vẽ bằng box-shadow inset chứ không bằng border + margin âm:
+           thanh này cuộn ngang trên điện thoại, mà overflow cuộn thì cắt mất phần margin âm thò ra ngoài. */
+        .shop-tabs {
+            display: flex; align-items: stretch; gap: 24px; margin-bottom: 20px;
+            box-shadow: inset 0 -1px 0 var(--border);
+            overflow-x: auto; scrollbar-width: none;
+        }
+        .shop-tabs::-webkit-scrollbar { display: none; }
+        .shop-tabs-group { display: flex; align-items: stretch; gap: 22px; flex: none; }
+        .shop-tabs-group.admin { margin-left: auto; }
+        .shop-tabs-cap {
+            align-self: center; font-size: 10.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+            color: var(--text-muted); border: 1px solid var(--border); border-radius: 6px; padding: 3px 7px;
+        }
+        .shop-tab {
+            display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 2px;
+            border: 0; background: none; cursor: pointer; white-space: nowrap;
+            font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text-muted);
+            transition: color .15s ease, box-shadow .15s ease;
+        }
+        .shop-tab > i { font-size: 18px; }
+        .shop-tab:hover { color: var(--text); }
+        .shop-tab.active { color: var(--primary-dark); box-shadow: inset 0 -2px 0 var(--primary); }
+        .shop-tab:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 6px; }
+        .shop-tab .num, .shelf-head .num {
+            font-size: 11px; font-weight: 700; line-height: 1; border-radius: 999px; padding: 4px 7px;
+            background: var(--border); color: var(--text-muted); font-variant-numeric: tabular-nums;
+        }
+        .shop-tab .num:empty { display: none; }
+        .shop-tab.active .num { background: var(--primary-light); color: var(--primary-dark); }
+        /* Việc đang chờ (quà chưa trao, đơn chưa xử lý) — phải nổi lên kể cả khi đang đứng ở khu khác. */
+        .shop-tab .num.warn { background: var(--warning-light); color: var(--warn-ink); }
+
+        /* ---------- VÍ ĐIỂM (dải đầu gian hàng) ---------- */
+        /* Nền xanh đậm cố định chứ không lấy --primary: chữ trắng trên #00a1e6 chỉ đạt khoảng 2.9:1, còn
+           trên dải #0277b6 → #075985 thì từ 4.8:1 trở lên — đọc rõ cả những con số phụ cỡ 12px. */
+        .wallet-hero {
+            display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 22px; align-items: center;
+            padding: 22px 24px; margin-bottom: 18px; border-radius: var(--radius-lg); color: #fff;
+            background: linear-gradient(125deg, #0277b6 0%, #0369a1 50%, #075985 100%);
+            box-shadow: 0 14px 30px -16px rgba(3, 105, 161, .6);
+        }
+        .wallet-hero.solo { grid-template-columns: 1fr; }
+        .wh-cap {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+            color: rgba(255, 255, 255, .86);
+        }
+        .wh-cap i { font-size: 14px; }
+        .wh-balance { display: flex; align-items: baseline; gap: 10px; margin: 8px 0 16px; line-height: 1; }
+        .wh-balance i { align-self: center; font-size: 30px; color: #bae6fd; }
+        .wh-balance b { font-size: 46px; font-weight: 800; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; }
+        .wh-balance span { font-size: 15px; font-weight: 600; color: rgba(255, 255, 255, .86); }
+
+        .wh-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+        .wh-stat {
+            display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px;
+            border-radius: 999px; border: 1px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .12);
+            font-family: inherit; font-size: 12.5px; font-weight: 500; color: #fff;
+        }
+        .wh-stat b { font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+        .wh-stat > i { font-size: 15px; }
+        button.wh-stat { cursor: pointer; transition: background-color .15s ease; }
+        button.wh-stat:hover { background: rgba(255, 255, 255, .24); }
+        button.wh-stat:focus-visible, .wh-goal-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+        /* Có quà đang chờ trao thì viên này đổi sang nền vàng — đây là lời nhắc "ra nhận quà". */
+        .wh-stat.alert { background: #fef3c7; border-color: #fef3c7; color: #78350f; }
+        .wh-stat.alert b { color: #78350f; }
+
+        /* Ô "mục tiêu kế tiếp": món rẻ nhất mà bạn CHƯA đủ điểm. Một con số điểm trơn không nói được nó
+           mua được gì; đặt nó cạnh một món quà cụ thể và một thanh tiến độ thì người học biết ngay mình
+           còn cách phần thưởng bao xa. */
+        .wh-goal {
+            display: flex; flex-direction: column; gap: 10px; min-height: 132px; padding: 15px 16px;
+            border-radius: 14px; border: 1px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .12);
+        }
+        .wh-goal-item { display: flex; align-items: center; gap: 12px; }
+        .wh-thumb {
+            width: 54px; height: 54px; flex: none; padding: 5px; box-sizing: border-box; overflow: hidden;
+            border-radius: 11px; background: #fff; display: flex; align-items: center; justify-content: center;
+        }
+        .wh-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .wh-thumb i { font-size: 26px; color: #0369a1; }
+        .wh-goal-name { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .wh-goal-sub { font-size: 12.5px; color: rgba(255, 255, 255, .92); margin-top: 2px; }
+        .wh-goal-sub b { color: #fde68a; font-weight: 800; }
+        .wh-goal-big { font-size: 26px; font-weight: 800; letter-spacing: -.5px; line-height: 1.1; }
+        .wh-meter { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, .22); overflow: hidden; }
+        .wh-meter span {
+            display: block; height: 100%; border-radius: inherit;
+            background: linear-gradient(90deg, #fde68a, #fbbf24); transition: width .6s cubic-bezier(.2, .8, .2, 1);
+        }
+        .wh-goal-foot {
+            display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+            font-size: 12px; color: rgba(255, 255, 255, .88); font-variant-numeric: tabular-nums;
+        }
+        .wh-goal-btn {
+            align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px;
+            border: 0; border-radius: 9px; cursor: pointer; background: #fff; color: #075985;
+            font-family: inherit; font-size: 13px; font-weight: 700; transition: transform .15s ease;
+        }
+        .wh-goal-btn:hover { transform: translateX(2px); }
+        .wallet-skel { height: 176px; border-radius: var(--radius-lg); margin-bottom: 18px; }
+
+        /* ---------- TÌM KIẾM + NHÓM SẢN PHẨM ---------- */
+        .store-tools { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+        .store-search-row { display: flex; gap: 14px; align-items: center; }
+        .search-box { position: relative; display: flex; align-items: center; }
+        .search-box > i { position: absolute; left: 12px; font-size: 16px; color: var(--text-muted); pointer-events: none; }
+        .search-box input { flex: 1; min-width: 0; padding-left: 34px; }
+        .store-search-row .search-box { flex: 1; }
+        .store-search-row .search-box > i { left: 14px; font-size: 18px; }
+        .store-search-row .search-box input { min-height: 44px; padding-left: 42px; border-radius: 12px; font-size: 14px; }
+
+        /* Nhóm sản phẩm thành một hàng chip ngay trên lưới: bấm qua bấm lại để dạo cửa hàng là thao tác
+           chính, và chip cho thấy luôn cửa hàng đang có những nhóm nào, mỗi nhóm bao nhiêu món. */
+        .cat-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+        .cat-row::-webkit-scrollbar { display: none; }
+
+        .chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .chip {
+            flex: none; min-height: 36px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px;
+            background: var(--surface); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+            font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+            transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+        }
+        .chip:hover { color: var(--text); border-color: var(--text-muted); }
+        .chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .chip.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+        .chip .n { font-size: 11px; font-weight: 700; opacity: .8; font-variant-numeric: tabular-nums; }
+
+        /* ---------- KỆ HÀNG ---------- */
+        /* Lưới chia ba kệ theo đúng câu hỏi người học đặt ra khi mở cửa hàng: món nào đổi được NGAY, món
+           nào phải tích thêm, món nào tạm hết. Trộn chung một lưới thì phải soi từng thẻ mới biết. */
+        .shelf + .shelf { margin-top: 28px; }
+        .shelf-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 12px; }
+        .shelf-head h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 800; }
+        .shelf-head h3 > i { font-size: 20px; }
+        .shelf-head p { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+        .shelf-ready .shelf-head h3 > i { color: var(--ok-ink); }
+        .shelf-locked .shelf-head h3 > i { color: var(--primary); }
+        .shelf-out .shelf-head h3 > i { color: var(--text-muted); }
+
+        /* ---------- THẺ QUÀ ---------- */
+        .shop-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); }
+        .shop-card {
+            border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+            background: var(--surface); display: flex; flex-direction: column;
+            transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+        }
+        .shop-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+
+        /* Ảnh dùng object-fit: CONTAIN chứ không phải cover. Phần lớn hàng trong cửa hàng là voucher, mà
+           ảnh của voucher là một cái logo: cắt cạnh logo là biến nó thành mảng màu vô nghĩa.
+           Nền khung ảnh để TRẮNG (sáng) thay vì xám như trước: logo nào cũng nằm sẵn trên nền trắng, đặt
+           lên nền xám thì thành một miếng giấy trắng dán lên thẻ. Đường kẻ dưới khung vẫn giữ, để tên món
+           không trông như viết đè lên ảnh. */
+        .shop-thumb {
+            height: 156px; padding: 16px; box-sizing: border-box;
+            background: var(--thumb-bg); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+        }
+        /* Khung ảnh dùng FLEX chứ không phải grid: trong grid, ô lưới không có chiều cao xác định nên
+           max-height: 100% của ảnh không có gì để tính và ảnh tràn xuống đè lên tên sản phẩm. Trong flex
+           thì phần trăm tính theo content-box đã cố định của khung, nên cặp max-* là trần thật. */
+        .shop-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+        .shop-thumb > i { font-size: 46px; color: var(--primary); opacity: .55; }
+
+        /* Món hết hàng chỉ làm nhạt ĐÚNG PHẦN ẢNH, để nhãn "Hết hàng" và nhãn khuyến mãi đè lên nó vẫn đọc rõ. */
+        .shop-card.off .shop-thumb img,
+        .shop-card.off .shop-thumb > i { filter: grayscale(1); opacity: .4; }
+
+        /* Hai nhãn chia hai góc đối diện: khuyến mãi bên trái, tồn kho bên phải. Nhãn tồn kho CHỈ hiện khi
+           sắp hết hoặc đã hết — "Còn 120" trên mọi thẻ chỉ là nhiễu, còn "Chỉ còn 2" mới là tin cần biết. */
+        .shop-flag, .shop-promo-flag {
+            position: absolute; top: 10px; line-height: 1;
+            font-size: 11px; font-weight: 700; letter-spacing: .2px; color: #fff;
+            border-radius: 999px; padding: 5px 9px;
+            display: inline-flex; align-items: center; gap: 4px;
+            box-shadow: 0 1px 5px rgba(15, 23, 42, .28);
+        }
+        .shop-flag { right: 10px; background: #475569; }
+        .shop-flag.low { background: #b45309; }
+        /* Màu lấy từ chính chương trình (--promo-color) để hai đợt chạy song song phân biệt được bằng mắt. */
+        .shop-promo-flag { left: 10px; background: var(--promo-color, #dc2626); }
+        .shop-card.promo { border-color: var(--promo-color, #dc2626); }
+
+        .shop-body { padding: 13px 14px 0; flex: 1; display: flex; flex-direction: column; gap: 7px; }
+        /* Nhóm sản phẩm là chip BẤM ĐƯỢC: bấm là lọc ngay cửa hàng theo nhóm đó. */
+        .shop-cat {
+            align-self: flex-start; max-width: 100%; display: inline-flex; align-items: center; gap: 4px;
+            border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px; cursor: pointer;
+            background: var(--bg); font-family: inherit; font-size: 11px; font-weight: 600; color: var(--text-muted);
+            transition: color .15s ease, border-color .15s ease;
+        }
+        .shop-cat:hover { color: var(--primary-dark); border-color: var(--primary); }
+        .shop-cat:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .shop-cat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Ghim tên đúng 2 dòng để giá và nút của cả hàng thẻ dóng thẳng nhau. */
+        .shop-body h4 {
+            margin: 0; font-size: 14.5px; font-weight: 700; line-height: 1.4; min-height: 2.8em;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .shop-desc {
+            font-size: 12.5px; color: var(--text-muted); line-height: 1.55; margin: 0;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+
+        /* Thanh tiến độ điểm trên từng thẻ: điểm khả dụng của bạn đã phủ được bao nhiêu phần giá của món.
+           Đầy và xanh lá = đổi được ngay; còn dở thì nói thẳng còn thiếu bao nhiêu điểm. */
+        .shop-meter { margin: 12px 14px 0; padding-top: 12px; border-top: 1px solid var(--border); }
+        .shop-meter .bar { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; }
+        .shop-meter .bar span {
+            display: block; height: 100%; border-radius: inherit; background: var(--primary);
+            transition: width .6s cubic-bezier(.2, .8, .2, 1);
+        }
+        .shop-meter.full .bar span { background: var(--success); }
+        .shop-meter .lab {
+            display: flex; align-items: center; gap: 5px; margin-top: 7px;
+            font-size: 12px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums;
+        }
+        .shop-meter .lab b { color: var(--text); }
+        .shop-meter.full .lab { color: var(--ok-ink); }
+
+        .shop-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; padding: 12px 14px 14px; }
+        /* Giá xếp DỌC: giá gạch ngang nhỏ ở trên, giá thực trả to đậm ở dưới. min-height giữ sẵn chỗ cho
+           dòng giá cũ để thẻ có và không có khuyến mãi vẫn có nút "Đổi quà" thẳng hàng. */
+        .shop-price {
+            display: flex; flex-direction: column; justify-content: flex-end;
+            min-height: 40px; line-height: 1.15; min-width: 0;
+        }
+        .shop-price .was {
+            font-size: 11.5px; font-weight: 600; color: var(--text-muted);
+            text-decoration: line-through; margin-bottom: 3px;
+        }
+        .shop-price .now {
+            display: inline-flex; align-items: baseline; gap: 5px;
+            font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums;
+        }
+        .shop-price .now i { align-self: center; color: var(--primary); font-size: 16px; }
+        .shop-price .now small { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+        .shop-foot .btn { flex: none; min-height: 40px; }
+        /* Nút của món chưa đổi được: không dùng kiểu "nút xanh mờ 50%" mặc định — nhìn như nút bị lỗi.
+           Nền xám phẳng kèm biểu tượng ổ khóa cho biết rõ đây là trạng thái, không phải thao tác. */
+        .btn.locked, .btn.locked:disabled {
+            background: var(--bg); color: var(--text-muted); border-color: var(--border);
+            box-shadow: none; opacity: 1;
+        }
+
+        /* ---------- BIỂU NGỮ ĐỢT ĐANG CHẠY ---------- */
+        .promo-banner-list { display: grid; gap: 10px; margin-bottom: 20px; }
+        .promo-banner {
+            display: flex; align-items: center; gap: 13px; padding: 13px 16px;
+            border-radius: 12px; border: 1px solid var(--promo-color, #dc2626);
+            /* Nền pha rất nhạt từ chính màu của đợt: nền đặc màu sự kiện chiếm mất sự chú ý của chính
+               dãy sản phẩm nằm ngay dưới nó. */
+            background: color-mix(in srgb, var(--promo-color, #dc2626) 9%, var(--surface));
+        }
+        .promo-banner .ico {
+            width: 40px; height: 40px; border-radius: 11px; flex: none; display: grid; place-items: center;
+            background: var(--promo-color, #dc2626); color: #fff; font-size: 21px;
+        }
+        .promo-banner .txt { flex: 1; min-width: 0; }
+        .promo-banner .txt b { font-size: 14px; }
+        .promo-banner .txt div { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+        .promo-banner .cut {
+            font-size: 17px; font-weight: 800; color: var(--promo-color, #dc2626); white-space: nowrap;
+        }
+
+        /* ---------- LƯỢT ĐỔI CỦA TÔI ---------- */
+        .mine-list { display: flex; flex-direction: column; gap: 10px; }
+        /* Viền trái mang màu trạng thái: lướt mắt dọc danh sách là thấy ngay lượt nào còn đang chờ. */
+        .mine-row {
+            display: grid; grid-template-columns: minmax(0, 1.6fr) 120px minmax(0, 1.25fr); gap: 20px; align-items: center;
+            padding: 14px 18px; border: 1px solid var(--border); border-left: 4px solid var(--st-color, var(--border));
+            border-radius: 14px; background: var(--surface);
+        }
+        .mine-row.s-pending { --st-color: var(--warning); }
+        .mine-row.s-delivered { --st-color: var(--success); }
+        .mine-row.s-cancelled { --st-color: var(--text-muted); }
+        .mine-product { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .mine-thumb {
+            width: 52px; height: 52px; flex: none; padding: 5px; box-sizing: border-box; overflow: hidden;
+            border-radius: 11px; border: 1px solid var(--border); background: var(--thumb-bg);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .mine-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .mine-thumb i { font-size: 24px; color: var(--primary); }
+        .mine-name { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .mine-row .sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+        .mine-row .saved { color: var(--ok-ink); font-weight: 600; }
+        .mine-note {
+            margin-top: 6px; font-size: 12px; color: var(--text); background: var(--bg);
+            border-radius: 8px; padding: 5px 9px; display: inline-flex; gap: 6px; align-items: flex-start;
+        }
+        .mine-cost { text-align: right; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .mine-cost i { color: var(--primary); font-size: 14px; }
+        .mine-cost.refunded .amt { text-decoration: line-through; color: var(--text-muted); }
+        .mine-cost .sub { font-weight: 600; }
+
+        /* Dòng tiến trình hai bước: Đã đổi → Chờ trao / Đã trao / Đã hủy. Một lượt đổi thật sự là một
+           chuỗi có thứ tự, nên vẽ thành chuỗi thì người học đọc ra ngay "quà của mình đang ở đâu". */
+        .track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; }
+        .track li { position: relative; padding-top: 20px; font-size: 12px; color: var(--text-muted); min-width: 0; }
+        .track li::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 14px; height: 14px; box-sizing: border-box;
+            border-radius: 50%; border: 2px solid var(--border); background: var(--surface);
+        }
+        .track li:first-child::after {
+            content: ""; position: absolute; top: 6px; left: 18px; right: 6px; height: 2px;
+            background: var(--st-color, var(--border)); border-radius: 2px;
+        }
+        .s-pending .track li:first-child::after {
+            background: repeating-linear-gradient(90deg, var(--warning) 0 6px, transparent 6px 11px);
+        }
+        .track li.done::before { border-color: var(--success); background: var(--success); }
+        .track li.now::before { border-color: var(--warning); background: var(--warning-light); }
+        .track li.cancel::before { border-color: var(--text-muted); background: var(--text-muted); }
+        .track b { display: block; font-size: 12.5px; font-weight: 700; color: var(--text); }
+        .track li.now b { color: var(--warn-ink); }
+
+        @media (max-width: 860px) {
+            .mine-row { grid-template-columns: minmax(0, 1fr) auto; gap: 12px 16px; }
+            .mine-row .track { grid-column: 1 / -1; }
+        }
+
+        /* ---------- DÃY SỐ LIỆU ĐẦU KHU ---------- */
         .stat-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 12px; margin-bottom: 16px; }
         .stat-tile {
             background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
@@ -84,23 +364,11 @@
         }
         .stat-tile .ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-size: 19px; flex: none; }
         .stat-tile .lab { font-size: 11.5px; font-weight: 600; color: var(--text-muted); }
-        .stat-tile .val { font-size: 20px; font-weight: 800; line-height: 1.2; }
+        .stat-tile .val { font-size: 20px; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; }
 
         /* ---------- THANH CÔNG CỤ CỦA MỘT KHU ---------- */
         .view-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
         .view-bar .grow { flex: 1; min-width: 200px; }
-        .search-box { position: relative; display: flex; align-items: center; }
-        .search-box > i { position: absolute; left: 12px; font-size: 16px; color: var(--text-muted); pointer-events: none; }
-        .search-box input { flex: 1; min-width: 0; padding-left: 34px; }
-
-        .chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
-        .chip {
-            border: 1px solid var(--border); background: var(--surface); border-radius: 999px;
-            padding: 7px 14px; cursor: pointer; font: 600 12.5px/1.2 inherit; color: var(--text-muted);
-            display: inline-flex; align-items: center; gap: 6px;
-        }
-        .chip:hover { color: var(--text); }
-        .chip.on { background: var(--primary); border-color: var(--primary); color: #fff; }
 
         /* ---------- DANH SÁCH DẠNG HÀNG (thay cho <table>) ---------- */
         /* Dựng bằng grid chứ không phải <table>: vẫn dóng thẳng cột để so sánh giữa các dòng, nhưng ở màn
@@ -124,126 +392,6 @@
             .dl-head { display: none; }
             .dl-row { grid-template-columns: 1fr; gap: 9px; }
             .dl-row .act { justify-content: flex-start; }
-        }
-
-        /* ---------- THẺ SẢN PHẨM ---------- */
-        .shop-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); }
-        .shop-card {
-            border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
-            background: var(--surface); display: flex; flex-direction: column;
-            transition: transform .18s ease, box-shadow .18s ease;
-        }
-        .shop-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-
-        /* Ảnh dùng object-fit: CONTAIN chứ không phải cover. Phần lớn hàng trong cửa hàng là voucher, mà
-           voucher thì ảnh của nó là một cái logo: cắt cạnh một tấm ảnh chụp thì vẫn nhận ra món hàng,
-           còn cắt cạnh một cái logo là biến nó thành mảng màu vô nghĩa.
-           Đổi lại, ảnh không đúng tỉ lệ khung sẽ chừa trống hai bên — nên vùng ảnh phải có nền và đường
-           kẻ riêng, để chỗ trống đó đọc ra là khung ảnh chứ không phải lỗi hiển thị. Đường kẻ này cũng
-           là thứ tách ảnh khỏi tên sản phẩm: logo nền trắng nằm trên thân thẻ nền trắng thì tên hàng
-           trông như đang viết đè lên ảnh. */
-        .shop-thumb {
-            height: 146px; padding: 14px; box-sizing: border-box;
-            background: var(--bg); border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: center;
-            position: relative; overflow: hidden;
-        }
-        /* Khung ảnh dùng FLEX chứ không phải grid, và ảnh bị chặn bằng max-width/max-height.
-           Trong grid, ô lưới không có chiều cao xác định nên "height: 100%" của ảnh tính về auto — ảnh ăn
-           theo tỉ lệ gốc của tệp và tràn xuống đè lên tên sản phẩm; đặt max-height: 100% cũng vô ích vì
-           phần trăm đó cũng không có gì để tính. Trong flex thì phần trăm của ô con tính theo chiều cao
-           content-box của khung (đã cố định), nên cặp max-* là trần thật. Ảnh nhỏ hơn khung cũng không bị
-           phóng to lên cho vỡ nét, còn ảnh lớn thì thu trọn vào trong thay vì bị cắt mất một nửa. */
-        .shop-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        .shop-thumb > i { font-size: 42px; color: var(--text-muted); opacity: .45; }
-
-        /* Món hết hàng / ngừng bán chỉ làm nhạt ĐÚNG PHẦN ẢNH. Trước đây làm nhạt cả vùng ảnh nên hai
-           cái nhãn nằm đè lên nó xám theo — thành ra "Hết hàng" và mức giảm giá, đúng hai thứ cần đọc
-           nhất trên thẻ, lại là hai thứ mờ nhất. */
-        .shop-card.off .shop-thumb img,
-        .shop-card.off .shop-thumb > i { filter: grayscale(1); opacity: .4; }
-
-        /* Hai nhãn chia hai góc đối diện: khuyến mãi bên trái, tồn kho bên phải. Đổ bóng nhẹ để chữ
-           trắng còn đọc được khi rơi trúng vùng sáng của ảnh. */
-        .shop-flag, .shop-promo-flag {
-            position: absolute; top: 9px; line-height: 1;
-            font-size: 11px; font-weight: 700; letter-spacing: .2px; color: #fff;
-            border-radius: 999px; padding: 4px 9px;
-            display: inline-flex; align-items: center; gap: 4px;
-            box-shadow: 0 1px 5px rgba(15, 23, 42, .28);
-        }
-        .shop-flag { right: 9px; background: #475569; }
-        .shop-flag.ok { background: #16a34a; }
-        .shop-flag.low { background: #d97706; }
-        /* Màu lấy từ chính chương trình (--promo-color) để hai đợt chạy song song phân biệt được bằng mắt. */
-        .shop-promo-flag { left: 9px; background: var(--promo-color, #dc2626); }
-        .shop-card.promo { border-color: var(--promo-color, #dc2626); }
-
-        .shop-body { padding: 12px 13px 0; flex: 1; }
-        /* Ghim tên đúng 2 dòng. Tên một dòng và tên ba dòng nằm cạnh nhau thì nhóm, mô tả và giá của cả
-           hàng thẻ so le nhau, mắt không còn cột nào để dóng theo khi so sánh các món. */
-        .shop-body h4 {
-            margin: 0 0 8px; font-size: 13.5px; line-height: 1.4; min-height: 2.8em;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-        }
-        /* Nhóm sản phẩm làm thành con chip có viền thay vì một dòng chữ xám: nó là thứ để LỌC, mà chữ xám
-           trơn nằm ngay dưới tên hàng thì đọc như phần đuôi của cái tên. */
-        .shop-cat {
-            display: inline-flex; align-items: center; gap: 4px; margin-bottom: 8px;
-            font-size: 11px; font-weight: 600; color: var(--text-muted);
-            background: var(--bg); border: 1px solid var(--border);
-            border-radius: 999px; padding: 3px 9px; max-width: 100%;
-        }
-        .shop-cat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        /* Cắt mô tả ở 2 dòng — thẻ chỉ rộng hơn 200px nên 3 dòng đã dài hơn cả tên hàng lẫn giá cộng lại. */
-        .shop-desc {
-            font-size: 12px; color: var(--text-muted); line-height: 1.55; margin: 0;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-        }
-
-        .shop-foot {
-            display: flex; align-items: flex-end; justify-content: space-between; gap: 10px;
-            padding: 11px 13px; margin-top: 12px; border-top: 1px solid var(--border);
-        }
-        /* Giá xếp DỌC: giá gạch ngang nhỏ và xám ở trên, giá thực trả to đậm ở dưới. Xếp ngang thì hai
-           con số nằm cùng một hàng chữ, phải nhìn kỹ mới biết cái nào đang có hiệu lực.
-           min-height giữ sẵn chỗ cho dòng giá cũ, để thẻ có giảm giá và thẻ không giảm giá vẫn có chân
-           thẻ cao bằng nhau — nếu không, nút "Đổi" của mỗi thẻ trong cùng một hàng lại lệch một nấc. */
-        .shop-price {
-            display: flex; flex-direction: column; justify-content: flex-end;
-            /* 38px = vừa đủ chứa cả dòng giá gạch ngang lẫn dòng giá thực trả. Để thấp hơn thì thẻ có
-               giảm giá tự đẩy chân thẻ cao thêm vài pixel, và nút "Đổi" của nó lệch khỏi hàng nút bên cạnh. */
-            min-height: 38px; line-height: 1.15; min-width: 0;
-        }
-        .shop-price .was {
-            font-size: 11.5px; font-weight: 600; color: var(--text-muted);
-            text-decoration: line-through; margin-bottom: 3px;
-        }
-        .shop-price .now { display: inline-flex; align-items: center; gap: 5px; font-size: 17px; font-weight: 800; }
-        .shop-price .now i { color: var(--primary); font-size: 17px; }
-        /* Thiếu điểm thì giá chuyển đỏ ngay tại chỗ, thay vì chỉ khóa nút mà không nói vì sao. */
-        .shop-price.short .now, .shop-price.short .now i { color: var(--danger); }
-
-        .shop-foot .btn { flex: none; }
-
-        /* ---------- BIỂU NGỮ ĐỢT ĐANG CHẠY ---------- */
-        .promo-banner-list { display: grid; gap: 10px; margin-bottom: 16px; }
-        .promo-banner {
-            display: flex; align-items: center; gap: 13px; padding: 13px 16px;
-            border-radius: 12px; border: 1px solid var(--promo-color, #dc2626);
-            /* Nền pha rất nhạt từ chính màu của đợt: nền đặc màu sự kiện chiếm mất sự chú ý của chính
-               dãy sản phẩm nằm ngay dưới nó. */
-            background: color-mix(in srgb, var(--promo-color, #dc2626) 9%, var(--surface));
-        }
-        .promo-banner .ico {
-            width: 40px; height: 40px; border-radius: 11px; flex: none; display: grid; place-items: center;
-            background: var(--promo-color, #dc2626); color: #fff; font-size: 21px;
-        }
-        .promo-banner .txt { flex: 1; min-width: 0; }
-        .promo-banner .txt b { font-size: 14px; }
-        .promo-banner .txt div { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
-        .promo-banner .cut {
-            font-size: 17px; font-weight: 800; color: var(--promo-color, #dc2626); white-space: nowrap;
         }
 
         /* Ô tick sản phẩm trong biểu mẫu chương trình — cuộn trong khung, không kéo dài cả hộp thoại. */
@@ -294,7 +442,38 @@
         }
         .calc div:first-child { border-top: 0; }
         .calc div.total { background: var(--bg); font-weight: 800; font-size: 14.5px; }
-        .calc div.bad { background: var(--danger-light); color: #b91c1c; font-weight: 700; }
+        .calc div.bad { background: var(--danger-light); color: var(--bad-ink); font-weight: 700; }
+
+        /* ---------- MÀN HÌNH HẸP ---------- */
+        @media (max-width: 760px) {
+            .wallet-hero { grid-template-columns: 1fr; padding: 18px; gap: 16px; }
+            .wh-balance b { font-size: 40px; }
+            .wh-goal { min-height: 0; }
+            .shop-tabs { gap: 18px; }
+            .shop-tabs-group { gap: 18px; }
+            .store-search-row { flex-direction: column; align-items: stretch; gap: 6px; }
+            .store-search-row #s-count { align-self: flex-end; }
+        }
+        /* Điện thoại: hai thẻ một hàng thay vì một thẻ chiếm cả bề ngang — đỡ phải cuộn gấp đôi. Chân thẻ
+           xếp dọc để nút đổi quà rộng hết thẻ, dễ bấm bằng ngón cái. */
+        @media (max-width: 560px) {
+            .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+            .shop-thumb { height: 116px; padding: 10px; }
+            .shop-body { padding: 11px 11px 0; }
+            .shop-body h4 { font-size: 13.5px; }
+            .shop-desc { display: none; }
+            .shop-meter { margin: 10px 11px 0; padding-top: 10px; }
+            .shop-foot { flex-direction: column; align-items: stretch; padding: 10px 11px 12px; }
+            .shop-foot .btn { width: 100%; min-height: 44px; }
+            .shop-price { min-height: 0; }
+            .chip { min-height: 40px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .shop-card, .shop-card:hover { transition: none; transform: none; }
+            .wh-meter span, .shop-meter .bar span { transition: none; }
+            .wh-goal-btn:hover { transform: none; }
+        }
     </style>
     <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
 </head>
@@ -302,48 +481,44 @@
 <div class="main">
     <div class="content">
 
-        <div class="shop-layout">
-            <aside class="shop-rail">
-                <div class="rail-wallet" id="wallet-box"></div>
+        <nav class="shop-tabs" aria-label="Các khu của trung tâm điểm thưởng">
+            <div class="shop-tabs-group">
+                <button type="button" class="shop-tab active" data-view="store" aria-current="page">
+                    <i class="ph-duotone ph-storefront" aria-hidden="true"></i><span>Gian hàng</span>
+                    <span class="num" id="nav-num-store"></span>
+                </button>
+                <button type="button" class="shop-tab" data-view="mine">
+                    <i class="ph-duotone ph-receipt" aria-hidden="true"></i><span>Lượt đổi của tôi</span>
+                    <span class="num" id="nav-num-mine"></span>
+                </button>
+            </div>
 
-                <nav class="rail-box rail-nav">
-                    <div class="rail-cap">Cửa hàng</div>
-                    <button type="button" class="rail-item active" data-view="store">
-                        <i class="ph-duotone ph-storefront"></i><span class="txt">Gian hàng</span>
-                        <span class="num" id="nav-num-store"></span>
-                    </button>
-                    <button type="button" class="rail-item" data-view="mine">
-                        <i class="ph-duotone ph-receipt"></i><span class="txt">Lượt đổi của tôi</span>
-                        <span class="num" id="nav-num-mine"></span>
-                    </button>
+            <!-- Nhóm Quản trị dạt sang phải: người học không thấy nó, và với quản trị viên thì hai khu của
+                 người học vẫn nằm đúng chỗ cũ, không bị đẩy đi khi có thêm tab. -->
+            <div class="shop-tabs-group admin" id="nav-admin" style="display:none">
+                <span class="shop-tabs-cap">Quản trị</span>
+                <button type="button" class="shop-tab" data-view="product">
+                    <i class="ph-duotone ph-package" aria-hidden="true"></i><span>Sản phẩm</span>
+                    <span class="num" id="nav-num-product"></span>
+                </button>
+                <button type="button" class="shop-tab" data-view="order">
+                    <i class="ph-duotone ph-clipboard-text" aria-hidden="true"></i><span>Đơn đổi quà</span>
+                    <span class="num" id="nav-num-order"></span>
+                </button>
+                <button type="button" class="shop-tab" data-view="promo">
+                    <i class="ph-duotone ph-confetti" aria-hidden="true"></i><span>Khuyến mãi</span>
+                    <span class="num" id="nav-num-promo"></span>
+                </button>
+            </div>
+        </nav>
 
-                    <div class="rail-cap" id="nav-cap-admin" style="display:none">Quản trị</div>
-                    <button type="button" class="rail-item" data-view="product" id="nav-product" style="display:none">
-                        <i class="ph-duotone ph-package"></i><span class="txt">Quản lý sản phẩm</span>
-                        <span class="num" id="nav-num-product"></span>
-                    </button>
-                    <button type="button" class="rail-item" data-view="order" id="nav-order" style="display:none">
-                        <i class="ph-duotone ph-clipboard-text"></i><span class="txt">Đơn đổi quà</span>
-                        <span class="num" id="nav-num-order"></span>
-                    </button>
-                    <button type="button" class="rail-item" data-view="promo" id="nav-promo" style="display:none">
-                        <i class="ph-duotone ph-confetti"></i><span class="txt">Khuyến mãi</span>
-                        <span class="num" id="nav-num-promo"></span>
-                    </button>
-                </nav>
-
-                <!-- Nhóm sản phẩm: chỉ có nghĩa ở gian hàng nên ẩn đi ở các khu khác. -->
-                <div class="rail-box" id="rail-category" style="display:none"></div>
-            </aside>
-
-            <section class="shop-main">
-                <div class="tab-panel active" id="tab-store"></div>
-                <div class="tab-panel" id="tab-mine"></div>
-                <div class="tab-panel" id="tab-product"></div>
-                <div class="tab-panel" id="tab-order"></div>
-                <div class="tab-panel" id="tab-promo"></div>
-            </section>
-        </div>
+        <section class="shop-main">
+            <div class="tab-panel active" id="tab-store"></div>
+            <div class="tab-panel" id="tab-mine"></div>
+            <div class="tab-panel" id="tab-product"></div>
+            <div class="tab-panel" id="tab-order"></div>
+            <div class="tab-panel" id="tab-promo"></div>
+        </section>
     </div>
 </div>
 
@@ -607,17 +782,19 @@
         ? `<img class="avatar" src="${esc(item.userAvatarUrl)}" alt="">`
         : `<div class="avatar">${esc(initial(item.userName))}</div>`;
 
-    /** Bộ lọc của gian hàng. Nhóm sản phẩm nằm ở rail nên phải giữ ngoài hàm vẽ — vẽ lại lưới không được
-     *  làm mất nhóm người dùng vừa chọn. */
+    /** Bộ lọc của gian hàng. Giữ ngoài hàm vẽ: vẽ lại gian hàng (VD sau khi đổi quà) không được làm mất
+     *  từ khóa và nhóm người dùng vừa chọn. */
     let storeKeyword = '';
     let storeCategory = '';
 
-    if (canManage) {
-        ['nav-cap-admin', 'nav-product', 'nav-order', 'nav-promo']
-            .forEach(id => { document.getElementById(id).style.display = ''; });
-    }
+    /** Lượt đổi của chính mình + trạng thái đang lọc ở khu "Lượt đổi của tôi". Khai báo ở đây, TRƯỚC lượt
+     *  await đầu tiên: openTab() chạy ngay sau await đó và đọc tới hai biến này. */
+    let mineList = [];
+    let mineStatus = '';
 
-    document.querySelectorAll('.rail-nav .rail-item').forEach(button => {
+    if (canManage) document.getElementById('nav-admin').style.display = '';
+
+    document.querySelectorAll('.shop-tab').forEach(button => {
         button.addEventListener('click', () => openTab(button.dataset.view));
     });
 
@@ -637,13 +814,18 @@
         if (!canManage && ['product', 'order', 'promo'].includes(tab)) tab = 'store';
         currentTab = tab;
 
-        document.querySelectorAll('.rail-nav .rail-item')
-            .forEach(b => b.classList.toggle('active', b.dataset.view === tab));
-        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-        document.getElementById(`tab-${tab}`).classList.add('active');
-        // Danh sách nhóm sản phẩm chỉ dùng cho gian hàng; để nó nằm lại ở khu "Đơn đổi quà" thì bấm vào
-        // một nhóm sẽ chẳng lọc được gì cả.
-        document.getElementById('rail-category').style.display = tab === 'store' ? '' : 'none';
+        document.querySelectorAll('.shop-tab').forEach(b => {
+            const on = b.dataset.view === tab;
+            b.classList.toggle('active', on);
+            if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+        });
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
+
+        // Ghi khu đang mở lên địa chỉ trang: bấm F5 hay gửi đường dẫn cho người khác vẫn mở đúng khu đó,
+        // y như đường dẫn ?tab=mine trong thông báo đổi quà.
+        const url = new URL(location.href);
+        if (tab === 'store') url.searchParams.delete('tab'); else url.searchParams.set('tab', tab);
+        history.replaceState(history.state, '', url);
 
         if (tab === 'store') await renderStore();
         else if (tab === 'mine') await renderMine();
@@ -652,7 +834,7 @@
         else if (tab === 'promo') await renderPromotion();
     }
 
-    /** Con số trên mục "Đơn đổi quà" của rail: bao nhiêu lượt đang chờ trao quà. Gọi riêng một lượt nhẹ
+    /** Con số trên tab "Đơn đổi quà": bao nhiêu lượt đang chờ trao quà. Gọi riêng một lượt nhẹ
      *  thay vì chờ người quản trị mở đúng khu đó mới biết có việc — đó chính là thứ họ vào trang để làm. */
     async function refreshPendingBadge() {
         if (!canManage) return;
@@ -662,8 +844,8 @@
         } catch { /* Con số phụ trợ: hỏng thì để trống, không làm phiền bằng thông báo lỗi. */ }
     }
 
-    /** Đặt con số bên phải một mục của rail. count = 0 hoặc null thì giấu hẳn con số đi — một viên "0"
-     *  không nói thêm điều gì mà vẫn hút mắt như thể có việc phải làm. */
+    /** Đặt con số bên phải một tab. count = 0 hoặc null thì giấu hẳn con số đi — một viên "0" không nói
+     *  thêm điều gì mà vẫn hút mắt như thể có việc phải làm. */
     function setNavNum(view, count, warn = false) {
         const box = document.getElementById(`nav-num-${view}`);
         if (!box) return;
@@ -673,30 +855,99 @@
     }
 
     // ==================== VÍ ĐIỂM ====================
+    /** Chỉ tải số liệu. Dải ví điểm nằm trong gian hàng và được vẽ lại mỗi lần vẽ gian hàng (sau khi đổi
+     *  quà cũng vậy), nên ở đây không vẽ gì ngoài con số cạnh tab "Lượt đổi của tôi". */
     async function refreshWallet() {
         try { wallet = await API.get('/shop/me'); }
         catch (ex) { toastErr(ex.message); return; }
 
-        // Nói rõ ba con số là ba thứ khác nhau: viên kim cương trên thanh trên là điểm TÍCH LŨY (không bao
-        // giờ giảm, dùng cho xếp hạng), còn cái tiêu được ở đây là phần còn lại sau khi trừ những gì đã đổi.
-        const number = (value) => Number(value ?? 0).toLocaleString(Lang.locale);
-
-        document.getElementById('wallet-box').innerHTML = `
-            <div class="cap">Điểm khả dụng</div>
-            <div class="big"><i class="ph-fill ph-diamond"></i>${number(wallet.availablePoint)}</div>
-            <div class="row" title="Đây là con số trên viên kim cương ở thanh trên — đổi quà không làm nó giảm, nên thứ hạng của bạn không đổi">
-                <span>Điểm tích lũy</span><b>${number(wallet.totalPoint)}</b></div>
-            <div class="row"><span>Đã dùng đổi quà</span><b>${number(wallet.usedPoint)}</b></div>
-            <div class="row"><span>Đang chờ trao</span><b>${number(wallet.pendingCount)} lượt</b></div>`;
-
-        // Số lượt của chính mình đang chờ trao cũng hiện luôn cạnh mục "Lượt đổi của tôi".
         setNavNum('mine', wallet.pendingCount, wallet.pendingCount > 0);
+    }
+
+    function fmtNum(value) {
+        return Number(value ?? 0).toLocaleString(Lang.locale);
+    }
+
+    /** Dải ví điểm đầu gian hàng. Nói rõ ba con số là ba thứ khác nhau: viên kim cương trên thanh trên là
+     *  điểm TÍCH LŨY (không bao giờ giảm, dùng cho xếp hạng), còn số to ở đây là phần còn tiêu được. */
+    function walletHeroHtml() {
+        const pending = wallet.pendingCount || 0;
+        const goal = goalPanelHtml();
+
+        return `
+            <section class="wallet-hero ${goal ? '' : 'solo'}" aria-label="Ví điểm của bạn">
+                <div>
+                    <div class="wh-cap">Điểm khả dụng</div>
+                    <div class="wh-balance">
+                        <i class="ph-fill ph-diamond" aria-hidden="true"></i>
+                        <b>${fmtNum(wallet.availablePoint)}</b><span>điểm</span>
+                    </div>
+                    <div class="wh-stats">
+                        <span class="wh-stat" title="Con số trên viên kim cương ở thanh trên — đổi quà không làm nó giảm, nên thứ hạng của bạn không đổi">
+                            <i class="ph ph-trend-up" aria-hidden="true"></i>Tích lũy <b>${fmtNum(wallet.totalPoint)}</b></span>
+                        <span class="wh-stat">
+                            <i class="ph ph-hand-coins" aria-hidden="true"></i>Đã dùng <b>${fmtNum(wallet.usedPoint)}</b></span>
+                        <button type="button" class="wh-stat ${pending ? 'alert' : ''}" data-go-mine
+                                title="Xem các lượt đổi của bạn">
+                            <i class="ph ph-hourglass-medium" aria-hidden="true"></i>Chờ trao <b>${fmtNum(pending)}</b> lượt</button>
+                    </div>
+                </div>
+                ${goal}
+            </section>`;
+    }
+
+    /** Ô bên phải dải ví: món RẺ NHẤT còn hàng mà bạn chưa đủ điểm, kèm thanh tiến độ. Đủ điểm cho mọi món
+     *  rồi thì đổi sang lời mời xem kệ "Đổi được ngay". Cửa hàng chưa có món nào còn hàng thì không vẽ. */
+    function goalPanelHtml() {
+        const inStock = productList.filter(x => x.stock > 0);
+        if (!inStock.length) return '';
+
+        const readyCount = inStock.filter(x => x.canAfford).length;
+        const next = inStock.filter(x => !x.canAfford)
+            .sort((a, b) => a.effectivePointCost - b.effectivePointCost)[0];
+
+        if (!next) return `
+            <div class="wh-goal">
+                <div class="wh-cap"><i class="ph-fill ph-seal-check" aria-hidden="true"></i> Đổi được ngay</div>
+                <div class="wh-goal-big">${fmtNum(readyCount)} món quà</div>
+                <div class="wh-goal-sub">Bạn đủ điểm cho mọi món đang còn hàng.</div>
+                <button type="button" class="wh-goal-btn" data-jump-ready>
+                    Chọn quà <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+            </div>`;
+
+        const have = Math.max(0, wallet.availablePoint);
+        const need = next.effectivePointCost;
+        // Tối thiểu 4% để thanh không trống trơn khi mới có vài điểm — trống trơn đọc như "không có gì".
+        const percent = Math.max(4, Math.min(100, Math.round(have / need * 100)));
+
+        return `
+            <div class="wh-goal">
+                <div class="wh-cap"><i class="ph ph-target" aria-hidden="true"></i> Mục tiêu kế tiếp</div>
+                <div class="wh-goal-item">
+                    <span class="wh-thumb">${next.imageUrl
+                        ? `<img src="${esc(next.imageUrl)}" alt="">`
+                        : '<i class="ph-duotone ph-gift" aria-hidden="true"></i>'}</span>
+                    <div style="min-width:0">
+                        <div class="wh-goal-name" title="${esc(next.name)}">${esc(next.name)}</div>
+                        <div class="wh-goal-sub">Còn thiếu <b>${fmtNum(need - have)}</b> điểm</div>
+                    </div>
+                </div>
+                <div class="wh-meter" role="progressbar" aria-label="Tiến độ điểm tới ${esc(next.name)}"
+                     aria-valuemin="0" aria-valuemax="${need}" aria-valuenow="${Math.min(have, need)}">
+                    <span style="width:${percent}%"></span></div>
+                <div class="wh-goal-foot">
+                    <span>${fmtNum(have)} / ${fmtNum(need)} điểm</span>
+                    <span>${readyCount
+                        ? `Đổi được ngay: <b>${fmtNum(readyCount)}</b> món`
+                        : 'Học bài, làm kiểm tra để tích thêm điểm'}</span>
+                </div>
+            </div>`;
     }
 
     // ==================== TAB: CỬA HÀNG ====================
     async function renderStore() {
         const box = document.getElementById('tab-store');
-        box.innerHTML = skeletonHtml('cards', { count: 8 });
+        box.innerHTML = `<div class="skel wallet-skel" aria-hidden="true"></div>` + skeletonHtml('cards', { count: 8 });
 
         try {
             // Hai lượt gọi song song: biểu ngữ và lưới hàng luôn phải nói cùng một chuyện, mà gọi nối tiếp
@@ -709,63 +960,80 @@
         catch (ex) { box.innerHTML = ''; toastErr(ex.message); return; }
 
         setNavNum('store', productList.length);
-        drawCategoryRail();
 
         box.innerHTML = `
-            <div class="view-bar">
-                <div class="grow search-box">
-                    <i class="ph ph-magnifying-glass"></i>
-                    <input id="s-keyword" maxlength="100" value="${esc(storeKeyword)}"
-                           placeholder="Tìm quà theo tên, mô tả hoặc nhóm — VD: bình giữ nhiệt, voucher...">
+            ${walletHeroHtml()}
+            <div class="store-tools">
+                <div class="store-search-row">
+                    <div class="search-box">
+                        <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+                        <input id="s-keyword" type="search" maxlength="100" value="${esc(storeKeyword)}"
+                               aria-label="Tìm quà" placeholder="Tìm quà theo tên, mô tả hoặc nhóm — VD: bình giữ nhiệt, voucher">
+                    </div>
+                    <span class="small muted nowrap" id="s-count" aria-live="polite"></span>
                 </div>
-                <span class="small muted" id="s-count"></span>
+                <div class="cat-row" id="cat-row" role="group" aria-label="Lọc theo nhóm sản phẩm"></div>
             </div>
             ${promotionBannerHtml()}
             <div id="store-grid"></div>`;
 
+        box.querySelector('[data-go-mine]').addEventListener('click', () => {
+            mineStatus = wallet.pendingCount > 0 ? 'Pending' : '';
+            openTab('mine');
+        });
+        box.querySelector('[data-jump-ready]')?.addEventListener('click', () => {
+            const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+            document.getElementById('shelf-ready')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+        });
         document.getElementById('s-keyword').addEventListener('input', e => {
             storeKeyword = e.target.value;
             drawStore();
         });
+        drawCategoryChips();
         drawStore();
     }
 
-    /** Danh sách nhóm sản phẩm ở rail, kèm số món của từng nhóm. Thay cho ô xổ xuống cũ: nhóm là thứ người
-     *  học bấm qua bấm lại để dạo cửa hàng, mà ô xổ xuống thì mỗi lần đổi nhóm là hai thao tác và không
-     *  cho thấy cửa hàng đang có những nhóm nào. */
-    function drawCategoryRail() {
-        const box = document.getElementById('rail-category');
+    /** Hàng chip nhóm sản phẩm, kèm số món của từng nhóm. Nhóm là thứ người học bấm qua bấm lại để dạo
+     *  cửa hàng, nên mỗi nhóm là một nút luôn nhìn thấy chứ không giấu trong ô xổ xuống. */
+    function drawCategoryChips() {
+        const box = document.getElementById('cat-row');
+        if (!box) return;
+
         const countMap = new Map();
         productList.forEach(x => {
             if (!x.category) return;
             countMap.set(x.category, (countMap.get(x.category) || 0) + 1);
         });
 
-        // Không có nhóm nào thì cả hộp biến mất — một danh sách chỉ có đúng mục "Tất cả" không lọc được gì.
-        if (!countMap.size) { box.style.display = 'none'; return; }
-        box.style.display = '';
-
-        // Nhom vua chon co the da bien mat (mon cuoi cung cua nhom do vua bi xoa hoac doi nhom) — bo loc
-        // tro vao mot nhom khong con ai se cho ra luoi rong ma khong muc nao trong rail sang len de bam bo.
+        // Nhóm vừa chọn có thể đã biến mất (món cuối cùng của nhóm vừa bị xóa hoặc đổi nhóm) — bộ lọc trỏ
+        // vào một nhóm không còn ai sẽ cho ra lưới rỗng mà không chip nào sáng lên để bấm bỏ.
         if (storeCategory && !countMap.has(storeCategory)) storeCategory = '';
 
-        const item = (value, label, count) => `
-            <button type="button" class="rail-item sm ${storeCategory === value ? 'active' : ''}" data-category="${esc(value)}">
-                <span class="txt">${esc(label)}</span><span class="num">${count}</span>
-            </button>`;
+        // Không có nhóm nào thì ẩn cả hàng — một hàng chỉ có đúng chip "Tất cả" không lọc được gì.
+        box.style.display = countMap.size ? '' : 'none';
+        if (!countMap.size) return;
 
-        box.innerHTML = `<div class="rail-cap">Nhóm sản phẩm</div>`
-            + item('', 'Tất cả', productList.length)
-            + [...countMap.keys()].sort().map(name => item(name, name, countMap.get(name))).join('');
+        const chip = (value, label, count) => `
+            <button type="button" class="chip ${storeCategory === value ? 'on' : ''}" data-category="${esc(value)}"
+                    aria-pressed="${storeCategory === value}">${esc(label)} <span class="n">${count}</span></button>`;
 
-        box.querySelectorAll('[data-category]').forEach(b => b.addEventListener('click', () => {
-            storeCategory = b.dataset.category;
-            drawCategoryRail();
-            drawStore();
-        }));
+        box.innerHTML = chip('', 'Tất cả', productList.length)
+            + [...countMap.keys()].sort((a, b) => a.localeCompare(b, 'vi'))
+                .map(name => chip(name, name, countMap.get(name))).join('');
+
+        box.onclick = (e) => {
+            const button = e.target.closest('[data-category]');
+            if (button) pickCategory(button.dataset.category);
+        };
     }
 
-    /** Lọc theo từ khóa + nhóm đang chọn rồi vẽ lưới. */
+    function pickCategory(category) {
+        storeCategory = category;
+        drawCategoryChips();
+        drawStore();
+    }
+
+    /** Lọc theo từ khóa + nhóm đang chọn rồi vẽ các kệ. */
     function drawStore() {
         const keyword = normalize(storeKeyword);
         const shown = productList.filter(x =>
@@ -774,8 +1042,8 @@
 
         const count = document.getElementById('s-count');
         if (count) count.textContent = shown.length === productList.length
-            ? `${productList.length} món quà`
-            : `${shown.length}/${productList.length} món quà`;
+            ? `${fmtNum(productList.length)} món quà`
+            : `Hiện ${fmtNum(shown.length)}/${fmtNum(productList.length)} món quà`;
 
         drawStoreGrid(shown);
     }
@@ -811,6 +1079,8 @@
             .replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
     }
 
+    /** Chia các món đang hiện thành ba kệ — đổi được ngay / cần tích thêm / tạm hết — mỗi kệ xếp từ rẻ
+     *  tới đắt. Kệ nào rỗng thì không vẽ. */
     function drawStoreGrid(list) {
         const box = document.getElementById('store-grid');
         if (!list.length) {
@@ -819,55 +1089,103 @@
                 <div class="big"><i class="ph ph-storefront"></i></div>
                 <p>${filtered ? 'Không có món nào khớp bộ lọc.' : 'Chưa có sản phẩm nào trong cửa hàng.'}</p>
                 ${filtered
-                    ? '<p class="small muted">Thử xóa bớt từ khóa, hoặc chọn "Tất cả" ở danh sách nhóm bên trái.</p>'
+                    ? '<button type="button" class="btn ghost mt" data-clear-filter><i class="ph ph-broom"></i> Xóa bộ lọc</button>'
                     : canCreate
-                        ? '<p class="small muted">Mở "Quản lý sản phẩm" ở cột bên trái để thêm món quà đầu tiên.</p>'
+                        ? '<button type="button" class="btn mt" data-go-product><i class="ph ph-plus"></i> Thêm món quà đầu tiên</button>'
                         : '<p class="small muted">Hãy quay lại sau — quản trị viên sẽ bổ sung quà để đổi.</p>'}
             </div></div>`;
+            box.querySelector('[data-clear-filter]')?.addEventListener('click', () => {
+                storeKeyword = '';
+                document.getElementById('s-keyword').value = '';
+                pickCategory('');
+            });
+            box.querySelector('[data-go-product]')?.addEventListener('click', async () => {
+                await openTab('product');
+                openProductForm();
+            });
             return;
         }
 
-        box.innerHTML = `<div class="shop-grid">` + list.map(item => {
-            const soldOut = item.stock <= 0;
-            const short = !item.canAfford;
-            // Ba lý do không đổi được, xếp theo thứ tự người dùng cần biết trước: hết hàng thì có đủ điểm
-            // cũng vô ích, nên nó nói trước cả chuyện thiếu điểm.
-            const onSale = item.effectivePointCost < item.pointCost;
-            const blockReason = soldOut ? 'Sản phẩm đã hết hàng'
-                : short ? `Bạn còn ${wallet.availablePoint.toLocaleString(Lang.locale)} điểm khả dụng, cần ${item.effectivePointCost.toLocaleString(Lang.locale)} điểm` : '';
+        const byCost = (a, b) => a.effectivePointCost - b.effectivePointCost || a.name.localeCompare(b.name, 'vi');
+        const shelfList = [
+            { key: 'ready', icon: 'ph-check-circle', title: 'Đổi được ngay', note: 'Đủ điểm và còn hàng.',
+              items: list.filter(x => x.stock > 0 && x.canAfford) },
+            { key: 'locked', icon: 'ph-lock-simple', title: 'Tích thêm điểm để đổi', note: 'Thanh dưới mỗi món cho biết bạn còn thiếu bao nhiêu điểm.',
+              items: list.filter(x => x.stock > 0 && !x.canAfford) },
+            { key: 'out', icon: 'ph-package', title: 'Tạm hết hàng', note: 'Đổi được lại khi kho được bổ sung.',
+              items: list.filter(x => x.stock <= 0) },
+        ].filter(x => x.items.length);
 
-            return `<div class="shop-card ${soldOut ? 'off' : ''} ${onSale ? 'promo' : ''}"
-                         style="${onSale ? `--promo-color:${esc(item.promotionColorHex)}` : ''}">
-                <div class="shop-thumb">
-                    ${item.imageUrl ? `<img src="${esc(item.imageUrl)}" alt="${esc(item.name)}">` : `<i class="ph ph-gift"></i>`}
-                    ${onSale ? `<span class="shop-promo-flag" title="${esc(item.promotionName)}">
-                        <i class="ph-fill ph-${esc(item.promotionIcon || 'confetti')}"></i> ${esc(item.discountLabel)}
-                    </span>` : ''}
-                    <span class="shop-flag ${soldOut ? '' : item.stock <= 5 ? 'low' : 'ok'}">
-                        ${soldOut ? 'Hết hàng' : `Còn ${item.stock}`}
-                    </span>
-                </div>
-                <div class="shop-body">
-                    <h4 title="${esc(item.name)}">${esc(item.name)}</h4>
-                    ${item.category ? `<div class="shop-cat"><i class="ph ph-tag"></i><span>${esc(item.category)}</span></div>` : ''}
-                    ${item.description ? `<p class="shop-desc">${esc(item.description)}</p>` : ''}
-                </div>
-                <div class="shop-foot">
-                    <span class="shop-price ${short && !soldOut ? 'short' : ''}"
-                          title="${onSale ? esc(`Giá gốc ${item.pointCost} điểm — giảm còn ${item.effectivePointCost} nhờ "${item.promotionName}"`) : ''}">
-                        ${onSale ? `<span class="was">${item.pointCost.toLocaleString(Lang.locale)} điểm</span>` : ''}
-                        <span class="now">${point(item.effectivePointCost)}</span>
-                    </span>
-                    <button class="btn sm" data-redeem="${item.id}" ${blockReason ? 'disabled' : ''}
-                            title="${esc(blockReason || `Đổi ${item.name}`)}">
-                        <i class="ph ph-gift"></i> Đổi
-                    </button>
-                </div>
-            </div>`;
-        }).join('') + `</div>`;
+        box.innerHTML = shelfList.map(shelf => `
+            <section class="shelf shelf-${shelf.key}" id="shelf-${shelf.key}" aria-labelledby="shelf-${shelf.key}-title">
+                <header class="shelf-head">
+                    <h3 id="shelf-${shelf.key}-title"><i class="ph-fill ${shelf.icon}" aria-hidden="true"></i>${shelf.title}
+                        <span class="num">${shelf.items.length}</span></h3>
+                    <p>${shelf.note}</p>
+                </header>
+                <div class="shop-grid">${shelf.items.sort(byCost).map(giftCardHtml).join('')}</div>
+            </section>`).join('');
 
         box.querySelectorAll('[data-redeem]').forEach(b =>
             b.addEventListener('click', () => openRedeem(Number(b.dataset.redeem))));
+        box.querySelectorAll('[data-cat]').forEach(b =>
+            b.addEventListener('click', () => pickCategory(b.dataset.cat)));
+    }
+
+    /** Một thẻ quà. Nút luôn ghi rõ trạng thái bằng chữ + biểu tượng thay vì chỉ khóa lại và giấu lý do
+     *  trong tooltip — trên điện thoại không có chuột để rê vào đọc tooltip. */
+    function giftCardHtml(item) {
+        const soldOut = item.stock <= 0;
+        const short = !item.canAfford;
+        const onSale = item.effectivePointCost < item.pointCost;
+        const cost = item.effectivePointCost;
+        const have = Math.max(0, wallet.availablePoint);
+
+        // Hết hàng thì thanh tiến độ vô nghĩa (đủ điểm cũng không đổi được), nên bỏ hẳn.
+        const meter = soldOut ? '' : short
+            ? `<div class="shop-meter">
+                   <div class="bar" aria-hidden="true"><span style="width:${Math.max(3, Math.round(have / cost * 100))}%"></span></div>
+                   <div class="lab">Còn thiếu <b>${fmtNum(cost - have)}</b> điểm</div>
+               </div>`
+            : `<div class="shop-meter full">
+                   <div class="bar" aria-hidden="true"><span style="width:100%"></span></div>
+                   <div class="lab"><i class="ph-fill ph-check-circle" aria-hidden="true"></i> Đủ điểm · đổi xong còn ${fmtNum(have - cost)}</div>
+               </div>`;
+
+        const button = soldOut
+            ? `<button type="button" class="btn locked" disabled><i class="ph ph-package"></i> Hết hàng</button>`
+            : short
+                ? `<button type="button" class="btn locked" disabled aria-label="Chưa đủ điểm để đổi ${esc(item.name)}">
+                       <i class="ph ph-lock-simple"></i> Đổi quà</button>`
+                : `<button type="button" class="btn" data-redeem="${item.id}" aria-label="Đổi ${esc(item.name)}">
+                       <i class="ph ph-gift"></i> Đổi quà</button>`;
+
+        return `<article class="shop-card ${soldOut ? 'off' : ''} ${onSale ? 'promo' : ''}"
+                         style="${onSale ? `--promo-color:${esc(item.promotionColorHex)}` : ''}">
+            <div class="shop-thumb">
+                ${item.imageUrl ? `<img src="${esc(item.imageUrl)}" alt="${esc(item.name)}" loading="lazy">` : `<i class="ph-duotone ph-gift" aria-hidden="true"></i>`}
+                ${onSale ? `<span class="shop-promo-flag" title="${esc(item.promotionName)}">
+                    <i class="ph-fill ph-${esc(item.promotionIcon || 'confetti')}"></i> ${esc(item.discountLabel)}
+                </span>` : ''}
+                ${soldOut ? '<span class="shop-flag">Hết hàng</span>'
+                    : item.stock <= 5 ? `<span class="shop-flag low">Chỉ còn ${item.stock}</span>` : ''}
+            </div>
+            <div class="shop-body">
+                ${item.category ? `<button type="button" class="shop-cat" data-cat="${esc(item.category)}"
+                        title="Xem các món nhóm ${esc(item.category)}"><i class="ph ph-tag" aria-hidden="true"></i><span>${esc(item.category)}</span></button>` : ''}
+                <h4 title="${esc(item.name)}">${esc(item.name)}</h4>
+                ${item.description ? `<p class="shop-desc">${esc(item.description)}</p>` : ''}
+            </div>
+            ${meter}
+            <div class="shop-foot">
+                <span class="shop-price"
+                      title="${onSale ? esc(`Giá gốc ${item.pointCost} điểm — giảm còn ${cost} nhờ "${item.promotionName}"`) : ''}">
+                    ${onSale ? `<span class="was">${fmtNum(item.pointCost)} điểm</span>` : ''}
+                    <span class="now"><i class="ph-fill ph-diamond" aria-hidden="true"></i>${fmtNum(cost)}<small>điểm</small></span>
+                </span>
+                ${button}
+            </div>
+        </article>`;
     }
 
     // ==================== ĐỔI QUÀ ====================
@@ -949,56 +1267,102 @@
         const box = document.getElementById('tab-mine');
         box.innerHTML = skeletonHtml('list', { count: 5, avatar: false });
 
-        let list;
-        try { list = await API.get('/shop/my-redemption'); }
+        try { mineList = await API.get('/shop/my-redemption'); }
         catch (ex) { box.innerHTML = ''; toastErr(ex.message); return; }
 
-        if (!list.length) {
+        if (!mineList.length) {
             box.innerHTML = `<div class="card"><div class="card-body empty">
                 <div class="big"><i class="ph ph-receipt"></i></div>
-                <p>Bạn chưa đổi món nào.</p>
+                <p>Bạn chưa đổi món quà nào.</p>
                 <p class="small muted">Học thêm bài, làm bài kiểm tra và giữ chuỗi ngày học để tích điểm.</p>
+                <button type="button" class="btn mt" data-go-store><i class="ph ph-storefront"></i> Xem gian hàng</button>
             </div></div>`;
+            box.querySelector('[data-go-store]').addEventListener('click', () => openTab('store'));
             return;
         }
 
-        const usedPoint = list.reduce((sum, x) => sum + x.totalPoint, 0);
-        const savedPoint = list.reduce((sum, x) => sum + (x.savedPoint || 0), 0);
-        const pending = list.filter(x => x.status === 'Pending').length;
+        // Lượt đã hủy được hoàn điểm rồi — cộng nó vào "điểm đã dùng" là đếm hai lần.
+        const kept = mineList.filter(x => x.status !== 'Cancelled');
+        const usedPoint = kept.reduce((sum, x) => sum + x.totalPoint, 0);
+        const savedPoint = kept.reduce((sum, x) => sum + (x.savedPoint || 0), 0);
 
         box.innerHTML = `
             <div class="stat-strip">
-                ${statTile('ph-receipt', 'var(--primary)', 'Lượt đã đổi', list.length)}
+                ${statTile('ph-receipt', 'var(--primary)', 'Lượt đã đổi', mineList.length)}
                 ${statTile('ph-diamond', 'var(--info)', 'Điểm đã dùng', usedPoint)}
                 ${statTile('ph-tag', 'var(--success)', 'Tiết kiệm nhờ khuyến mãi', savedPoint)}
-                ${statTile('ph-hourglass', 'var(--warning)', 'Đang chờ trao', pending)}
             </div>
-            <div class="dl" style="--dl-cols: minmax(0,2fr) 54px 118px minmax(0,1fr) 150px">
-                <div class="dl-head">
-                    <span>Sản phẩm</span><span>SL</span><span>Điểm đã dùng</span>
-                    <span>Ngày đổi</span><span>Trạng thái</span>
+            <div class="view-bar">
+                <div class="chip-row" id="mine-filter" role="group" aria-label="Lọc theo trạng thái"></div>
+            </div>
+            <div class="mine-list" id="mine-list"></div>`;
+
+        document.getElementById('mine-filter').addEventListener('click', e => {
+            const chip = e.target.closest('[data-status]');
+            if (!chip) return;
+            mineStatus = chip.dataset.status;
+            drawMine();
+        });
+        drawMine();
+    }
+
+    /** Hàng chip trạng thái + danh sách theo trạng thái đang chọn. Mỗi chip kèm số lượt để biết trước khi
+     *  bấm là bên trong có gì — nhất là "Chờ trao quà", thứ người học quay lại đây để kiểm tra. */
+    function drawMine() {
+        const filterList = [
+            ['', 'Tất cả', 'ph-list-bullets'],
+            ['Pending', 'Chờ trao quà', 'ph-hourglass-medium'],
+            ['Delivered', 'Đã trao quà', 'ph-seal-check'],
+            ['Cancelled', 'Đã hủy, hoàn điểm', 'ph-arrow-u-up-left'],
+        ];
+        const countOf = (status) => status ? mineList.filter(x => x.status === status).length : mineList.length;
+
+        document.getElementById('mine-filter').innerHTML = filterList.map(([status, label, icon]) => `
+            <button type="button" class="chip ${mineStatus === status ? 'on' : ''}" data-status="${status}"
+                    aria-pressed="${mineStatus === status}">
+                <i class="ph ${icon}" aria-hidden="true"></i> ${label} <span class="n">${countOf(status)}</span>
+            </button>`).join('');
+
+        const list = mineStatus ? mineList.filter(x => x.status === mineStatus) : mineList;
+        document.getElementById('mine-list').innerHTML = list.length
+            ? list.map(mineRowHtml).join('')
+            : `<div class="card"><div class="card-body empty">
+                   <div class="big"><i class="ph ph-receipt"></i></div>
+                   <p>Không có lượt đổi nào ở trạng thái này.</p>
+               </div></div>`;
+    }
+
+    /** Một lượt đổi: món quà — số điểm — dòng tiến trình "Đã đổi → Chờ trao / Đã trao / Đã hủy". */
+    function mineRowHtml(x) {
+        const state = { Pending: 'pending', Delivered: 'delivered', Cancelled: 'cancelled' }[x.status] || 'pending';
+        const handledAt = x.handledAt ? esc(formatDate(x.handledAt, true)) : '';
+
+        const secondStep = state === 'pending'
+            ? `<li class="now"><b>${esc(x.statusLabel)}</b><span>Có thông báo khi quà được trao</span></li>`
+            : `<li class="${state === 'delivered' ? 'done' : 'cancel'}"><b>${esc(x.statusLabel)}</b><span>${handledAt}</span></li>`;
+
+        return `<article class="mine-row s-${state}">
+            <div class="mine-product">
+                <span class="mine-thumb">${x.productImageUrl
+                    ? `<img src="${esc(x.productImageUrl)}" alt="" loading="lazy">`
+                    : '<i class="ph-duotone ph-gift" aria-hidden="true"></i>'}</span>
+                <div style="min-width:0">
+                    <b class="mine-name" title="${esc(x.productName)}">${esc(x.productName)}</b>
+                    <div class="sub">${x.quantity} × ${fmtNum(x.unitPointCost)} điểm${x.savedPoint > 0
+                        ? ` · <span class="saved"><i class="ph-fill ph-tag" aria-hidden="true"></i>
+                              ${esc(x.promotionName || 'Khuyến mãi')} −${fmtNum(x.savedPoint)}</span>` : ''}</div>
+                    ${x.note ? `<div class="mine-note"><i class="ph ph-chat-text" aria-hidden="true"></i><span>${esc(x.note)}</span></div>` : ''}
                 </div>
-                ${list.map(x => `
-                    <div class="dl-row">
-                        <div class="cell-product">
-                            ${x.productImageUrl ? `<img src="${esc(x.productImageUrl)}" alt="">` : `<i class="ph ph-gift"></i>`}
-                            <div style="min-width:0">
-                                <b>${esc(x.productName)}</b>
-                                ${x.savedPoint > 0 ? `<div class="sub">
-                                    <i class="ph-fill ph-tag" style="color:var(--success)"></i>
-                                    ${esc(x.promotionName || 'Khuyến mãi')} · tiết kiệm ${x.savedPoint.toLocaleString(Lang.locale)}
-                                </div>` : ''}
-                            </div>
-                        </div>
-                        <div>${x.quantity}</div>
-                        <div class="nowrap">${point(x.totalPoint)}</div>
-                        <div class="small">${esc(formatDate(x.createdAt, true))}</div>
-                        <div>
-                            <span class="badge ${STATUS_BADGE[x.status] || 'gray'}">${esc(x.statusLabel)}</span>
-                            ${x.note ? `<div class="sub">${esc(x.note)}</div>` : ''}
-                        </div>
-                    </div>`).join('')}
-            </div>`;
+            </div>
+            <div class="mine-cost ${state === 'cancelled' ? 'refunded' : ''}">
+                <div class="amt">${point(x.totalPoint)}</div>
+                <div class="sub">${state === 'cancelled' ? 'đã hoàn lại' : 'điểm đã dùng'}</div>
+            </div>
+            <ol class="track">
+                <li class="done"><b>Đã đổi</b><span>${esc(formatDate(x.createdAt, true))}</span></li>
+                ${secondStep}
+            </ol>
+        </article>`;
     }
 
     /** Một ô số liệu ở dãy đầu khu. Màu truyền vào là màu của biểu tượng; nền lấy chính màu đó pha rất
@@ -1630,7 +1994,7 @@
             closeModal('modal-handle');
             toastOk(result.message);
             await renderOrder();
-            // Vừa bớt đi một việc: con số cảnh báo trên rail phải giảm theo, không thì nó vẫn báo có việc
+            // Vừa bớt đi một việc: con số cảnh báo trên tab phải giảm theo, không thì nó vẫn báo có việc
             // cho tới lần tải lại trang.
             refreshPendingBadge();
         } catch (ex) { toastErr(ex.message); }

@@ -264,7 +264,7 @@ body::-webkit-scrollbar { display: none; }
     animation: slowZoom 18s ease-in-out infinite alternate;
 }
 .hero-slide:nth-child(1) {
-    background-image: url('https://scontent.fsgn5-22.fna.fbcdn.net/v/t39.99422-6/799983693_38289600867351253_5368872519367738115_n.png?stp=dst-png&cstp=mx1958x745&ctp=s1958x745&_nc_cat=106&_nc_map=urlgen_bucketless&ccb=1-7&_nc_sid=cc71e4&_nc_ohc=glJaz8oppk0Q7kNvwH8oDFt&_nc_oc=AdoHTOjgXxlkjr7Pm-WIYDR3V4XqT9MlDdnsetWag25LrcdtGsLJB4HZOgJKUsQXcQk&_nc_zt=14&_nc_ht=scontent.fsgn5-22.fna&_nc_gid=k7kpw6BhgTrJwmSX1efnMw&_nc_ss=7b2a8&oh=00_AQLl1fLU4xTyJKZkcDi7JJttcNW4CEtxkyOdHbInWcoC2g&oe=6AB11CFE'), var(--lg-slide-fallback);
+    background-image: url('https://ktmt.vnmediacdn.com/images/2022/08/09/33-1660039252-xay-dung-hoa-binh-thanh-lap-cong-ty-con-de-quan-ly-du-an-gan-nghin-ty1620808672.jpg'), var(--lg-slide-fallback);
 }
 .hero-slide:nth-child(2) {
     background-image: url('https://hbcg.vn/laravel-filemanager/app/public/media/image/cong-ty-xay-dung-so-1-viet-nam-2.jpg'), var(--lg-slide-fallback);

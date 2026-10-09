@@ -127,7 +127,14 @@
 <div class="main">
     <div class="content">
         <div class="tabs">
-            <button class="active" data-tab="lesson" style="display:flex;align-items:center;gap:8px">
+            <!-- Cấu trúc khóa học đứng đầu: khóa học là một gói SCORM, cây chương / mục chính là <organization>
+                 của gói. Các tab sau là nơi soạn nội dung từng SCO (bài học, bài kiểm tra, mô phỏng 3D). -->
+            <button class="active" data-tab="structure" style="display:flex;align-items:center;gap:8px">
+                <i class="ph-fill ph-tree-structure"></i>
+                <span data-i18n="org.cauTrucKhoaHoc">Cấu trúc khóa học</span>
+            </button>
+
+            <button data-tab="lesson" style="display:flex;align-items:center;gap:8px">
             <i class="ph-fill ph-book-open-text"></i>
             <span data-i18n="index.stat-lesson">Bài học</span>
             </button>
@@ -142,11 +149,6 @@
                 <span data-i18n="course-detail.moPhong3d">Mô phỏng 3D</span>
             </button>
 
-            <button data-tab="path" style="display:flex;align-items:center;gap:8px">
-                <i class="ph-fill ph-line-segments"></i>
-                <span data-i18n="course-detail.loTrinhHocTap">Lộ trình học tập</span>
-            </button>
-
             <button data-tab="target" style="display:flex;align-items:center;gap:8px">
                 <i class="ph-fill ph-user-plus"></i>
                 <span data-i18n="course-detail.doiTuongDaoTao">Đối tượng đào tạo</span>
@@ -158,10 +160,10 @@
             </button>
         </div>
 
-        <div class="tab-panel active" id="tab-lesson"></div>
+        <div class="tab-panel active" id="tab-structure"></div>
+        <div class="tab-panel" id="tab-lesson"></div>
         <div class="tab-panel" id="tab-quiz"></div>
         <div class="tab-panel" id="tab-simulation"></div>
-        <div class="tab-panel" id="tab-path"></div>
         <div class="tab-panel" id="tab-target"></div>
         <div class="tab-panel" id="tab-learner"></div>
     </div>
@@ -215,7 +217,7 @@
                         <span class="ai-box-icon"><i class="ph-fill ph-sparkle"></i></span>
                         <div>
                             <div class="ai-box-title" data-i18n="course-detail.dungAiHoTroTaoNoiDung">Dùng AI hỗ trợ tạo nội dung</div>
-                            <div data-i18n="course-detail.aiSeSoanNoiDungDuaTrenTieuDeBa" class="hint">AI soạn bài dựa trên tiêu đề bài học và chủ đề bạn nhập; nội dung tạo ra sẽ thay thế ô Nội dung bên dưới và bạn vẫn sửa lại được.</div>
+                            <div data-i18n="course-detail.aiSeSoanNoiDungDuaTrenTieuDeBa" class="hint">AI soạn bài dựa trên tiêu đề bài học và chủ đề bạn nhập bên trên</div>
                         </div>
                     </div>
 
@@ -238,13 +240,10 @@
                     <label class="check ai-doc-toggle">
                         <input type="checkbox" id="l-ai-use-doc" checked>
                         <i class="ph ph-brain"></i>
-                        <span data-i18n="course-detail.bamSatTaiLieuCongTy">Bám sát tài liệu công ty (kho Tài liệu AI)</span>
+                        <span data-i18n="course-detail.bamSatTaiLieuCongTy">AI sẽ bám sát tài liệu nội bộ của Công Ty</span>
                     </label>
                     <div class="hint ai-doc-status" id="l-ai-doc-status"><span class="spinner-inline"></span> Đang kiểm tra kho tài liệu công ty...</div>
 
-                    <!-- Đồng hồ chờ. Model chạy nội bộ trên CPU mất vài phút cho một bài học; không hiện thời
-                         gian đã trôi qua thì người soạn tưởng máy treo và bấm lại, mỗi lần bấm lại là thêm một
-                         lượt chạy nữa xếp hàng sau lượt đang chạy. -->
                     <div class="ai-progress hidden" id="l-ai-progress"></div>
 
                     <!-- Các đoạn tài liệu AI đã dựa vào. Nội dung "bám sát tài liệu" mà không chỉ ra tài liệu
@@ -463,40 +462,115 @@
     </div>
 </div>
 
-<!-- Hộp thoại thêm bước mô phỏng 3D vào lộ trình (Bài học/Bài kiểm tra vẫn tự sinh qua "Tự sinh lộ trình") -->
-<div class="modal-mask" id="modal-add-step">
+<!-- ==================== CẤU TRÚC KHÓA HỌC ==================== -->
+<div class="modal-mask" id="modal-org-module">
     <div class="modal">
-        <div class="modal-head"><h3 data-i18n="course-detail.themBuocMoPhong3dVaoLoTrinh">Thêm bước mô phỏng 3D vào lộ trình</h3>
-            <button class="close-x" onclick="closeModal('modal-add-step')">×</button></div>
+        <div class="modal-head"><h3 data-i18n="org.themChuong">Thêm chương</h3>
+            <button class="close-x" onclick="closeModal('modal-org-module')">×</button></div>
         <div class="modal-body">
-            <div class="field"><label for="as-scenario" data-i18n="course-detail.moPhong3d2">Mô phỏng 3D *</label><select id="as-scenario"></select></div>
-            <label class="check"><input type="checkbox" id="as-required" checked> Bắt buộc</label>
+            <div class="field"><label for="org-m-title" data-i18n="org.tenChuong">Tên chương *</label><input id="org-m-title" maxlength="250"></div>
+            <div class="field"><label for="org-m-parent" data-i18n="org.namTrongChuong">Nằm trong</label><select id="org-m-parent"></select>
+                <div class="hint" data-i18n="org.chuongGoiY">Chương là một cụm (cluster) trong cây SCORM — gom các mục học cùng chủ đề; có thể lồng chương con.</div></div>
         </div>
         <div class="modal-foot">
-            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-add-step')">Hủy</button>
-            <button data-i18n="course-detail.themVaoLoTrinh" class="btn" id="btn-do-add-step">Thêm vào lộ trình</button>
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-org-module')">Hủy</button>
+            <button data-i18n="org.themChuong" class="btn" id="btn-org-m-save">Thêm chương</button>
         </div>
     </div>
 </div>
 
-<!-- Hộp thoại đặt lịch mở khóa cho một bước trong lộ trình -->
-<div class="modal-mask" id="modal-schedule">
+<div class="modal-mask" id="modal-org-add">
     <div class="modal">
-        <div class="modal-head"><h3 data-i18n="course-detail.datLichMoKhoa">Đặt lịch mở khóa</h3>
-            <button class="close-x" onclick="closeModal('modal-schedule')">×</button></div>
+        <div class="modal-head"><h3 data-i18n="org.duaNoiDungVaoCauTruc">Đưa nội dung vào cấu trúc</h3>
+            <button class="close-x" onclick="closeModal('modal-org-add')">×</button></div>
         <div class="modal-body">
-            <input type="hidden" id="sc-item-id">
-            <div class="field"><label data-i18n="course-detail.buocLoTrinh" id="sc-title-label">Bước lộ trình</label></div>
-            <div class="field"><label for="sc-start" data-i18n="course-detail.moKhoaTu">Mở khóa từ</label><input type="datetime-local" id="sc-start">
-                <div data-i18n="course-detail.deTrongKhongGioiHanTheoThoiGia" class="hint">Để trống = không giới hạn theo thời gian (chỉ xét thứ tự lộ trình như cũ).</div></div>
-            <div class="field"><label for="sc-end" data-i18n="course-detail.denHet" id="sc-end-label">Đến hết</label><input type="datetime-local" id="sc-end">
-                <div class="hint" id="sc-end-hint"></div></div>
-            <label class="check"><input type="checkbox" id="sc-required" checked> Bắt buộc</label>
+            <div class="field"><label for="org-a-resource" data-i18n="org.noiDung">Nội dung</label><select id="org-a-resource"></select></div>
+            <div class="field"><label for="org-a-parent" data-i18n="org.namTrongChuong">Nằm trong</label><select id="org-a-parent"></select></div>
+            <label class="check"><input type="checkbox" id="org-a-required" checked> <span data-i18n="org.batBuoc">Bắt buộc</span></label>
         </div>
         <div class="modal-foot">
-            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-schedule')">Hủy</button>
-            <button data-i18n="course-detail.luuLich" class="btn" id="btn-save-schedule">Lưu lịch</button>
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-org-add')">Hủy</button>
+            <button data-i18n="org.duaVao" class="btn" id="btn-org-a-save">Đưa vào</button>
         </div>
+    </div>
+</div>
+
+<!-- Thiết lập một mục = phần sequencing của <item> tương ứng trong imsmanifest.xml. -->
+<div class="modal-mask" id="modal-org-item">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="org.thietLapMuc">Thiết lập mục</h3>
+            <button class="close-x" onclick="closeModal('modal-org-item')">×</button></div>
+        <div class="modal-body">
+            <input type="hidden" id="org-i-id">
+            <div class="field"><label id="org-i-head" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"></label></div>
+            <div class="field"><label for="org-i-title" id="org-i-title-label">Tên hiển thị</label><input id="org-i-title" maxlength="250"></div>
+            <div class="field"><label for="org-i-parent" data-i18n="org.namTrongChuong">Nằm trong</label><select id="org-i-parent"></select></div>
+            <label class="check"><input type="checkbox" id="org-i-required"> <span data-i18n="org.batBuocHoanThanh">Bắt buộc — tính vào hoàn thành khóa học</span></label>
+            <label class="check mt"><input type="checkbox" id="org-i-visible"> <span data-i18n="org.hienTrongMucLuc">Hiện trong mục lục của học viên</span></label>
+            <div class="row mt">
+                <div class="field"><label for="org-i-start" data-i18n="org.moTuNgay">Mở từ</label><input type="datetime-local" id="org-i-start"></div>
+                <div class="field"><label for="org-i-end" data-i18n="org.hanChot">Hạn chót</label><input type="datetime-local" id="org-i-end">
+                    <div class="org-hint" id="org-i-end-hint"></div></div>
+            </div>
+            <div class="field"><label for="org-i-attempt" data-i18n="org.gioiHanLuot">Giới hạn số lượt mở</label><input type="number" id="org-i-attempt" min="0" max="1000" placeholder="Không giới hạn"></div>
+            <div class="field" id="org-i-threshold-row"><label for="org-i-threshold" data-i18n="org.nguongHoanThanh">Ngưỡng hoàn thành (%)</label><input type="number" id="org-i-threshold" min="0" max="100" placeholder="Do gói tự báo">
+                </div>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-org-item')">Hủy</button>
+            <button data-i18n="common.save" class="btn" id="btn-org-i-save">Lưu</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== SCORM ==================== -->
+<!-- Nhập một gói SCORM (.zip) vào khóa học — thành một mục (cụm) của cấu trúc khóa học. -->
+<div class="modal-mask" id="modal-scorm-import">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="scorm.nhapGoiScorm">Nhập gói SCORM</h3>
+            <button class="close-x" onclick="closeModal('modal-scorm-import')">×</button></div>
+        <div class="modal-body">
+            <div class="drop-zone compact" id="si-drop">
+                <div class="big"><i class="ph ph-package"></i></div>
+                <div id="si-file-label"><b data-i18n="scorm.keoThaGoiVaoDay">Kéo thả gói .zip vào đây</b>
+                    <div class="small muted" data-i18n="scorm.hoTroPhienBan">Tối đa 500 MB</div></div>
+            </div>
+            <input type="file" id="si-file" accept=".zip,application/zip,application/x-zip-compressed" hidden>
+            <div class="field mt"><label for="si-title" data-i18n="scorm.tenHienThi">Tên hiển thị</label>
+                <input id="si-title" maxlength="250" placeholder="Để trống = lấy tên trong gói"></div>
+            <div class="field"><label for="si-parent" data-i18n="org.namTrongChuong">Nằm trong</label><select id="si-parent"></select></div>
+            <label class="check"><input type="checkbox" id="si-required" checked> <span data-i18n="org.batBuoc">Bắt buộc</span></label>
+            <div id="si-progress" class="mt hidden"></div>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-scorm-import')">Hủy</button>
+            <button class="btn" id="btn-si-submit" disabled><i class="ph ph-upload-simple"></i> <span data-i18n="scorm.nhapGoi">Nhập gói</span></button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-scorm-edit">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="scorm.suaThongTinGoi">Sửa thông tin gói</h3>
+            <button class="close-x" onclick="closeModal('modal-scorm-edit')">×</button></div>
+        <div class="modal-body">
+            <input type="hidden" id="se-id">
+            <div class="field"><label for="se-title" data-i18n="scorm.tenHienThi2">Tên hiển thị *</label><input id="se-title" maxlength="250"></div>
+            <div class="field"><label for="se-duration" data-i18n="scorm.thoiLuongDuKienPhut">Thời lượng dự kiến (phút)</label><input id="se-duration" type="number" min="0" max="100000"></div>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-scorm-edit')">Hủy</button>
+            <button data-i18n="common.save" class="btn" id="btn-se-save">Lưu</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-scorm-detail">
+    <div class="modal wide">
+        <div class="modal-head"><h3 id="sd-title" data-i18n="scorm.chiTietKetQua">Chi tiết kết quả</h3>
+            <button class="close-x" onclick="closeModal('modal-scorm-detail')">×</button></div>
+        <div class="modal-body" id="sd-body"></div>
+        <div class="modal-foot"><button data-i18n="common.close" class="btn" onclick="closeModal('modal-scorm-detail')">Đóng</button></div>
     </div>
 </div>
 
@@ -612,6 +686,13 @@
 
     let course = null, departmentList = [], positionList = [];
 
+    // Cấu trúc khóa học đang hiển thị ở tab đầu tiên (LearningPathDto) và các gói nhập ngoài của khóa học — đặt Ở ĐÂY,
+    // trước lời gọi loadTab đầu tiên bên dưới: renderStructure() gán vào chúng, khai báo ở dưới là dính Temporal Dead Zone.
+    let orgPath = null;
+    let orgPackageById = new Map();
+    // Chương sẽ chứa SCO đang tạo dở từ menu "+ Nội dung" của cấu trúc; null = tự xếp chỗ.
+    let pendingParentItemId = null;
+
     const quill = new Quill('#l-content-editor', {
         theme: 'snow',
         modules: {
@@ -699,10 +780,7 @@
 
     document.querySelectorAll('.tabs button').forEach(button => {
         button.addEventListener('click', () => {
-            document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            button.classList.add('active');
-            document.getElementById(`tab-${button.dataset.tab}`).classList.add('active');
+            showTab(button.dataset.tab, 'structure');
             loadTab(button.dataset.tab);
         });
     });
@@ -725,14 +803,17 @@
 
     [departmentList, positionList] = await Promise.all([API.get('/department'), API.get('/position')]);
     await loadCourse();
-    await loadTab('lesson');
+    // Mở lại thẻ ghi trên địa chỉ trang (?tab=): tải lại trang, kể cả khi đổi ngôn ngữ, vẫn đứng nguyên thẻ đang xem.
+    const startTab = tabFromUrl('structure');
+    showTab(startTab, 'structure');
+    await loadTab(startTab);
 
     async function loadCourse() {
         course = await API.get(`/course/${courseId}`);
         document.querySelector('.topbar h1').textContent = course.title;
         document.querySelector('.topbar .sub')?.remove();
         document.querySelector('.topbar h1').insertAdjacentHTML('afterend',
-            `<div class="sub">${esc(course.code)} · ${statusBadge(course.status)} · ${formatDuration(course.durationMinutes)} · Điểm đạt ${course.passScore}%</div>`);
+            `<div class="sub">${esc(course.code)} · ${statusBadge(course.status)} · ${formatDate(course.startDate)} – ${formatDate(course.endDate)} · ${formatDuration(course.durationMinutes)} · Điểm đạt ${course.passScore}%</div>`);
 
         document.getElementById('rejection-banner')?.remove();
         if (course.status === 'Rejected' && course.rejectionReason) {
@@ -755,7 +836,7 @@
         // người dùng thấy khóa đã về Bản nháp nhưng mọi nút sửa vẫn biến mất cho tới khi tự tải lại trang.
         bindCourseWorkflowButtons(document.getElementById('topbar-action'), async () => {
             await loadCourse();
-            await loadTab(document.querySelector('.tabs button.active')?.dataset.tab || 'lesson');
+            await loadTab(document.querySelector('.tabs button.active')?.dataset.tab || 'structure');
         });
     }
 
@@ -763,13 +844,20 @@
         const box = document.getElementById(`tab-${tab}`);
         box.innerHTML = skeletonHtml('list', { count: 5, avatar: false });
         try {
-            if (tab === 'lesson') await renderLesson(box);
+            if (tab === 'structure') await renderStructure(box);
+            else if (tab === 'lesson') await renderLesson(box);
             else if (tab === 'quiz') await renderQuiz(box);
             else if (tab === 'simulation') await renderSimulation(box);
-            else if (tab === 'path') await renderPath(box);
             else if (tab === 'target') await renderTarget(box);
             else if (tab === 'learner') await renderLearner(box);
         } catch (ex) { box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    /** Lưu xong một SCO (bài học / bài kiểm tra): nạp lại tab của nó, và cả cấu trúc nếu người soạn đang đứng ở đó
+     *  — SCO mới tự thành một mục của cấu trúc. */
+    function reloadAfterContentSave(tab) {
+        const active = document.querySelector('.tabs button.active')?.dataset.tab;
+        loadTab(active === 'structure' ? 'structure' : tab);
     }
 
     // ==================== BÀI HỌC ====================
@@ -1147,6 +1235,7 @@
     }
 
     function openLessonForm(lesson, readOnly = false) {
+        pendingParentItemId = null;
         document.getElementById('lesson-title').textContent = readOnly ? 'Xem bài học' : (lesson ? 'Sửa bài học' : t('course-detail.themBaiHoc', 'Thêm bài học'));
         document.getElementById('l-id').value = lesson?.id || '';
         document.getElementById('l-title').value = lesson?.title || '';
@@ -1221,7 +1310,9 @@
             durationMinutes: +document.getElementById('l-duration').value || 0,
             videoSeekPolicy: +document.getElementById('l-seek').value || 0,
             orderIndex: +document.getElementById('l-order').value || 0,
-            isActive: document.getElementById('l-active').checked
+            isActive: document.getElementById('l-active').checked,
+            // Bài học mới tự thành một SCO của cấu trúc khóa học — vào chương đang chọn nếu mở từ cấu trúc.
+            parentItemId: id ? null : pendingParentItemId
         };
 
         const wantsQuiz = !id && document.getElementById('l-has-quiz').checked;
@@ -1247,7 +1338,7 @@
                 });
                 toastOk(result.message);
                 closeModal('modal-lesson');
-                loadTab('lesson');
+                reloadAfterContentSave('lesson');
                 if (result.quizId) {
                     toastOk(t('course-detail.hayThemCauHoiChoBaiKiemTraVuaT', 'Hãy thêm câu hỏi cho bài kiểm tra vừa tạo.'));
                     openQuestionManager(result.quizId);
@@ -1256,7 +1347,7 @@
                 await API.post('/lesson', body);
                 toastOk(t('course-detail.daLuuBaiHoc', 'Đã lưu bài học.'));
                 closeModal('modal-lesson');
-                loadTab('lesson');
+                reloadAfterContentSave('lesson');
             }
         } catch (ex) { toastErr(ex.message); }
     }
@@ -1299,12 +1390,11 @@
         attachDropdown('btn-quiz-template', templateMenu('question-sheet', 'Mau_Import_CauHoi_CaKhoaHoc'));
         attachDropdown('btn-quiz-import', [
             {
-                icon: 'ph-microsoft-excel-logo', label: 'Từ file Excel (theo file mẫu)',
-                note: 'Mỗi dòng một câu, cột đầu ghi tên bài kiểm tra nhận câu đó.',
+                icon: 'ph-microsoft-excel-logo', label: 'File Excel',
                 onClick: () => document.getElementById('import-question-sheet-file').click()
             },
             {
-                icon: 'ph-microsoft-word-logo', label: 'Từ file Word (đề soạn tự do)',
+                icon: 'ph-microsoft-word-logo', label: 'File Word',
                 note: 'Đề gõ sẵn kiểu "BÀI 1: ..." / "Câu 1:" — đáp án đúng tô nền, in đậm, dấu * hay dòng "Đáp án: B" đều nhận.',
                 onClick: () => document.getElementById('import-question-doc-file').click()
             }
@@ -1327,6 +1417,7 @@
      * @param {boolean} [readOnly] Mở ở chế độ chỉ xem (nội dung đã gửi duyệt/xuất bản, không được sửa nữa).
      */
     async function openQuizForm(quiz, presetLessonId, presetLessonTitle, readOnly = false) {
+        pendingParentItemId = null;
         document.getElementById('quiz-modal-title').textContent = readOnly ? 'Xem bài kiểm tra' : (quiz ? 'Sửa bài kiểm tra' : t('course-detail.themBaiKiemTra', 'Thêm bài kiểm tra'));
         document.getElementById('q-id').value = quiz?.id || '';
         document.getElementById('q-title').value = quiz?.title || (presetLessonTitle ? `Kiểm tra: ${presetLessonTitle}` : '');
@@ -1358,14 +1449,15 @@
             maxAttempt: +document.getElementById('q-attempt').value || 3,
             isFinalExam: document.getElementById('q-final').checked,
             shuffleQuestion: document.getElementById('q-shuffle').checked,
-            isActive: true
+            isActive: true,
+            parentItemId: id ? null : pendingParentItemId
         };
         try {
             if (id) await API.put(`/quiz/${id}`, body); else await API.post('/quiz', body);
             toastOk(t('course-detail.daLuuBaiKiemTra', 'Đã lưu bài kiểm tra.'));
             closeModal('modal-quiz');
-            loadTab('quiz');
             loadTab('lesson'); // bài kiểm tra vừa gắn (nếu có) hiện thành dòng con ngay dưới bài học trong tab Bài học
+            reloadAfterContentSave('quiz');
         } catch (ex) { toastErr(ex.message); }
     }
 
@@ -1560,8 +1652,7 @@
     const SCENARIO_SCENE_LIST = [
         {
             key: 'construction',
-            label: t('course-detail.congTruongXayDung', 'Công trường xây dựng'),
-            hint: t('course-detail.canhNgoaiTroiNhaDangXayGianGia', 'Cảnh ngoài trời: nhà đang xây, giàn giáo, cẩu tháp, bãi vật liệu. Hợp với kịch bản kiểm tra hiện trường (an toàn lao động, chất lượng thi công).'),
+            label: t('course-detail.congTruongXayDung', 'Công trường xây dựng'),            
             presetList: [
                 { label: t('course-detail.tuNhapToaDo', '— Tự nhập tọa độ —'), x: 0, y: 1, z: 0 },
                 { label: t('course-detail.gianGiaoTangCaoMatTruocToaNha', 'Giàn giáo tầng cao (mặt trước tòa nhà)'), x: -3, y: 9, z: 2 },
@@ -1576,8 +1667,7 @@
         {
             key: 'hr-office',
             label: t('course-detail.vanPhongPhongNhanSu', 'Văn phòng phòng Nhân sự'),
-            hint: t('course-detail.canhTrongNhaQuayLeTanBanTuyenD', 'Cảnh trong nhà: quầy lễ tân, bàn tuyển dụng, phòng phỏng vấn, phòng họp, tủ hồ sơ, khu onboarding. Hợp với kịch bản QUY TRÌNH (tuyển dụng, tiếp nhận nhân viên mới, xử lý hồ sơ).'),
-            presetList: [
+                presetList: [
                 { label: t('course-detail.tuNhapToaDo', '— Tự nhập tọa độ —'), x: 0, y: 1.7, z: 0 },
                 { label: t('course-detail.quayLeTanTiepNhanHoSo', 'Quầy lễ tân — tiếp nhận hồ sơ'), x: -8.5, y: 1.9, z: 7 },
                 { label: t('course-detail.banTuyenDungSangLocHoSo', 'Bàn tuyển dụng — sàng lọc hồ sơ'), x: -7.5, y: 1.7, z: 2.5 },
@@ -1591,10 +1681,7 @@
         },
         {
             key: 'custom',
-            label: t('course-detail.boiCanhTuTaiLen', 'Bối cảnh tự tải lên (không cần lập trình)'),
-            hint: t('course-detail.tuTaiLenModel3dAnh360VideoAnh', 'Tự tải lên model 3D (.glb), ảnh 360°, video 360° hoặc ảnh thường. Sau khi lưu, bấm "Tình huống" để đặt vị trí từng câu hỏi bằng cách bấm thẳng vào cảnh — không cần biết tọa độ.'),
-            // Bối cảnh này không có mốc dựng sẵn: vị trí được chọn bằng cách bấm chuột lên chính cảnh vừa
-            // tải lên (xem openNodeManager), nên danh sách mốc rỗng.
+            label: t('course-detail.boiCanhTuTaiLen', 'Bối cảnh tự tải lên (không cần lập trình)'),            
             presetList: [],
         },
     ];
@@ -1728,6 +1815,7 @@
 
     /** @param {object|null} forLesson khi mở từ tab Bài học: { lessonId, lessonTitle } để chọn sẵn bài học. */
     async function openScenarioForm(scenario, readOnly = false, forLesson = null) {
+        pendingParentItemId = null;
         document.getElementById('scenario-modal-title').textContent = readOnly ? 'Xem mô phỏng 3D' : (scenario ? 'Sửa mô phỏng 3D' : t('course-detail.themMoPhong3d', 'Thêm mô phỏng 3D'));
         document.getElementById('sn-id').value = scenario?.id || '';
         document.getElementById('sn-title').value = scenario?.title || (forLesson ? `Mô phỏng: ${forLesson.lessonTitle}` : '');
@@ -1934,7 +2022,8 @@
             sceneKey: document.getElementById('sn-scene').value,
             assetUrl: document.getElementById('sn-asset-url').value || null,
             assetType: document.getElementById('sn-asset-type').value || null,
-            isSequential: document.getElementById('sn-sequential').checked
+            isSequential: document.getElementById('sn-sequential').checked,
+            parentItemId: id ? null : pendingParentItemId
         };
         // Thư viện rỗng (hoặc gọi API thất bại) thì ô chọn không có mục nào để chọn — nói thẳng ra chỗ cần
         // xử lý, thay vì để server trả về "Bối cảnh 3D không hợp lệ".
@@ -3417,137 +3506,352 @@
             }).join('');
     }
 
-    // ==================== LỘ TRÌNH ====================
-    /** Nhãn lịch mở/khóa của một bước — hiển thị trong danh sách lộ trình phía quản trị. */
-    function scheduleLabel(item) {
-        if (!item.startDate && !item.endDate) return '';
-        const start = item.startDate ? formatDate(item.startDate, true) : null;
-        const end = item.endDate ? formatDate(item.endDate, true) : null;
-        const cal = '<i class="ph ph-calendar"></i>';
-        // Quiz/Simulation: EndDate khóa hẳn (hết hạn làm bài/chơi). Lesson: EndDate chỉ để hiển thị, không khóa lại.
-        if (item.itemType === 'Quiz' || item.itemType === 'Simulation') {
-            if (start && end) return `${cal} ${start} → ${end}`;
-            if (start) return `${cal} Mở từ ${start}`;
-            return `${cal} Hạn đến ${end}`;
+    // ==================== CẤU TRÚC KHÓA HỌC (SCORM ORGANIZATION) ====================
+    // Khóa học = MỘT gói SCORM 2004 4th Edition. Cây ở đây chính là <organization> của gói: chương là <item> cụm,
+    // bài học / bài kiểm tra / mô phỏng 3D / gói SCORM nhập ngoài là <item> lá trỏ tới một SCO. Thiết lập của từng
+    // mục (bắt buộc, hiển thị, lịch mở / hạn chót, giới hạn lượt) là phần sequencing của item đó. Trình phát của học
+    // viên và gói xuất ra LMS khác đều dựng từ đúng cây này — không còn "lộ trình" nào riêng.
+    //
+    // Mọi hàm ở đây là khai báo function (được hoisting đầy đủ): loadTab('structure') chạy ngay ở đầu trang, trước
+    // khi engine chạy tới khối này — một const arrow / const bảng tra đặt ở đây lúc đó còn trong Temporal Dead Zone.
+
+    /** Biểu tượng + nhãn của từng loại mục. */
+    function orgTypeMeta(itemType) {
+        switch (itemType) {
+            case 'Module': return { icon: 'ph-folder-simple', label: t('org.chuong', 'Chương'), code: 4 };
+            case 'Quiz': return { icon: 'ph-exam', label: t('common.baiKiemTra', 'Bài kiểm tra'), code: 1 };
+            case 'Simulation': return { icon: 'ph-cube', label: t('common.moPhong3d', 'Mô phỏng 3D'), code: 2 };
+            case 'Scorm': return { icon: 'ph-package', label: t('common.goiScorm', 'Gói SCORM'), code: 3 };
+            default: return { icon: 'ph-file-text', label: t('common.baiHoc', 'Bài học'), code: 0 };
         }
-        return `${cal} Mở từ ${start ?? '—'}`;
     }
 
-    function renderPathItemRow(item, order) {
-        const meta = stepTypeMeta(item.itemType);   // js/app.js — dùng chung với cây lộ trình bên học viên
-        const isChildQuiz = item.itemType === 'Quiz' && !!item.parentLessonId;
-        return `<div class="pm-item ${isChildQuiz ? 'child' : ''}">
-            <div class="pm-mark ${meta.mark}">${isChildQuiz ? '<i class="ph ph-arrow-elbow-down-right"></i>' : order}</div>
-            <div class="pm-body">
-                <div class="pm-title-row">
-                    <span class="pm-title">${meta.icon} ${esc(item.title)}</span>
-                    <span class="pm-req ${item.isRequired ? 'req' : 'opt'}">${item.isRequired ? 'Bắt buộc' : t('course-detail.tuyChon', 'Tùy chọn')}</span>
-                    ${isChildQuiz ? '<span data-i18n="course-detail.baiKiemTraCuaBaiHocTren" class="small muted">bài kiểm tra của bài học trên</span>' : ''}
-                </div>
-                <div class="pm-meta">${meta.label} · ${formatDuration(item.durationMinutes)}</div>
-                ${scheduleLabel(item) ? `<div class="pm-schedule">${scheduleLabel(item)}</div>` : ''}
-            </div>
-            ${isChildQuiz || !canEditContent() ? '' : `<div class="pm-actions">
-                <button class="btn ghost sm" data-schedule-item='${JSON.stringify(item)}'><i class="ph ph-calendar"></i> <span data-i18n="course-detail.lich">Lịch</span></button>
-                <button data-i18n="common.delete" class="btn ghost sm" data-del-item="${item.id}">Xóa</button>
-            </div>`}
-        </div>`;
-    }
-
-    async function renderPath(box) {
-        let path = null;
-        try { path = await API.get(`/learningpath/by-course/${courseId}`); }
-        catch (ex) {
-            // 404 nghĩa là khóa học thật sự chưa có lộ trình — coi như bình thường. Mọi lỗi khác (403, 500...)
-            // phải báo rõ ra thay vì âm thầm coi như "chưa có", tránh nhầm tưởng lộ trình đã bị mất.
-            if (ex.status !== 404) { box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); return; }
-        }
-
-        let itemHtml = '';
-        if (path) {
-            const orderedList = path.itemList.map((item, i) => ({ item, order: i + 1 }));
-            const weekGroupList = groupByWeek(orderedList, (x) => x.item.startDate);
-            itemHtml = weekGroupList.map(group => `
-                <div class="pm-week">
-                    ${weekHeadHtml(group)}
-                    ${group.itemList.map(x => renderPathItemRow(x.item, x.order)).join('')}
-                </div>`).join('') || emptyHtml(t('course-detail.loTrinhChuaCoBuocNao', 'Lộ trình chưa có bước nào.'));
-        }
-
+    async function renderStructure(box) {
         const editable = canEditContent();
+        let path = await API.get(`/learningpath/by-course/${courseId}`);
+        // Khóa học cũ chưa từng dựng cấu trúc: lưu cấu trúc mặc định xuống — người soạn sửa trên đúng thứ tự học viên
+        // đang thấy, thay vì một cây trống.
+        if (path.isVirtual && editable && path.itemList.length) path = await API.post(`/learningpath/ensure/${courseId}`);
+        orgPath = path;
+        const packageList = await API.getSilent(`/scorm/course/${courseId}/package`).catch(() => []);
+        orgPackageById = new Map(packageList.map(p => [p.id, p]));
+
+        const moduleCount = path.itemList.filter(x => x.itemType === 'Module').length;
+        const leafCount = path.itemList.length - moduleCount;
+        const unplacedList = path.unplacedList || [];
+
         box.innerHTML = `
             <div class="card">
                 <div class="card-head">
-                    <div><h3 data-i18n="course-detail.loTrinhHocTap">Lộ trình học tập</h3>
-                        <div data-i18n="course-detail.quyDinhThuTuNguoiHocPhaiThucHi" class="small muted">Quy định thứ tự người học phải thực hiện các bài học và bài kiểm tra. Có thể đặt thêm lịch mở khóa riêng cho từng bước.</div></div>
-                    ${editable ? `<div class="flex gap-sm">
-                        ${path ? '<button class="btn ghost sm" id="btn-add-step"><i class="ph ph-cube"></i> <span data-i18n="course-detail.themBuocMoPhong3d">+ Thêm bước mô phỏng 3D</span></button>' : ''}
-                        <button class="btn sm" id="btn-auto">${path ? '<i class="ph ph-arrows-clockwise"></i> Tạo lại từ nội dung hiện có' : '<i class="ph ph-sparkle"></i> Tự sinh lộ trình'}</button>
-                    </div>` : ''}
+                    <div><h3><i class="ph-duotone ph-tree-structure"></i> ${esc(t('org.cauTrucKhoaHoc', 'Cấu trúc khóa học'))}</h3></div>
+                    <div class="flex gap-sm wrap">
+                        <a class="btn ghost sm" target="_blank" rel="noopener" href="/pages/scorm-player.html?courseId=${courseId}"><i class="ph ph-play"></i> ${esc(t('org.xemThuNhuHocVien', 'Xem thử như học viên'))}</a>
+                    </div>
                 </div>
-                <div class="card-body">
-                    ${path ? `
-                        <div class="pm-summary">
-                            <div class="pm-summary-main"><b>${esc(path.name)}</b>
-                                <div class="pm-summary-note">${path.isSequential ? '<i class="ph ph-lock"></i> Học tuần tự — phải hoàn thành bước trước mới mở bước sau (trừ bước đã đặt lịch riêng)' : '<i class="ph ph-lock-open"></i> Học tự do'}</div></div>
-                            <span class="badge blue">${path.itemList.length} bước</span>
-                        </div>
-                        ${itemHtml}
-                    ` : (editable
-                        ? emptyHtml(t('course-detail.khoaHocChuaCoLoTrinhBamTuSinhL', 'Khóa học chưa có lộ trình. Bấm "Tự sinh lộ trình" để tạo tự động từ bài học, mô phỏng 3D và bài kiểm tra hiện có.'), '<i class="ph ph-tree-structure"></i>')
-                        : emptyHtml(t('course-detail.khoaHocChuaCoLoTrinh', 'Khóa học chưa có lộ trình.'), '<i class="ph ph-tree-structure"></i>'))}
+                <div class="org-bar">
+                    <span class="small muted">${esc(t('org.demChuongMuc', '{m} chương · {n} mục nội dung', { m: moduleCount, n: leafCount }))}</span>
+                    ${editable
+                        ? `<label class="org-switch" title="${esc(t('org.hocTuanTuGoiY', 'Bật: mục sau chỉ mở khi đã xong mục bắt buộc trước nó (luật sequencing "disabled"). Mục đã đặt lịch mở theo lịch.'))}">
+                               <input type="checkbox" id="org-sequential" ${path.isSequential ? 'checked' : ''}> ${esc(t('org.hocTuanTu', 'Học tuần tự'))}</label>`
+                        : `<span class="org-tag">${esc(path.isSequential ? t('org.hocTuanTu', 'Học tuần tự') : t('org.hocTuDo', 'Học tự do'))}</span>`}
+                    <span class="grow"></span>
+                    ${editable ? `
+                        <button class="btn ghost sm" id="btn-org-module"><i class="ph ph-folder-simple-plus"></i> ${esc(t('org.chuong', 'Chương'))}</button>
+                        <button class="btn sm" id="btn-org-add"><i class="ph ph-plus"></i> ${esc(t('org.noiDung', 'Nội dung'))} <i class="ph ph-caret-down"></i></button>
+                        <button class="btn ghost sm" id="btn-org-more" aria-label="${esc(t('org.thaoTacKhac', 'Thao tác khác'))}"><i class="ph ph-dots-three"></i></button>` : ''}
+                </div>
+                <div class="org-body">
+                    ${path.itemList.length
+                        ? `<div class="org-tree">${path.itemList.map(item => orgRowHtml(item, editable)).join('')}</div>`
+                        : emptyHtml(editable
+                            ? t('org.chuaCoNoiDungSoan', 'Khóa học chưa có nội dung. Thêm chương, bài học, bài kiểm tra, mô phỏng 3D hoặc nhập gói SCORM để bắt đầu.')
+                            : t('org.chuaCoNoiDung', 'Khóa học chưa có nội dung.'), '<i class="ph ph-tree-structure"></i>')}
+                    ${unplacedList.length ? orgUnplacedHtml(unplacedList, editable) : ''}
                 </div>
             </div>`;
+        if (!editable) return;
 
-        document.getElementById('btn-auto')?.addEventListener('click', async () => {
-            // Tự sinh lộ trình xóa TOÀN BỘ bước hiện có rồi sinh lại theo quy tắc chuẩn
-            // (bài học -> mô phỏng 3D -> bài kiểm tra). Mô phỏng nay cũng được sinh lại, nhưng THỨ TỰ do
-            // người dùng tự sắp và mọi mốc thời gian bắt đầu/kết thúc đã đặt trên từng bước đều mất — nên
-            // vẫn phải hỏi trước khi làm.
-            const hasCustomOrder = path && path.itemList.length > 0;
-            if (hasCustomOrder && !await confirmDialog(
-                t('course-detail.taoLaiSeXoaToanBoBuocHienCoRoi', 'Tạo lại sẽ XÓA toàn bộ bước hiện có rồi sinh lại theo thứ tự chuẩn: bài học → mô phỏng 3D → bài kiểm tra. ')
-                + t('course-detail.thuTuBanTuSapVaCacMocThoiGianD', 'Thứ tự bạn tự sắp và các mốc thời gian đã đặt cho từng bước sẽ mất. Tiếp tục?'),
-                { danger: true, okText: t('course-detail.vanTaoLai', 'Vẫn tạo lại') })) return;
-
-            try { toastOk((await API.post(`/learningpath/auto-generate/${courseId}`)).message); loadTab('path'); }
-            catch (ex) { toastErr(ex.message); }
-        });
-        document.getElementById('btn-add-step')?.addEventListener('click', () => openAddStepForm(path.id));
-        box.querySelectorAll('[data-del-item]').forEach(b => b.addEventListener('click', async () => {
-            try { await API.del(`/learningpath/item/${b.dataset.delItem}`); loadTab('path'); }
-            catch (ex) { toastErr(ex.message); }
-        }));
-        box.querySelectorAll('[data-schedule-item]').forEach(b => b.addEventListener('click', () =>
-            openScheduleForm(JSON.parse(b.dataset.scheduleItem))));
-    }
-
-    async function openAddStepForm(pathId) {
-        const scenarioList = await API.get(`/scenario/by-course/${courseId}`);
-        if (!scenarioList.length) { toastErr(t('course-detail.khoaHocChuaCoMoPhong3dNaoTaoOT', 'Khóa học chưa có mô phỏng 3D nào — tạo ở tab "Mô phỏng 3D" trước.')); return; }
-
-        document.getElementById('as-scenario').innerHTML =
-            scenarioList.map(s => `<option value="${s.id}">${esc(s.title)}</option>`).join('');
-        document.getElementById('as-required').checked = true;
-
-        document.getElementById('btn-do-add-step').onclick = async () => {
+        document.getElementById('org-sequential').addEventListener('change', async (e) => {
             try {
-                await API.post(`/learningpath/${pathId}/item`, {
-                    itemType: 2, // PathItemType.Simulation
-                    scenarioSceneId: +document.getElementById('as-scenario').value,
-                    orderIndex: 0,
-                    isRequired: document.getElementById('as-required').checked
+                const current = await orgEnsurePath();
+                await API.put(`/learningpath/${current.id}`, {
+                    courseId, name: current.name, description: current.description, isSequential: e.target.checked,
                 });
-                toastOk(t('course-detail.daThemBuocMoPhong3dVaoLoTrinh', 'Đã thêm bước mô phỏng 3D vào lộ trình.'));
-                closeModal('modal-add-step');
-                loadTab('path');
-            } catch (ex) { toastErr(ex.message); }
-        };
-
-        openModal('modal-add-step');
+                toastOk(e.target.checked
+                    ? t('org.daBatTuanTu', 'Đã bật học tuần tự.') : t('org.daTatTuanTu', 'Đã tắt học tuần tự — học viên chọn mục nào cũng được.'));
+            } catch (ex) { toastErr(ex.message); e.target.checked = !e.target.checked; }
+        });
+        document.getElementById('btn-org-module').addEventListener('click', () => openOrgModule(null));
+        bindPopMenu(document.getElementById('btn-org-add'), () => orgAddMenu(null));
+        bindPopMenu(document.getElementById('btn-org-more'), () => [
+            { icon: 'ph ph-arrows-clockwise', label: t('org.dungLaiTuDong', 'Dựng lại cấu trúc tự động'), danger: true, onClick: orgAutoGenerate },
+            { icon: 'ph ph-chart-bar', label: t('org.ketQuaHocVien', 'Kết quả học của học viên'), onClick: () => switchTab('learner') },
+        ]);
+        box.querySelectorAll('[data-org-edit]').forEach(b => b.addEventListener('click', () => openOrgSettings(+b.dataset.orgEdit)));
+        box.querySelectorAll('[data-org-addin]').forEach(b => bindPopMenu(b, () => orgAddMenu(+b.dataset.orgAddin)));
+        box.querySelectorAll('[data-org-menu]').forEach(b => bindPopMenu(b, () => orgRowMenu(+b.dataset.orgMenu)));
+        box.querySelectorAll('[data-org-place]').forEach(b => b.addEventListener('click', () => {
+            const [itemType, id] = b.dataset.orgPlace.split(':');
+            orgPlaceResource(itemType, +id, null, true);
+        }));
     }
 
-    /** yyyy-MM-ddTHH:mm theo giờ địa phương, khớp định dạng input datetime-local; null nếu không có giá trị. */
+    function orgScheduleText(item) {
+        const start = item.startDate ? formatDate(item.startDate, true) : null;
+        const end = item.endDate ? formatDate(item.endDate, true) : null;
+        if (start && end) return `${start} → ${end}`;
+        if (start) return t('org.moTu', 'Mở từ {d}', { d: start });
+        return t('org.hanDen', 'Hạn đến {d}', { d: end });
+    }
+
+    function orgRowHtml(item, editable) {
+        const meta = orgTypeMeta(item.itemType);
+        const isModule = item.itemType === 'Module';
+        const pkg = item.scormPackageId ? orgPackageById.get(item.scormPackageId) : null;
+        const tagList = [
+            item.isRequired
+                ? `<span class="org-tag req">${esc(t('org.batBuoc', 'Bắt buộc'))}</span>`
+                : `<span class="org-tag" title="${esc(t('org.tuyChonGoiY', 'Không tính vào hoàn thành khóa học và không chặn mục sau'))}">${esc(t('org.tuyChon', 'Tùy chọn'))}</span>`,
+        ];
+        if (!item.isVisible) tagList.push(`<span class="org-tag"><i class="ph ph-eye-slash"></i> ${esc(t('org.anKhoiMucLuc', 'Ẩn khỏi mục lục'))}</span>`);
+        if (item.startDate || item.endDate) tagList.push(`<span class="org-tag"><i class="ph ph-calendar"></i> ${esc(orgScheduleText(item))}</span>`);
+        if (item.attemptLimit) tagList.push(`<span class="org-tag"><i class="ph ph-repeat"></i> ${esc(t('org.toiDaLuot', 'Tối đa {n} lượt', { n: item.attemptLimit }))}</span>`);
+        if (item.completionThreshold) tagList.push(`<span class="org-tag">${esc(t('org.hoanThanhKhi', 'Hoàn thành khi ≥ {p}%', { p: Math.round(item.completionThreshold * 100) }))}</span>`);
+        if (pkg) tagList.push(scormVersionBadge(pkg));
+        const detail = isModule ? '' : `${esc(meta.label)}${item.durationMinutes ? ' · ' + esc(formatDuration(item.durationMinutes)) : ''}`;
+        const previewable = !!item.activityId && !item.note && item.id > 0;
+
+        return `<div class="org-row ${isModule ? 'module' : ''} ${item.depth > 1 ? 'depth-child' : ''} ${item.note ? 'muted-row' : ''}"
+                     style="--depth:${Math.max(0, item.depth - 1)}" data-org-row="${item.id}">
+            <span class="org-ic ${item.itemType}"><i class="ph ${meta.icon}"></i></span>
+            <div class="org-main">
+                <div class="org-title">${esc(item.title)}${item.activityId
+                    ? `<span class="org-aid" title="${esc(t('org.dinhDanhItem', 'Định danh của item trong imsmanifest.xml'))}">${esc(item.activityId)}</span>` : ''}</div>
+                <div class="org-meta">${detail ? `<span>${detail}</span>` : ''}${tagList.join('')}</div>
+                ${item.note ? `<div class="org-note"><i class="ph ph-warning-circle"></i> ${esc(item.note)}</div>` : ''}
+            </div>
+            <div class="org-actions">
+                ${previewable ? `<a class="btn ghost sm" target="_blank" rel="noopener" title="${esc(t('org.xemThuMucNay', 'Xem thử từ mục này'))}"
+                    href="/pages/scorm-player.html?courseId=${courseId}&activityId=${encodeURIComponent(item.activityId)}"><i class="ph ph-play"></i></a>` : ''}
+                ${editable && isModule ? `<button class="btn ghost sm" data-org-addin="${item.id}" title="${esc(t('org.themVaoChuong', 'Thêm nội dung vào chương'))}"><i class="ph ph-plus"></i></button>` : ''}
+                ${editable && item.id > 0 ? `<button class="btn ghost sm" data-org-edit="${item.id}" title="${esc(t('org.thietLap', 'Thiết lập'))}"><i class="ph ph-gear-six"></i></button>
+                    <button class="btn ghost sm" data-org-menu="${item.id}" aria-label="${esc(t('org.thaoTacKhac', 'Thao tác khác'))}"><i class="ph ph-dots-three-vertical"></i></button>` : ''}
+            </div>
+        </div>`;
+    }
+
+    function orgUnplacedHtml(list, editable) {
+        return `<div class="org-unplaced">
+            <h4>${esc(t('org.chuaCoTrongCauTruc', 'Chưa có trong cấu trúc — học viên chưa thấy ({n})', { n: list.length }))}</h4>
+            ${list.map(r => `<div class="org-unplaced-item">
+                <span class="org-ic ${r.itemType}" style="width:28px;height:28px;font-size:15px"><i class="ph ${orgTypeMeta(r.itemType).icon}"></i></span>
+                <span><b>${esc(r.title)}</b> <span class="small muted">· ${esc(orgTypeMeta(r.itemType).label)}${r.note ? ' · ' + esc(r.note) : ''}</span></span>
+                ${editable ? `<button class="btn ghost sm" data-org-place="${r.itemType}:${r.id}"><i class="ph ph-plus"></i> ${esc(t('org.duaVao', 'Đưa vào'))}</button>` : ''}
+            </div>`).join('')}
+        </div>`;
+    }
+
+    /** Lộ trình đã lưu (id > 0) — khóa học chưa từng có cấu trúc thì lưu cấu trúc mặc định xuống trước. */
+    async function orgEnsurePath() {
+        if (orgPath && orgPath.id > 0) return orgPath;
+        orgPath = await API.post(`/learningpath/ensure/${courseId}`);
+        return orgPath;
+    }
+
+    function switchTab(name) {
+        document.querySelector(`.tabs button[data-tab="${name}"]`)?.click();
+    }
+
+    /** Menu "+ Nội dung": tạo SCO mới ngay trong chương được chọn (null = cuối khóa học). */
+    function orgAddMenu(parentId) {
+        const unplacedCount = (orgPath?.unplacedList || []).length;
+        return [
+            { icon: 'ph ph-file-text', label: t('org.baiHocMoi', 'Bài học mới'), onClick: () => { openLessonForm(); pendingParentItemId = parentId; } },
+            { icon: 'ph ph-exam', label: t('org.baiKiemTraMoi', 'Bài kiểm tra mới'), onClick: async () => { await openQuizForm(); pendingParentItemId = parentId; } },
+            { icon: 'ph ph-cube', label: t('org.moPhongMoi', 'Mô phỏng 3D mới'), onClick: async () => { await openScenarioForm(); pendingParentItemId = parentId; } },
+            { icon: 'ph ph-package', label: t('org.goiScormZip', 'Gói SCORM (.zip) từ iSpring, Articulate...'), onClick: () => openScormImport(parentId) },
+            ...(unplacedCount ? [{ icon: 'ph ph-list-plus', label: t('org.noiDungCoSan', 'Nội dung có sẵn chưa có trong cấu trúc ({n})', { n: unplacedCount }), onClick: () => openOrgAdd(parentId) }] : []),
+        ];
+    }
+
+    /** Menu "⋮" của một dòng. */
+    function orgRowMenu(id) {
+        const item = orgPath.itemList.find(x => x.id === id);
+        if (!item) return [];
+        const siblingList = orgPath.itemList.filter(x => (x.parentItemId ?? null) === (item.parentItemId ?? null));
+        const index = siblingList.indexOf(item);
+        const menu = [];
+        if (index > 0) menu.push({ icon: 'ph ph-arrow-up', label: t('org.lenTren', 'Lên trên'), onClick: () => orgMove(id, -1) });
+        if (index < siblingList.length - 1) menu.push({ icon: 'ph ph-arrow-down', label: t('org.xuongDuoi', 'Xuống dưới'), onClick: () => orgMove(id, 1) });
+        if (item.parentItemId) {
+            const parent = orgPath.itemList.find(x => x.id === item.parentItemId);
+            menu.push({ icon: 'ph ph-arrow-elbow-up-left', label: t('org.duaRaKhoiChuong', 'Đưa ra khỏi chương'), onClick: () => orgReparent(id, parent?.parentItemId ?? null) });
+        }
+        const tabByType = { Lesson: 'lesson', Quiz: 'quiz', Simulation: 'simulation' };
+        if (tabByType[item.itemType]) menu.push({ icon: 'ph ph-pencil-simple', label: t('org.suaNoiDung', 'Sửa nội dung'), onClick: () => switchTab(tabByType[item.itemType]) });
+        const pkg = item.scormPackageId ? orgPackageById.get(item.scormPackageId) : null;
+        if (pkg) {
+            menu.push({ icon: 'ph ph-pencil-simple', label: t('scorm.suaThongTinGoi', 'Sửa thông tin gói'), onClick: () => openScormEdit(pkg) });
+            menu.push({ icon: 'ph ph-download-simple', label: t('scorm.taiGoiGoc', 'Tải gói gốc'), onClick: () =>
+                API.download(`/scorm/package/${pkg.id}/download`, pkg.originalFileName || `scorm-${pkg.id}.zip`).catch(ex => toastErr(ex.message)) });
+        }
+        menu.push(item.itemType === 'Module'
+            ? { icon: 'ph ph-trash', label: t('org.xoaChuong', 'Xóa chương (giữ nội dung bên trong)'), danger: true, onClick: () => orgDelete(item) }
+            : { icon: 'ph ph-minus-circle', label: t('org.goKhoiCauTruc', 'Gỡ khỏi cấu trúc'), danger: true, onClick: () => orgDelete(item) });
+        if (pkg) menu.push({ icon: 'ph ph-trash', label: t('scorm.xoaGoi', 'Xóa gói SCORM'), danger: true, onClick: () => deleteScormPackage(pkg) });
+        return menu;
+    }
+
+    // ----- Đổi chỗ / đổi chương -----
+
+    /** Cây hiện tại dạng chương cha → danh sách con theo thứ tự (khóa 0 = gốc). itemList đã theo tiền thứ tự. */
+    function orgChildMap() {
+        const map = new Map();
+        for (const item of orgPath.itemList) {
+            const key = item.parentItemId ?? 0;
+            if (!map.has(key)) map.set(key, []);
+            map.get(key).push(item);
+        }
+        return map;
+    }
+
+    /** Danh sách gửi lên máy chủ: mọi mục theo tiền thứ tự mới, kèm chương cha. */
+    function orgPlacementOf(map) {
+        const list = [];
+        const walk = (parentId) => (map.get(parentId ?? 0) || []).forEach(item => {
+            list.push({ id: item.id, parentItemId: parentId ?? null });
+            if (item.itemType === 'Module') walk(item.id);
+        });
+        walk(null);
+        return list;
+    }
+
+    async function orgSaveTree(map) {
+        try {
+            await API.put(`/learningpath/${orgPath.id}/tree`, orgPlacementOf(map));
+            loadTab('structure');
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    function orgMove(id, delta) {
+        const map = orgChildMap();
+        const item = orgPath.itemList.find(x => x.id === id);
+        const siblingList = map.get(item.parentItemId ?? 0);
+        const index = siblingList.indexOf(item);
+        const target = index + delta;
+        if (target < 0 || target >= siblingList.length) return;
+        [siblingList[index], siblingList[target]] = [siblingList[target], siblingList[index]];
+        orgSaveTree(map);
+    }
+
+    function orgReparent(id, parentId) {
+        const map = orgChildMap();
+        const item = orgPath.itemList.find(x => x.id === id);
+        const from = map.get(item.parentItemId ?? 0);
+        from.splice(from.indexOf(item), 1);
+        if (!map.has(parentId ?? 0)) map.set(parentId ?? 0, []);
+        map.get(parentId ?? 0).push(item);
+        item.parentItemId = parentId;
+        return orgSaveTree(map);
+    }
+
+    /** Id của một mục và mọi mục nằm trong nó — không được chọn làm chương cha của chính nó. */
+    function orgDescendantIdSet(id) {
+        const result = new Set([id]);
+        let grew = true;
+        while (grew) {
+            grew = false;
+            for (const item of orgPath.itemList)
+                if (item.parentItemId && result.has(item.parentItemId) && !result.has(item.id)) { result.add(item.id); grew = true; }
+        }
+        return result;
+    }
+
+    function orgParentOptionHtml(selectedId, excludeIdSet = new Set()) {
+        return `<option value="">${esc(t('org.ngayDuoiKhoaHoc', '— Ngay dưới khóa học —'))}</option>`
+            + orgPath.itemList.filter(x => x.itemType === 'Module' && !excludeIdSet.has(x.id))
+                .map(x => `<option value="${x.id}" ${x.id === selectedId ? 'selected' : ''}>${'— '.repeat(Math.max(0, x.depth - 1))}${esc(x.title)}</option>`).join('');
+    }
+
+    async function orgDelete(item) {
+        const message = item.itemType === 'Module'
+            ? t('org.xacNhanXoaChuong', 'Xóa chương "{title}"? Các mục bên trong được giữ lại và lên thế chỗ chương.', { title: item.title })
+            : t('org.xacNhanGo', 'Gỡ "{title}" khỏi cấu trúc khóa học? Nội dung vẫn còn (ở tab của nó), chỉ là học viên không thấy nữa.', { title: item.title });
+        if (!await confirmDialog(message, { danger: true, okText: item.itemType === 'Module' ? t('common.delete', 'Xóa') : t('org.go', 'Gỡ') })) return;
+        try {
+            toastOk((await API.del(`/learningpath/item/${item.id}`)).message);
+            loadTab('structure');
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    async function orgAutoGenerate() {
+        if (orgPath?.itemList.length && !await confirmDialog(
+            t('org.xacNhanDungLai', 'Dựng lại sẽ XÓA cấu trúc hiện tại (chương, thứ tự, lịch, giới hạn lượt...) rồi xếp lại tự động: mỗi bài học có bài kiểm tra / mô phỏng đi kèm thành một chương. Tiếp tục?'),
+            { danger: true, okText: t('org.vanDungLai', 'Vẫn dựng lại') })) return;
+        try { toastOk((await API.post(`/learningpath/auto-generate/${courseId}`)).message); loadTab('structure'); }
+        catch (ex) { toastErr(ex.message); }
+    }
+
+    /** Đưa một tài nguyên có sẵn vào cấu trúc (cuối chương được chọn, hoặc cuối khóa học). */
+    async function orgPlaceResource(itemType, resourceId, parentItemId, isRequired) {
+        try {
+            const current = await orgEnsurePath();
+            const body = { itemType: orgTypeMeta(itemType).code, parentItemId, isRequired, orderIndex: 0 };
+            if (itemType === 'Lesson') body.lessonId = resourceId;
+            else if (itemType === 'Quiz') body.quizId = resourceId;
+            else if (itemType === 'Simulation') body.scenarioSceneId = resourceId;
+            else body.scormPackageId = resourceId;
+            toastOk((await API.post(`/learningpath/${current.id}/item`, body)).message);
+            loadTab('structure');
+            return true;
+        } catch (ex) { toastErr(ex.message); return false; }
+    }
+
+    // ----- Hộp thoại: chương mới / nội dung có sẵn / thiết lập mục -----
+
+    function openOrgModule(parentId) {
+        document.getElementById('org-m-title').value = '';
+        document.getElementById('org-m-parent').innerHTML = orgParentOptionHtml(parentId);
+        openModal('modal-org-module');
+        setTimeout(() => document.getElementById('org-m-title').focus(), 50);
+    }
+
+    function openOrgAdd(parentId) {
+        const list = orgPath?.unplacedList || [];
+        document.getElementById('org-a-resource').innerHTML = list.map(r =>
+            `<option value="${r.itemType}:${r.id}">${esc(orgTypeMeta(r.itemType).label)} · ${esc(r.title)}${r.note ? ` (${esc(r.note)})` : ''}</option>`).join('');
+        document.getElementById('org-a-parent').innerHTML = orgParentOptionHtml(parentId);
+        document.getElementById('org-a-required').checked = true;
+        openModal('modal-org-add');
+    }
+
+    function openOrgSettings(id) {
+        const item = orgPath.itemList.find(x => x.id === id);
+        if (!item) return;
+        const isModule = item.itemType === 'Module';
+        document.getElementById('org-i-id').value = item.id;
+        document.getElementById('org-i-head').innerHTML = `<i class="ph ${orgTypeMeta(item.itemType).icon}"></i> ${esc(item.title)}
+            ${item.activityId ? `<span class="org-aid">${esc(item.activityId)}</span>` : ''}`;
+        document.getElementById('org-i-title-label').textContent = isModule ? t('org.tenChuong', 'Tên chương *') : t('org.tenHienThi', 'Tên hiển thị trong mục lục');
+        const titleInput = document.getElementById('org-i-title');
+        titleInput.value = isModule ? item.title : (item.customTitle || '');
+        titleInput.placeholder = isModule ? '' : item.title;
+        document.getElementById('org-i-parent').innerHTML = orgParentOptionHtml(item.parentItemId ?? null, orgDescendantIdSet(item.id));
+        document.getElementById('org-i-required').checked = item.isRequired;
+        document.getElementById('org-i-visible').checked = item.isVisible;
+        document.getElementById('org-i-start').value = toDatetimeLocal(item.startDate);
+        document.getElementById('org-i-end').value = toDatetimeLocal(item.endDate);
+        document.getElementById('org-i-attempt').value = item.attemptLimit || '';
+        document.getElementById('org-i-threshold-row').classList.toggle('hidden', item.itemType !== 'Scorm');
+        document.getElementById('org-i-threshold').value = item.completionThreshold ? Math.round(item.completionThreshold * 100) : '';
+        // Bài học không khóa lại sau hạn (hạn chỉ để hiển thị lịch) — khớp quy tắc lộ trình từ trước.
+        document.getElementById('org-i-end-hint').textContent = item.itemType === 'Lesson'
+            ? t('org.hanBaiHocGoiY', 'Bài học không khóa lại sau ngày này — chỉ dùng để hiển thị lịch.')
+            : t('org.hanGoiY', 'Sau thời điểm này không bắt đầu lượt mới được (limitConditions endTimeLimit).');
+        openModal('modal-org-item');
+    }
+
+    /** yyyy-MM-ddTHH:mm theo giờ địa phương, khớp định dạng input datetime-local; '' nếu không có giá trị. */
     function toDatetimeLocal(isoValue) {
         if (!isoValue) return '';
         const d = new Date(isoValue);
@@ -3556,34 +3860,221 @@
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    function openScheduleForm(item) {
-        document.getElementById('sc-item-id').value = item.id;
-        document.getElementById('sc-title-label').innerHTML = `${item.itemType === 'Quiz' ? '<i class="ph ph-exam"></i>' : '<i class="ph ph-file-text"></i>'} ${esc(item.title)}`;
-        document.getElementById('sc-start').value = toDatetimeLocal(item.startDate);
-        document.getElementById('sc-end').value = toDatetimeLocal(item.endDate);
-        document.getElementById('sc-required').checked = item.isRequired;
-        document.getElementById('sc-end-label').textContent = item.itemType === 'Quiz' ? 'Hết hạn làm bài' : t('course-detail.denHetChiHienThi', 'Đến hết (chỉ hiển thị)');
-        document.getElementById('sc-end-hint').textContent = item.itemType === 'Quiz'
-            ? t('course-detail.sauGioNayBaiKiemTraSeKhoaVinhV', 'Sau giờ này, bài kiểm tra sẽ khóa vĩnh viễn, không thể làm bài nữa.')
-            : t('course-detail.baiHocKhongKhoaLaiSauNgayNayCh', 'Bài học không khóa lại sau ngày này — chỉ dùng để hiển thị (VD nhãn "Tuần 1").');
-        openModal('modal-schedule');
+    // ----- Thông tin gói nhập ngoài (dùng cho dòng gói trong cây và hộp thoại xuất) -----
+
+    function formatByte(byte) {
+        if (!byte) return '0 KB';
+        const unitList = ['B', 'KB', 'MB', 'GB'];
+        let index = 0, value = byte;
+        while (value >= 1024 && index < unitList.length - 1) { value /= 1024; index++; }
+        return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${unitList[index]}`;
     }
 
-    document.getElementById('btn-save-schedule').addEventListener('click', async () => {
-        const id = document.getElementById('sc-item-id').value;
-        const start = document.getElementById('sc-start').value;
-        const end = document.getElementById('sc-end').value;
+    function scormVersionBadge(p) {
+        const label = p.version === '1.2' ? 'SCORM 1.2' : `SCORM 2004${p.schemaVersion && /edition/i.test(p.schemaVersion) ? ' · ' + p.schemaVersion.replace(/^2004\s*/, '') : ''}`;
+        return `<span class="badge ${p.version === '1.2' ? 'gray' : 'blue'}" title="${esc(`${p.launchableCount} mục · ${p.scoCount} SCO · ${formatByte(p.extractedSize)}`)}">${esc(label)}</span>`;
+    }
+
+    document.getElementById('btn-org-m-save').addEventListener('click', async () => {
+        const title = document.getElementById('org-m-title').value.trim();
+        if (!title) { toastErr(t('org.nhapTenChuong', 'Vui lòng nhập tên chương.')); return; }
+        const parent = document.getElementById('org-m-parent').value;
         try {
-            await API.put(`/learningpath/item/${id}/schedule`, {
-                startDate: start ? new Date(start).toISOString() : null,
-                endDate: end ? new Date(end).toISOString() : null,
-                isRequired: document.getElementById('sc-required').checked
-            });
-            toastOk(t('course-detail.daCapNhatLich', 'Đã cập nhật lịch.'));
-            closeModal('modal-schedule');
-            loadTab('path');
+            const current = await orgEnsurePath();
+            toastOk((await API.post(`/learningpath/${current.id}/item`, {
+                itemType: 4, title, parentItemId: parent ? +parent : null, isRequired: true, orderIndex: 0,
+            })).message);
+            closeModal('modal-org-module');
+            loadTab('structure');
         } catch (ex) { toastErr(ex.message); }
     });
+
+    document.getElementById('btn-org-a-save').addEventListener('click', async () => {
+        const value = document.getElementById('org-a-resource').value;
+        if (!value) return;
+        const [itemType, id] = value.split(':');
+        const parent = document.getElementById('org-a-parent').value;
+        if (await orgPlaceResource(itemType, +id, parent ? +parent : null, document.getElementById('org-a-required').checked))
+            closeModal('modal-org-add');
+    });
+
+    document.getElementById('btn-org-i-save').addEventListener('click', async () => {
+        const id = +document.getElementById('org-i-id').value;
+        const item = orgPath.itemList.find(x => x.id === id);
+        const start = document.getElementById('org-i-start').value;
+        const end = document.getElementById('org-i-end').value;
+        const threshold = parseInt(document.getElementById('org-i-threshold').value || '0', 10) || 0;
+        const attempt = parseInt(document.getElementById('org-i-attempt').value || '0', 10) || 0;
+        const parentValue = document.getElementById('org-i-parent').value;
+        const parentId = parentValue ? +parentValue : null;
+        try {
+            // Giờ địa phương gửi nguyên dạng (không đổi sang UTC) — máy chủ so lịch theo giờ máy chủ.
+            await API.put(`/learningpath/item/${id}`, {
+                title: document.getElementById('org-i-title').value.trim() || null,
+                isRequired: document.getElementById('org-i-required').checked,
+                isVisible: document.getElementById('org-i-visible').checked,
+                startDate: start ? `${start}:00` : null,
+                endDate: end ? `${end}:00` : null,
+                attemptLimit: attempt > 0 ? attempt : null,
+                completionThreshold: threshold > 0 ? Math.min(100, threshold) / 100 : null,
+            });
+            closeModal('modal-org-item');
+            if ((item.parentItemId ?? null) !== parentId) await orgReparent(id, parentId);
+            else loadTab('structure');
+            toastOk(t('org.daLuuThietLap', 'Đã lưu thiết lập của mục.'));
+        } catch (ex) { toastErr(ex.message); }
+    });
+
+    // ----- Nhập gói -----
+    let scormImportFile = null;
+    attachDropZone(document.getElementById('si-drop'), document.getElementById('si-file'), (file) => {
+        if (!/\.zip$/i.test(file.name)) { toastErr(t('scorm.chiNhanZip', 'Gói SCORM phải là tệp .zip.')); return; }
+        scormImportFile = file;
+        document.getElementById('si-drop').classList.add('has-file');
+        document.getElementById('si-file-label').innerHTML = `<b>${esc(file.name)}</b><div class="small muted">${formatByte(file.size)}</div>`;
+        document.getElementById('btn-si-submit').disabled = false;
+    });
+
+    function openScormImport(parentId = null) {
+        scormImportFile = null;
+        document.getElementById('si-parent').innerHTML = orgPath ? orgParentOptionHtml(parentId) : '';
+        document.getElementById('si-file').value = '';
+        document.getElementById('si-drop').classList.remove('has-file');
+        document.getElementById('si-file-label').innerHTML = `<b>${esc(t('scorm.keoThaGoiVaoDay', 'Kéo thả gói .zip vào đây'))}</b>
+            <div class="small muted">${esc(t('scorm.hoTroPhienBan', 'SCORM 1.2 hoặc SCORM 2004 (2nd / 3rd / 4th Edition) — tối đa 500 MB'))}</div>`;
+        document.getElementById('si-title').value = '';
+        document.getElementById('si-required').checked = true;
+        document.getElementById('si-progress').classList.add('hidden');
+        document.getElementById('btn-si-submit').disabled = true;
+        openModal('modal-scorm-import');
+    }
+
+    document.getElementById('btn-si-submit').addEventListener('click', async () => {
+        if (!scormImportFile) return;
+        const form = new FormData();
+        form.append('file', scormImportFile);
+        form.append('title', document.getElementById('si-title').value.trim());
+        form.append('isRequired', String(document.getElementById('si-required').checked));
+        if (document.getElementById('si-parent').value) form.append('parentItemId', document.getElementById('si-parent').value);
+
+        const button = document.getElementById('btn-si-submit');
+        const progress = document.getElementById('si-progress');
+        button.disabled = true;
+        progress.classList.remove('hidden');
+        progress.innerHTML = progressBar(0, { label: t('scorm.dangTaiLen', 'Đang tải lên...') });
+        try {
+            const result = await API.postFormWithProgress(`/scorm/course/${courseId}/package`, form, percent => {
+                progress.innerHTML = percent < 100
+                    ? progressBar(percent, { label: t('scorm.dangTaiLen', 'Đang tải lên...') })
+                    : `<div class="small muted"><i class="ph ph-spinner"></i> ${esc(t('scorm.dangGiaiNenVaKiemTra', 'Đang giải nén và kiểm tra gói...'))}</div>`;
+            });
+            toastOk(result?.message || t('scorm.daNhapGoi', 'Đã nhập gói SCORM.'));
+            closeModal('modal-scorm-import');
+            loadTab('structure');
+        } catch (ex) {
+            toastErr(ex.message);
+            progress.classList.add('hidden');
+            button.disabled = false;
+        }
+    });
+
+    // ----- Sửa / xóa gói -----
+    function openScormEdit(p) {
+        document.getElementById('se-id').value = p.id;
+        document.getElementById('se-title').value = p.title;
+        document.getElementById('se-duration').value = p.durationMinutes || 0;
+        openModal('modal-scorm-edit');
+    }
+
+    document.getElementById('btn-se-save').addEventListener('click', async () => {
+        const title = document.getElementById('se-title').value.trim();
+        if (!title) { toastErr(t('scorm.nhapTenGoi', 'Vui lòng nhập tên gói.')); return; }
+        try {
+            await API.put(`/scorm/package/${document.getElementById('se-id').value}`, {
+                title, durationMinutes: parseInt(document.getElementById('se-duration').value || '0', 10) || 0,
+            });
+            toastOk(t('scorm.daLuuThongTinGoi', 'Đã lưu thông tin gói.'));
+            closeModal('modal-scorm-edit');
+            loadTab('structure');
+        } catch (ex) { toastErr(ex.message); }
+    });
+
+    async function deleteScormPackage(p) {
+        if (!await confirmDialog(t('scorm.xacNhanXoaGoi', 'Xóa gói "{title}"? Mục của gói trong cấu trúc khóa học và toàn bộ tệp của gói cũng bị xóa.', { title: p.title }),
+            { danger: true, okText: t('common.delete', 'Xóa') })) return;
+        try {
+            toastOk((await API.del(`/scorm/package/${p.id}`)).message);
+            loadTab('structure');
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    // ----- Kết quả học -----
+    function scormResultHtml(row) {
+        if (row.successStatus === 'passed') return `<span class="badge green">${esc(t('scorm.dat', 'Đạt'))}</span>`;
+        if (row.successStatus === 'failed') return `<span class="badge red">${esc(t('scorm.chuaDat', 'Chưa đạt'))}</span>`;
+        if (row.completionStatus === 'completed') return `<span class="badge green">${esc(t('scorm.hoanThanh', 'Hoàn thành'))}</span>`;
+        if (row.completionStatus === 'incomplete') return `<span class="badge orange">${esc(t('scorm.dangHoc', 'Đang học'))}</span>`;
+        return `<span class="badge gray">${esc(t('scorm.chuaHoc', 'Chưa học'))}</span>`;
+    }
+
+    function scormReportTableHtml(rowList) {
+        if (!rowList.length) return emptyHtml(t('scorm.chuaCoHocVienNaoHoc2', 'Chưa có học viên nào mở khóa học trong trình phát SCORM.'), '<i class="ph ph-chart-bar"></i>');
+        return `<div class="table-wrap"><table>
+            <thead><tr>
+                <th>${esc(t('scorm.hocVien2', 'Học viên'))}</th><th>${esc(t('scorm.goiHoacKhoaHoc', 'Khóa học / gói'))}</th><th>${esc(t('scorm.ketQua', 'Kết quả'))}</th>
+                <th class="text-right">${esc(t('scorm.diem', 'Điểm'))}</th><th class="text-right">${esc(t('scorm.thoiGianHoc', 'Thời gian học'))}</th>
+                <th class="text-right">${esc(t('scorm.luot', 'Lượt'))}</th><th>${esc(t('scorm.truyCapGanNhat', 'Truy cập gần nhất'))}</th>
+            </tr></thead>
+            <tbody>${rowList.map(r => `
+                <tr class="clickable" data-scorm-row="${r.registrationId}" tabindex="0">
+                    <td><b>${esc(r.fullName)}</b><div class="small muted">${esc(r.employeeCode)}${r.departmentName ? ' · ' + esc(r.departmentName) : ''}</div></td>
+                    <td>${esc(r.packageTitle)}</td>
+                    <td>${scormResultHtml(r)}${r.isSuspended ? ` <span class="small muted" title="${esc(t('scorm.dangTamDung', 'Đang tạm dừng'))}"><i class="ph ph-pause-circle"></i></span>` : ''}</td>
+                    <td class="text-right">${r.scorePercent != null ? `${Math.round(r.scorePercent * 100) / 100}%` : '—'}</td>
+                    <td class="text-right">${Math.round(r.totalTimeSecond / 60)} ${esc(t('scorm.phut', 'phút'))}</td>
+                    <td class="text-right">${r.attemptCount}</td>
+                    <td>${r.lastAccessedAt ? formatDate(r.lastAccessedAt, true) : '—'}</td>
+                </tr>`).join('')}</tbody>
+        </table></div>`;
+    }
+
+    async function openScormDetail(registrationId) {
+        document.getElementById('sd-body').innerHTML = skeletonHtml('list', { count: 4, avatar: false });
+        openModal('modal-scorm-detail');
+        try {
+            const detail = await API.get(`/scorm/registration/${registrationId}`);
+            const row = detail.row;
+            document.getElementById('sd-title').textContent = `${row.fullName} · ${row.packageTitle}`;
+            document.getElementById('sd-body').innerHTML = `
+                <div class="grid grid-4 mb">
+                    <div class="stat"><div class="label">${esc(t('scorm.ketQua', 'Kết quả'))}</div><div class="value" style="font-size:16px">${scormResultHtml(row)}</div></div>
+                    <div class="stat"><div class="label">${esc(t('scorm.diem', 'Điểm'))}</div><div class="value">${row.scorePercent != null ? Math.round(row.scorePercent * 100) / 100 + '%' : '—'}</div></div>
+                    <div class="stat"><div class="label">${esc(t('scorm.thoiGianHoc', 'Thời gian học'))}</div><div class="value">${Math.round(row.totalTimeSecond / 60)}′</div></div>
+                    <div class="stat"><div class="label">${esc(t('scorm.ngayHoanThanh', 'Ngày hoàn thành'))}</div><div class="value" style="font-size:15px">${row.completedAt ? formatDate(row.completedAt, true) : '—'}</div></div>
+                </div>
+                ${detail.activityList.map(a => `
+                    <div class="scorm-activity">
+                        <div class="scorm-activity-head">
+                            <b>${esc(a.title)}</b> ${scormResultHtml(a)}
+                            <span class="small muted">${a.scoreScaled != null ? `${esc(t('scorm.diem', 'Điểm'))} ${Math.round(a.scoreScaled * 10000) / 100}%` : ''}
+                                ${a.scoreRaw != null ? ` (${a.scoreRaw}${a.scoreMax != null ? '/' + a.scoreMax : ''})` : ''}
+                                · ${Math.round(a.totalTimeSecond / 60)} ${esc(t('scorm.phut', 'phút'))} · ${a.sessionCount} ${esc(t('scorm.lanMo', 'lần mở'))}
+                                ${a.location ? ` · ${esc(t('scorm.viTri', 'vị trí'))}: ${esc(a.location)}` : ''}</span>
+                        </div>
+                        ${a.interactionList.length ? `<details><summary>${a.interactionList.length} ${esc(t('scorm.cauTraLoi', 'câu trả lời (interactions)'))}</summary>
+                            <div class="table-wrap"><table class="scorm-interaction-table">
+                                <thead><tr><th>ID</th><th>${esc(t('scorm.loai', 'Loại'))}</th><th>${esc(t('scorm.traLoi', 'Trả lời'))}</th><th>${esc(t('scorm.dapAnDung', 'Đáp án đúng'))}</th><th>${esc(t('scorm.ketQua', 'Kết quả'))}</th><th>${esc(t('scorm.thoiDiem', 'Thời điểm'))}</th></tr></thead>
+                                <tbody>${a.interactionList.map(i => `<tr>
+                                    <td title="${esc(i.description || '')}">${esc(i.description || i.id)}</td><td>${esc(i.type || '')}</td>
+                                    <td>${esc(i.learnerResponse || '')}</td><td>${esc(i.correctResponse || '')}</td>
+                                    <td>${i.result === 'correct' ? `<span class="badge green">${esc(t('scorm.dung', 'Đúng'))}</span>` : i.result === 'incorrect' || i.result === 'wrong' ? `<span class="badge red">${esc(t('scorm.sai', 'Sai'))}</span>` : esc(i.result || '')}</td>
+                                    <td class="small muted">${esc(i.timestamp || '')}</td></tr>`).join('')}</tbody>
+                            </table></div></details>` : ''}
+                    </div>`).join('')}`;
+        } catch (ex) {
+            document.getElementById('sd-body').innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        }
+    }
 
     // ==================== ĐỐI TƯỢNG ĐÀO TẠO ====================
     async function renderTarget(box) {
@@ -3645,7 +4136,10 @@
 
     // ==================== HỌC VIÊN ====================
     async function renderLearner(box) {
-        const list = await API.get(`/enrollment/by-course/${courseId}`);
+        const [list, reportRowList] = await Promise.all([
+            API.get(`/enrollment/by-course/${courseId}`),
+            API.getSilent(`/scorm/course/${courseId}/report`).catch(() => []),
+        ]);
         box.innerHTML = `
             <div class="card">
                 <div class="card-head"><h3>${list.length} học viên được phân công</h3>
@@ -3666,7 +4160,18 @@
                         </tr>`).join('') : `<tr><td colspan="7">${emptyHtml(t('course-detail.chuaPhanCongChoAi', 'Chưa phân công cho ai.'), '<i class="ph ph-users"></i>')}</td></tr>`}
                     </tbody>
                 </table></div>
+            </div>
+            <div class="card mt">
+                <div class="card-head">
+                    <div><h3>${esc(t('scorm.ketQuaHocScorm', 'Kết Quả Học Của Học Viên'))}</h3></div>
+                    ${reportRowList.length ? `<button class="btn ghost sm" id="btn-scorm-csv"><i class="ph ph-file-csv"></i> ${esc(t('scorm.xuatCsv', 'Xuất CSV'))}</button>` : ''}
+                </div>
+                <div class="card-body">${scormReportTableHtml(reportRowList)}</div>
             </div>`;
+
+        document.getElementById('btn-scorm-csv')?.addEventListener('click', () =>
+            API.download(`/scorm/course/${courseId}/report.csv`, `ket-qua-scorm-${course.code}.csv`).catch(ex => toastErr(ex.message)));
+        box.querySelectorAll('[data-scorm-row]').forEach(row => row.addEventListener('click', () => openScormDetail(+row.dataset.scormRow)));
 
         if (!canManage) return;
 
@@ -3711,16 +4216,12 @@
         const isQuestion = kind === 'question' || kind === 'question-sheet';
         return [
             {
-                icon: 'ph-microsoft-excel-logo', label: 'File mẫu Excel (.xlsx)',
-                note: 'Bảng tính có sẵn cột, dòng ví dụ và sheet hướng dẫn.',
+                icon: 'ph-microsoft-excel-logo', label: 'File Excel (.xlsx)',
                 onClick: () => API.download(`/import/template/${kind}?format=excel`, `${baseName}.xlsx`)
                     .catch(ex => toastErr(ex.message))
             },
             {
-                icon: 'ph-microsoft-word-logo', label: 'File mẫu Word (.docx)',
-                note: isQuestion
-                    ? 'Đề soạn tự do: "Câu 1:" rồi "A. B. C.", có sẵn 4 kiểu đánh dấu đáp án đúng.'
-                    : 'Cùng bộ cột, trình bày dạng bảng trong Word.',
+                icon: 'ph-microsoft-word-logo', label: 'File Word (.docx)',
                 onClick: () => API.download(`/import/template/${kind}?format=word`, `${baseName}.docx`)
                     .catch(ex => toastErr(ex.message))
             }
@@ -3741,8 +4242,7 @@
     function importMenu(inputId) {
         return [
             {
-                icon: 'ph-microsoft-excel-logo', label: 'Từ file Excel (.xlsx)',
-                note: 'Đọc theo ô của trang tính đầu tiên.',
+                icon: 'ph-microsoft-excel-logo', label: 'File Excel (.xlsx)',
                 onClick: () => document.getElementById(inputId).click()
             }
         ];
@@ -3754,8 +4254,7 @@
      */
     function documentImportItem() {
         return {
-            icon: 'ph-file-doc', label: 'Nguyên tài liệu Word / PDF → một bài học',
-            note: 'Word dựng lại giữ định dạng, PDF nhúng nguyên bản.',
+            icon: 'ph-file-doc', label: 'File Word (.docx) / PDF',
             onClick: () => document.getElementById('import-document-file').click()
         };
     }
@@ -3767,8 +4266,7 @@
      */
     function powerPointImportItem() {
         return {
-            icon: 'ph-microsoft-powerpoint-logo', label: 'Từ file PowerPoint (.pptx)',
-            note: 'Mỗi slide dựng lại đúng bố cục, kèm ghi chú và file gốc để tải về.',
+            icon: 'ph-microsoft-powerpoint-logo', label: 'File PowerPoint (.pptx)',
             onClick: () => document.getElementById('import-pptx-file').click()
         };
     }

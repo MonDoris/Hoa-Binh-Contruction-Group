@@ -1,0 +1,261 @@
+<!-- File: wwwroot/pages/sco-lesson.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script src="/js/head.js"></script>
+    <title data-i18n="sco.tieuDeBaiHoc">Bài học · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        /* Khung video bo góc như màn hình học cũ — thanh điều khiển, thanh chương, chú thích đều nằm trong khối này
+           nên KHÔNG ép tỉ lệ 16:9 ở đây (xem ghi chú cũ ở learn.html). */
+        #lesson-video { border-radius: 14px; overflow: hidden; background: #000; margin-bottom: 18px; box-shadow: var(--shadow); }
+        #lesson-video .vl-player { border-radius: inherit; box-shadow: none; }
+        .sco-qlist { margin-bottom: 18px; }
+    </style>
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<main class="sco-main" id="sco-main"></main>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<!-- openModal / confirmDialog trong app.js dùng resetPasswordEye của password.js. -->
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/video-learning.js"></script>
+<script src="/js/lesson-note.js"></script>
+<script src="/js/sco-runtime.js"></script>
+<script>
+/*
+ * SCO "Bài học" của khóa học SCORM. Trình phát giao trang này khi tới hoạt động L{lessonId} của cây.
+ *
+ * Tiến độ thật vẫn ghi ở LessonProgress (bắt đầu, thời gian học, vị trí video, hoàn thành) như trước — máy chủ đối
+ * chiếu bảng đó vào mô hình theo dõi SCORM ở mỗi lần Commit. Trang chỉ báo cho trình phát qua cmi.*:
+ * completion_status, success_status, progress_measure (tỉ lệ video đã xem), location (giây đang xem).
+ */
+(async function () {
+    await Lang.ready;
+    if (!Auth.require()) return;
+
+    // ---------- Trạng thái — khai báo TRƯỚC lần await đầu tiên (Temporal Dead Zone) ----------
+    const lessonId = parseInt(qs('lessonId') || '0', 10);
+    const { enrollmentId, preview } = ScoRuntime.context;
+    let lesson = null;
+    let completed = false;
+    let videoPlayer = null;
+    let lessonNote = null;
+    let videoSecond = 0;
+    let videoMaxWatched = 0;
+    let heartbeatTimer = null;
+    let lastProgressReport = 0;
+
+    const main = document.getElementById('sco-main');
+    mountScoLayout(t('common.baiHoc', 'Bài học'));
+    main.innerHTML = skeletonHtml('detail', { lines: 6 });
+
+    ScoRuntime.initialize();
+    // Trang bị gỡ (Tiếp / chọn mục khác / đóng tab): chốt vị trí xem TRƯỚC khi SCO Terminate.
+    ScoRuntime.onLeave(() => {
+        stopHeartbeat();
+        flushVideoProgress(true);
+        reportVideoProgress(true);
+    });
+
+    if (!lessonId) { main.innerHTML = emptyHtml(t('sco.thieuBaiHoc', 'Thiếu bài học cần mở.'), '<i class="ph ph-warning"></i>'); return; }
+
+    try {
+        lesson = await API.get(`/lesson/${lessonId}`);
+    } catch (ex) {
+        main.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        return;
+    }
+
+    if (enrollmentId) {
+        try {
+            // Bản ghi tiến độ phải có TRƯỚC khi API video đọc vị trí xem dở lần trước.
+            await API.postSilent(`/progress/lesson/start?enrollmentId=${enrollmentId}&lessonId=${lessonId}`);
+            const pathList = await API.getSilent(`/progress/enrollment/${enrollmentId}`);
+            completed = pathList.some(x => x.lessonId === lessonId && x.itemType === 'Lesson' && x.status === 'Completed');
+        } catch (ex) {
+            toastErr(ex.message);
+        }
+    }
+
+    // Báo trạng thái ban đầu cho trình phát: bài đã học xong từ trước thì hoàn thành ngay, chưa thì "đang học".
+    if (completed) ScoRuntime.reportResult({ completed: true, passed: true });
+    else if (ScoRuntime.phase === 'running') { ScoRuntime.set('cmi.completion_status', 'incomplete'); ScoRuntime.commit(); }
+
+    setScoHead(lesson.title, metaHtml());
+    render();
+    if (lesson.contentType === 'Video' && lesson.resourceUrl) await mountLessonVideo();
+    if (enrollmentId) startHeartbeat();
+
+    // ==================== GIAO DIỆN ====================
+
+    function metaHtml() {
+        const meta = contentTypeMeta(lesson.contentType);
+        const parts = [`<span><i class="ph ${meta.iconClass}"></i> ${esc(meta.label)}</span>`];
+        if (lesson.durationMinutes) parts.push(`<span>${esc(formatDuration(lesson.durationMinutes))}</span>`);
+        if (preview) parts.push(`<span class="badge orange">${esc(t('scorm.xemThu', 'Xem thử'))}</span>`);
+        return parts.join('<span>·</span>');
+    }
+
+    function render() {
+        main.innerHTML = `
+            ${preview ? `<div class="sco-preview-note"><i class="ph ph-eye"></i> ${esc(t('sco.banXemThuBaiHoc', 'Bản xem thử — tiến độ không được ghi cho ai.'))}</div>` : ''}
+            ${mediaHtml()}
+            <div class="lesson-body">${lesson.content || `<p class="muted">${esc(t('learn.baiHocNayChiGomTaiLieuDinhKem', 'Bài học này chỉ gồm tài liệu đính kèm.'))}</p>`}</div>
+            <div class="sco-done-bar" id="sco-done-bar"></div>`;
+        renderDoneBar();
+    }
+
+    function mediaHtml() {
+        const url = lesson.resourceUrl;
+        if (!url) return '';
+        if (lesson.contentType === 'Video')
+            // Khung rỗng — mountLessonVideo() gắn trình phát có câu hỏi chèn giữa video vào sau. Sổ ghi chú nằm ngay
+            // dưới video: bấm "Ghi chú tại đây" là ô soạn hiện trong tầm mắt.
+            return `<div id="lesson-video"></div><div id="lesson-note"></div>
+                <div class="sco-qlist" id="lesson-qlist"></div>`;
+        if (lesson.contentType === 'Image')
+            return `<div class="mb"><img src="${esc(url)}" alt="" style="max-width:100%;border-radius:10px"></div>`;
+        if (/\.pdf($|\?)/i.test(url))
+            return `<div class="mb">
+                <div class="pdf-embed"><iframe src="${esc(url)}#view=FitH" title="${esc(lesson.title || 'Tài liệu bài học')}"></iframe></div>
+                <div class="flex gap-sm mt">
+                    <a class="btn ghost sm" href="${esc(url)}" target="_blank" rel="noopener"><i class="ph ph-arrow-square-out"></i> ${esc(t('learn.moTabMoi', 'Mở ở tab mới'))}</a>
+                    <a class="btn ghost sm" href="${esc(url)}" download><i class="ph ph-download-simple"></i> ${esc(t('learn.taiVe', 'Tải về'))}</a>
+                </div></div>`;
+        if (/\.pptx($|\?)/i.test(url))
+            return `<div class="mb"><a class="btn ghost sm" href="${esc(url)}" download><i class="ph ph-microsoft-powerpoint-logo"></i> ${esc(t('learn.taiFilePowerPointGoc', 'Tải file PowerPoint gốc'))}</a></div>`;
+        return `<div class="mb"><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener"><i class="ph ph-paperclip"></i> ${esc(t('learn.moTaiLieuDinhKem', 'Mở tài liệu đính kèm'))}</a></div>`;
+    }
+
+    function renderDoneBar() {
+        const bar = document.getElementById('sco-done-bar');
+        if (!bar) return;
+        bar.classList.toggle('done', completed);
+        const canContinue = ScoRuntime.isTracked;
+        bar.innerHTML = completed
+            ? `<span class="small"><i class="ph-fill ph-check-circle" style="color:var(--success)"></i> ${esc(t('learn.banDaHoanThanhBaiHocNay', 'Bạn đã hoàn thành bài học này.'))}</span>
+               ${canContinue ? `<button class="btn" id="btn-next">${esc(t('sco.tiepTuc', 'Tiếp tục'))} <i class="ph ph-caret-right"></i></button>` : ''}`
+            : `<span class="small muted">${esc(t('learn.docXongNoiDungRoiBamHoanThanhD', 'Đọc xong nội dung rồi bấm hoàn thành để mở bước tiếp theo.'))}</span>
+               <button class="btn" id="btn-complete"><i class="ph-bold ph-check"></i> ${esc(t('sco.danhDauHoanThanh', 'Đánh dấu hoàn thành'))}</button>`;
+        document.getElementById('btn-complete')?.addEventListener('click', completeLesson);
+        document.getElementById('btn-next')?.addEventListener('click', () => ScoRuntime.continueNext());
+    }
+
+    async function completeLesson() {
+        const button = document.getElementById('btn-complete');
+        button.disabled = true;
+        button.textContent = t('learn.dangLuu', 'Đang lưu...');
+        try {
+            if (enrollmentId) {
+                // Chốt vị trí xem trước: bài "bắt buộc xem hết" xét mốc đã xem lưu trên máy chủ.
+                await flushVideoProgress(false);
+                const result = await API.post(`/progress/lesson/complete?enrollmentId=${enrollmentId}&lessonId=${lessonId}`);
+                toastOk(result.message);
+            }
+            completed = true;
+            ScoRuntime.reportResult({ completed: true, passed: true, progress: 1 });
+            renderDoneBar();
+        } catch (ex) {
+            toastErr(ex.message);
+            button.disabled = false;
+            button.innerHTML = `<i class="ph-bold ph-check"></i> ${esc(t('sco.danhDauHoanThanh', 'Đánh dấu hoàn thành'))}`;
+        }
+    }
+
+    // ==================== VIDEO ====================
+
+    /** Gắn trình phát video có chèn câu hỏi. Không lấy được câu hỏi thì vẫn cho xem video bình thường. */
+    async function mountLessonVideo() {
+        const container = document.getElementById('lesson-video');
+        if (!container) return;
+
+        let data = { lastPositionSecond: 0, checkpointList: [], chapterList: [], earnedScore: 0, totalScore: 0 };
+        try {
+            data = await API.getSilent(`/videolearning/lesson/${lesson.id}${enrollmentId ? `?enrollmentId=${enrollmentId}` : ''}`);
+        } catch (ex) {
+            if (enrollmentId) toastErr(`Không tải được câu hỏi trong video: ${ex.message}`);
+        }
+
+        // Bản xem thử không có lượt học để ghi câu trả lời — chỉ xem video và chương.
+        const checkpointList = enrollmentId ? (data.checkpointList || []) : [];
+        videoSecond = data.lastPositionSecond || 0;
+        videoMaxWatched = data.maxWatchedSecond || 0;
+        videoPlayer = mountVideoLearning({
+            container,
+            src: lesson.resourceUrl,
+            checkpointList,
+            chapterList: data.chapterList || [],
+            startAt: data.lastPositionSecond,
+            earnedScore: data.earnedScore,
+            totalScore: data.totalScore,
+            seekPolicy: data.seekPolicy,
+            maxWatchedSecond: data.maxWatchedSecond,
+            questionListContainer: checkpointList.length ? document.getElementById('lesson-qlist') : null,
+            onAnswer: (checkpoint, selectedOptionIdList) => API.post('/videolearning/answer', {
+                enrollmentId, videoQuestionId: checkpoint.id, selectedOptionIdList
+            }),
+            onTick: (second, maxWatchedSecond) => {
+                videoSecond = second;
+                videoMaxWatched = Math.max(videoMaxWatched, maxWatchedSecond || 0);
+                reportVideoProgress(false);
+            },
+            onNoteRequest: (second) => lessonNote?.compose(second),
+        });
+
+        const noteBox = document.getElementById('lesson-note');
+        if (noteBox && enrollmentId)
+            lessonNote = mountLessonNote({ container: noteBox, enrollmentId, lessonId: lesson.id, player: videoPlayer });
+
+        // Mỗi lần dừng hình là một lần ghi lại tiến độ — nhịp heartbeat 30 giây quá thưa cho mốc "đã xem tới đâu".
+        videoPlayer.video.addEventListener('pause', () => { flushVideoProgress(false); reportVideoProgress(true); });
+    }
+
+    /** cmi.location = giây đang xem, cmi.progress_measure = phần video đã xem — trình phát và báo cáo đọc được. */
+    function reportVideoProgress(force) {
+        const duration = videoPlayer?.video?.duration;
+        if (!videoPlayer || !isFinite(duration) || duration <= 0 || ScoRuntime.phase !== 'running') return;
+        const now = Date.now();
+        if (!force && now - lastProgressReport < 15000) return;
+        lastProgressReport = now;
+        ScoRuntime.set('cmi.location', String(Math.floor(videoSecond)));
+        if (!completed) ScoRuntime.set('cmi.progress_measure', Math.min(1, videoMaxWatched / duration).toFixed(4));
+        if (force) ScoRuntime.commit();
+    }
+
+    /** Gửi vị trí đang xem + mốc đã xem lên máy chủ (không cộng thời gian học — việc của heartbeat). Lúc trang
+     *  đang bị gỡ thì dùng fetch keepalive để yêu cầu không bị trình duyệt hủy giữa đường. */
+    function flushVideoProgress(unloading) {
+        if (!enrollmentId || !videoPlayer) return Promise.resolve();
+        const path = `/progress/lesson/heartbeat?enrollmentId=${enrollmentId}&lessonId=${lessonId}`
+            + `&timeSpentSecond=0&lastPositionSecond=${Math.floor(videoSecond)}&maxWatchedSecond=${Math.floor(videoMaxWatched)}`;
+        if (unloading) {
+            try {
+                fetch(`/api${path}`, { method: 'POST', keepalive: true, headers: { Authorization: `Bearer ${Auth.token}` } });
+            } catch { /* trang đang đóng — không còn gì để làm */ }
+            return Promise.resolve();
+        }
+        return API.postSilent(path).catch(() => {});
+    }
+
+    // Định kỳ gửi thời gian đã học + vị trí đang xem dở lên máy chủ.
+    function startHeartbeat() {
+        heartbeatTimer = setInterval(() => {
+            API.postSilent(`/progress/lesson/heartbeat?enrollmentId=${enrollmentId}&lessonId=${lessonId}`
+                + `&timeSpentSecond=30&lastPositionSecond=${Math.floor(videoSecond)}&maxWatchedSecond=${Math.floor(videoMaxWatched)}`)
+                .catch(() => {});
+        }, 30000);
+    }
+    function stopHeartbeat() {
+        if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    }
+})();
+</script>
+</body>
+</html>

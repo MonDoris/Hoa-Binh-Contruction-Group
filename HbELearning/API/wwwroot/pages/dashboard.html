@@ -34,6 +34,10 @@
     // hơn, nhưng renderLearner() chạy ngay ở dòng dưới đây — lúc đó một "let" nằm phía sau vẫn còn trong
     // Temporal Dead Zone và đọc vào là lỗi "Cannot access before initialization".
     let cardDataList = [];
+    // Số liệu đang vẽ của khung "Mức độ hoàn thành" + dạng xem đang chọn ("chart" | "table"). Cùng lý do với
+    // cardDataList: trendPanelHtml() gán vào đây ngay trong lượt render đầu tiên.
+    let trendData = null;
+    let trendView = 'chart';
 
     const content = document.getElementById('content');
     content.innerHTML = skeletonHtml('stats', { count: 4 }) + skeletonHtml('cards', { count: 6 });
@@ -49,6 +53,7 @@
                 : await renderLearner();
         bindCourseFilter();
         bindSelfEnroll();
+        bindTrendPanel();
         // Nút Duyệt / Từ chối trong khối "Khóa học chờ bạn duyệt" dùng chung bộ xử lý với trang Quản lý
         // khóa học. Duyệt xong thì dựng lại cả trang: khóa vừa duyệt phải rời khỏi danh sách chờ, mà nó
         // cũng có thể vừa được xuất bản và xuất hiện ở phần khóa học có thể học bên dưới.
@@ -210,7 +215,7 @@
                         </div>
                         <div class="track"><span style="width:${percent}%"></span></div>
                     </div>
-                    <a class="btn-light" href="/pages/learn.html?enrollmentId=${current.id}">
+                    <a class="btn-light" href="/pages/scorm-player.html?enrollmentId=${current.id}">
                         ${esc(percent > 0 ? t('my-course.hocTiep', 'Học tiếp') : t('my-course.batDau', 'Bắt đầu'))}
                         <i class="ph-bold ph-arrow-right"></i>
                     </a>
@@ -238,7 +243,7 @@
         const assignedList = enrollmentList.map(x => ({
             kind: x.status === 'Completed' ? 'done' : 'assigned',
             id: x.courseId,
-            href: `/pages/learn.html?enrollmentId=${x.id}`,
+            href: `/pages/scorm-player.html?enrollmentId=${x.id}`,
             title: x.courseTitle,
             code: x.courseCode,
             thumbnailUrl: x.thumbnailUrl,
@@ -278,26 +283,12 @@
             <div class="dash-head">
                 <div>
                     <h3>${esc(t('dashboard.discoverTitle', 'Khám phá khóa học'))}</h3>
-                    <p>${esc(t('dashboard.discoverSub', 'Chọn một khóa để học tiếp hoặc bắt đầu'))} — ${cardDataList.length} ${esc(t('dashboard.ketQua', 'kết quả'))}</p>
                 </div>
                 <a class="btn ghost sm" href="/pages/my-course.html">
                     ${esc(t('menu.my-course', 'Khóa học của tôi'))} <i class="ph-bold ph-arrow-right"></i></a>
             </div>
             <div class="dash-chips">${filterList}</div>
             <div class="dash-grid" id="dash-grid">${cardDataList.map(cardHtml).join('')}</div>`;
-    }
-
-    /** Màu nền ảnh bìa suy ra từ tên khóa học — khóa nào chưa có ảnh vẫn có một mảng màu riêng, ổn định qua
-     *  các lần tải (không random), nên người dùng nhận ra thẻ quen thuộc bằng màu. */
-    function thumbBackground(title) {
-        const paletteList = [
-            'linear-gradient(135deg,#00a1e6,#0369a1)', 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
-            'linear-gradient(135deg,#f43f5e,#be123c)', 'linear-gradient(135deg,#f59e0b,#c2410c)',
-            'linear-gradient(135deg,#10b981,#047857)', 'linear-gradient(135deg,#06b6d4,#0e7490)',
-        ];
-        let hash = 0;
-        for (const ch of String(title || '')) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-        return paletteList[hash % paletteList.length];
     }
 
     function cardHtml(item) {
@@ -326,8 +317,9 @@
                    <i class="ph-bold ph-arrow-right"></i></a>`;
 
         return `<article class="dash-card" data-kind="${item.kind}">
-            <div class="dash-thumb" style="background:${thumbBackground(item.title)}">
-                ${item.thumbnailUrl ? `<img src="${esc(item.thumbnailUrl)}" alt="">` : '<i class="ph ph-book-bookmark"></i>'}
+            <div class="dash-thumb${item.thumbnailUrl ? ' has-cover' : ''}" style="--cover-fallback:${courseThumbBackground(item.title)}">
+                <i class="ph ph-book-bookmark"></i>
+                ${item.thumbnailUrl ? courseCoverHtml(item.thumbnailUrl) : ''}
                 <span class="dash-thumb-tag">${esc(tagText)}</span>
                 ${stateHtml}
                 ${metaHtml}
@@ -460,8 +452,8 @@
     // ==================== TRƯỞNG NHÓM ====================
     // Trưởng Nhóm là người soạn nội dung NHƯNG cũng được giao khóa để học như mọi nhân viên khác, nên
     // trang này giữ nguyên bố cục của học viên (hero "Tiếp tục học", lưới khám phá khóa học, cột phải
-    // nhiệm vụ / chuỗi ngày / xếp hạng) và kẹp thêm phần quản lý: số liệu toàn cảnh ở trên đầu, bảng
-    // hiệu quả các khóa học ở cuối trang.
+    // nhiệm vụ / chuỗi ngày / xếp hạng) và kẹp thêm phần quản lý: dải chỉ số ở trên đầu, khung biểu đồ
+    // "Mức độ hoàn thành" ở cuối trang.
     async function renderTrainer() {
         // Hai phần độc lập nhau: số liệu quản lý hỏng thì vẫn phải dựng được phần người học, vì đó mới là
         // việc họ làm hằng ngày.
@@ -472,74 +464,339 @@
 
         if (!managerData) return learnerHtml;
 
-        return managerStatHtml(managerData.overview)
+        return `<div class="ops">${kpiStripHtml(managerData.overview)}</div>`
             + learnerHtml
-            + coursePerformanceHtml(managerData.courseReport, 'mt');
+            + `<div class="ops mt">${trendPanelHtml(managerData.trend)}</div>`;
     }
 
-    // ==================== QUẢN TRỊ / GIẢNG VIÊN ====================
+    // ==================== QUẢN TRỊ / TỔNG GIÁM ĐỐC ====================
     async function renderManager() {
-        const { overview, courseReport } = await loadManagerData();
-        return managerStatHtml(overview) + coursePerformanceHtml(courseReport);
+        const { overview, trend } = await loadManagerData();
+        return `<div class="ops">${kpiStripHtml(overview)}${trendPanelHtml(trend)}</div>`;
     }
 
     async function loadManagerData() {
-        const [overview, courseReport] = await Promise.all([
+        const [overview, trend] = await Promise.all([
             API.get('/report/overview'),
-            API.get('/report/course'),
+            API.get('/report/completion-trend'),
         ]);
-        return { overview, courseReport };
+        return { overview, trend };
     }
 
-    /** Bốn ô số liệu toàn cảnh của mảng đào tạo. */
-    function managerStatHtml(overview) {
-        const statList = [
-            { icon: 'ph-users', color: '#00a1e6', label: t('dashboard.activeUser', 'Người dùng hoạt động'), value: overview.activeUser, foot: t('dashboard.totalAccount', 'Tổng {count} tài khoản', { count: overview.totalUser }) },
-            { icon: 'ph-books', color: '#8b5cf6', label: t('dashboard.publishedCourse', 'Khóa học đã xuất bản'), value: overview.publishedCourse, foot: t('dashboard.totalCourse', 'Tổng {count} khóa học', { count: overview.totalCourse }) },
-            { icon: 'ph-check-circle', color: '#10b981', label: t('dashboard.completionRate', 'Tỷ lệ hoàn thành'), value: overview.completionRate + '%', foot: t('dashboard.enrollmentRatio', '{done} / {total} lượt đào tạo', { done: overview.completedEnrollment, total: overview.totalEnrollment }) },
-            { icon: 'ph-alarm', color: '#f43f5e', label: t('dashboard.overdue', 'Quá hạn'), value: overview.overdueEnrollment, foot: t('dashboard.needReminder', 'Cần nhắc nhở ngay') },
-        ].map(s => `
-            <div class="dash-panel">
-                <div style="width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff;font-size:19px;margin-bottom:11px;background:${s.color}">
-                    <i class="ph-fill ${s.icon}"></i></div>
-                <div style="font-size:12.5px;color:var(--text-muted);font-weight:600">${esc(s.label)}</div>
-                <div style="font-size:27px;font-weight:800;letter-spacing:-.6px;margin:2px 0 6px">${esc(String(s.value))}</div>
-                <div style="font-size:11.5px;color:var(--text-muted)">${esc(s.foot)}</div>
-            </div>`).join('');
-
-        return `<div class="dash-grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-bottom:20px">${statList}</div>`;
+    function fmtNumber(value) {
+        return Number(value || 0).toLocaleString(Lang.locale);
     }
 
-    /** Bảng hiệu quả các khóa học. `extraClass` để chỗ gọi tự đặt khoảng cách với khối đứng trước nó. */
-    function coursePerformanceHtml(courseReport, extraClass = '') {
-        const rowList = courseReport.slice(0, 8).map(c => `
-            <tr>
-                <td><a href="/pages/course-detail.html?id=${c.courseId}"><b>${esc(c.courseTitle)}</b></a>
-                    <div class="small muted">${esc(c.courseCode)}</div></td>
-                <td class="text-center">${c.assignedCount}</td>
-                <td class="text-center">${c.completedCount}</td>
-                <td style="min-width:150px">${progressBar(c.completionRate)}</td>
-                <td class="text-center"><b>${c.averageScore ?? '—'}</b></td>
-            </tr>`).join('');
+    // ---------- Dải chỉ số ----------
+    /** Bốn chỉ số toàn cảnh, mỗi ô dẫn tới trang xử lý đúng việc đó. Chỉ gắn liên kết khi người xem mở được
+     *  trang đích (cùng danh sách vai trò với menu trong app.js) — ô bấm vào mà bị đá về trang chủ thì tệ hơn
+     *  một ô không bấm được. Số nào API chưa trả về (server bản cũ) thì hiện 0 chứ không hiện "undefined". */
+    function kpiStripHtml(overview) {
+        const pendingGift = overview.pendingGift ?? 0;
+        const pendingGiftUser = overview.pendingGiftUser ?? 0;
 
-        return `
-            <div class="card${extraClass ? ' ' + extraClass : ''}">
-                <div class="card-head">
-                    <h3>${esc(t('dashboard.coursePerformance', 'Hiệu quả các khóa học'))}</h3>
+        const cellList = [
+            {
+                tone: '#00a1e6', icon: 'ph-users', href: Auth.isAdmin ? '/pages/user.html' : null,
+                label: t('dashboard.activeUser', 'Người dùng hoạt động'), value: overview.activeUser,
+            },
+            {
+                tone: '#8b5cf6', icon: 'ph-books', href: Auth.isAdmin || Auth.isTrainer ? '/pages/course.html' : null,
+                label: t('dashboard.publishedCourse', 'Khóa học đang hiện hành'), value: overview.publishedCourse,                
+            },
+            {
+                // Tab "order" là hàng chờ trao quà của người quản lý cửa hàng; ai không có quyền quản lý thì
+                // shop.html tự đưa về tab cửa hàng nên liên kết này an toàn với mọi vai trò.
+                tone: '#f59e0b', icon: 'ph-gift', href: '/pages/shop.html?tab=order',
+                label: t('dashboard.pendingGift', 'Số quà chờ trao'), value: pendingGift,
+            },
+            {
+                tone: '#10b981', icon: 'ph-certificate', href: '/pages/certificate.html',
+                label: t('dashboard.issuedCertificate', 'Tất cả chứng chỉ đã được cấp'), value: overview.totalCertificate,                
+            },
+        ];
+
+        return `<div class="ops-kpi">${cellList.map((c, i) => {
+            const tag = c.href ? 'a' : 'div';
+            return `<${tag} class="ops-kpi-cell" style="--tone:${c.tone};--i:${i}"${c.href ? ` href="${c.href}"` : ''}>
+                <div class="ops-kpi-top">
+                    <span class="ops-kpi-label">${esc(c.label)}</span>
+                    <span class="ops-kpi-icon"><i class="ph-fill ${c.icon}"></i></span>
+                </div>
+                <div class="ops-kpi-value">${esc(fmtNumber(c.value))}</div>
+                <div class="ops-kpi-foot">${esc(c.foot)}${c.href ? '<i class="ph-bold ph-arrow-right go"></i>' : ''}</div>
+            </${tag}>`;
+        }).join('')}</div>`;
+    }
+
+    // ---------- Khung "Mức độ hoàn thành" ----------
+    // Hai biểu đồ cột chồng: 12 tháng của năm đang chọn, và từng năm. Mỗi cột chia hai khúc — lượt đào tạo đã
+    // hoàn thành (dưới) và chưa hoàn thành (trên) — tính theo ngày được phân công (xem
+    // ReportService.GetCompletionTrend). Biểu đồ năm kiêm luôn bộ chọn năm: bấm một cột là biểu đồ tháng đổi theo.
+
+    function trendPanelHtml(trend) {
+        trendData = trend;
+        const yearOptionHtml = [...trend.yearList].reverse()
+            .map(y => `<option value="${y.period}"${y.period === trend.year ? ' selected' : ''}>${y.period}</option>`)
+            .join('');
+
+        return `<section class="ops-trend" id="ops-trend">
+            <div class="ops-trend-head">
+                <div>
+                    <h3>${esc(t('dashboard.trendTitle', 'Kết Quả Đào Tạo'))}</h3>
+                </div>
+                <div class="ops-filter">
+                    <div class="ops-legend">
+                        <span><i style="background:var(--viz-done)"></i>${esc(t('dashboard.trendDone', 'Hoàn thành'))}</span>
+                        <span><i style="background:var(--viz-open)"></i>${esc(t('dashboard.trendOpen', 'Chưa hoàn thành'))}</span>
+                    </div>
+                    <label class="ops-year">${esc(t('dashboard.trendYear', 'Năm'))}
+                        <select id="trend-year">${yearOptionHtml}</select></label>
+                    <div class="ops-seg" role="group" aria-label="${esc(t('dashboard.trendViewLabel', 'Dạng xem'))}">
+                        <button type="button" class="${trendView === 'chart' ? 'on' : ''}" data-trend-view="chart" aria-pressed="${trendView === 'chart'}">
+                            <i class="ph ph-chart-bar"></i> ${esc(t('dashboard.trendChart', 'Biểu đồ'))}</button>
+                        <button type="button" class="${trendView === 'table' ? 'on' : ''}" data-trend-view="table" aria-pressed="${trendView === 'table'}">
+                            <i class="ph ph-table"></i> ${esc(t('dashboard.trendTable', 'Bảng'))}</button>
+                    </div>
                     <a class="btn ghost sm" href="/pages/report.html">
                         ${esc(t('dashboard.viewFullReport', 'Xem báo cáo đầy đủ'))} <i class="ph-bold ph-arrow-right"></i></a>
                 </div>
-                <div class="table-wrap"><table>
-                    <thead><tr>
-                        <th>${esc(t('dashboard.colCourse', 'Khóa học'))}</th>
-                        <th class="text-center">${esc(t('dashboard.colAssigned', 'Phân công'))}</th>
-                        <th class="text-center">${esc(t('dashboard.colCompleted', 'Hoàn thành'))}</th>
-                        <th>${esc(t('dashboard.colRate', 'Tỷ lệ'))}</th>
-                        <th class="text-center">${esc(t('dashboard.colAvgScore', 'Điểm TB'))}</th>
-                    </tr></thead>
-                    <tbody>${rowList || `<tr><td colspan="5">${emptyHtml(t('dashboard.noCourse', 'Chưa có khóa học nào.'))}</td></tr>`}</tbody>
-                </table></div>
-            </div>`;
+            </div>
+            <div class="ops-trend-body">
+                <div class="ops-trend-pane" id="trend-month">${monthPaneHtml(trend)}</div>
+                <div class="ops-trend-pane" id="trend-yearly">${yearPaneHtml(trend)}</div>
+            </div>
+            <div class="trend-tip" id="trend-tip" role="tooltip"></div>
+        </section>`;
+    }
+
+    /** Câu tóm tắt của năm đang chọn — con số người đọc cần nhất, đặt ngay dưới tiêu đề. */
+    function trendSummaryHtml(trend) {
+        const done = trend.monthList.reduce((sum, p) => sum + p.completedCount, 0);
+        const total = done + trend.monthList.reduce((sum, p) => sum + p.notCompletedCount, 0);
+        const basis = esc(t('dashboard.trendBasis', 'Tính theo ngày được phân công khóa học'));
+        if (!total) return `${esc(t('dashboard.trendEmptyYear', 'Năm {year} chưa có lượt đào tạo nào được giao.', { year: trend.year }))} · ${basis}`;
+
+        return `<b>${Math.round(done / total * 100)}%</b> `
+            + esc(t('dashboard.trendSummary', 'lượt đào tạo năm {year} đã hoàn thành ({done}/{total})',
+                { year: trend.year, done: fmtNumber(done), total: fmtNumber(total) }))
+            + ` · ${basis}`;
+    }
+
+    function monthPaneHtml(trend) {
+        const pointList = trend.monthList.map(p => ({
+            label: monthShort(p.period),
+            title: t('dashboard.monthLong', 'Tháng {month}/{year}', { month: p.period, year: trend.year }),
+            done: p.completedCount,
+            open: p.notCompletedCount,
+        }));
+        return trendPaneHtml(t('dashboard.trendByMonth', 'Theo tháng'),
+            t('dashboard.yearLabel', 'Năm {year}', { year: trend.year }), pointList,
+            t('dashboard.trendEmptyYear', 'Năm {year} chưa có lượt đào tạo nào được giao.', { year: trend.year }));
+    }
+
+    function yearPaneHtml(trend) {
+        const pointList = trend.yearList.map(p => ({
+            label: String(p.period),
+            title: t('dashboard.yearLabel', 'Năm {year}', { year: p.period }),
+            done: p.completedCount,
+            open: p.notCompletedCount,
+            year: p.period,
+            selected: p.period === trend.year,
+        }));
+        return trendPaneHtml(t('dashboard.trendByYear', 'Theo năm'),
+            t('dashboard.trendPickYear', 'Bấm một cột để xem năm đó'), pointList,
+            t('dashboard.trendEmpty', 'Chưa có lượt đào tạo nào.'));
+    }
+
+    function trendPaneHtml(title, note, pointList, emptyText) {
+        return `<div class="ops-pane-title">${esc(title)} <small>${esc(note)}</small></div>
+            ${trendView === 'table' ? trendTableHtml(pointList) : trendChartHtml(pointList, emptyText)}`;
+    }
+
+    /** Nhãn tháng ngắn dưới trục: "T1".."T12" cho tiếng Việt, tên tháng viết tắt theo ngôn ngữ cho phần còn lại. */
+    function monthShort(month) {
+        return Lang.locale.startsWith('vi')
+            ? `T${month}`
+            : new Date(2000, month - 1, 1).toLocaleDateString(Lang.locale, { month: 'short' });
+    }
+
+    /** Thang trục tung tròn số (bước 1 / 2 / 5 × 10ⁿ). Ít dữ liệu thì vẫn giữ tối thiểu 4 nấc, không thì một
+     *  lượt đào tạo duy nhất sẽ thành một cột cao chạm nóc trông như "rất nhiều". */
+    function niceScale(max) {
+        if (max <= 0) return { top: 4, step: 1 };
+        const rough = max / 4;
+        const power = 10 ** Math.floor(Math.log10(rough));
+        const step = Math.max(1, [1, 2, 5, 10].map(m => m * power).find(s => s >= rough));
+        return { top: Math.max(Math.ceil(max / step) * step, step === 1 ? 4 : 0), step };
+    }
+
+    function trendChartHtml(pointList, emptyText) {
+        const max = Math.max(0, ...pointList.map(p => p.done + p.open));
+        const { top, step } = niceScale(max);
+        const tickList = [];
+        for (let v = 0; v <= top; v += step) tickList.push(v);
+        const percent = v => `${(v / top * 100).toFixed(2)}%`;
+
+        const colHtml = pointList.map((p, i) => {
+            const total = p.done + p.open;
+            // Khúc trên cùng được bo đầu (CSS :first-child) — khúc 0 thì không dựng để khỏi bo nhầm một khúc rỗng.
+            const barHtml = total
+                ? `<span class="trend-bar" style="height:${percent(total)}">
+                       ${p.open ? `<span class="open" style="--v:${p.open}"></span>` : ''}
+                       ${p.done ? `<span class="done" style="--v:${p.done}"></span>` : ''}
+                   </span>`
+                : '';
+            const attr = `class="trend-col${p.selected ? ' is-selected' : ''}" style="--i:${i}"
+                data-title="${esc(p.title)}" data-done="${p.done}" data-open="${p.open}"
+                aria-label="${esc(t('dashboard.trendAria', '{title}: {done} hoàn thành, {open} chưa hoàn thành',
+                    { title: p.title, done: p.done, open: p.open }))}"`;
+            // Cột năm bấm được (chọn năm cho biểu đồ tháng) nên là <button>; cột tháng chỉ để xem — vẫn nhận
+            // focus bằng bàn phím để đọc được số liệu y như rê chuột.
+            return p.year
+                ? `<button type="button" ${attr} data-year="${p.year}" aria-pressed="${!!p.selected}">${barHtml}</button>`
+                : `<div ${attr} tabindex="0" role="img">${barHtml}</div>`;
+        }).join('');
+
+        return `<div class="trend" style="--n:${pointList.length}">
+            <div class="trend-yaxis" aria-hidden="true">
+                ${tickList.map(v => `<span style="bottom:${percent(v)}">${fmtNumber(v)}</span>`).join('')}</div>
+            <div class="trend-plot">
+                <div class="trend-grid" aria-hidden="true">
+                    ${tickList.filter(v => v > 0).map(v => `<i style="bottom:${percent(v)}"></i>`).join('')}</div>
+                <div class="trend-cols">${colHtml}</div>
+                ${max === 0 ? `<div class="trend-empty">${esc(emptyText)}</div>` : ''}
+            </div>
+            <div class="trend-xaxis" aria-hidden="true">
+                ${pointList.map(p => `<span${p.selected ? ' class="is-selected"' : ''}>${esc(p.label)}</span>`).join('')}</div>
+        </div>`;
+    }
+
+    /** Bản bảng của cùng số liệu — đọc được không cần rê chuột, và là bản trình đọc màn hình dùng tốt nhất. */
+    function trendTableHtml(pointList) {
+        const rowHtml = pointList.map(p => {
+            const total = p.done + p.open;
+            return `<tr${p.selected ? ' class="is-selected"' : ''}>
+                <td>${esc(p.title)}</td>
+                <td class="num">${fmtNumber(p.done)}</td>
+                <td class="num">${fmtNumber(p.open)}</td>
+                <td class="num">${fmtNumber(total)}</td>
+                <td class="num">${total ? Math.round(p.done / total * 100) + '%' : '—'}</td>
+            </tr>`;
+        }).join('');
+
+        return `<div class="table-wrap trend-table"><table>
+            <thead><tr>
+                <th>${esc(t('dashboard.trendPeriod', 'Kỳ'))}</th>
+                <th class="num">${esc(t('dashboard.trendDone', 'Hoàn thành'))}</th>
+                <th class="num">${esc(t('dashboard.trendOpen', 'Chưa hoàn thành'))}</th>
+                <th class="num">${esc(t('dashboard.trendTotal', 'Tổng'))}</th>
+                <th class="num">${esc(t('dashboard.colRate', 'Tỷ lệ'))}</th>
+            </tr></thead>
+            <tbody>${rowHtml}</tbody>
+        </table></div>`;
+    }
+
+    function renderTrendPanes() {
+        document.getElementById('trend-month').innerHTML = monthPaneHtml(trendData);
+        document.getElementById('trend-yearly').innerHTML = yearPaneHtml(trendData);
+    }
+
+    /** Đổi năm của biểu đồ tháng: gọi lại API, trong lúc chờ giữ nguyên hình cũ ở độ mờ thấp. */
+    async function loadTrendYear(year) {
+        if (!trendData || !year || year === trendData.year) return;
+        const paneList = document.querySelectorAll('#ops-trend .ops-trend-pane');
+        paneList.forEach(p => p.classList.add('is-loading'));
+        try {
+            trendData = await API.get(`/report/completion-trend?year=${year}`);
+            document.getElementById('trend-year').value = trendData.year;
+            document.getElementById('trend-summary').innerHTML = trendSummaryHtml(trendData);
+            renderTrendPanes();
+        } catch (ex) {
+            document.getElementById('trend-year').value = trendData.year;
+            toastErr(ex.message);
+        } finally {
+            paneList.forEach(p => p.classList.remove('is-loading'));
+        }
+    }
+
+    function bindTrendPanel() {
+        const panel = document.getElementById('ops-trend');
+        if (!panel) return;
+        const tip = document.getElementById('trend-tip');
+
+        // Cột chỉ "mọc lên" ở lần vẽ đầu; đổi năm / đổi dạng xem về sau thì hiện ngay, không diễn lại.
+        setTimeout(() => panel.classList.add('is-ready'), 1200);
+
+        document.getElementById('trend-year').addEventListener('change', e => loadTrendYear(+e.target.value));
+
+        panel.querySelectorAll('[data-trend-view]').forEach(button => button.addEventListener('click', () => {
+            trendView = button.dataset.trendView;
+            panel.querySelectorAll('[data-trend-view]').forEach(x => {
+                x.classList.toggle('on', x === button);
+                x.setAttribute('aria-pressed', String(x === button));
+            });
+            panel.classList.add('is-ready');
+            hideTip();
+            renderTrendPanes();
+        }));
+
+        // Ủy quyền sự kiện lên cả khung: các cột được dựng lại mỗi lần đổi năm / đổi dạng xem.
+        panel.addEventListener('click', e => {
+            const col = e.target.closest('[data-year]');
+            if (col) loadTrendYear(+col.dataset.year);
+        });
+        panel.addEventListener('pointerover', e => showTip(e.target.closest('.trend-col')));
+        panel.addEventListener('pointerleave', hideTip);
+        panel.addEventListener('focusin', e => showTip(e.target.closest('.trend-col')));
+        panel.addEventListener('focusout', hideTip);
+
+        function hideTip() { tip.classList.remove('on'); }
+
+        /** Số liệu đọc từ data-* của cột và gắn bằng textContent — tên kỳ không bao giờ đi qua innerHTML. */
+        function showTip(col) {
+            if (!col) { hideTip(); return; }
+            const done = +col.dataset.done;
+            const open = +col.dataset.open;
+            const total = done + open;
+
+            const line = (className, text) => {
+                const node = document.createElement('div');
+                node.className = className;
+                node.textContent = text;
+                return node;
+            };
+            const row = (color, value, label) => {
+                const node = document.createElement('div');
+                node.className = 'tt-row';
+                const key = document.createElement('i');
+                key.className = 'tt-key';
+                key.style.background = color;
+                const number = document.createElement('b');
+                number.textContent = fmtNumber(value);
+                node.append(key, number, label);
+                return node;
+            };
+
+            tip.replaceChildren(
+                line('tt-title', col.dataset.title),
+                row('var(--viz-done)', done, t('dashboard.trendDone', 'Hoàn thành')),
+                row('var(--viz-open)', open, t('dashboard.trendOpen', 'Chưa hoàn thành')),
+                line('tt-foot', t('dashboard.trendTip', 'Tổng {total} lượt · {rate} hoàn thành', {
+                    total: fmtNumber(total), rate: total ? Math.round(done / total * 100) + '%' : '—',
+                })));
+
+            // Neo ngay trên đỉnh cột (cột 0 thì neo trên đường đáy), giữ trọn trong khung không tràn mép.
+            const panelRect = panel.getBoundingClientRect();
+            const colRect = col.getBoundingClientRect();
+            const bar = col.querySelector('.trend-bar');
+            const anchorTop = bar ? bar.getBoundingClientRect().top : colRect.bottom;
+            const halfWidth = tip.offsetWidth / 2;
+            const centerX = colRect.left + colRect.width / 2 - panelRect.left;
+            tip.style.left = `${Math.min(Math.max(centerX, halfWidth + 8), panelRect.width - halfWidth - 8)}px`;
+            tip.style.top = `${anchorTop - panelRect.top}px`;
+            tip.classList.add('on');
+        }
     }
 })();
 </script>

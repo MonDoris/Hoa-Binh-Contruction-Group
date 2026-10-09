@@ -28,5 +28,9 @@ public interface IAuthService
     Task<Result> ResetPassword(ResetPasswordRequest request);
 
     /// <summary>Danh sách vai trò, phục vụ form tạo người dùng.</summary>
+    /// <summary>Cấp một vé ngắn hạn để trình duyệt mở kết nối SignalR, thay cho việc đưa thẻ đăng nhập
+    /// 8 tiếng vào địa chỉ WebSocket.</summary>
+    Task<Result> CreateHubTicket();
+
     Task<Result> GetRole();
 }

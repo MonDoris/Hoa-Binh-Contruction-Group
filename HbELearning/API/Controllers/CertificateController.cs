@@ -1,6 +1,7 @@
 // File: API/Controllers/CertificateController.cs
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace HbELearning.API.Controllers;
 
@@ -36,8 +37,12 @@ public class CertificateController : BaseApiController
     public async Task<ActionResult<IEnumerable<CertificateDto>>> GetByUser(int userId)
         => ToActionResult(await _service.GetByUser(userId));
 
+    /// <summary>Tra cứu chứng nhận bằng mã in trên bằng hoặc mã trong QR. Mở cho người ngoài (nhà tuyển dụng,
+    /// đối tác) nên có giới hạn tần suất: phản hồi mang tên và mã nhân viên, mà số hiệu chứng nhận thì đánh
+    /// liên tiếp, không chặn thì quét một vòng là lấy được danh sách nhân sự kèm khóa đã học.</summary>
     [HttpGet("verify/{code}")]
     [AllowAnonymous]
+    [EnableRateLimiting(ApiServiceExtensions.PublicRateLimitPolicy)]
     public async Task<ActionResult<CertificateVerifyDto>> Verify(string code)
         => ToActionResult(await _service.Verify(code));
 
@@ -50,4 +55,12 @@ public class CertificateController : BaseApiController
     [Authorize(Roles = RoleName.Admin)]
     public async Task<ActionResult<MessageResponse>> Revoke(int id)
         => ToActionResult(await _service.Revoke(id));
+
+    /// <summary>Danh sách chứng nhận để in (nội bộ + bên ngoài đã xác nhận). source: internal | external | bỏ trống.</summary>
+    [HttpGet("register")]
+    [Authorize(Roles = RoleName.Admin)]
+    public async Task<ActionResult<IEnumerable<CertificateRegisterRowDto>>> GetRegister(
+        [FromQuery] string? source, [FromQuery] int? departmentId,
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? keyword)
+        => ToActionResult(await _service.GetRegister(source, departmentId, from, to, keyword));
 }

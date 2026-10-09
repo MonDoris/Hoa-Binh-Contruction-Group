@@ -1,0 +1,413 @@
+<!-- File: wwwroot/pages/sco-quiz.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script src="/js/head.js"></script>
+    <title data-i18n="sco.tieuDeBaiKiemTra">Bài kiểm tra · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<main class="sco-main wide" id="sco-main"></main>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<!-- openModal / confirmDialog trong app.js dùng resetPasswordEye của password.js. -->
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/sco-runtime.js"></script>
+<script>
+/*
+ * SCO "Bài kiểm tra" của khóa học SCORM (hoạt động Q{quizId}).
+ *
+ * Bài làm vẫn chấm trên MÁY CHỦ (/quiz/{id}/start → /quiz/attempt/{id}/submit) như trước — đáp án đúng không bao
+ * giờ xuống tới trình duyệt của học viên. Kết quả chấm được báo cho trình phát theo đúng mô hình dữ liệu SCORM:
+ * cmi.score.*, cmi.success_status, cmi.completion_status và từng câu trả lời ở cmi.interactions. Máy chủ đối chiếu
+ * lại với QuizAttempt ở mỗi lần Commit, nên sửa cmi bằng tay không vượt qua được bài.
+ *
+ * Bản xem thử (người soạn / người duyệt, không có lượt học): đề lấy từ màn hình quản lý, chấm ngay trên trang, báo
+ * về trình phát như thật nhưng không ghi cho ai (cmi.credit = no-credit).
+ */
+(async function () {
+    await Lang.ready;
+    if (!Auth.require()) return;
+
+    // ---------- Trạng thái — khai báo TRƯỚC lần await đầu tiên (Temporal Dead Zone) ----------
+    const quizId = parseInt(qs('quizId') || '0', 10);
+    const { enrollmentId, preview } = ScoRuntime.context;
+    let step = null;          // bước lộ trình của bài này (số lượt hôm nay, điểm cao nhất...) — chỉ có với học viên
+    let manage = null;        // đề đầy đủ cho bản xem thử
+    let attempt = null;       // lượt đang làm (QuizStartDto, hoặc đề xem thử dựng lại cùng hình dạng)
+    let countdownTimer = null;
+    let submitted = false;
+    let startedAt = 0;
+
+    const main = document.getElementById('sco-main');
+    mountScoLayout(t('common.baiKiemTra', 'Bài kiểm tra'));
+    main.innerHTML = skeletonHtml('detail', { lines: 5 });
+    ScoRuntime.initialize();
+    ScoRuntime.onLeave(() => clearInterval(countdownTimer));
+
+    if (!quizId) { main.innerHTML = emptyHtml(t('sco.thieuBaiKiemTra', 'Thiếu bài kiểm tra cần mở.'), '<i class="ph ph-warning"></i>'); return; }
+
+    try {
+        if (enrollmentId) {
+            const pathList = await API.get(`/progress/enrollment/${enrollmentId}`);
+            step = pathList.find(x => x.itemType === 'Quiz' && x.quizId === quizId) || null;
+        } else {
+            manage = await API.get(`/quiz/${quizId}/manage`);
+        }
+    } catch (ex) {
+        main.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        return;
+    }
+
+    reportInitialState();
+    renderOverview();
+
+    // ==================== TỔNG QUAN ====================
+
+    /** Trạng thái ban đầu báo cho trình phát: đã đạt từ trước thì hoàn thành + đạt ngay (kèm điểm cao nhất). */
+    function reportInitialState() {
+        if (!step) {
+            if (ScoRuntime.phase === 'running') { ScoRuntime.set('cmi.completion_status', 'incomplete'); ScoRuntime.commit(); }
+            return;
+        }
+        const passed = step.status === 'Completed';
+        const best = step.bestScore;
+        if (passed) ScoRuntime.reportResult({ completed: true, passed: true, scaled: best != null ? best / 100 : null, raw: best, min: 0, max: 100 });
+        else if (best != null) ScoRuntime.reportResult({ completed: true, passed: false, scaled: best / 100, raw: best, min: 0, max: 100 });
+        else if (ScoRuntime.phase === 'running') { ScoRuntime.set('cmi.completion_status', 'incomplete'); ScoRuntime.commit(); }
+    }
+
+    function renderOverview() {
+        clearInterval(countdownTimer);
+        submitted = false;
+        attempt = null;
+        const title = step?.title || manage?.title || t('common.baiKiemTra', 'Bài kiểm tra');
+        const durationMinutes = step?.durationMinutes ?? manage?.timeLimitMinutes ?? 0;
+        setScoHead(title, [
+            `<span><i class="ph ph-exam"></i> ${esc(t('common.baiKiemTra', 'Bài kiểm tra'))}</span>`,
+            durationMinutes ? `<span>${esc(formatDuration(durationMinutes))}</span>` : '',
+            preview ? `<span class="badge orange">${esc(t('scorm.xemThu', 'Xem thử'))}</span>` : '',
+        ].filter(Boolean).join('<span>·</span>'), '');
+
+        if (preview || !step) {
+            main.innerHTML = `
+                <div class="sco-preview-note"><i class="ph ph-eye"></i> ${esc(t('sco.banXemThuBaiKiemTra', 'Bản xem thử — bài làm được chấm ngay trên trang và không ghi cho ai.'))}</div>
+                <div class="grid grid-3 mb">
+                    <div class="stat"><div class="label">${esc(t('sco.soCauHoi', 'Số câu hỏi'))}</div><div class="value">${manage?.questionList.length ?? 0}</div></div>
+                    <div class="stat"><div class="label">${esc(t('sco.diemDat', 'Điểm đạt'))}</div><div class="value">${manage?.passScore ?? '—'}</div></div>
+                    <div class="stat"><div class="label">${esc(t('sco.thoiGianLamBai', 'Thời gian làm bài'))}</div><div class="value">${esc(formatDuration(manage?.timeLimitMinutes || 0))}</div></div>
+                </div>
+                <div class="sco-done-bar">
+                    <span class="small muted">${esc(manage?.description || t('sco.lamThuDeXemHocVienThay', 'Làm thử để xem học viên sẽ thấy đề như thế nào.'))}</span>
+                    <button class="btn" id="btn-start" ${manage?.questionList.length ? '' : 'disabled'}><i class="ph ph-play"></i> ${esc(t('sco.lamThu', 'Làm thử'))}</button>
+                </div>`;
+            document.getElementById('btn-start')?.addEventListener('click', startPreview);
+            return;
+        }
+
+        const remaining = step.maxAttempt - step.attemptUsed;
+        const passed = step.status === 'Completed';
+        const canContinue = passed && ScoRuntime.isTracked;
+        main.innerHTML = `
+            <div class="grid grid-3 mb">
+                <div class="stat"><div class="label">${esc(t('learn.soLanDaLamHomNay', 'Số lần đã làm hôm nay'))}</div><div class="value">${step.attemptUsed}/${step.maxAttempt}</div></div>
+                <div class="stat"><div class="label">${esc(t('learn.diemCaoNhat', 'Điểm cao nhất'))}</div><div class="value">${step.bestScore ?? '—'}</div></div>
+                ${resultTile(passed, { pending: !step.hasEverAttempted })}
+            </div>
+            <div class="sco-done-bar ${passed ? 'done' : ''}">
+                <span class="small muted">${esc(t('sco.thoiGianLamBai', 'Thời gian làm bài'))}: ${esc(formatDuration(step.durationMinutes))}
+                    ${remaining <= 0 ? ' · ' + esc(t('sco.luotLamMoiNgayMai', 'Lượt làm bài sẽ được làm mới vào ngày mai')) : ''}</span>
+                <div class="flex gap-sm wrap">
+                    ${step.hasEverAttempted ? `<button class="btn ghost" id="btn-history"><i class="ph ph-clock-counter-clockwise"></i> ${esc(t('quiz.lichSuLamBai', 'Lịch sử làm bài'))}</button>` : ''}
+                    ${remaining > 0
+                        ? `<button class="btn ${canContinue ? 'ghost' : ''}" id="btn-start"><i class="ph ph-play"></i> ${esc(step.hasEverAttempted ? t('sco.lamLai', 'Làm lại') : t('learn.batDauLamBai', 'Bắt đầu làm bài'))} (${esc(t('sco.conLuot', 'còn {n} lượt hôm nay', { n: remaining }))})</button>`
+                        : `<button class="btn" disabled>${esc(t('learn.daHetLuotLamBaiHomNay', 'Đã hết lượt làm bài hôm nay'))}</button>`}
+                    ${canContinue ? `<button class="btn" id="btn-next">${esc(t('sco.tiepTuc', 'Tiếp tục'))} <i class="ph ph-caret-right"></i></button>` : ''}
+                </div>
+            </div>`;
+        document.getElementById('btn-start')?.addEventListener('click', startAttempt);
+        document.getElementById('btn-history')?.addEventListener('click', showHistory);
+        document.getElementById('btn-next')?.addEventListener('click', () => ScoRuntime.continueNext());
+    }
+
+    // ==================== LÀM BÀI ====================
+
+    async function startAttempt() {
+        main.innerHTML = skeletonHtml('detail', { lines: 5 });
+        try {
+            attempt = await API.post(`/quiz/${quizId}/start?enrollmentId=${enrollmentId}`);
+        } catch (ex) {
+            toastErr(ex.message);
+            renderOverview();
+            return;
+        }
+        renderAttempt();
+    }
+
+    /** Đề xem thử: dựng lại cùng hình dạng QuizStartDto từ màn hình quản lý (đáp án đúng giữ riêng để tự chấm). */
+    function startPreview() {
+        const questionList = manage.questionList.map(q => ({
+            id: q.id, content: q.content, questionType: q.questionType, score: q.score,
+            answerList: q.answerList.map(a => ({ id: a.id, content: a.content })),
+        }));
+        if (manage.shuffleQuestion) questionList.sort(() => Math.random() - 0.5);
+        const now = new Date();
+        attempt = {
+            attemptId: 0, quizId, quizTitle: manage.title, attemptNo: 1, maxAttempt: manage.maxAttempt,
+            passScore: manage.passScore, questionList,
+            deadlineAt: new Date(now.getTime() + (manage.timeLimitMinutes || 20) * 60000).toISOString(),
+        };
+        renderAttempt();
+    }
+
+    function renderAttempt() {
+        submitted = false;
+        startedAt = Date.now();
+        setScoHead(attempt.quizTitle, `<span>${esc(t('sco.luotThu', 'Lượt làm bài thứ {n}', { n: attempt.attemptNo }))}${attempt.maxAttempt ? '/' + attempt.maxAttempt : ''}</span>
+            <span>·</span><span>${attempt.questionList.length} ${esc(t('sco.cauHoi', 'câu hỏi'))}</span>
+            <span>·</span><span>${esc(t('sco.diemDat', 'Điểm đạt'))}: ${attempt.passScore}</span>`,
+            '<div class="timer" id="timer">--:--</div>');
+
+        main.innerHTML = `
+            <div class="quiz-layout">
+                <div class="card">
+                    <div class="card-body"><form id="quiz-form">${attempt.questionList.map(questionHtml).join('')}</form></div>
+                    <div class="card-head" style="border-top:1px solid var(--border);border-bottom:none">
+                        <span class="small muted" id="answered-count"></span>
+                        <button class="btn success" id="btn-submit">${esc(t('quiz.nopBai', 'Nộp bài'))}</button>
+                    </div>
+                </div>
+                <div class="card quiz-nav-card">
+                    <div class="card-head"><h3>${esc(t('quiz.bangCauHoi', 'Bảng câu hỏi'))}</h3></div>
+                    <div class="card-body">
+                        <div class="quiz-nav-count" id="quiz-nav-count"></div>
+                        <div class="qgrid" id="quiz-nav-grid">${attempt.questionList.map((q, i) =>
+                            `<button type="button" class="qgrid-item" data-goto="${q.id}" title="${esc(t('sco.cau', 'Câu'))} ${i + 1}">${i + 1}</button>`).join('')}</div>
+                        <div class="qgrid-legend">
+                            <span><i></i> ${esc(t('quiz.chuaTraLoi', 'Chưa trả lời'))}</span>
+                            <span><i class="lg-passed"></i> ${esc(t('quiz.daTraLoi', 'Đã trả lời'))}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+        document.getElementById('btn-submit').addEventListener('click', () => submit(false));
+        document.getElementById('quiz-form').addEventListener('change', updateCount);
+        document.querySelectorAll('#quiz-nav-grid [data-goto]').forEach(button => button.addEventListener('click', () => {
+            const box = document.getElementById(`q-${button.dataset.goto}`);
+            if (!box) return;
+            box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            box.classList.add('q-flash');
+            setTimeout(() => box.classList.remove('q-flash'), 1200);
+        }));
+        updateCount();
+        startCountdown(new Date(attempt.deadlineAt));
+        // Đang làm dở mà rời trang thì lượt này bỏ ngang — trình phát vẫn cho quay lại, nhưng báo trước cho rõ.
+        if (ScoRuntime.phase === 'running') ScoRuntime.set('cmi.location', `attempt-${attempt.attemptId}`);
+    }
+
+    function questionHtml(question, index) {
+        const multiple = question.questionType === 'MultipleChoice';
+        return `<div class="question" id="q-${question.id}">
+            <div class="q-head">
+                <div class="q-no">${index + 1}</div>
+                <div>
+                    <div><b>${esc(question.content)}</b></div>
+                    <div class="small muted">${esc(multiple ? t('sco.chonNhieuDapAn', 'Chọn nhiều đáp án') : t('course-detail.chonMotDapAn', 'Chọn một đáp án'))} · ${question.score} ${esc(t('sco.diem', 'điểm'))}</div>
+                </div>
+            </div>
+            ${question.answerList.map(a => `
+                <label class="option">
+                    <input type="${multiple ? 'checkbox' : 'radio'}" name="q_${question.id}" value="${a.id}">
+                    <span>${esc(a.content)}</span>
+                </label>`).join('')}
+        </div>`;
+    }
+
+    function selectedOf(question) {
+        return [...document.querySelectorAll(`input[name="q_${question.id}"]:checked`)].map(el => parseInt(el.value, 10));
+    }
+
+    function updateCount() {
+        const answered = attempt.questionList.filter(q => selectedOf(q).length > 0).length;
+        document.getElementById('answered-count').textContent =
+            t('sco.daTraLoiXY', 'Đã trả lời {a}/{b} câu hỏi', { a: answered, b: attempt.questionList.length });
+        document.getElementById('quiz-nav-count').innerHTML = `<b>${answered}</b>/${attempt.questionList.length}`;
+        attempt.questionList.forEach(q =>
+            document.querySelector(`#quiz-nav-grid [data-goto="${q.id}"]`)?.classList.toggle('passed', selectedOf(q).length > 0));
+    }
+
+    function startCountdown(deadline) {
+        const el = document.getElementById('timer');
+        clearInterval(countdownTimer);
+        countdownTimer = setInterval(() => {
+            const left = Math.max(0, Math.floor((deadline - new Date()) / 1000));
+            el.textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+            el.classList.toggle('danger', left <= 60);
+            if (left <= 0) {
+                clearInterval(countdownTimer);
+                toastErr(t('quiz.hetGioHeThongTuDongNopBai', 'Hết giờ! Hệ thống tự động nộp bài.'));
+                submit(true);
+            }
+        }, 500);
+    }
+
+    async function submit(auto) {
+        if (submitted) return;
+        if (!auto && !await confirmDialog(t('quiz.banChacChanMuonNopBaiSauKhiNop', 'Bạn chắc chắn muốn nộp bài? Sau khi nộp không thể sửa đáp án.'),
+            { okText: t('quiz.nopBai', 'Nộp bài') })) return;
+
+        submitted = true;
+        clearInterval(countdownTimer);
+        const button = document.getElementById('btn-submit');
+        if (button) { button.disabled = true; button.textContent = t('quiz.dangChamDiem', 'Đang chấm điểm...'); }
+
+        const answerList = attempt.questionList.map(q => ({ questionId: q.id, selectedAnswerIdList: selectedOf(q) }));
+        try {
+            const result = enrollmentId
+                ? await API.post(`/quiz/attempt/${attempt.attemptId}/submit`, { answerList })
+                : gradePreview(answerList);
+            reportAttempt(result);
+            if (step) {
+                // Số lượt / điểm cao nhất của tổng quan đổi theo lượt vừa nộp.
+                try {
+                    const pathList = await API.getSilent(`/progress/enrollment/${enrollmentId}`);
+                    step = pathList.find(x => x.itemType === 'Quiz' && x.quizId === quizId) || step;
+                } catch { /* giữ số cũ */ }
+            }
+            renderResult(result);
+        } catch (ex) {
+            submitted = false;
+            toastErr(ex.message);
+            if (button) { button.disabled = false; button.textContent = t('quiz.nopBai', 'Nộp bài'); }
+        }
+    }
+
+    /** Chấm bản xem thử ngay trên trang — cùng quy tắc với máy chủ: đúng khi chọn ĐÚNG và ĐỦ các đáp án đúng. */
+    function gradePreview(answerList) {
+        let earned = 0, total = 0, correctCount = 0;
+        const itemList = answerList.map(answer => {
+            const question = manage.questionList.find(q => q.id === answer.questionId);
+            const correctIdList = question.answerList.filter(a => a.isCorrect).map(a => a.id);
+            const isCorrect = correctIdList.length > 0 && correctIdList.length === answer.selectedAnswerIdList.length
+                && correctIdList.every(id => answer.selectedAnswerIdList.includes(id));
+            total += Number(question.score);
+            if (isCorrect) { earned += Number(question.score); correctCount++; }
+            return { questionId: question.id, content: question.content, isCorrect, earnedScore: isCorrect ? question.score : 0,
+                maxScore: question.score, explanation: question.explanation,
+                selectedAnswerIdList: answer.selectedAnswerIdList, correctAnswerIdList: correctIdList };
+        });
+        const score = total > 0 ? Math.round(earned / total * 10000) / 100 : 0;
+        return { attemptId: 0, quizId, quizTitle: manage.title, attemptNo: 1, score, maxScore: 100,
+            passScore: manage.passScore, isPassed: score >= manage.passScore, submittedAt: new Date().toISOString(),
+            correctCount, totalQuestion: itemList.length, itemList };
+    }
+
+    /** Báo kết quả lượt vừa nộp theo mô hình dữ liệu SCORM: điểm, đạt / trượt, từng câu trả lời. */
+    function reportAttempt(result) {
+        if (ScoRuntime.phase !== 'running') return;
+        const latency = (Date.now() - startedAt) / 1000 / Math.max(1, result.itemList.length);
+        result.itemList.forEach(item => ScoRuntime.addInteraction({
+            id: `q${item.questionId}`,
+            type: 'choice',
+            description: item.content,
+            learnerResponse: item.selectedAnswerIdList.map(id => `a${id}`).join('[,]'),
+            correctResponse: item.correctAnswerIdList.map(id => `a${id}`).join('[,]'),
+            result: item.isCorrect ? 'correct' : 'incorrect',
+            weighting: item.maxScore,
+            latencySecond: latency,
+        }));
+        ScoRuntime.set('cmi.location', '');
+        // Lượt này trượt nhưng đã từng đạt: vẫn báo đạt — lộ trình tính kết quả tốt nhất, trình phát phải khớp.
+        const everPassed = result.isPassed || step?.status === 'Completed';
+        const best = Math.max(Number(result.score), step?.bestScore != null ? Number(step.bestScore) : -Infinity);
+        ScoRuntime.reportResult({ completed: true, passed: everPassed, scaled: best / 100, raw: best, min: 0, max: 100 });
+    }
+
+    // ==================== KẾT QUẢ / LỊCH SỬ ====================
+
+    function renderResult(result) {
+        const canContinue = (result.isPassed || step?.status === 'Completed') && ScoRuntime.isTracked;
+        setScoHead(`${t('sco.ketQua', 'Kết quả')} · ${result.quizTitle}`, '', '');
+        main.innerHTML = `
+            <div class="grid grid-4 mb">
+                ${resultTile(result.isPassed, { foot: `${t('quiz.diemDatToiThieu', 'Điểm đạt tối thiểu')}: ${result.passScore}` })}
+                <div class="stat accent"><div class="label">${esc(t('quiz.diemSoThang100', 'Điểm số (thang 100)'))}</div><div class="value">${result.score}</div></div>
+                <div class="stat"><div class="label">${esc(t('quiz.soCauDung', 'Số câu đúng'))}</div><div class="value">${result.correctCount}/${result.totalQuestion}</div></div>
+                <div class="stat"><div class="label">${esc(t('quiz.luotLamBai', 'Lượt làm bài'))}</div><div class="value">${result.attemptNo}</div>
+                    <div class="foot">${formatDate(result.submittedAt, true)}</div></div>
+            </div>
+            <div class="sco-done-bar ${result.isPassed ? 'done' : ''} mb">
+                <span class="small">${result.isPassed
+                    ? `<i class="ph-fill ph-check-circle" style="color:var(--success)"></i> ${esc(t('sco.chucMungDat', 'Chúc mừng — bạn đã đạt bài kiểm tra này.'))}`
+                    : `<i class="ph ph-info"></i> ${esc(t('sco.chuaDatLamLai', 'Chưa đạt — xem lại đáp án rồi làm lại nếu còn lượt.'))}`}</span>
+                <div class="flex gap-sm wrap">
+                    <button class="btn ghost" id="btn-overview"><i class="ph ph-arrow-counter-clockwise"></i> ${esc(t('sco.veTongQuan', 'Về tổng quan'))}</button>
+                    ${canContinue ? `<button class="btn" id="btn-next">${esc(t('sco.tiepTuc', 'Tiếp tục'))} <i class="ph ph-caret-right"></i></button>` : ''}
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-head"><h3>${esc(t('quiz.chiTietDapAn', 'Chi tiết đáp án'))}</h3></div>
+                <div class="card-body">
+                    ${result.itemList.map((item, i) => `
+                        <div class="question">
+                            <div class="q-head">
+                                <div class="q-no" style="background:${item.isCorrect ? 'var(--success)' : 'var(--danger)'}">
+                                    ${item.isCorrect ? '<i class="ph-bold ph-check"></i>' : '<i class="ph-bold ph-x"></i>'}
+                                </div>
+                                <div>
+                                    <div><b>${esc(t('sco.cau', 'Câu'))} ${i + 1}. ${esc(item.content)}</b></div>
+                                    <div class="small muted">${esc(t('sco.diem', 'điểm'))}: ${item.earnedScore}/${item.maxScore}</div>
+                                </div>
+                            </div>
+                            ${item.explanation ? `<div class="small" style="background:var(--info-light);padding:10px 13px;border-radius:8px;margin-top:8px">
+                                <i class="ph ph-lightbulb"></i> ${esc(item.explanation)}</div>` : ''}
+                        </div>`).join('')}
+                </div>
+            </div>`;
+        document.getElementById('btn-overview').addEventListener('click', renderOverview);
+        document.getElementById('btn-next')?.addEventListener('click', () => ScoRuntime.continueNext());
+    }
+
+    async function showHistory() {
+        main.innerHTML = skeletonHtml('list', { count: 4, avatar: false });
+        try {
+            const list = await API.get(`/quiz/${quizId}/my-attempt?enrollmentId=${enrollmentId}`);
+            main.innerHTML = `
+                <div class="card">
+                    <div class="card-head"><h3>${esc(t('quiz.lichSuLamBai', 'Lịch sử làm bài'))}</h3>
+                        <button class="btn ghost sm" id="btn-overview"><i class="ph ph-arrow-left"></i> ${esc(t('sco.veTongQuan', 'Về tổng quan'))}</button></div>
+                    <div class="table-wrap"><table>
+                        <thead><tr><th>${esc(t('quiz.luot', 'Lượt'))}</th><th>${esc(t('certificate.diem', 'Điểm'))}</th><th>${esc(t('learn.ketQua', 'Kết quả'))}</th>
+                            <th>${esc(t('my-course.batDau', 'Bắt đầu'))}</th><th>${esc(t('quiz.nopBai', 'Nộp bài'))}</th><th class="text-right"></th></tr></thead>
+                        <tbody>${list.length ? list.map(a => `
+                            <tr>
+                                <td>${esc(t('sco.lanN', 'Lần {n}', { n: a.attemptNo }))}</td>
+                                <td><b>${a.score}</b></td>
+                                <td>${a.isPassed ? `<span class="badge green">${esc(t('my-course.dat', 'Đạt'))}</span>` : `<span class="badge red">${esc(t('my-course.chuaDat', 'Chưa đạt'))}</span>`}</td>
+                                <td class="nowrap">${formatDate(a.startedAt, true)}</td>
+                                <td class="nowrap">${formatDate(a.submittedAt, true)}</td>
+                                <td class="text-right">${a.submittedAt ? `<button class="btn ghost sm" data-attempt="${a.id}">${esc(t('quiz.xemChiTiet', 'Xem chi tiết'))}</button>` : ''}</td>
+                            </tr>`).join('') : `<tr><td colspan="6">${emptyHtml(t('quiz.chuaCoLuotLamBaiNao', 'Chưa có lượt làm bài nào.'))}</td></tr>`}
+                        </tbody>
+                    </table></div>
+                </div>`;
+            document.getElementById('btn-overview').addEventListener('click', renderOverview);
+            main.querySelectorAll('[data-attempt]').forEach(button => button.addEventListener('click', async () => {
+                try { renderResult(await API.get(`/quiz/attempt/${button.dataset.attempt}/result`)); }
+                catch (ex) { toastErr(ex.message); }
+            }));
+        } catch (ex) {
+            main.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+        }
+    }
+})();
+</script>
+</body>
+</html>

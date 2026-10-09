@@ -357,7 +357,8 @@
 
     // ==================== KẾT NỐI SIGNALR ====================
     const connection = new signalR.HubConnectionBuilder()
-        .withUrl('/hubs/classroom', { accessTokenFactory: () => Auth.token })
+        // Vé ngắn hạn thay cho thẻ đăng nhập — xem Auth.hubTicket().
+        .withUrl('/hubs/classroom', { accessTokenFactory: () => Auth.hubTicket() })
         .withAutomaticReconnect()
         .build();
 

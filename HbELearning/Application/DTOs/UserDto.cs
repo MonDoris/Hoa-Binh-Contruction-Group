@@ -37,7 +37,8 @@ public class UserCreateRequest
     /// <summary>Tên tài khoản đăng nhập (tùy chọn). Bỏ trống thì người này chỉ đăng nhập bằng email.
     /// Dạng thức do UserNameHelper quy định — xem <see cref="User.UserName"/>.</summary>
     [MaxLength(50)] public string? UserName { get; set; }
-    [Required, MinLength(6)] public string Password { get; set; } = null!;
+    /// <summary>Quy tắc đầy đủ ở <see cref="PasswordPolicy"/>, kiểm tại UserService.Create.</summary>
+    [Required] public string Password { get; set; } = null!;
     [Required] public int RoleId { get; set; }
     public int? DepartmentId { get; set; }
     public int? PositionId { get; set; }
@@ -66,7 +67,8 @@ public class UserUpdateRequest
 /// <summary>Admin đặt lại mật khẩu cho người dùng khác — khác với DTOs/AuthDto.cs ResetPasswordRequest (luồng quên mật khẩu tự phục vụ qua OTP).</summary>
 public class AdminResetPasswordRequest
 {
-    [Required, MinLength(6)] public string NewPassword { get; set; } = null!;
+    /// <summary>Quy tắc đầy đủ ở <see cref="PasswordPolicy"/>, kiểm tại UserService.ResetPassword.</summary>
+    [Required] public string NewPassword { get; set; } = null!;
 }
 
 /// <summary>Tự cập nhật hồ sơ cá nhân — không cho đổi vai trò / phòng ban / vị trí (chỉ Admin mới được).</summary>

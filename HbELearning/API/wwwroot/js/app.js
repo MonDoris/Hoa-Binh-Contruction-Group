@@ -25,6 +25,40 @@ const esc = (value) => String(value ?? '')
 
 const qs = (name) => new URLSearchParams(location.search).get(name);
 
+// ----- Thẻ (tab) đang mở nằm trên địa chỉ trang -----
+// Ghi thẻ đang mở lên địa chỉ dạng ?tab=<khóa>, để tải lại trang — F5, hay đổi ngôn ngữ (Lang.set buộc phải tải
+// lại trang) — mở lại đúng thẻ đang xem thay vì nhảy về thẻ đầu. Cùng cách shop.html / certificate.html đã làm.
+
+/** Ghi thẻ lên địa chỉ trang. Thẻ mặc định thì bỏ hẳn tham số cho địa chỉ gọn. replaceState chứ không
+ *  pushState: bấm Back vẫn về trang trước, không phải lùi qua từng thẻ đã bấm. */
+function rememberTab(tab, defaultTab) {
+    setUrlParam('tab', tab === defaultTab ? '' : tab);
+}
+
+/** Ghi một tham số lên địa chỉ trang (giá trị rỗng = gỡ hẳn tham số), không tạo thêm bước Back. Dùng cho bộ
+ *  lọc, từ khóa... — cùng lý do với rememberTab: tải lại trang (F5, đổi ngôn ngữ) vẫn giữ nguyên thứ đang xem. */
+function setUrlParam(name, value) {
+    const url = new URL(location.href);
+    if (value) url.searchParams.set(name, value); else url.searchParams.delete(name);
+    history.replaceState(history.state, '', url);
+}
+
+/** Thẻ cần mở lúc vào trang: thẻ ghi trên địa chỉ nếu trang có nút của nó và nút đó đang hiện, không thì
+ *  defaultTab. Thẻ bị ẩn theo vai trò (style.display = 'none') không mở được qua địa chỉ. */
+function tabFromUrl(defaultTab) {
+    const tab = qs('tab');
+    const button = tab && [...document.querySelectorAll('.tabs button[data-tab]')].find(b => b.dataset.tab === tab);
+    return button && button.style.display !== 'none' ? tab : defaultTab;
+}
+
+/** Mở một thẻ theo khuôn chung của các trang — nút `.tabs button[data-tab]` + khung `.tab-panel#tab-<khóa>` — và
+ *  ghi nó lên địa chỉ trang. Chỉ đổi phần hiển thị; nạp dữ liệu cho thẻ là việc của trang. */
+function showTab(tab, defaultTab) {
+    document.querySelectorAll('.tabs button[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
+    rememberTab(tab, defaultTab);
+}
+
 /** Đọc giá trị thật của một biến CSS. Dùng cho những thứ nhận màu qua JavaScript chứ không qua CSS —
  *  điển hình là biểu đồ Chart.js: ghi thẳng mã màu vào cấu hình biểu đồ thì đổi nền sáng/tối xong biểu đồ
  *  vẫn giữ nguyên bảng màu của nền cũ, còn đổi màu thương hiệu thì biểu đồ là chỗ duy nhất không đổi theo. */
@@ -196,11 +230,14 @@ function canApproveCourse(course, hrDepartmentId) {
  * hrDepartmentId: id phòng ban có mã "HR", dùng để phân biệt Giám Đốc phòng ban thường với Giám Đốc Nhân sự.
  */
 function courseWorkflowActionsHtml(course, hrDepartmentId) {
-    // Chỉ chính Trưởng Nhóm đã soạn khóa học mới gửi duyệt được. Admin cố ý không có nút này: Admin không
+    // Chỉ chính Trưởng Nhóm hoặc Giảng Viên đã soạn khóa học mới gửi duyệt được. Admin cố ý không có nút này: Admin không
     // thuộc phòng ban nào nên nội dung do Admin gửi lên sẽ không tới được Trưởng phòng nào để duyệt.
-    if ((course.status === 'Draft' || course.status === 'Rejected')
-        && Auth.isTrainer && course.createdById === Auth.profile?.id)
-        return `<button data-i18n="shell.guiDuyet" class="btn sm" data-submit="${course.id}">Gửi duyệt</button>`;
+    if ((course.status === 'Draft' || course.status === 'Rejected') && course.createdById === Auth.profile?.id) {
+        if (Auth.isInstructor)
+            return `<button data-i18n="shell.xuatBan" class="btn sm" data-submit="${course.id}">Xuất bản</button>`;
+        if (Auth.isTrainer)
+            return `<button data-i18n="shell.guiDuyet" class="btn sm" data-submit="${course.id}">Gửi duyệt</button>`;
+    }
 
     // Bước đang chờ do một người được CHỈ ĐỊNH đích danh duyệt, mà người đó nghỉ phép / nghỉ việc / chọn nhầm
     // thì khóa học nằm chờ mãi. Server đã tính sẵn cờ này (chỉ Admin và chính người soạn mới đổi được, và chỉ
@@ -225,20 +262,58 @@ function courseWorkflowActionsHtml(course, hrDepartmentId) {
     if (reassignHtml) return reassignHtml;
 
     if (course.status === 'Published' && Auth.isAdmin)
-        return `<button data-i18n="status.Archived" class="btn ghost sm" data-archive="${course.id}" style="background-color: lime; color: white">Lưu trữ</button>`;
+        return `<button class="btn ghost sm" data-archive="${course.id}"><i class="ph ph-archive"></i> <span data-i18n="status.Archived">Lưu trữ</span></button>`;
 
     // Lưu trữ phải có đường quay lại: không có nút này thì một cú bấm nhầm khóa cứng khóa học vĩnh viễn —
     // mọi nút sửa nội dung đều bị ẩn ở trạng thái Archived và không còn hành động nào khác trên giao diện.
     // Đưa về Bản nháp (không phải Published) để nội dung đi lại đúng chuỗi duyệt trước khi xuất bản lần nữa.
     if (course.status === 'Archived' && Auth.isAdmin)
-        return `<button data-i18n="shell.boLuuTru" class="btn ghost sm" data-unarchive="${course.id}">Bỏ lưu trữ</button>`;
+        return `<button class="btn ghost sm" data-unarchive="${course.id}"><i class="ph ph-arrow-counter-clockwise"></i> <span data-i18n="shell.boLuuTru">Bỏ lưu trữ</span></button>`;
 
     return '';
 }
 
+/** Duyệt là nút chính (đặc), Từ chối là nút viền chữ đỏ: hai nút đặc cạnh nhau thì mắt không biết nên bấm cái
+ *  nào, mà Từ chối lại là thao tác bắt người soạn làm lại — không được nổi bật ngang hàng Duyệt. */
 function courseApproveRejectHtml(id, approveLabel) {
-    return `<button class="btn sm" data-approve="${id}">${esc(approveLabel)}</button>
-            <button data-i18n="course.tuChoi" class="btn ghost sm" data-reject="${id}" style="background-color:#dc2626;color:#fff">Từ chối</button>`;
+    return `<button class="btn sm" data-approve="${id}"><i class="ph-bold ph-check"></i> ${esc(approveLabel)}</button>
+            <button class="btn ghost danger sm" data-reject="${id}"><i class="ph-bold ph-x"></i> <span data-i18n="course.tuChoi">Từ chối</span></button>`;
+}
+
+/** Màu nền ảnh bìa suy ra từ tên khóa học — khóa nào chưa có ảnh vẫn có một mảng màu riêng, ổn định qua các
+ *  lần tải (không random), nên người dùng nhận ra khóa học quen thuộc bằng màu. Dùng chung cho Tổng quan,
+ *  Khóa học của tôi và Quản lý khóa học: cùng một khóa học phải mang cùng một màu ở mọi trang. */
+function courseThumbBackground(title) {
+    const paletteList = [
+        'linear-gradient(135deg,#00a1e6,#0369a1)', 'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+        'linear-gradient(135deg,#f43f5e,#be123c)', 'linear-gradient(135deg,#f59e0b,#c2410c)',
+        'linear-gradient(135deg,#10b981,#047857)', 'linear-gradient(135deg,#06b6d4,#0e7490)',
+    ];
+    let hash = 0;
+    for (const ch of String(title || '')) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+    return paletteList[hash % paletteList.length];
+}
+
+/** Ảnh bìa nhỏ của một khóa học: ảnh thật nếu có, không thì mảng màu theo tên + biểu tượng. */
+function courseThumbHtml(title, thumbnailUrl, className = 'course-mini-thumb', icon = 'ph-book-open-text') {
+    return `<div class="${className}${thumbnailUrl ? ' has-cover' : ''}" style="--cover-fallback:${courseThumbBackground(title)}" aria-hidden="true">
+        <i class="ph-duotone ${icon}"></i>
+        ${thumbnailUrl ? courseCoverHtml(thumbnailUrl) : ''}
+    </div>`;
+}
+
+/**
+ * Ảnh bìa người soạn tải lên, hiện TRỌN VẸN (object-fit: contain) — cắt cho đầy khung (cover) thì logo, ảnh
+ * có chữ bị xén mất mép, mà khung ảnh bìa ở mỗi trang một tỉ lệ nên không có cách cắt nào hợp cho mọi chỗ.
+ * Phần khung thừa không để trống mà phủ bằng chính ảnh đó phóng to và làm mờ. Hai thẻ <img> cùng một địa chỉ
+ * nên trình duyệt chỉ tải một lần. Ảnh hỏng thì gỡ cả hai, khung quay về mảng màu + biểu tượng.
+ *
+ * Khung chứa phải mang lớp has-cover, có position: relative và overflow: hidden (xem css/style.css).
+ */
+function courseCoverHtml(url) {
+    return `<img class="cover-backdrop" src="${esc(url)}" alt="" aria-hidden="true" loading="lazy">
+        <img class="cover-image" src="${esc(url)}" alt="" loading="lazy"
+             onerror="const box = this.parentNode; box.classList.remove('has-cover'); box.querySelectorAll('.cover-backdrop, .cover-image').forEach(x => x.remove())">`;
 }
 
 /** Các bước trong chuỗi duyệt nội dung.
@@ -271,7 +346,7 @@ function approvalStepList() {
 const HR_STEP_INDEX = 3;
 
 function approvalTrackHtml(course, workflowOptionList = []) {
-    if (course.status === 'Archived') return '';
+    if (course.status === 'Archived' || Auth.isInstructor) return '';
 
     const isRejected = course.status === 'Rejected';
     const isPublished = course.status === 'Published';
@@ -339,7 +414,7 @@ function approvalTrackHtml(course, workflowOptionList = []) {
  */
 function approvalWorkflowPickerHtml(course, workflowOptionList = []) {
     const isOwnEditableCourse = !Auth.isAdmin && Auth.isTrainer && course.createdById === Auth.profile?.id
-        && (course.status === 'Draft' || course.status === 'Rejected');
+        && (course.status === 'Draft' || course.status === 'Rejected') && !Auth.isInstructor;
 
     if (!isOwnEditableCourse || !workflowOptionList.length)
         return course.approvalWorkflowName
@@ -515,6 +590,7 @@ function stepTypeMeta(itemType) {
         Lesson:     { iconClass: 'ph-file-text', mark: 'lesson', label: t('common.baiHoc', 'Bài học') },
         Quiz:       { iconClass: 'ph-exam',      mark: 'quiz',   label: t('common.baiKiemTra', 'Bài kiểm tra') },
         Simulation: { iconClass: 'ph-cube',      mark: 'quiz',   label: t('common.moPhong3d', 'Mô phỏng 3D') },
+        Scorm:      { iconClass: 'ph-package',   mark: 'lesson', label: t('common.goiScorm', 'Gói SCORM') },
     };
     const meta = META[itemType] || META.Lesson;
     return { ...meta, icon: `<i class="ph ${meta.iconClass}"></i>` };
@@ -927,26 +1003,26 @@ function approverStepHtml(step, requireAll = false) {
 
 // ==================== BỐ CỤC ====================
 const MENU = [
-    { key: 'dashboard',    href: '/pages/dashboard.html',   icon: '<i class="ph ph-gauge"></i>', label: t('menu.dashboard', 'Tổng quan'),        role: ['Admin', 'Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { group: t('group.learning', 'Học tập'),    groupKey: 'learning', role: ['Học viên', 'Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'my-course',    href: '/pages/my-course.html',   icon: '<i class="ph ph-graduation-cap"></i>', label: t('menu.my-course', 'Khóa học của tôi'), role: ['Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'ai-tutor',     href: '/pages/ai-tutor.html',    icon: '<i class="ph ph-chalkboard-teacher"></i>', label: t('menu.ai-tutor', 'Pico B'), role: ['Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'certificate',  href: '/pages/certificate.html', icon: '<i class="ph ph-seal-check"></i>', label: t('index.stat-cert', 'Chứng nhận'),       role: ['Admin', 'Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'ranking',      href: '/pages/ranking.html',     icon: '<i class="ph ph-trophy"></i>', label: t('menu.ranking', 'Xếp hạng'),         role: ['Admin', 'Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'shop',         href: '/pages/shop.html',        icon: '<i class="ph ph-storefront"></i>', label: t('menu.shop', 'Trung Tâm Điểm Thưởng'),          role: ['Admin', 'Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'online-class', href: '/pages/online-class.html',icon: '<i class="ph ph-video-camera"></i>', label: t('menu.online-class', 'Phòng học online'), role: ['Admin', 'Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { group: t('group.training', 'Đào tạo'),    groupKey: 'training', role: ['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'course',       href: '/pages/course.html',      icon: '<i class="ph ph-books"></i>', label: t('menu.course', 'Quản lý khóa học'), role: ['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc'] },
+    { key: 'dashboard',    href: '/pages/dashboard.html',   icon: '<i class="ph ph-gauge"></i>', label: t('menu.dashboard', 'Tổng quan'),        role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { group: t('group.learning', 'Học tập'),    groupKey: 'learning', role: ['Học viên', 'Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'my-course',    href: '/pages/my-course.html',   icon: '<i class="ph ph-graduation-cap"></i>', label: t('menu.my-course', 'Khóa học của tôi'), role: ['Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'ai-tutor',     href: '/pages/ai-tutor.html',    icon: '<i class="ph ph-chalkboard-teacher"></i>', label: t('menu.ai-tutor', 'Pico B'), role: ['Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'certificate',  href: '/pages/certificate.html', icon: '<i class="ph ph-seal-check"></i>', label: t('index.stat-cert', 'Chứng nhận'),       role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'ranking',      href: '/pages/ranking.html',     icon: '<i class="ph ph-trophy"></i>', label: t('menu.ranking', 'Xếp hạng'),         role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'shop',         href: '/pages/shop.html',        icon: '<i class="ph ph-storefront"></i>', label: t('menu.shop', 'Trung Tâm Điểm Thưởng'),          role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'online-class', href: '/pages/online-class.html',icon: '<i class="ph ph-video-camera"></i>', label: t('menu.online-class', 'Phòng học online'), role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { group: t('group.training', 'Đào tạo'),    groupKey: 'training', role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'course',       href: '/pages/course.html',      icon: '<i class="ph ph-books"></i>', label: t('menu.course', 'Quản lý khóa học'), role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc'] },
     { key: 'approval-workflow', href: '/pages/approval-workflow.html', icon: '<i class="ph ph-git-branch"></i>', label: t('menu.approval-workflow', 'Luồng cấp duyệt'), role: ['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc'] },
-    { key: 'sim-library',  href: '/pages/sim-library.html', icon: '<i class="ph ph-cube"></i>', label: t('menu.sim-library', 'Thư viện 3D'), role: ['Admin', 'Trưởng Nhóm'] },
-    { key: 'report',       href: '/pages/report.html',      icon: '<i class="ph ph-chart-line-up"></i>', label: t('menu.report', 'Báo cáo'),          role: ['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'sim-library',  href: '/pages/sim-library.html', icon: '<i class="ph ph-cube"></i>', label: t('menu.sim-library', 'Thư viện 3D'), role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên'] },
+    { key: 'report',       href: '/pages/report.html',      icon: '<i class="ph ph-chart-line-up"></i>', label: t('menu.report', 'Báo cáo'),          role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
     { group: t('group.system', 'Hệ thống'),   groupKey: 'system',   role: ['Admin'] },
     { key: 'user',         href: '/pages/user.html',        icon: '<i class="ph ph-users"></i>', label: t('menu.user', 'Người dùng'),       role: ['Admin'] },
     { key: 'organization', href: '/pages/organization.html',icon: '<i class="ph ph-buildings"></i>', label: t('menu.organization', 'Phòng ban & Vị trí'), role: ['Admin'] },
     { key: 'role',         href: '/pages/role.html',        icon: '<i class="ph ph-shield-check"></i>', label: t('menu.role', 'Vai trò & Phân quyền'), role: ['Admin'] },
     { key: 'translation',  href: '/pages/translation.html', icon: '<i class="ph ph-translate"></i>', label: t('menu.translation', 'Dịch ngôn ngữ'), role: ['Admin'] },
     { key: 'ai-document', href: '/pages/ai-document.html', icon: '<i class="ph ph-brain"></i>', label: t('menu.ai-document', 'Tài liệu AI'), role: ['Admin'] },
-    { key: 'information',  href: '/pages/account.html', icon: '<i class="ph ph-gear"></i>', label: t('menu.information', 'Thông tin'),          role: ['Admin', 'Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] }
+    { key: 'information',  href: '/pages/account.html', icon: '<i class="ph ph-gear"></i>', label: t('menu.information', 'Thông tin'),          role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] }
 ];
 
 
@@ -1325,56 +1401,93 @@ function mountLayout(activeKey, title, subtitle = '') {
             </div>
         </aside>`);
 
+    // Người dùng bàn phím: phím Tab đầu tiên trên mọi trang dừng ở liên kết này, khỏi phải đi qua cả menu bên
+    // trái lẫn hàng nút trên thanh trên mới tới được nội dung. Phải đứng TRƯỚC thanh bên trong DOM (chèn sau
+    // thanh bên, cũng bằng 'afterbegin') — để trong thanh trên thì nó xếp sau hai chục mục menu. Ẩn cho tới khi
+    // được focus, xem .skip-link.
+    document.body.insertAdjacentHTML('afterbegin',
+        `<a class="skip-link" href="#" id="skip-to-content">${esc(t('shell.skipToContent', 'Bỏ qua tới nội dung chính'))}</a>`);
+
+    // Ô biểu tượng cạnh tiêu đề trang: đúng icon của mục menu đang sáng bên trái, nét hai tông (duotone) cho
+    // đậm hơn bản nét mảnh trong menu. Vừa cho khối tiêu đề một điểm tựa thị giác (trước đây chỉ là hai dòng chữ
+    // trơn), vừa nối tiêu đề với mục menu — liếc qua là biết mình đang ở đâu. Trang không có mục menu riêng
+    // (VD trang học bài) thì không có ô, tiêu đề đứng một mình như cũ.
+    const activeItem = MENU.find(x => x.key === activeKey && x.icon);
+    const pageIconHtml = activeItem
+        ? `<span class="topbar-icon" aria-hidden="true">${activeItem.icon.replace('class="ph ', 'class="ph-duotone ')}</span>`
+        : '';
+
     const main = document.querySelector('.main');
     if (main) {
         main.insertAdjacentHTML('afterbegin', `
-            <header class="topbar" >
-                <div class="flex">
-                    <button class="mobile-menu-btn" title="${esc(t('shell.menu', 'Menu'))}" onclick="toggleMobileSidebar()"><i class="ph ph-list"></i></button>
-                    <div>
+            <header class="topbar" id="topbar">
+                <!-- Giữ lớp .flex và cặp h1 / .sub: nhiều trang tự thay tiêu đề bằng querySelector('.topbar h1')
+                     và chèn lại '.topbar .sub' ngay sau nó (course-detail, learn, quiz, classroom-recap). -->
+                <div class="flex topbar-title">
+                    <button class="mobile-menu-btn" type="button" title="${esc(t('shell.menu', 'Menu'))}"
+                            aria-label="${esc(t('shell.menu', 'Menu'))}" onclick="toggleMobileSidebar()"><i class="ph ph-list"></i></button>
+                    ${pageIconHtml}
+                    <div class="topbar-heading">
                         <h1>${esc(title)}</h1>
-                        ${subtitle ? `<div class="sub">${esc(subtitle)}</div>` : ''}
+                        ${subtitle ? `<div class="sub" title="${esc(subtitle)}">${esc(subtitle)}</div>` : ''}
                     </div>
                 </div>
-                <div class="topbar-search" >
+                <div class="topbar-search" role="search">
                     <i class="ph ph-magnifying-glass"></i>
                     <input type="search" id="topbar-search-input" autocomplete="off"
                            value="${esc(qs('keyword') || '')}"
+                           aria-label="${esc(t('shell.search', 'Tìm kiếm'))}"
                            placeholder="${esc(t('shell.searchPlaceholder', 'Tìm khóa học,...'))}">
+                    <kbd class="topbar-kbd" aria-hidden="true">${/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘ K' : 'Ctrl K'}</kbd>
                 </div>
-                <!-- Bên phải chia làm hai cụm: cụm tiện ích luôn cố định (chỉ số, chuông, giao diện, ngôn ngữ)
-                     và cụm hành động riêng của từng trang. Gom nhóm rồi ngăn bằng một vạch mảnh, thay vì rải
-                     đều một hàng nút cách nhau 10px — nhìn một hàng dài toàn nút bằng nhau thì mắt không biết
-                     đâu là nút chính của trang. -->
+                <!-- Chỉ hiện trên màn hẹp, nơi ô tìm kiếm bị cất đi: bấm là ô trải ra thành một dòng riêng (xem
+                     mountTopbarSearch). Cố ý đứng NGOÀI khối tiện ích: trên điện thoại nó nằm cuối dòng tiêu đề,
+                     để dòng nút thứ hai đủ chỗ cho cả khối tiện ích lẫn nút của trang. -->
+                <button class="topbar-search-toggle" id="topbar-search-toggle" type="button"
+                        title="${esc(t('shell.search', 'Tìm kiếm'))}" aria-label="${esc(t('shell.search', 'Tìm kiếm'))}"
+                        aria-controls="topbar-search-input" aria-expanded="false">
+                    <i class="ph ph-magnifying-glass"></i>
+                </button>
+                <!-- Bên phải: hai KHỐI LIỀN rồi tới hành động riêng của trang. Khối số liệu (chuỗi ngày, điểm)
+                     và khối tiện ích (tìm kiếm trên điện thoại, chat, chuông, sáng/tối, ngôn ngữ) mỗi khối chung
+                     một nền một viền, các nút bên trong không viền riêng. Trước đây là sáu ô có viền đứng cách đều
+                     nhau thành một hàng rào; gom lại thì mắt đọc ra hai nhóm, và nút chính của trang (sau vạch
+                     ngăn) là thứ duy nhất còn nổi khối. -->
                 <div class="topbar-right">
                   <div class="topbar-tools">
-                    <!-- Hai viên chỉ số đổ vào sau, cùng lượt gọi API với thanh kinh nghiệm. -->
-                    <span class="topbar-pill streak hidden" id="pill-streak" title="${esc(t('shell.streakTitle', 'Số ngày học liên tiếp'))}">
-                        <i class="ph-fill ph-fire"></i><b id="pill-streak-value">0</b>
-                    </span>
-                    <!-- Viên điểm dẫn thẳng vào Cửa hàng khi người này vào được đó: điểm chỉ có ý nghĩa khi
-                         tiêu được, mà chỗ tiêu lại nằm sâu trong menu bên trái. Vai trò không được vào cửa
-                         hàng thì nó vẫn là một viên chỉ số tĩnh như trước. -->
-                    <span class="topbar-pill point hidden${canOpenShop ? ' clickable' : ''}" id="pill-point"
-                          ${canOpenShop ? `onclick="location.href='/pages/shop.html'"` : ''}
-                          title="${esc(canOpenShop
-                              ? t('shell.pointTitleShop', 'Điểm tích lũy — bấm để vào Trung Tâm đổi quà')
-                              : t('shell.pointTitle', 'Điểm tích lũy'))}">
-                        <i class="ph-fill ph-diamond"></i><b id="pill-point-value">0</b>
-                    </span>
+                    <!-- Hai viên chỉ số đổ vào sau, cùng lượt gọi API với thanh kinh nghiệm. Chưa viên nào hiện
+                         thì CSS giấu luôn cái khối rỗng (xem .topbar-stats). -->
+                    <div class="topbar-stats">
+                        <span class="topbar-pill streak hidden" id="pill-streak" title="${esc(t('shell.streakTitle', 'Số ngày học liên tiếp'))}">
+                            <i class="ph-fill ph-fire"></i><b id="pill-streak-value">0</b>
+                        </span>
+                        <!-- Viên điểm dẫn thẳng vào Cửa hàng khi người này vào được đó: điểm chỉ có ý nghĩa khi
+                             tiêu được, mà chỗ tiêu lại nằm sâu trong menu bên trái. Vai trò không được vào cửa
+                             hàng thì nó vẫn là một viên chỉ số tĩnh như trước. -->
+                        <span class="topbar-pill point hidden${canOpenShop ? ' clickable' : ''}" id="pill-point"
+                              ${canOpenShop ? `onclick="location.href='/pages/shop.html'"` : ''}
+                              title="${esc(canOpenShop
+                                  ? t('shell.pointTitleShop', 'Điểm tích lũy — bấm để vào Trung Tâm đổi quà')
+                                  : t('shell.pointTitle', 'Điểm tích lũy'))}">
+                            <i class="ph-fill ph-diamond"></i><b id="pill-point-value">0</b>
+                        </span>
+                    </div>
+                  <div class="topbar-dock">
                     <!-- Hộp chat nội bộ. Dùng lại class .notif-btn/.notif-badge của chuông chứ không tự
                          đặt kiểu riêng: hai nút đứng cạnh nhau mà lệch vài pixel là thấy ngay, và mỗi lần
                          chỉnh khuôn nút tiện ích lại phải nhớ sửa hai chỗ. Bảng chat do js/chat.js đổ vào
                          trong thẻ bọc này (nó cần .notif-wrapper làm mốc position:relative để xổ xuống). -->
                     <div class="notif-wrapper" id="chat-bell">
-                        <button class="notif-btn" id="chat-topbar-btn" type="button" title="${esc(t('shell.chat', 'Tin nhắn'))}">
+                        <button class="notif-btn" id="chat-topbar-btn" type="button" title="${esc(t('shell.chat', 'Tin nhắn'))}"
+                                aria-label="${esc(t('shell.chat', 'Tin nhắn'))}">
                             <i class="ph ph-chat-circle-dots"></i>
                             <span class="notif-badge hidden" id="chat-badge">0</span>
                         </button>
                     </div>
 
                     <div class="notif-wrapper" id="notif-bell">
-                        <button class="notif-btn" id="notif-bell-btn" type="button" title="${esc(t('shell.notification', 'Thông báo'))}">
+                        <button class="notif-btn" id="notif-bell-btn" type="button" title="${esc(t('shell.notification', 'Thông báo'))}"
+                                aria-label="${esc(t('shell.notification', 'Thông báo'))}">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -1403,12 +1516,14 @@ function mountLayout(activeKey, title, subtitle = '') {
                     <button class="theme-switch" type="button" id="theme-switch-btn"></button>
                     <button class="lang-switch" type="button" id="lang-switch-btn"></button>
                   </div>
+                  </div>
                   <div class="topbar-action" id="topbar-action"></div>
                 </div>
             </header>`);
 
         mountNotificationBell();
         mountTopbarSearch();
+        mountTopbarChrome();
         mountRankBadge();
         renderThemeSwitch(document.getElementById('theme-switch-btn'));
         // Phần bên trong nút và hành vi xổ xuống do language.js lo — xem renderLanguageSwitch().
@@ -1472,15 +1587,67 @@ function mountTopbarSearch() {
     const allowedKeyList = Auth.functionKeyList;
     const canOpenCourse = allowedKeyList
         ? hasFunctionView(allowedKeyList, 'course')
-        : ['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc'].some(x => Auth.hasRole(x));
+        : ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc'].some(x => Auth.hasRole(x));
     const targetPage = canOpenCourse ? '/pages/course.html' : '/pages/my-course.html';
 
+    const topbar = document.getElementById('topbar');
+    const toggle = document.getElementById('topbar-search-toggle');
+
+    // Trên màn hẹp ô tìm kiếm bị cất đi, nút kính lúp trong khối tiện ích trải nó ra thành một dòng riêng.
+    // Trên màn rộng lớp search-open không có tác dụng gì nên mở/đóng dùng chung một đường.
+    const openSearch = () => {
+        topbar?.classList.add('search-open');
+        toggle?.setAttribute('aria-expanded', 'true');
+        input.focus();
+        input.select();
+    };
+    const closeSearch = () => {
+        topbar?.classList.remove('search-open');
+        toggle?.setAttribute('aria-expanded', 'false');
+    };
+    toggle?.addEventListener('click', () =>
+        topbar?.classList.contains('search-open') ? closeSearch() : openSearch());
+
     input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { input.blur(); closeSearch(); return; }
         if (e.key !== 'Enter') return;
         e.preventDefault();
         const keyword = input.value.trim();
         location.href = keyword ? `${targetPage}?keyword=${encodeURIComponent(keyword)}` : targetPage;
     });
+
+    // Phím tắt Ctrl/⌘ + K và "/" — chỉ khi KHÔNG đang gõ ở đâu cả. Ctrl + K trong trình soạn thảo bài học
+    // (Quill) là "chèn liên kết", còn "/" là một ký tự người ta gõ thật; cướp hai phím đó giữa chừng là phá
+    // việc đang làm của người dùng.
+    document.addEventListener('keydown', (e) => {
+        const target = e.target;
+        const isTyping = target instanceof Element
+            && !!target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]');
+        if (isTyping) return;
+        const isShortcut = ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')
+            || (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey);
+        if (!isShortcut) return;
+        e.preventDefault();
+        openSearch();
+    });
+}
+
+/** Phần "vỏ" của thanh trên: liên kết bỏ qua tới nội dung, và bóng đổ chỉ hiện khi trang đã cuộn — đứng yên ở
+ *  đầu trang thì thanh trên hòa vào nền, cuộn xuống thì nó nổi lên tách khỏi nội dung đang trôi bên dưới. */
+function mountTopbarChrome() {
+    document.getElementById('skip-to-content')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = document.querySelector('.main .content') || document.querySelector('.main');
+        if (!target) return;
+        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+        target.focus();
+    });
+
+    const topbar = document.getElementById('topbar');
+    if (!topbar) return;
+    const syncShadow = () => topbar.classList.toggle('is-scrolled', window.scrollY > 4);
+    window.addEventListener('scroll', syncShadow, { passive: true });
+    syncShadow();
 }
 
 // ==================== CHỈ SỐ HỌC TẬP (chuỗi ngày, điểm, kinh nghiệm) ====================
@@ -1767,6 +1934,7 @@ function mountNotificationBell() {
             WeeklyReminder: ['ph-calendar-check', 'warn'],
             StudyReminder: ['ph-alarm', ''],
             ShopRedemption: ['ph-gift', 'gold'],
+            ExternalCertificate: ['ph-certificate', ''],
         }[type] || ['ph-bell', ''];
     }
 
@@ -1777,13 +1945,17 @@ function mountNotificationBell() {
         // Thông báo đổi quà không gắn với khóa học nào, nhưng vẫn có chỗ để dẫn tới: lịch sử đổi quà của
         // chính người nhận, nơi đọc được trạng thái từng lượt.
         if (item.type === 'ShopRedemption') return t('shell.notifGoShop', 'Xem lượt đổi');
+        if (item.type === 'ExternalCertificate') return t('shell.notifGoCertificate', 'Xem chứng nhận');
         return null;
     }
 
     function linkOf(item) {
-        if (item.enrollmentId) return `/pages/learn.html?enrollmentId=${item.enrollmentId}`;
+        if (item.enrollmentId) return `/pages/scorm-player.html?enrollmentId=${item.enrollmentId}`;
         if (item.courseId) return `/pages/course-detail.html?id=${item.courseId}`;
         if (item.type === 'ShopRedemption') return '/pages/shop.html?tab=mine';
+        // Nhân viên nhận kết quả AI / Admin đối chiếu -> thẻ của mình; Admin (thông báo "chờ duyệt" cũ) -> thẻ quản lý.
+        if (item.type === 'ExternalCertificate')
+            return `/pages/certificate.html?tab=${Auth.isAdmin ? 'review' : 'external'}`;
         return null;
     }
 
@@ -2377,6 +2549,34 @@ function attachDropdown(buttonId, itemList) {
 function setTopbarAction(html) {
     const box = document.getElementById('topbar-action');
     if (box) box.innerHTML = html;
+}
+
+// ==================== KHUNG TRANG CỦA SCO ====================
+//
+// Bài học / bài kiểm tra / mô phỏng là SCO của khóa học SCORM, chạy TRONG khung nội dung của trình phát
+// (pages/scorm-player.html). Trình phát đã có mục lục, nút Tiếp/Trước và tên khóa học — dựng thêm thanh bên và
+// thanh trên ở đây chỉ phí chỗ của nội dung. Nên khung SCO chỉ có một dòng tiêu đề mỏng và vùng nội dung.
+
+/** Dựng khung trang SCO. Gọi sau Lang.ready + Auth.require(), giống mountLayout. */
+function mountScoLayout(title, subHtml = '') {
+    ensurePhosphorIcons();
+    ensureUicons();
+    document.body.classList.add('sco-mode');
+    document.body.insertAdjacentHTML('afterbegin', `
+        <header class="sco-head">
+            <div class="sco-head-text">
+                <h1 id="sco-title">${esc(title)}</h1>
+                <div class="sco-sub" id="sco-sub">${subHtml}</div>
+            </div>
+            <div class="sco-head-actions" id="sco-actions"></div>
+        </header>`);
+}
+
+/** Đổi tiêu đề / dòng phụ / nút của khung SCO. Tham số undefined = giữ nguyên phần đó. */
+function setScoHead(title, subHtml, actionHtml) {
+    if (title !== undefined) document.getElementById('sco-title').textContent = title;
+    if (subHtml !== undefined) document.getElementById('sco-sub').innerHTML = subHtml;
+    if (actionHtml !== undefined) document.getElementById('sco-actions').innerHTML = actionHtml;
 }
 
 // ==================== MENU XỔ CHO NÚT "…" ====================

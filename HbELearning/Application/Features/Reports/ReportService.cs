@@ -43,6 +43,13 @@ public class ReportService : IReportService
             && x.Status != EnrollmentStatus.Cancelled);
 
         var totalCertificate = await _db.Certificate.CountAsync(x => !x.IsRevoked);
+        var monthStart = new DateTime(now.Year, now.Month, 1);
+        var certificateThisMonth = await _db.Certificate.CountAsync(x => !x.IsRevoked && x.IssuedAt >= monthStart);
+
+        // Quà chờ trao đếm theo LƯỢT ĐỔI chứ không cộng Quantity, cho khớp con số "Chờ trao N lượt" ở trang Cửa hàng.
+        var pendingGiftQuery = _db.ShopRedemption.Where(x => x.Status == ShopRedemptionStatus.Pending);
+        var pendingGift = await pendingGiftQuery.CountAsync();
+        var pendingGiftUser = await pendingGiftQuery.Select(x => x.UserId).Distinct().CountAsync();
 
         var averageProgress = totalEnrollment == 0 ? 0m
             : await _db.Enrollment.Where(x => x.Status != EnrollmentStatus.Cancelled)
@@ -53,7 +60,51 @@ public class ReportService : IReportService
 
         return Result.Success(new OverviewReportDto(totalUser, activeUser, totalCourse, publishedCourse,
             totalEnrollment, completed, inProgress, notStarted, overdue, totalCertificate,
-            completionRate, Math.Round(averageProgress, 2)));
+            completionRate, Math.Round(averageProgress, 2), certificateThisMonth, pendingGift, pendingGiftUser));
+    }
+
+    public async Task<Result> GetCompletionTrend(int? year)
+    {
+        var currentYear = DateTime.Now.Year;
+
+        // Xếp lượt đào tạo theo THÁNG ĐƯỢC PHÂN CÔNG: mỗi lượt đứng đúng một cột và không nhảy cột khi người học
+        // hoàn thành muộn. Xếp theo ngày hoàn thành thì lượt chưa xong không có cột nào để đứng. Lượt đã hủy không
+        // tính — người phụ trách đã gỡ thì đó không còn là việc "chưa hoàn thành" của ai cả.
+        var rowList = await _db.Enrollment.AsNoTracking()
+            .Where(x => x.Status != EnrollmentStatus.Cancelled)
+            .GroupBy(x => new { x.AssignedAt.Year, x.AssignedAt.Month })
+            .Select(g => new
+            {
+                g.Key.Year,
+                g.Key.Month,
+                Completed = g.Count(x => x.Status == EnrollmentStatus.Completed),
+                Total = g.Count()
+            })
+            .ToListAsync();
+
+        // Luôn có ít nhất 5 năm gần nhất: một cột đơn độc không cho thấy xu hướng nào, còn năm trống hiện cột 0
+        // mới là câu trả lời đúng ("năm đó chưa ai được giao khóa nào").
+        var firstYear = Math.Min(rowList.Count > 0 ? rowList.Min(x => x.Year) : currentYear, currentYear - 4);
+        var lastYear = Math.Max(rowList.Count > 0 ? rowList.Max(x => x.Year) : currentYear, currentYear);
+        var selectedYear = year is { } y && y >= firstYear && y <= lastYear ? y : currentYear;
+
+        var monthList = Enumerable.Range(1, 12)
+            .Select(month =>
+            {
+                var row = rowList.FirstOrDefault(x => x.Year == selectedYear && x.Month == month);
+                return row is null
+                    ? new CompletionTrendPointDto(month, 0, 0)
+                    : new CompletionTrendPointDto(month, row.Completed, row.Total - row.Completed);
+            })
+            .ToList();
+
+        var yearList = Enumerable.Range(firstYear, lastYear - firstYear + 1)
+            .Select(y => new CompletionTrendPointDto(y,
+                rowList.Where(x => x.Year == y).Sum(x => x.Completed),
+                rowList.Where(x => x.Year == y).Sum(x => x.Total - x.Completed)))
+            .ToList();
+
+        return Result.Success(new CompletionTrendDto(selectedYear, monthList, yearList));
     }
 
     public async Task<Result> GetCourseReport()

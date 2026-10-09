@@ -39,6 +39,9 @@ public class ScenarioSceneRequest
 {
     [Required] public int CourseId { get; set; }
 
+    /// <summary>Chương của cấu trúc khóa học sẽ chứa nội dung mới (chỉ dùng lúc tạo); null = tự xếp chỗ.</summary>
+    public int? ParentItemId { get; set; }
+
     /// <summary>Bài học mà mô phỏng này gắn theo (nếu có) — null = mô phỏng độc lập.</summary>
     public int? LessonId { get; set; }
 

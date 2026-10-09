@@ -517,7 +517,8 @@ public class TranslationService : ITranslationService
         {
             _logger.LogError(ex, "Dich bang AI that bai ({Source} -> {Target}, {Count} khoa).",
                 sourceLang, targetLang, pendingList.Count);
-            return Result.ExternalServiceFailed(new MessageResponse($"Không dịch được bằng AI: {ex.Message}"));
+            return Result.ExternalServiceFailed(new MessageResponse(
+                "Máy chủ AI đang không phản hồi nên chưa dịch được. Vui lòng thử lại sau ít phút."));
         }
 
         // Chỉ nhận lại đúng những khóa đã gửi đi: model thỉnh thoảng bịa thêm khóa hoặc trả về khóa bị cắt

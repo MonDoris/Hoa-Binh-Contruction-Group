@@ -30,8 +30,9 @@ const Auth = {
     get isLoggedIn() { return !!this.token; },
     get isAdmin() { return this.hasRole('Admin'); },
     get isTrainer() { return this.hasRole('Trưởng Nhóm'); },
+    get isInstructor() { return this.hasRole('Giảng Viên'); },
     get isManagingDirector() { return this.hasRole('Tổng Giám Đốc'); },
-    get isManager() { return this.isAdmin || this.isTrainer; },
+    get isManager() { return this.isAdmin || this.isTrainer || this.isInstructor; },
     get isApprovalDelegate() { return !!this.profile?.isApprovalDelegate; },
 
     /** Vai trò của người này đang được giao ít nhất một bước trong một luồng cấp duyệt còn hoạt động — họ cần
@@ -45,6 +46,27 @@ const Auth = {
 
     /** Ghi đè hồ sơ đang lưu mà giữ nguyên phiên đăng nhập — dùng khi làm mới hồ sơ từ /auth/me. */
     saveProfile(profile) { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); },
+
+    /**
+     * Vé ngắn hạn để mở kết nối SignalR (hộp chat, phòng học online).
+     *
+     * KHÔNG dùng thẳng Auth.token cho kênh thời gian thực: WebSocket không đặt được header Authorization
+     * nên thư viện SignalR phải nhét thẻ vào ĐỊA CHỈ (?access_token=...), mà địa chỉ thì bị ghi lại trong
+     * nhật ký của máy chủ, của proxy và trong lịch sử trình duyệt. Thẻ đăng nhập sống 8 tiếng, còn vé này
+     * sống 2 phút và máy chủ từ chối nó ở mọi đường ngoài /hubs.
+     *
+     * Xin vé hỏng thì lùi về dùng thẻ đăng nhập: mất chat vì một lượt gọi lỗi còn tệ hơn.
+     */
+    async hubTicket() {
+        try {
+            // getSilent: vé được xin lại ở mỗi lần nối lại kênh, không nên để màn hình chớp loading mỗi lần.
+            const result = await API.getSilent('/auth/hub-ticket');
+            return result.ticket;
+        } catch (ex) {
+            console.warn('Khong xin duoc ve SignalR, tam dung the dang nhap:', ex.message);
+            return this.token;
+        }
+    },
 
     clear() {
         localStorage.removeItem(TOKEN_KEY);
@@ -240,7 +262,9 @@ function endGlobalLoading(showOverlay) {
     }
 }
 
-async function request(method, path, body, isFormData = false, silent = false) {
+/** signal (AbortSignal, tùy chọn): hủy request giữa chừng — VD người dùng đổi ảnh trong lúc AI còn đang đọc ảnh
+ *  cũ. Request bị hủy ném nguyên AbortError, không bọc thành "không kết nối được máy chủ". */
+async function request(method, path, body, isFormData = false, silent = false, signal = undefined) {
     const headers = {};
     if (Auth.token) headers['Authorization'] = `Bearer ${Auth.token}`;
     if (body && !isFormData) headers['Content-Type'] = 'application/json';
@@ -254,9 +278,11 @@ async function request(method, path, body, isFormData = false, silent = false) {
             response = await fetch(`/api${path}`, {
                 method,
                 headers,
-                body: body ? (isFormData ? body : JSON.stringify(body)) : undefined
+                body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
+                signal
             });
-        } catch {
+        } catch (ex) {
+            if (ex?.name === 'AbortError') throw ex;
             throw new ApiError('Không kết nối được máy chủ. Kiểm tra ứng dụng đã chạy chưa.', 0);
         }
 
@@ -321,7 +347,7 @@ const API = {
     /** Như postForm nhưng KHÔNG che màn hình — dùng khi tự gửi NHIỀU tệp nối tiếp nhau và đã có chỗ báo tiến độ
      *  riêng (hộp chat gửi kèm cả một thư mục). Để nguyên lớp che thì một thư mục 30 tệp là 30 lần màn hình chớp tối,
      *  mà tệ hơn là nó chặn luôn mọi cú bấm suốt lượt gửi — kể cả bấm để dừng lại. */
-    postFormSilent: (path, form) => request('POST', path, form, true, true),
+    postFormSilent: (path, form, signal) => request('POST', path, form, true, true, signal),
 
     /** Gửi một file tới endpoint bất kỳ (dùng cho import Excel). */
     postFile: (path, file) => {
@@ -337,7 +363,12 @@ const API = {
     uploadWithProgress: (path, file, onProgress) => {
         const form = new FormData();
         form.append('file', file);
+        return API.postFormWithProgress(path, form, onProgress);
+    },
 
+    /** Như uploadWithProgress nhưng gửi nguyên một FormData tự dựng (tệp + các trường mô tả) — dùng cho gói SCORM
+     *  hàng trăm MB, nơi người soạn cần thấy % tải lên thay vì một màn hình chờ không biết bao lâu. */
+    postFormWithProgress: (path, form, onProgress) => {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', `/api${path}`);
@@ -371,6 +402,20 @@ const API = {
             xhr.onerror = () => reject(new ApiError('Không kết nối được máy chủ. Kiểm tra ứng dụng đã chạy chưa.', 0));
             xhr.send(form);
         });
+    },
+
+    /** Lấy một tệp từ endpoint cần đăng nhập về thành Blob — để hiện qua URL.createObjectURL trong <img> /
+     *  <iframe>, vì hai thẻ đó không tự gửi được header Authorization (VD tệp quét chứng nhận bên ngoài). */
+    blob: async (path) => {
+        const headers = {};
+        if (Auth.token) headers['Authorization'] = `Bearer ${Auth.token}`;
+        const response = await fetch(`/api${path}`, { headers });
+        if (!response.ok) {
+            let message = 'Không tải được tệp.';
+            try { message = (await response.json())?.message || message; } catch { /* thân không phải JSON */ }
+            throw new ApiError(message, response.status);
+        }
+        return await response.blob();
     },
 
     /** Tải file từ endpoint có yêu cầu đăng nhập — thẻ <a> thông thường không gửi được token. */

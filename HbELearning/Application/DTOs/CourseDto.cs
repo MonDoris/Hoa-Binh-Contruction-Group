@@ -8,17 +8,21 @@ public record CourseListDto(
     string Status, int DurationMinutes, decimal PassScore, bool IsMandatory,
     int LessonCount, int QuizCount, int EnrollmentCount,
     int CreatedById, string CreatedByName, int? CreatedByDepartmentId, DateTime CreatedAt,
+    DateTime StartDate, DateTime EndDate,
     string? RejectionReason, string? RejectedByRoleName, string? HrApproverLabel,
     int? ApprovalWorkflowId = null, string? ApprovalWorkflowName = null, int CurrentStepOrder = 0,
     IReadOnlyList<string>? ApprovalStepNameList = null, bool CanApprove = false,
     string? CurrentStepApproverName = null, bool CanReassignApprover = false,
     // Chỉ có ở mục gợi ý khóa học (GetMyAvailable): vì sao khóa này hợp với học viên —
     // "DepartmentPosition" | "Department" | "Position" | "All".
-    string? SuggestReason = null);
+    string? SuggestReason = null,
+    // Số gói SCORM của khóa học — khóa học nhập nguyên từ gói SCORM có 0 bài học, 0 bài kiểm tra.
+    int ScormPackageCount = 0);
 
 public record CourseDetailDto(
     int Id, string Code, string Title, string? Description, string? ThumbnailUrl,
     string Status, int DurationMinutes, decimal PassScore, bool IsMandatory, int? DeadlineDay,
+    DateTime StartDate, DateTime EndDate,
     int CreatedById, string CreatedByName, int? CreatedByDepartmentId, DateTime CreatedAt, DateTime? UpdatedAt,
     string? RejectionReason, string? RejectedByRoleName, string? HrApproverLabel,
     IReadOnlyList<CourseTargetDto> TargetList,
@@ -95,6 +99,11 @@ public class CourseRequest
     [Range(0, 100)] public decimal PassScore { get; set; } = 70m;
     public bool IsMandatory { get; set; }
     [Range(1, 3650)] public int? DeadlineDay { get; set; }
+
+    /// <summary>Ngày bắt đầu / kết thúc khóa học — bắt buộc. Để kiểu nullable chỉ để [Required] bắt được ô bị bỏ
+    /// trống: với DateTime thường, thiếu trường vẫn thành 01/01/0001 và lọt qua kiểm tra.</summary>
+    [Required(ErrorMessage = "Vui lòng nhập ngày bắt đầu khóa học.")] public DateTime? StartDate { get; set; }
+    [Required(ErrorMessage = "Vui lòng nhập ngày kết thúc khóa học.")] public DateTime? EndDate { get; set; }
 
     /// <summary>Luong cap duyet nguoi soan chon cho khoa hoc (do Admin dinh nghia san). Null = khong chon,
     /// khoa hoc chay chuoi duyet co dinh cu. Chi doi duoc khi khoa hoc con o trang thai Nhap / Tu choi.</summary>

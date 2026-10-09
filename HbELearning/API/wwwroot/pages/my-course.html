@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
@@ -9,440 +9,367 @@
     <script src="/js/head.js"></script>
     <title data-i18n="my-course.khoaHocCuaToiHbELearning">Khóa học của tôi · HB E-Learning</title>
     <link rel="stylesheet" href="/css/style.css">
-    <!-- Phosphor Icons -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
-    
+
     <style>
-        /* Biến riêng của trang này — có tiền tố --mc- để không bao giờ đè lên biến dùng chung của
-           css/style.css. Trước đây khối :root ở đây đặt lại --primary thành #0ea5e9, nên riêng trang
-           "Khóa học của tôi" có màu thương hiệu khác 24 trang còn lại. */
-        :root {
-            --mc-secondary: #3b82f6;
-            --mc-transition: all .3s cubic-bezier(.4, 0, .2, 1);
-        }
+        /* ==================== KHÓA HỌC CỦA TÔI ====================
+           Trang học tập RIÊNG của từng người. Học viên, Trưởng Nhóm, Trưởng phòng, Giám Đốc, Tổng Giám Đốc vào đây
+           đều với tư cách người học, nên trang cố ý giống nhau cho mọi vai trò — việc theo vai trò (soạn, duyệt)
+           nằm ở Quản lý khóa học. Tổng quan đã có khối "Tiếp tục học"; trang này là chỗ QUẢN LÝ việc học: còn gì
+           phải học (xếp theo mức gấp), hạn chót nào sắp tới, điểm, chứng nhận, lịch và nhắc nhở.
 
-        /* Course Card Modern */
-        .course-card-modern {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-            transition: var(--mc-transition);
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-        .course-card-modern:hover {
-            transform: translateY(-8px);
-            box-shadow: var(--shadow-lg);
-            border-color: var(--primary);
-        }
-        .course-card-modern .thumb {
-            height: 160px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--mc-secondary) 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-        }
-        .course-card-modern .thumb i { font-size: 4rem; color: rgba(255, 255, 255, 0.8); transition: var(--mc-transition); }
-        .course-card-modern:hover .thumb i { transform: scale(1.1); color: #ffffff; }
-        
-        .course-card-modern .badge-status {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            backdrop-filter: blur(4px);
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 20px;
-            padding: 4px 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #fff;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        
-        .course-card-modern .info { padding: 20px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
-        .course-card-modern .title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin: 0; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .course-card-modern .meta { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+           Ba thẻ thay cho bốn khối xếp chồng trước đây: lịch tháng cao 600px từng đẩy danh sách khóa học gợi ý xuống
+           tận đáy trang, và nút chuông trên lịch mở ra lời nhắc nằm ở một khối khác hẳn.
 
-        .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; margin-top: 16px; }
-        .btn-modern { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; text-decoration: none; transition: var(--mc-transition); cursor: pointer; border: none; }
-        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3); }
-        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: var(--shadow-primary); }
-        .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
-        .btn-outline:hover { background: var(--border); color: var(--primary-dark); border-color: var(--primary); }
-        .btn-gold { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3); }
-        .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(245, 158, 11, 0.4); }
+           Tiền tố mc- (my course). Mọi màu lấy từ biến của css/style.css để tự đổi theo nền sáng / tối — bản cũ
+           tô cứng #e0f2fe, #fff1f2, nền trắng khi rê chuột... nên ở chế độ tối thành những mảng sáng lóa. */
 
+        .mc-tabs-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+        .mc-tabs-row .tabs { margin-bottom: 0; }
+        .mc-count {
+            min-width: 20px; padding: 0 7px; border-radius: 999px; text-align: center; line-height: 18px;
+            background: var(--border); color: var(--text-muted); font-size: 11px; font-weight: 700;
+        }
+        .tabs button.active .mc-count { background: var(--primary-light); color: var(--primary-dark); }
 
-        /* =========================================
-           LỊCH HỌC DẠNG HÀNG NGANG CHUẨN (ROW LIST VIEW)
-           ========================================= */
-        .cal-controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        .mc-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+        .mc-layout.wide-side { grid-template-columns: minmax(0, 1fr) 380px; }
+        .mc-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+        .mc-layout .card { margin-bottom: 0; }
+        .mc-side .card-head { padding: 13px 16px; }
+        .mc-side .card-body { padding: 14px 16px; }
+        .mc-card-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; }
+        .mc-card-title i { color: var(--primary); font-size: 17px; }
+
+        /* ---------- Thanh lọc + tìm kiếm ---------- */
+        .mc-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .mc-toolbar .dash-chips { margin-bottom: 0; padding-bottom: 0; }
+        .mc-search { position: relative; }
+        .mc-search i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+        .mc-search input { padding-left: 34px; width: 240px; }
+
+        /* ---------- Danh sách khóa học, chia nhóm theo mức gấp ---------- */
+        .mc-group + .mc-group { margin-top: 22px; }
+        .mc-group-head {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+            font-size: 12px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--text-muted);
+        }
+        .mc-group-head i { font-size: 15px; }
+        .mc-group-head .n { padding: 0 8px; border-radius: 999px; background: var(--border); font-size: 11px; letter-spacing: 0; }
+        .mc-group-head.overdue { color: var(--danger); }
+        .mc-group-head.progress i { color: var(--primary); }
+        .mc-group-head.done i { color: var(--success); }
+        .mc-group-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .mc-item {
+            display: grid; grid-template-columns: 136px minmax(0, 1fr) auto; align-items: center; overflow: hidden;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); transition: box-shadow .15s ease;
+        }
+        .mc-item:hover { box-shadow: var(--shadow); }
+        .mc-item.overdue { border-left: 3px solid var(--danger); }
+        .mc-item.done .course-mini-thumb, .mc-item.cancelled .course-mini-thumb { filter: saturate(.5); }
+        /* Ảnh bìa là cả một cột bên trái, tràn kín thẻ từ trên xuống dưới và sát mép trái; chữ bắt đầu sau một
+           khoảng an toàn 18px (padding-left của .mc-main). Cùng khuôn với thẻ ở trang Quản lý khóa học. */
+        .mc-thumb-link { align-self: stretch; display: flex; min-height: 92px; }
+        .mc-thumb-link:hover { text-decoration: none; }
+        .mc-thumb-link .course-mini-thumb { flex: 1; width: auto; height: auto; border-radius: 0; font-size: 30px; }
+        .mc-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 14px 0 14px 18px; }
+        .mc-title {
+            font-size: 15px; font-weight: 700; line-height: 1.4; color: var(--text);
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .mc-title:hover { color: var(--primary-dark); text-decoration: none; }
+        .mc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 12px; font-size: 12.5px; color: var(--text-muted); }
+        .mc-meta span { display: inline-flex; align-items: center; gap: 4px; }
+        .mc-meta .code { font-weight: 700; color: var(--text); letter-spacing: .2px; }
+        .mc-due { font-weight: 600; }
+        .mc-due.bad { color: var(--danger); }
+        .mc-due.warn { color: var(--warning); }
+        .mc-due.ok { color: var(--success); }
+        .mc-prog { max-width: 440px; margin-top: 2px; }
+        .mc-actions { display: flex; align-items: center; gap: 6px; padding: 14px 16px; }
+
+        .mc-empty-cta { margin-top: 14px; }
+
+        /* ---------- Cột phụ: tổng quan, hạn chót, nhắc nhở ---------- */
+        .mc-overview-num { display: flex; align-items: baseline; gap: 4px; }
+        .mc-overview-num b { font-size: 28px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+        .mc-overview-num span { font-size: 15px; font-weight: 700; color: var(--text-muted); }
+        .mc-overview-sub { font-size: 12.5px; color: var(--text-muted); margin: 4px 0 10px; }
+        .mc-overview-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px;
+        }
+        .mc-overview-bar { margin-bottom: 10px; }
+        .mc-overview-row span { display: inline-flex; align-items: center; gap: 7px; color: var(--text-muted); }
+        .mc-overview-row b { font-weight: 700; }
+
+        .mc-dl { display: flex; flex-direction: column; }
+        .mc-dl a { display: flex; align-items: center; gap: 11px; padding: 8px; margin: 0 -8px; border-radius: 10px; color: var(--text); }
+        .mc-dl a:hover { background: var(--bg); text-decoration: none; }
+        /* Bề ngang theo chữ tháng chứ không cố định: tháng viết tắt của tiếng Việt là "thg 8" / "tháng 8", ô 42px
+           bẻ nó làm hai dòng. */
+        .mc-date {
+            min-width: 44px; flex-shrink: 0; padding: 5px 6px; border-radius: 9px; text-align: center; line-height: 1.15;
             background: var(--bg);
-            padding: 4px;
-            border-radius: 30px;
-            border: 1px solid var(--border);
         }
-        .cal-controls button {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: transparent;
-            border: none;
-            color: var(--text);
-            cursor: pointer;
-            transition: var(--mc-transition);
+        .mc-date b { display: block; font-size: 16px; font-weight: 800; }
+        .mc-date span { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; white-space: nowrap; }
+        .mc-date.bad { background: var(--danger-light); }
+        .mc-date.bad b, .mc-date.bad span { color: var(--danger); }
+        .mc-date.warn { background: var(--warning-light); }
+        .mc-date.warn b, .mc-date.warn span { color: var(--warning); }
+        .mc-dl-text { min-width: 0; }
+        .mc-dl-text b {
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+            font-size: 13px; font-weight: 600; line-height: 1.35;
         }
-        .cal-controls button:hover { background: var(--primary); color: white; }
-        .cal-controls strong { min-width: 130px; text-align: center; font-weight: 600; }
+        .mc-dl-text small { font-size: 11.5px; color: var(--text-muted); }
+        .mc-dl-text small.bad { color: var(--danger); font-weight: 600; }
+        .mc-dl-text small.warn { color: var(--warning); font-weight: 600; }
+        .mc-side-empty { font-size: 12.5px; color: var(--text-muted); text-align: center; padding: 10px 4px; }
 
-        /* Container của Lịch ngang */
-        .schedule-list-view {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            max-height: 600px;
-            overflow-y: auto;
-            padding-right: 8px;
+        /* ---------- Lịch tháng ---------- */
+        .mc-cal-nav { display: flex; align-items: center; gap: 6px; }
+        .mc-cal-nav strong { min-width: 150px; text-align: center; font-size: 14px; }
+        .mc-agenda { display: flex; flex-direction: column; gap: 10px; }
+        .mc-day {
+            display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 14px; padding: 12px;
+            border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
         }
-        .schedule-list-view::-webkit-scrollbar { width: 6px; }
-        .schedule-list-view::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
-        .schedule-list-view::-webkit-scrollbar-track { background: transparent; }
+        .mc-day.today { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+        .mc-day-date { align-self: start; padding: 8px 0; border-radius: 10px; text-align: center; line-height: 1.15; background: var(--bg); }
+        .mc-day-date b { display: block; font-size: 22px; font-weight: 800; }
+        .mc-day-date span { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+        .mc-day.today .mc-day-date { background: var(--primary); }
+        .mc-day.today .mc-day-date b, .mc-day.today .mc-day-date span { color: var(--surface); }
+        .mc-events { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .mc-event { display: flex; align-items: center; gap: 8px; }
+        .mc-event > a {
+            flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px;
+            padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; background: var(--bg); color: var(--text);
+        }
+        .mc-event > a:hover { border-color: var(--primary); text-decoration: none; }
+        .mc-event .ic {
+            width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; display: grid; place-items: center;
+            font-size: 16px; background: var(--primary-light); color: var(--primary-dark);
+        }
+        .mc-event.due .ic { background: var(--danger-light); color: var(--danger); }
+        .mc-event.done > a { opacity: .6; }
+        .mc-event.done .ic { background: var(--success-light); color: var(--success); }
+        .mc-event .tx { min-width: 0; }
+        .mc-event .tx b, .mc-event .tx span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .mc-event .tx b { font-size: 13.5px; }
+        .mc-event .tx span { font-size: 12px; color: var(--text-muted); }
+        /* Chuông sáng lên khi việc đó đã có lời nhắc đang bật — khỏi phải mở danh sách nhắc nhở mới biết. */
+        .mc-bell.on { color: var(--primary-dark); border-color: var(--primary); background: var(--primary-light); }
 
-        /* Mỗi ngày là một hàng trải ngang */
-        .schedule-row {
-            display: flex;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            overflow: hidden;
-            box-shadow: var(--shadow-xs);
-            transition: var(--mc-transition);
-            align-items: stretch; /* Đảm bảo 2 bên cao bằng nhau */
+        /* ---------- Nhắc nhở ---------- */
+        .mc-hint { font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; }
+        .mc-reminder { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+        .mc-reminder:first-child { border-top: none; padding-top: 0; }
+        .mc-reminder:last-child { padding-bottom: 0; }
+        .mc-reminder.off { opacity: .55; }
+        .mc-reminder .ic {
+            width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; display: grid; place-items: center;
+            font-size: 17px; background: var(--primary-light); color: var(--primary-dark);
         }
-        .schedule-row:hover {
-            box-shadow: var(--shadow);
-            border-color: rgba(14, 165, 233, 0.4);
-        }
-        .schedule-row.today {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 1px var(--primary);
-        }
+        .mc-reminder .tx { flex: 1; min-width: 0; }
+        .mc-reminder .tx b { display: block; font-size: 13.5px; line-height: 1.4; }
+        .mc-reminder .meta { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11.5px; color: var(--text-muted); }
+        .mc-reminder .meta span { display: inline-flex; align-items: center; gap: 4px; }
+        .mc-reminder .act { display: flex; gap: 4px; flex-shrink: 0; }
+        /* Bản rút gọn trong cột phụ: chỉ giờ + tên việc, không có nút thao tác. */
+        .mc-reminder.mini { padding: 9px 0; }
+        .mc-reminder.mini .ic { width: 30px; height: 30px; font-size: 15px; }
+        .mc-reminder.mini .tx b { font-size: 13px; }
 
-        /* KHỐI NGÀY THÁNG BÊN TRÁI */
-        .schedule-date-block {
-            width: 140px;
-            flex-shrink: 0;
-            background: rgba(14, 165, 233, 0.05);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            border-right: 1px solid var(--border);
+        /* ---------- Gợi ý ---------- */
+        .mc-suggest-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+        .mc-suggest {
+            display: flex; flex-direction: column; overflow: hidden;
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xs); transition: box-shadow .18s ease, transform .18s ease;
         }
-        .schedule-row.today .schedule-date-block {
-            background: linear-gradient(135deg, var(--primary), var(--mc-secondary));
-            color: white;
-            border-right: none;
+        .mc-suggest:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+        .mc-suggest .course-mini-thumb { width: 100%; height: 112px; border-radius: 0; font-size: 38px; }
+        .mc-suggest-body { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 14px; }
+        .mc-suggest h4 {
+            font-size: 14.5px; font-weight: 700; line-height: 1.4;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
-        .schedule-date-block .d-month {
-            font-size: 0.8rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--primary-dark);
-            margin-bottom: 4px;
+        .mc-reason {
+            display: flex; align-items: flex-start; gap: 6px; padding: 8px 10px; border-radius: 9px;
+            background: var(--primary-soft); color: var(--primary-dark); font-size: 12px; font-weight: 600;
         }
-        .schedule-row.today .schedule-date-block .d-month { color: rgba(255,255,255,0.9); }
-        
-        .schedule-date-block .d-day {
-            font-size: 2.5rem;
-            font-weight: 800;
-            line-height: 1;
-            color: var(--text);
-            margin-bottom: 6px;
-        }
-        .schedule-row.today .schedule-date-block .d-day { color: white; }
-        
-        .schedule-date-block .d-name {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--text-muted);
-        }
-        .schedule-row.today .schedule-date-block .d-name { color: rgba(255,255,255,0.9); }
+        .mc-reason i { margin-top: 2px; }
+        .mc-suggest .btn { margin-top: auto; }
 
-        /* KHỐI BÀI HỌC BÊN PHẢI (Trải rộng theo chiều ngang) */
-        .schedule-events-area {
-            flex: 1;
-            padding: 16px 20px;
-            display: grid;
-            /* Nếu 1 ngày có nhiều bài, chúng sẽ nằm cạnh nhau. Nếu màn hình nhỏ sẽ tự xuống dòng */
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 16px;
-            align-content: center;
+        @media (max-width: 1100px) {
+            .mc-layout, .mc-layout.wide-side { grid-template-columns: minmax(0, 1fr); }
         }
-
-        .agenda-event {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 14px 16px;
-            border-radius: 12px;
-            background: var(--bg);
-            text-decoration: none;
-            color: var(--text);
-            transition: var(--mc-transition);
-            border: 1px solid transparent;
-            height: 100%;
-        }
-        .agenda-event:hover {
-            background: white;
-            border-color: var(--primary);
-            box-shadow: var(--shadow-xs);
-            transform: translateY(-2px);
-        }
-        .agenda-event.due { background: #fff1f2; }
-        .agenda-event.due:hover { border-color: #fda4af; }
-        .agenda-event.done { opacity: 0.6; }
-        .agenda-event.done:hover { opacity: 1; }
-
-        .agenda-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            flex-shrink: 0;
-            background: #e0f2fe;
-            color: var(--primary-dark);
-        }
-        .agenda-event.due .agenda-icon { background: #ffe4e6; color: #e11d48; }
-        .agenda-event.done .agenda-icon { background: #d1fae5; color: #059669; }
-
-        .agenda-info {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding-top: 2px;
-        }
-        .agenda-title { font-size: 1rem; font-weight: 700; margin: 0 0 4px 0; line-height: 1.4; }
-        .agenda-course { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
-        
-        /* Ô sự kiện bọc thêm một lớp để nhét được nút chuông đè lên góc — nút không nằm LỌT trong thẻ <a>
-           được, bấm vào là chuyển trang chứ không mở được ô đặt giờ. */
-        .agenda-item { position: relative; }
-        .agenda-item .agenda-event { padding-right: 46px; }
-
-        .agenda-bell {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 30px;
-            height: 30px;
-            border-radius: 9px;
-            border: 1px solid var(--border);
-            background: var(--surface);
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: var(--mc-transition);
-        }
-        .agenda-bell:hover { background: var(--primary); border-color: var(--primary); color: white; }
-        /* Bài này đã có lời nhắc đang bật — chuông sáng lên để khỏi phải mở danh sách ra mới biết. */
-        .agenda-bell.on { color: var(--primary); border-color: var(--primary); background: #e0f2fe; }
-
-        /* Danh sách lời nhắc tự đặt */
-        .reminder-list { display: flex; flex-direction: column; gap: 12px; }
-        .reminder-row {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 14px 16px;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            background: var(--surface);
-            transition: var(--mc-transition);
-        }
-        .reminder-row:hover { border-color: rgba(14, 165, 233, 0.4); box-shadow: var(--shadow-xs); }
-        .reminder-row.off { opacity: 0.55; }
-        .reminder-clock {
-            width: 44px;
-            height: 44px;
-            flex-shrink: 0;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.3rem;
-            background: #e0f2fe;
-            color: var(--primary-dark);
-        }
-        .reminder-main { flex: 1; min-width: 0; }
-        .reminder-main h4 { margin: 0 0 4px 0; font-size: 1rem; font-weight: 700; }
-        .reminder-meta { font-size: 0.85rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 6px 14px; }
-        .reminder-act { display: flex; gap: 8px; flex-shrink: 0; }
-        .reminder-act button {
-            width: 34px; height: 34px; border-radius: 9px; cursor: pointer;
-            border: 1px solid var(--border); background: var(--bg); color: var(--text-muted);
-            display: flex; align-items: center; justify-content: center; transition: var(--mc-transition);
-        }
-        .reminder-act button:hover { background: var(--primary); border-color: var(--primary); color: white; }
-        .reminder-act button.danger:hover { background: #e11d48; border-color: #e11d48; }
-
-        .reminder-field { margin-bottom: 16px; }
-        .reminder-field label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.9rem; }
-        .reminder-field input[type=text], .reminder-field input[type=datetime-local],
-        .reminder-field select, .reminder-field textarea {
-            width: 100%; padding: 10px 12px; border: 1px solid var(--border);
-            border-radius: 10px; background: var(--bg); color: var(--text); font: inherit;
-        }
-        .reminder-check { display: flex; align-items: center; gap: 8px; font-size: 0.92rem; }
-
-        /* Hiệu ứng Mobile */
-        @media (max-width: 600px) {
-            .schedule-row { flex-direction: column; }
-            .schedule-date-block { width: 100%; padding: 12px; flex-direction: row; gap: 12px; border-right: none; border-bottom: 1px solid var(--border); }
-            .schedule-date-block .d-day { margin: 0; font-size: 1.8rem; }
-            .schedule-date-block .d-month { margin: 0; }
+        @media (max-width: 640px) {
+            .mc-toolbar, .mc-search, .mc-search input { width: 100%; }
+            .mc-item { grid-template-columns: 96px minmax(0, 1fr); }
+            .mc-thumb-link { min-height: 0; }
+            .mc-thumb-link .course-mini-thumb { font-size: 24px; }
+            .mc-main { padding: 12px 12px 12px 14px; }
+            .mc-actions { grid-column: 1 / -1; padding: 10px 12px; border-top: 1px solid var(--border); }
+            .mc-actions .btn:last-child { flex: 1; }
+            .mc-day { grid-template-columns: 50px minmax(0, 1fr); gap: 10px; padding: 10px; }
+            .mc-day-date b { font-size: 18px; }
         }
     </style>
 </head>
 <body>
 <div class="main">
     <div class="content">
-        
-        <!-- THẺ 1: Danh sách khóa học được phân công -->
-        <div class="card">
-            <div class="card-head">
-                <h3 data-i18n="my-course.khoaHocDuocPhanCong"><i class="ph-fill ph-books" style="margin-right: 8px;"></i>Khóa học của tôi</h3>
-                <select id="filter-status" aria-label="Lọc theo trạng thái">
-                    <option data-i18n="course.tatCaTrangThai" value="">Tất cả trạng thái</option>
-                    <option data-i18n="dashboard.notStarted" value="Assigned">Chưa bắt đầu</option>
-                    <option data-i18n="dashboard.inProgress" value="InProgress">Đang học</option>
-                    <option data-i18n="index.stat-enroll" value="Completed">Hoàn thành</option>
-                </select>
-            </div>
-            <div id="course-list" class="card-body" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px;"></div>
-        </div>
-
-        <!-- THẺ 2: LỊCH HỌC & DEADLINE -->
-        <div class="card">
-            <div class="card-head">
-                <h3 data-i18n="my-course.lichHoc"><i class="ph-fill ph-calendar-check" style="margin-right: 8px;"></i>Lịch trình Tháng</h3>
-                <div class="cal-controls">
-                    <button id="btn-prev-month"><i class="ph-bold ph-caret-left"></i></button>
-                    <strong id="current-month-year">...</strong>
-                    <button id="btn-next-month"><i class="ph-bold ph-caret-right"></i></button>
-                </div>
-            </div>
-            <div class="card-body">
-                <div id="learning-calendar"></div>
+        <div class="mc-tabs-row">
+            <div class="tabs" role="tablist" id="mc-tabs">
+                <button type="button" role="tab" class="active" data-tab="course">
+                    <i class="ph ph-books"></i> <span data-i18n="my-course.theKhoaHoc">Khóa học</span></button>
+                <button type="button" role="tab" data-tab="schedule">
+                    <i class="ph ph-calendar-dots"></i> <span data-i18n="my-course.theLichNhacNho">Lịch &amp; nhắc nhở</span></button>
+                <button type="button" role="tab" data-tab="suggest">
+                    <i class="ph ph-sparkle"></i> <span data-i18n="my-course.theGoiY">Gợi ý cho bạn</span>
+                    <span class="mc-count hidden" id="mc-suggest-count"></span></button>
             </div>
         </div>
 
-        <!-- THẺ 2B: NHẮC NHỞ HỌC TẬP TỰ ĐẶT -->
-        <div class="card">
-            <div class="card-head">
-                <h3><i class="ph-fill ph-alarm" style="margin-right: 8px;"></i>Nhắc nhở của tôi</h3>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn ghost" id="btn-enable-desktop-notification" type="button">
-                        <i class="ph ph-bell-ringing"></i> Bật thông báo trên máy</button>
-                    <button class="btn" id="btn-add-reminder" type="button">
-                        <i class="ph ph-plus"></i> Đặt nhắc nhở</button>
-                </div>
-            </div>
-            <div class="card-body">
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0 0 16px 0;">
-                    Tự hẹn giờ học của riêng bạn. Tới đúng giờ, hệ thống gửi thông báo vào chuông
-                    (và email nếu bạn chọn) — không cần mở sẵn trang này.
-                </p>
-                <div id="reminder-list"></div>
+        <!-- ===== Thẻ 1: Khóa học ===== -->
+        <div class="tab-panel active" id="tab-course">
+            <div class="mc-layout">
+                <section>
+                    <div class="mc-toolbar">
+                        <div class="dash-chips" id="mc-filter" role="group" aria-label="Lọc khóa học"></div>
+                        <div class="mc-search">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input type="search" id="mc-keyword" data-i18n-ph="my-course.timKhoaHoc" placeholder="Tìm khóa học...">
+                        </div>
+                    </div>
+                    <div id="course-list"></div>
+                </section>
+
+                <aside class="mc-side">
+                    <div class="card">
+                        <div class="card-head"><h3 class="mc-card-title"><i class="ph-fill ph-chart-donut"></i>
+                            <span data-i18n="my-course.tienDoChung">Tiến độ chung</span></h3></div>
+                        <div class="card-body" id="mc-overview"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head"><h3 class="mc-card-title"><i class="ph-fill ph-flag-checkered"></i>
+                            <span data-i18n="my-course.hanChot">Hạn chót</span></h3></div>
+                        <div class="card-body" id="mc-deadline"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head">
+                            <h3 class="mc-card-title"><i class="ph-fill ph-alarm"></i> <span data-i18n="my-course.nhacNhoSapToi">Nhắc nhở sắp tới</span></h3>
+                            <button type="button" class="btn ghost sm icon" id="btn-side-add-reminder"
+                                    data-i18n-title="my-course.datNhacNho" title="Đặt nhắc nhở" aria-label="Đặt nhắc nhở"><i class="ph-bold ph-plus"></i></button>
+                        </div>
+                        <div class="card-body" id="mc-reminder-mini"></div>
+                    </div>
+                </aside>
             </div>
         </div>
 
-        <!-- THẺ 3: Khóa học phù hợp với bạn -->
-        <div class="card">
-            <div class="card-head">
-                <h3 data-i18n="my-course.khoaHocPhuHopVoiBan"><i class="ph-fill ph-sparkle" style="margin-right: 8px;"></i>Gợi ý cho bạn</h3>
+        <!-- ===== Thẻ 2: Lịch & nhắc nhở ===== -->
+        <div class="tab-panel" id="tab-schedule">
+            <div class="mc-layout wide-side">
+                <section class="card">
+                    <div class="card-head">
+                        <h3 class="mc-card-title"><i class="ph-fill ph-calendar-check"></i> <span data-i18n="my-course.lichHoc">Lịch học</span></h3>
+                        <div class="mc-cal-nav">
+                            <button type="button" class="btn ghost sm" id="btn-cal-today"><span data-i18n="my-course.homNay">Hôm nay</span></button>
+                            <button type="button" class="btn ghost sm icon" id="btn-cal-prev" aria-label="Tháng trước"><i class="ph-bold ph-caret-left"></i></button>
+                            <strong id="mc-cal-label">…</strong>
+                            <button type="button" class="btn ghost sm icon" id="btn-cal-next" aria-label="Tháng sau"><i class="ph-bold ph-caret-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-body"><div id="mc-agenda"></div></div>
+                </section>
+
+                <aside class="card">
+                    <div class="card-head">
+                        <h3 class="mc-card-title"><i class="ph-fill ph-alarm"></i> <span data-i18n="my-course.nhacNhoCuaToi">Nhắc nhở của tôi</span></h3>
+                        <button type="button" class="btn sm" id="btn-add-reminder"><i class="ph-bold ph-plus"></i> <span data-i18n="my-course.datNhacNho">Đặt nhắc nhở</span></button>
+                    </div>
+                    <div class="card-body">
+                        <p class="mc-hint" data-i18n="my-course.nhacNhoGoiY">Tự hẹn giờ học của riêng bạn. Tới đúng giờ, hệ thống gửi thông báo vào chuông (và email nếu bạn chọn) — không cần mở sẵn trang này.</p>
+                        <button type="button" class="btn ghost sm block mb hidden" id="btn-enable-desktop-notification">
+                            <i class="ph ph-bell-ringing"></i> <span data-i18n="my-course.batThongBaoTrenMay">Bật thông báo trên máy</span></button>
+                        <div id="reminder-list"></div>
+                    </div>
+                </aside>
             </div>
-            <div class="card-body" id="available"></div>
         </div>
-        
+
+        <!-- ===== Thẻ 3: Gợi ý ===== -->
+        <div class="tab-panel" id="tab-suggest">
+            <p class="mc-hint" data-i18n="my-course.goiYMoTa">Khóa học dành cho phòng ban / vị trí của bạn mà bạn chưa học. Đăng ký là học được ngay.</p>
+            <div id="available"></div>
+        </div>
     </div>
 </div>
 
-<!-- Modal Bảng điểm -->
+<!-- Bảng điểm -->
 <div class="modal-mask" id="modal-scoreboard">
-    <div class="modal" style="border-radius: var(--radius-lg); overflow: hidden;">
-        <div class="modal-head" style="background: var(--surface); border-bottom: 1px solid var(--border);">
-            <h3 data-i18n="my-course.bangDiem" id="scoreboard-title" style="font-weight: 700; color: var(--text);">Bảng điểm</h3>
-            <button class="close-x" onclick="closeModal('modal-scoreboard')"><i class="ph ph-x"></i></button>
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="scoreboard-title" data-i18n="my-course.bangDiem">Bảng điểm</h3>
+            <button class="close-x" onclick="closeModal('modal-scoreboard')">×</button>
         </div>
-        <div class="modal-body" id="scoreboard-body" style="padding: 24px;"></div>
-        <div class="modal-foot" style="background: var(--surface); border-top: 1px solid var(--border);">
-            <button data-i18n="common.close" class="btn-modern btn-outline" onclick="closeModal('modal-scoreboard')" style="padding: 8px 24px;">Đóng</button>
+        <div class="modal-body" id="scoreboard-body"></div>
+        <div class="modal-foot">
+            <button data-i18n="common.close" class="btn ghost" onclick="closeModal('modal-scoreboard')">Đóng</button>
         </div>
     </div>
 </div>
 
-<!-- Modal Đặt nhắc nhở học tập -->
+<!-- Đặt nhắc nhở học tập -->
 <div class="modal-mask" id="modal-reminder">
-    <div class="modal" style="border-radius: var(--radius-lg); overflow: hidden;">
-        <div class="modal-head" style="background: var(--surface); border-bottom: 1px solid var(--border);">
-            <h3 id="reminder-modal-title" style="font-weight: 700; color: var(--text);">Đặt nhắc nhở học tập</h3>
-            <button class="close-x" onclick="closeModal('modal-reminder')"><i class="ph ph-x"></i></button>
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="reminder-modal-title">Đặt nhắc nhở học tập</h3>
+            <button class="close-x" onclick="closeModal('modal-reminder')">×</button>
         </div>
-        <div class="modal-body" style="padding: 24px;">
-            <div class="reminder-field">
-                <label for="reminder-title">Nhắc tôi việc gì</label>
-                <input type="text" id="reminder-title" maxlength="200" placeholder="VD: Học bài An toàn lao động">
+        <div class="modal-body">
+            <div class="field">
+                <label for="reminder-title" data-i18n="my-course.nhacToiViecGi">Nhắc tôi việc gì</label>
+                <input type="text" id="reminder-title" maxlength="200" data-i18n-ph="my-course.nhacToiViecGiVD" placeholder="VD: Học bài An toàn lao động">
             </div>
-            <div class="reminder-field">
-                <label for="reminder-enrollment">Khóa học liên quan</label>
+            <div class="field">
+                <label for="reminder-enrollment" data-i18n="my-course.khoaHocLienQuan">Khóa học liên quan</label>
                 <select id="reminder-enrollment"></select>
             </div>
-            <div class="reminder-field">
-                <label for="reminder-at">Nhắc lúc</label>
-                <input type="datetime-local" id="reminder-at">
+            <div class="row">
+                <div class="field">
+                    <label for="reminder-at" data-i18n="my-course.nhacLuc">Nhắc lúc</label>
+                    <input type="datetime-local" id="reminder-at">
+                </div>
+                <div class="field">
+                    <label for="reminder-repeat" data-i18n="my-course.lapLai">Lặp lại</label>
+                    <!-- Giá trị là SỐ của ReminderRepeat (Helpers/AppEnum.cs): máy chủ không cấu hình đọc enum
+                         dạng chữ trong thân JSON, gửi "Daily" lên là 400. -->
+                    <select id="reminder-repeat">
+                        <option value="0" data-i18n="my-course.lapKhong">Không lặp — chỉ báo một lần</option>
+                        <option value="1" data-i18n="my-course.lapHangNgay">Hằng ngày</option>
+                        <option value="2" data-i18n="my-course.lapNgayThuong">Thứ 2 → Thứ 6</option>
+                        <option value="3" data-i18n="my-course.lapHangTuan">Hằng tuần</option>
+                    </select>
+                </div>
             </div>
-            <div class="reminder-field">
-                <label for="reminder-repeat">Lặp lại</label>
-                <!-- Giá trị là SỐ của ReminderRepeat (Helpers/AppEnum.cs): máy chủ không cấu hình đọc enum
-                     dạng chữ trong thân JSON, gửi "Daily" lên là 400. -->
-                <select id="reminder-repeat">
-                    <option value="0">Không lặp — chỉ báo một lần</option>
-                    <option value="1">Hằng ngày</option>
-                    <option value="2">Thứ 2 → Thứ 6</option>
-                    <option value="3">Hằng tuần</option>
-                </select>
-            </div>
-            <div class="reminder-field">
-                <label for="reminder-note">Ghi chú (hiện trong nội dung thông báo)</label>
-                <textarea id="reminder-note" rows="2" maxlength="400"
+            <div class="field">
+                <label for="reminder-note" data-i18n="my-course.ghiChuNhacNho">Ghi chú (hiện trong nội dung thông báo)</label>
+                <textarea id="reminder-note" rows="2" maxlength="400" data-i18n-ph="my-course.ghiChuNhacNhoPh"
                           placeholder="Để trống thì hệ thống tự viết câu nhắc."></textarea>
             </div>
-            <label class="reminder-check">
-                <input type="checkbox" id="reminder-email"> Gửi kèm email cho tôi
-            </label>
+            <label class="check"><input type="checkbox" id="reminder-email"> <span data-i18n="my-course.guiKemEmail">Gửi kèm email cho tôi</span></label>
         </div>
-        <div class="modal-foot" style="background: var(--surface); border-top: 1px solid var(--border);">
-            <button class="btn-modern btn-outline" onclick="closeModal('modal-reminder')" style="padding: 8px 24px;">Hủy</button>
-            <button class="btn" id="btn-save-reminder" style="padding: 8px 24px;">Lưu nhắc nhở</button>
+        <div class="modal-foot">
+            <button type="button" class="btn ghost" data-i18n="common.cancel" onclick="closeModal('modal-reminder')">Hủy</button>
+            <button type="button" class="btn" id="btn-save-reminder" data-i18n="my-course.luuNhacNho">Lưu nhắc nhở</button>
         </div>
     </div>
 </div>
@@ -459,87 +386,312 @@
     if (!Auth.require()) return;
     mountLayout('my-course', t('menu.my-course', 'Khóa học của tôi'), t('my-course.theoDoiTienDoVaTiepTucHoc', 'Theo dõi tiến độ và tiếp tục học'));
 
-    const courseList = document.getElementById('course-list');
-    let allList = [];
-    let currentCalDate = new Date();
+    // ===== Trạng thái trang — khai báo HẾT ở đây, trước lệnh await đầu tiên bên dưới. Hàm nào chạy sớm (handler
+    // bấm nút, lời nhắc tải về trước danh sách khóa học...) mà đụng một const khai báo sau lệnh await thì dính
+    // Temporal Dead Zone: ReferenceError ngay trong hàm đó và phần trang ấy trắng trơn, không báo gì. =====
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    /** Còn từ chừng này ngày trở xuống thì hạn chót được tô cam ("sắp đến hạn"). */
+    const SOON_DAYS = 7;
+    const DEFAULT_FILTER = 'todo';
+
+    /** Nhóm khóa học theo mức gấp, theo đúng thứ tự hiện trên trang. */
+    const GROUP_LIST = [
+        { key: 'overdue',   icon: 'ph-fill ph-warning-circle',          label: t('my-course.nhomQuaHan', 'Quá hạn') },
+        { key: 'progress',  icon: 'ph-fill ph-play-circle',             label: t('dashboard.inProgress', 'Đang học') },
+        { key: 'new',       icon: 'ph-fill ph-circle-dashed',           label: t('dashboard.notStarted', 'Chưa bắt đầu') },
+        { key: 'failed',    icon: 'ph-fill ph-arrow-counter-clockwise', label: t('my-course.nhomChuaDat', 'Chưa đạt — cần học lại') },
+        { key: 'done',      icon: 'ph-fill ph-seal-check',              label: t('index.stat-enroll', 'Hoàn thành') },
+        { key: 'cancelled', icon: 'ph-fill ph-prohibit',                label: t('online-class.daHuy', 'Đã hủy') },
+    ];
+    /** Bộ lọc → các nhóm nó gồm. "Cần học" là mọi thứ còn phải làm, đó là câu hỏi người học mang tới trang này. */
+    const FILTER_LIST = [
+        { key: 'todo', icon: 'ph-book-open',   label: t('my-course.locCanHoc', 'Cần học'),   groupList: ['overdue', 'progress', 'new', 'failed'] },
+        { key: 'done', icon: 'ph-seal-check',  label: t('dashboard.completed', 'Đã hoàn thành'), groupList: ['done'] },
+        { key: 'all',  icon: 'ph-squares-four', label: t('dashboard.tatCa', 'Tất cả'),       groupList: GROUP_LIST.map(g => g.key) },
+    ];
+
+    const REPEAT_LABEL = {
+        None: t('my-course.lapKhongNgan', 'Không lặp'), Daily: t('my-course.lapHangNgay', 'Hằng ngày'),
+        Weekdays: t('my-course.lapNgayThuong', 'Thứ 2 → Thứ 6'), Weekly: t('my-course.lapHangTuan', 'Hằng tuần'),
+    };
+    /** DTO trả chu kỳ về dạng chữ, còn ô chọn và thân JSON gửi lên dùng số — đây là chỗ đổi qua lại. */
+    const REPEAT_VALUE = { None: 0, Daily: 1, Weekdays: 2, Weekly: 3 };
+
+    const listBox = document.getElementById('course-list');
+    const keywordInput = document.getElementById('mc-keyword');
     const scheduleCache = new Map();
 
-    document.getElementById('filter-status').addEventListener('change', render);
-    const searchKeyword = (qs('keyword') || '').trim().toLowerCase();
-    
-    await load();
-    loadAvailable();
-    loadReminderList();
+    let enrollmentList = [];
+    let enrollmentLoaded = false;
+    let reminderList = [];
+    let availableList = [];
+    /** Id lời nhắc đang sửa; null nghĩa là ô đang mở để tạo mới. */
+    let editingReminderId = null;
+    /** Tháng đang xem trên lịch — luôn là ngày mùng 1, cộng trừ tháng từ ngày 31 là nhảy cóc qua tháng 30 ngày. */
+    let calendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    // Từ khóa gõ ở ô tìm kiếm trên thanh trên được chuyển sang đây qua địa chỉ (?keyword=). Có từ khóa thì mặc
+    // định xem "Tất cả" — đang tìm một khóa cụ thể mà nó đã hoàn thành thì bộ lọc "Cần học" giấu mất kết quả.
+    let keyword = (qs('keyword') || '').trim();
+    let currentFilter = FILTER_LIST.some(f => f.key === qs('show')) ? qs('show') : (keyword ? 'all' : DEFAULT_FILTER);
 
-    async function load() {
-        courseList.innerHTML = `<div style="grid-column: 1 / -1;">${skeletonHtml('cards', { count: 6 })}</div>`;
-        try {
-            allList = await API.get('/enrollment/my');
-            render();
-            renderCalendar();
-        } catch (ex) {
-            courseList.innerHTML = `<div style="grid-column: 1 / -1;">${emptyHtml(ex.message, '<i class="ph-duotone ph-warning-circle" style="font-size:48px; color:#ef4444"></i>')}</div>`;
-        }
+    // ===== Gắn sự kiện =====
+    keywordInput.value = keyword;
+    keywordInput.addEventListener('input', () => {
+        keyword = keywordInput.value.trim();
+        setUrlParam('keyword', keyword);
+        renderCourseList();
+    });
+
+    document.querySelectorAll('#mc-tabs [data-tab]').forEach(b => b.addEventListener('click', () => openTab(b.dataset.tab)));
+    document.getElementById('btn-cal-prev').addEventListener('click', () => shiftMonth(-1));
+    document.getElementById('btn-cal-next').addEventListener('click', () => shiftMonth(1));
+    document.getElementById('btn-cal-today').addEventListener('click', goToday);
+    document.getElementById('btn-add-reminder').addEventListener('click', () => openReminderForm());
+    document.getElementById('btn-side-add-reminder').addEventListener('click', () => openReminderForm());
+    document.getElementById('btn-save-reminder').addEventListener('click', saveReminder);
+    document.getElementById('btn-enable-desktop-notification').addEventListener('click', async () => {
+        await requestDesktopNotificationPermission();
+        syncDesktopNotificationButton();
+    });
+    syncDesktopNotificationButton();
+
+    // Thẻ đang mở nằm trên địa chỉ trang (?tab=) — tải lại trang, kể cả khi đổi ngôn ngữ, vẫn đứng nguyên thẻ đó.
+    const startTab = tabFromUrl('course');
+    showTab(startTab, 'course');
+
+    // ===== Tải dữ liệu: ba nguồn độc lập, gọi song song, nguồn nào hỏng thì chỉ khối của nó báo lỗi =====
+    listBox.innerHTML = skeletonHtml('list', { count: 4, avatar: false });
+    await Promise.all([loadEnrollment(), loadReminderList(), loadAvailable()]);
+    if (startTab === 'schedule') renderCalendar();
+
+    function openTab(tab) {
+        showTab(tab, 'course');
+        if (tab === 'schedule') renderCalendar();
     }
 
-    function render() {
-        const status = document.getElementById('filter-status').value;
-        let list = status ? allList.filter(x => x.status === status) : allList;
-        if (searchKeyword)
-            list = list.filter(x => (x.courseTitle + ' ' + x.courseCode).toLowerCase().includes(searchKeyword));
+    // ==================== THẺ KHÓA HỌC ====================
 
-        if (!list.length) {
-            courseList.innerHTML = `<div style="grid-column: 1 / -1;">${emptyHtml(searchKeyword
-                ? t('my-course.khongKhopTuKhoa', 'Không có khóa học nào khớp từ khóa "{keyword}".', { keyword: searchKeyword })
-                : t('account.chuaCoKhoaHocNaoDuocPhanCong', 'Chưa có khóa học nào được phân công.'), '<i class="ph-duotone ph-folder-open" style="font-size:48px; color:var(--text-muted)"></i>')}</div>`;
+    async function loadEnrollment() {
+        try {
+            enrollmentList = await API.get('/enrollment/my');
+            enrollmentLoaded = true;
+        } catch (ex) {
+            listBox.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning-circle"></i>');
+            document.getElementById('mc-overview').innerHTML = '';
+            document.getElementById('mc-deadline').innerHTML = '';
+            return;
+        }
+        renderCourseList();
+        renderOverview();
+        renderDeadline();
+    }
+
+    /** Số ngày còn lại tới hạn, tính theo NGÀY LỊCH (hôm nay = 0, hôm qua = -1). null = không có hạn. */
+    function daysLeft(x) {
+        if (!x.dueDate) return null;
+        const due = new Date(x.dueDate);
+        const now = new Date();
+        return Math.round((new Date(due.getFullYear(), due.getMonth(), due.getDate())
+            - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / DAY_MS);
+    }
+
+    // Khai báo function chứ không phải const arrow: các hàm này chạy ngay trong lúc thân trang còn dừng ở lệnh
+    // await Promise.all(...) phía trên, khi đó một const khai báo ở dưới này vẫn nằm trong Temporal Dead Zone.
+    function isOpen(x) { return x.status !== 'Completed' && x.status !== 'Cancelled'; }
+    function isOverdue(x) { return isOpen(x) && (x.isOverdue || (daysLeft(x) ?? 0) < 0); }
+
+    function groupOf(x) {
+        if (x.status === 'Completed') return 'done';
+        if (x.status === 'Cancelled') return 'cancelled';
+        if (isOverdue(x)) return 'overdue';
+        if (x.status === 'Failed') return 'failed';
+        if (x.status === 'InProgress' || (Number(x.progressPercent) || 0) > 0) return 'progress';
+        return 'new';
+    }
+
+    function matchKeyword(x) {
+        return !keyword || `${x.courseTitle} ${x.courseCode}`.toLowerCase().includes(keyword.toLowerCase());
+    }
+
+    /** Trong một nhóm: hạn gần nhất lên đầu (không có hạn xuống cuối), cùng hạn thì khóa học dở nhiều hơn lên
+     *  trước. Nhóm Hoàn thành thì khóa vừa xong lên đầu. */
+    function compareInGroup(a, b) {
+        if (a.status === 'Completed' && b.status === 'Completed')
+            return new Date(b.completedAt || 0) - new Date(a.completedAt || 0);
+        const dueA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const dueB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        if (dueA !== dueB) return dueA - dueB;
+        return (Number(b.progressPercent) || 0) - (Number(a.progressPercent) || 0);
+    }
+
+    function renderFilterChips() {
+        const visibleList = enrollmentList.filter(matchKeyword);
+        const box = document.getElementById('mc-filter');
+        box.innerHTML = FILTER_LIST.map(f => {
+            const count = visibleList.filter(x => f.groupList.includes(groupOf(x))).length;
+            return `<button type="button" class="dash-chip ${f.key === currentFilter ? 'active' : ''}" data-filter="${f.key}"
+                            aria-pressed="${f.key === currentFilter}">
+                <i class="ph ${f.icon}"></i> ${esc(f.label)} <span class="count">${count}</span></button>`;
+        }).join('');
+        box.querySelectorAll('[data-filter]').forEach(b => b.addEventListener('click', () => {
+            currentFilter = b.dataset.filter;
+            setUrlParam('show', currentFilter === DEFAULT_FILTER ? '' : currentFilter);
+            renderCourseList();
+        }));
+    }
+
+    function renderCourseList() {
+        if (!enrollmentLoaded) return;
+        renderFilterChips();
+
+        const filter = FILTER_LIST.find(f => f.key === currentFilter);
+        const visibleList = enrollmentList.filter(x => matchKeyword(x) && filter.groupList.includes(groupOf(x)));
+
+        if (!visibleList.length) {
+            listBox.innerHTML = emptyListHtml();
+            listBox.querySelector('[data-goto]')?.addEventListener('click', (e) => openTab(e.currentTarget.dataset.goto));
+            listBox.querySelector('[data-show-all]')?.addEventListener('click', () => {
+                currentFilter = 'all';
+                setUrlParam('show', 'all');
+                renderCourseList();
+            });
             return;
         }
 
-        courseList.innerHTML = list.map(x => {
-            const percent = Math.round(x.progressPercent || 0);
-            const btnText = x.status === 'Completed' ? 'Xem lại' : percent > 0 ? 'Học tiếp' : t('my-course.batDau', 'Bắt đầu');
-            const iconPlay = x.status === 'Completed' ? 'ph-arrow-counter-clockwise' : 'ph-play';
-            
-            return `
-            <div class="course-card-modern">
-                <div class="thumb">
-                    <div class="badge-status">
-                        ${x.status === 'Completed' ? '<i class="ph-fill ph-check-circle" style="font-size:12px; margin-right:4px; color:#34d399"></i>Hoàn thành' 
-                        : (percent > 0 ? '<i class="ph-fill ph-spinner-gap" style="font-size:12px; margin-right:4px; color:#fbbf24"></i>Đang học' 
-                        : '<i class="ph-fill ph-clock" style="font-size:12px; margin-right:4px"></i>Mới')}
-                    </div>
-                    <i class="ph-duotone ph-book-open-text"></i>
-                </div>
-                <div class="info">
-                    <h4 class="title" title="${esc(x.courseTitle)}">${esc(x.courseTitle)}</h4>
-                    <div class="meta">
-                        <i class="ph-bold ph-hash"></i> ${esc(x.courseCode)}
-                    </div>
-                    ${progressBar(percent, { label: t('my-course.tienDoHocTap', 'Tiến độ học tập'), large: true })}
-                    <div class="action-grid" style="${x.hasCertificate ? 'grid-template-columns: repeat(3, 1fr)' : 'grid-template-columns: repeat(2, 1fr)'}">
-                        <a href="/pages/learn.html?enrollmentId=${x.id}" class="btn-modern btn-primary">
-                            <i class="ph-bold ${iconPlay}"></i> ${btnText}
-                        </a>
-                        <button class="btn-modern btn-outline" data-scoreboard="${x.id}">
-                            <i class="ph-bold ph-chart-bar"></i> Điểm
-                        </button>
-                        ${x.hasCertificate ? `
-                        <a href="/pages/certificate.html" class="btn-modern btn-gold" title="Chứng nhận">
-                            <i class="ph-bold ph-certificate"></i>
-                        </a>` : ''}
-                    </div>
-                </div>
-            </div>`;
-        }).join('');
+        listBox.innerHTML = GROUP_LIST
+            .map(group => ({ group, itemList: visibleList.filter(x => groupOf(x) === group.key).sort(compareInGroup) }))
+            .filter(x => x.itemList.length)
+            .map(({ group, itemList }) => `
+                <section class="mc-group">
+                    <h4 class="mc-group-head ${group.key}"><i class="${group.icon}"></i> ${esc(group.label)}
+                        <span class="n">${itemList.length}</span></h4>
+                    <div class="mc-group-list">${itemList.map(itemHtml).join('')}</div>
+                </section>`).join('');
 
-        courseList.querySelectorAll('[data-scoreboard]').forEach(b => b.addEventListener('click', () => {
-            const enrollment = list.find(x => x.id == b.dataset.scoreboard);
+        listBox.querySelectorAll('[data-scoreboard]').forEach(b => b.addEventListener('click', () => {
+            const enrollment = enrollmentList.find(x => x.id === +b.dataset.scoreboard);
             openScoreboard(b.dataset.scoreboard, enrollment?.courseTitle || '');
         }));
     }
 
+    function emptyListHtml() {
+        if (!enrollmentList.length) {
+            const cta = availableList.length
+                ? `<div class="mc-empty-cta"><button type="button" class="btn sm" data-goto="suggest">
+                       <i class="ph ph-sparkle"></i> ${esc(t('my-course.xemGoiY', 'Xem khóa học gợi ý cho bạn'))}</button></div>`
+                : '';
+            return emptyHtml(t('account.chuaCoKhoaHocNaoDuocPhanCong', 'Chưa có khóa học nào được phân công.'), '<i class="ph ph-folder-open"></i>')
+                .replace(/<\/div>$/, `${cta}</div>`);
+        }
+        if (keyword)
+            return emptyHtml(t('my-course.khongKhopTuKhoa', 'Không có khóa học nào khớp từ khóa "{keyword}".', { keyword }), '<i class="ph ph-magnifying-glass"></i>');
+        if (currentFilter === 'todo')
+            return emptyHtml(t('my-course.daHocXongHet', 'Bạn đã học xong mọi khóa học được giao.'), '<i class="ph ph-confetti"></i>')
+                .replace(/<\/div>$/, `<div class="mc-empty-cta"><button type="button" class="btn ghost sm" data-show-all>
+                    ${esc(t('my-course.xemTatCa', 'Xem tất cả khóa học'))}</button></div></div>`);
+        return emptyHtml(t('my-course.chuaHoanThanhKhoaNao', 'Bạn chưa hoàn thành khóa học nào.'), '<i class="ph ph-seal-check"></i>');
+    }
+
+    function itemHtml(x) {
+        const percent = Math.round(Number(x.progressPercent) || 0);
+        const group = groupOf(x);
+        const href = `/pages/scorm-player.html?enrollmentId=${x.id}`;
+        const [ctaLabel, ctaIcon, ctaClass] = x.status === 'Completed'
+            ? [t('my-course.xemLai', 'Xem lại'), 'ph-arrow-counter-clockwise', 'ghost']
+            : percent > 0
+                ? [t('my-course.hocTiep', 'Học tiếp'), 'ph-play', '']
+                : [t('my-course.batDau', 'Bắt đầu'), 'ph-play', ''];
+        const scoreLabel = t('my-course.bangDiem', 'Bảng điểm');
+        const certLabel = t('my-course.xemChungNhan', 'Xem chứng nhận');
+
+        return `<article class="mc-item ${group}">
+            <a class="mc-thumb-link" href="${href}" tabindex="-1" aria-hidden="true">${courseThumbHtml(x.courseTitle, x.thumbnailUrl)}</a>
+            <div class="mc-main">
+                <a class="mc-title" href="${href}">${esc(x.courseTitle)}</a>
+                <div class="mc-meta">
+                    <span class="code">${esc(x.courseCode)}</span>
+                    ${dueHtml(x)}
+                    ${x.finalScore != null ? `<span><i class="ph ph-medal"></i> ${esc(t('my-course.diem', 'Điểm {score}', { score: x.finalScore }))}</span>` : ''}
+                </div>
+                ${x.status === 'Cancelled' ? '' : `<div class="mc-prog">${progressBar(percent)}</div>`}
+            </div>
+            <div class="mc-actions">
+                <button type="button" class="btn ghost sm icon" data-scoreboard="${x.id}" title="${esc(scoreLabel)}" aria-label="${esc(scoreLabel)}">
+                    <i class="ph ph-chart-bar"></i></button>
+                ${x.hasCertificate ? `<a class="btn ghost sm icon" href="/pages/certificate.html" title="${esc(certLabel)}" aria-label="${esc(certLabel)}">
+                    <i class="ph ph-seal-check"></i></a>` : ''}
+                ${x.status === 'Cancelled' ? '' : `<a class="btn sm ${ctaClass}" href="${href}"><i class="ph-bold ${ctaIcon}"></i> ${esc(ctaLabel)}</a>`}
+            </div>
+        </article>`;
+    }
+
+    /** Dòng hạn chót của một khóa học — đỏ khi đã trễ, cam khi còn ≤ 7 ngày, xám khi còn xa. */
+    function dueHtml(x) {
+        if (x.status === 'Completed')
+            return x.completedAt ? `<span class="mc-due ok"><i class="ph-fill ph-check-circle"></i>
+                ${esc(t('my-course.hoanThanhNgay', 'Hoàn thành {date}', { date: formatDate(x.completedAt) }))}</span>` : '';
+        if (x.status === 'Cancelled') return '';
+
+        const days = daysLeft(x);
+        if (days === null) return '';
+        if (isOverdue(x))
+            return `<span class="mc-due bad"><i class="ph-fill ph-warning-circle"></i> ${esc(days < 0
+                ? t('my-course.quaHanNgay', 'Quá hạn {n} ngày', { n: -days })
+                : t('dashboard.overdue', 'Quá hạn'))}</span>`;
+        if (days === 0) return `<span class="mc-due bad"><i class="ph-fill ph-clock"></i> ${esc(t('my-course.hanHomNay', 'Hạn chót hôm nay'))}</span>`;
+        if (days <= SOON_DAYS) return `<span class="mc-due warn"><i class="ph-fill ph-clock"></i> ${esc(t('my-course.conNgay', 'Còn {n} ngày', { n: days }))}</span>`;
+        return `<span><i class="ph ph-calendar-blank"></i> ${esc(t('my-course.hanNgay', 'Hạn {date}', { date: formatDate(x.dueDate) }))}</span>`;
+    }
+
+    function renderOverview() {
+        const activeList = enrollmentList.filter(x => x.status !== 'Cancelled');
+        const doneCount = activeList.filter(x => x.status === 'Completed').length;
+        const progressCount = activeList.filter(x => ['progress', 'overdue', 'failed'].includes(groupOf(x))).length;
+        const newCount = activeList.filter(x => groupOf(x) === 'new').length;
+        const certificateCount = activeList.filter(x => x.hasCertificate).length;
+        const percent = activeList.length ? Math.round(doneCount * 100 / activeList.length) : 0;
+
+        document.getElementById('mc-overview').innerHTML = activeList.length ? `
+            <div class="mc-overview-num"><b>${doneCount}</b><span>/ ${activeList.length}</span></div>
+            <div class="mc-overview-sub">${esc(t('my-course.khoaDaHoanThanh', 'khóa học đã hoàn thành'))}</div>
+            <div class="mc-overview-bar">${progressBar(percent)}</div>
+            <div class="mc-overview-row"><span><i class="ph ph-play-circle"></i> ${esc(t('my-course.dangHocDo', 'Đang học dở'))}</span><b>${progressCount}</b></div>
+            <div class="mc-overview-row"><span><i class="ph ph-circle-dashed"></i> ${esc(t('dashboard.notStarted', 'Chưa bắt đầu'))}</span><b>${newCount}</b></div>
+            <div class="mc-overview-row"><span><i class="ph ph-seal-check"></i> ${esc(t('my-course.chungNhanDatDuoc', 'Chứng nhận đạt được'))}</span>
+                ${certificateCount ? `<a href="/pages/certificate.html"><b>${certificateCount}</b> <i class="ph ph-arrow-right"></i></a>` : '<b>0</b>'}</div>`
+            : `<div class="mc-side-empty">${esc(t('my-course.chuaCoSoLieu', 'Bắt đầu một khóa học là tiến độ hiện ở đây.'))}</div>`;
+    }
+
+    /** Hạn chót của các khóa còn phải học, gần nhất lên đầu — gồm cả khóa đã trễ hạn. */
+    function renderDeadline() {
+        const list = enrollmentList.filter(x => isOpen(x) && x.dueDate)
+            .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+            .slice(0, 5);
+        const box = document.getElementById('mc-deadline');
+
+        if (!list.length) {
+            box.innerHTML = `<div class="mc-side-empty">${esc(t('my-course.khongCoHanChot', 'Không có hạn chót nào — bạn học theo nhịp của mình.'))}</div>`;
+            return;
+        }
+
+        box.innerHTML = `<div class="mc-dl">${list.map(x => {
+            const days = daysLeft(x);
+            const due = new Date(x.dueDate);
+            const tone = isOverdue(x) || days === 0 ? 'bad' : days <= SOON_DAYS ? 'warn' : '';
+            const note = isOverdue(x)
+                ? (days < 0 ? t('my-course.quaHanNgay', 'Quá hạn {n} ngày', { n: -days }) : t('dashboard.overdue', 'Quá hạn'))
+                : days === 0 ? t('my-course.hanHomNay', 'Hạn chót hôm nay')
+                : t('my-course.conNgay', 'Còn {n} ngày', { n: days });
+            return `<a href="/pages/scorm-player.html?enrollmentId=${x.id}">
+                <span class="mc-date ${tone}"><b>${due.getDate()}</b><span>${esc(due.toLocaleDateString(Lang.locale, { month: 'short' }))}</span></span>
+                <span class="mc-dl-text"><b>${esc(x.courseTitle)}</b><small class="${tone}">${esc(note)}</small></span>
+            </a>`;
+        }).join('')}</div>`;
+    }
+
     async function openScoreboard(enrollmentId, courseTitle) {
-        document.getElementById('scoreboard-title').textContent = courseTitle ? `Bảng điểm — ${courseTitle}` : t('my-course.bangDiem', 'Bảng điểm');
+        document.getElementById('scoreboard-title').textContent = courseTitle
+            ? `${t('my-course.bangDiem', 'Bảng điểm')} — ${courseTitle}` : t('my-course.bangDiem', 'Bảng điểm');
         const body = document.getElementById('scoreboard-body');
         body.innerHTML = skeletonHtml('list', { count: 3, avatar: false });
         openModal('modal-scoreboard');
@@ -549,107 +701,52 @@
             const quizList = detail.pathList.filter(x => x.itemType === 'Quiz');
 
             body.innerHTML = quizList.length ? `
-                <div class="table-wrap" style="border-radius: 8px; border: 1px solid var(--border); overflow:hidden;">
-                    <table style="width:100%; text-align:left; border-collapse: collapse;">
-                    <thead style="background: rgba(14,165,233,0.05);">
-                        <tr>
-                            <th style="padding: 12px 16px;">Bài kiểm tra</th>
-                            <th class="text-center" style="padding: 12px 16px;">Điểm cao nhất</th>
-                            <th class="text-center" style="padding: 12px 16px;">Kết quả</th>
-                            <th class="text-center" style="padding: 12px 16px;">Lượt đã làm</th>
-                        </tr>
-                    </thead>
-                    <tbody>${quizList.map(q => `
-                        <tr style="border-top: 1px solid var(--border);">
-                            <td style="padding: 12px 16px; font-weight: 500;">${esc(q.title)}</td>
-                            <td class="text-center" style="padding: 12px 16px;">${q.bestScore != null ? `<b style="color:var(--primary)">${q.bestScore}</b>` : '—'}</td>
-                            <td class="text-center" style="padding: 12px 16px;">${q.status === 'Completed'
-                                ? `<span class="badge green">${t('common.dat', 'Đạt')}</span>`
-                                : q.attemptUsed > 0 ? `<span class="badge red">${t('common.chuaDat', 'Chưa đạt')}</span>` 
-                                : `<span class="badge gray">${t('my-course.chuaLam', 'Chưa làm')}</span>`}</td>
-                            <td class="text-center" style="padding: 12px 16px;">${q.attemptUsed} / ${q.maxAttempt}</td>
-                        </tr>`).join('')}
-                    </tbody>
+                <div class="table-wrap"><table>
+                    <thead><tr>
+                        <th>${esc(t('common.baiKiemTra', 'Bài kiểm tra'))}</th>
+                        <th class="text-center">${esc(t('my-course.diemCaoNhat', 'Điểm cao nhất'))}</th>
+                        <th class="text-center">${esc(t('my-course.ketQua', 'Kết quả'))}</th>
+                        <th class="text-center">${esc(t('my-course.luotDaLam', 'Lượt đã làm'))}</th>
+                    </tr></thead>
+                    <tbody>${quizList.map(q => `<tr>
+                        <td><b>${esc(q.title)}</b></td>
+                        <td class="text-center">${q.bestScore != null ? `<b>${q.bestScore}</b>` : '—'}</td>
+                        <td class="text-center">${q.status === 'Completed'
+                            ? `<span class="badge green">${esc(t('common.dat', 'Đạt'))}</span>`
+                            : q.attemptUsed > 0 ? `<span class="badge red">${esc(t('common.chuaDat', 'Chưa đạt'))}</span>`
+                            : `<span class="badge gray">${esc(t('my-course.chuaLam', 'Chưa làm'))}</span>`}</td>
+                        <td class="text-center">${q.attemptUsed} / ${q.maxAttempt}</td>
+                    </tr>`).join('')}</tbody>
                 </table></div>`
-                : emptyHtml(t('my-course.khoaHocNayChuaCoBaiKiemTraNao', 'Khóa học này chưa có bài kiểm tra nào.'), '<i class="ph-duotone ph-exam" style="font-size:48px; color:var(--text-muted)"></i>');
+                : emptyHtml(t('my-course.khoaHocNayChuaCoBaiKiemTraNao', 'Khóa học này chưa có bài kiểm tra nào.'), '<i class="ph ph-exam"></i>');
         } catch (ex) {
-            body.innerHTML = emptyHtml(ex.message, '<i class="ph-duotone ph-warning-circle" style="font-size:48px; color:#ef4444"></i>');
+            body.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning-circle"></i>');
         }
     }
 
-    async function loadAvailable() {
-        const box = document.getElementById('available');
-        box.innerHTML = skeletonHtml('cards', { count: 3 });
-        try {
-            const list = await API.get('/course/my-available');
-            box.innerHTML = list.length
-                ? `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">${list.map(c => `
-                    <div class="course-card-modern" style="border: 1px dashed var(--border); box-shadow: none; background: transparent;">
-                        <div class="info">
-                            <h4 class="title" style="font-size: 1rem;">${esc(c.title)}</h4>
-                            <div class="meta" style="margin-bottom: 8px;">
-                                <i class="ph-bold ph-tag"></i> ${esc(c.code)}
-                            </div>
-                            <div class="meta">
-                                <i class="ph-bold ph-clock"></i> ${formatDuration(c.durationMinutes)}
-                            </div>
-                            <div class="meta">
-                                <i class="ph-bold ph-list-dashes"></i> ${c.lessonCount} bài học
-                            </div>
-                            ${c.suggestReason ? `
-                            <div style="margin-top: 16px; padding: 10px 12px; background: rgba(14, 165, 233, 0.08); border-radius: 8px; font-size: 0.8rem; color: var(--primary-dark); font-weight: 600; display:flex; gap: 8px; align-items:flex-start;">
-                                <i class="ph-fill ph-sparkle" style="margin-top:2px;"></i>
-                                <span>${esc(suggestReasonText(c.suggestReason))}${c.isMandatory ? ` · ${esc(t('suggest.mandatory', 'Bắt buộc'))}` : ''}</span>
-                            </div>` : ''}
-                            <button type="button" class="btn-modern btn-primary" data-enroll="${c.id}" style="margin-top: 12px; width: 100%;">
-                                <i class="ph-bold ph-plus-circle"></i> ${esc(t('suggest.enroll', 'Đăng ký học'))}
-                            </button>
-                        </div>
-                    </div>`).join('')}</div>`
-                : emptyHtml(t('my-course.khongCoKhoaHocMoiPhuHopVoiPhon', 'Không có khóa học mới phù hợp với phòng ban / vị trí của bạn.'), '<i class="ph-duotone ph-confetti" style="font-size:48px; color:var(--text-muted)"></i>');
-
-            box.querySelectorAll('[data-enroll]').forEach(b => b.addEventListener('click', async () => {
-                const course = list.find(x => x.id == b.dataset.enroll);
-                b.disabled = true;
-                if (await selfEnrollCourse(course.id, course.title)) {
-                    // Khóa vừa đăng ký chuyển từ mục gợi ý sang danh sách khóa học của tôi (và lịch học).
-                    scheduleCache.clear();
-                    await load();
-                    loadAvailable();
-                } else {
-                    b.disabled = false;
-                }
-            }));
-        } catch {
-            box.innerHTML = emptyHtml(t('my-course.khongTaiDuocDanhSach', 'Không tải được danh sách.'), '<i class="ph-duotone ph-warning-circle" style="font-size:48px; color:#ef4444"></i>');
-        }
-    }
-
-    // ==========================================
-    // LOGIC LỊCH HỌC HÀNG NGANG (ROW LIST VIEW)
-    // ==========================================
-    document.getElementById('btn-prev-month').addEventListener('click', () => {
-        currentCalDate.setMonth(currentCalDate.getMonth() - 1);
-        renderCalendar();
-    });
-
-    document.getElementById('btn-next-month').addEventListener('click', () => {
-        currentCalDate.setMonth(currentCalDate.getMonth() + 1);
-        renderCalendar();
-    });
+    // ==================== THẺ LỊCH HỌC ====================
 
     function ymd(d) {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
+    function shiftMonth(delta) {
+        calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + delta, 1);
+        renderCalendar();
+    }
+
+    async function goToday() {
+        const now = new Date();
+        calendarDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        await renderCalendar();
+        document.getElementById(`mc-day-${now.getDate()}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     async function loadSchedule(year, month) {
         const key = `${year}-${month}`;
         if (scheduleCache.has(key)) return scheduleCache.get(key);
-
-        const from = ymd(new Date(year, month, 1));
-        const to = ymd(new Date(year, month + 1, 0));
         try {
-            const list = await API.get(`/enrollment/my-schedule?from=${from}&to=${to}`);
+            const list = await API.get(`/enrollment/my-schedule?from=${ymd(new Date(year, month, 1))}&to=${ymd(new Date(year, month + 1, 0))}`);
             scheduleCache.set(key, list);
             return list;
         } catch {
@@ -658,142 +755,91 @@
     }
 
     async function renderCalendar() {
-        const calContainer = document.getElementById('learning-calendar');
-        if (!calContainer) return;
+        const box = document.getElementById('mc-agenda');
+        const year = calendarDate.getFullYear();
+        const month = calendarDate.getMonth();
+        // Chỉ viết hoa chữ đầu: text-transform: capitalize viết hoa MỌI từ, thành "Tháng 8 Năm 2026".
+        const monthLabel = new Date(year, month, 1).toLocaleDateString(Lang.locale, { month: 'long', year: 'numeric' });
+        document.getElementById('mc-cal-label').textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
 
-        const year = currentCalDate.getFullYear();
-        const month = currentCalDate.getMonth();
-
-        document.getElementById('current-month-year').textContent = `Tháng ${month + 1}, ${year}`;
-
+        if (!scheduleCache.has(`${year}-${month}`)) box.innerHTML = skeletonHtml('list', { count: 4, avatar: false });
         const scheduleList = await loadSchedule(year, month);
-        if (currentCalDate.getFullYear() !== year || currentCalDate.getMonth() !== month) return;
+        // Bấm qua tháng khác trong lúc đang chờ thì kết quả này đã cũ — bỏ, để lần gọi mới vẽ.
+        if (calendarDate.getFullYear() !== year || calendarDate.getMonth() !== month) return;
 
-        const eventsByDate = new Map();
-        const push = (d, ev) => {
-            if (d.getFullYear() !== year || d.getMonth() !== month) return;
-            const day = d.getDate();
-            if (!eventsByDate.has(day)) eventsByDate.set(day, []);
-            eventsByDate.get(day).push(ev);
+        const eventByDay = new Map();
+        const push = (date, event) => {
+            if (date.getFullYear() !== year || date.getMonth() !== month) return;
+            if (!eventByDay.has(date.getDate())) eventByDay.set(date.getDate(), []);
+            eventByDay.get(date.getDate()).push(event);
         };
 
         scheduleList.forEach(x => push(new Date(x.scheduledAt), {
             kind: 'lesson',
+            icon: x.status === 'Completed' ? 'ph-check-circle' : contentTypeMeta(x.contentType).iconClass,
             title: x.lessonTitle,
-            subtitle: x.courseTitle,
+            subtitle: x.durationMinutes ? `${x.courseTitle} · ${formatDuration(x.durationMinutes)}` : x.courseTitle,
             done: x.status === 'Completed',
-            inProgress: x.status === 'InProgress',
-            enrollmentId: x.enrollmentId
+            enrollmentId: x.enrollmentId,
+        }));
+        enrollmentList.filter(x => x.dueDate && x.status !== 'Cancelled').forEach(x => push(new Date(x.dueDate), {
+            kind: 'due',
+            icon: 'ph-flag-checkered',
+            title: t('my-course.hanChotKhoa', 'Hạn chót: {title}', { title: x.courseTitle }),
+            subtitle: t('my-course.yeuCauHoanThanhKhoa', 'Phải hoàn thành toàn bộ khóa học'),
+            done: x.status === 'Completed',
+            enrollmentId: x.id,
         }));
 
-        allList.forEach(x => {
-            if (!x.dueDate) return;
-            push(new Date(x.dueDate), {
-                kind: 'due',
-                title: `Hạn chót: ${x.courseTitle}`,
-                subtitle: 'Yêu cầu hoàn thành toàn bộ khóa',
-                done: x.status === 'Completed',
-                enrollmentId: x.id
-            });
-        });
-
-        // Sử dụng class dòng ngang
-        let html = '<div class="schedule-list-view" id="agenda-scroll-container">';
-        
-        const sortedDays = Array.from(eventsByDate.keys()).sort((a, b) => a - b);
-        const today = new Date();
-        const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
-
-        if (sortedDays.length === 0) {
-            calContainer.innerHTML = `
-                <div style="text-align:center; padding: 60px 20px; color: var(--text-muted); width: 100%; border: 1px dashed var(--border); border-radius: 16px;">
-                    <i class="ph-duotone ph-calendar-blank" style="font-size: 64px; margin-bottom: 16px; color: var(--border); display:block;"></i>
-                    <p style="font-size: 1.1rem; font-weight: 500;">Tháng này bạn chưa có lịch học hay deadline nào.</p>
-                    <p style="font-size: 0.9rem; margin-top: 8px;">Dành thời gian nghỉ ngơi hoặc khám phá các khóa học gợi ý nhé!</p>
-                </div>`;
+        if (!eventByDay.size) {
+            box.innerHTML = emptyHtml(t('my-course.thangNayTrong', 'Tháng này chưa có buổi học hay hạn chót nào.'), '<i class="ph ph-calendar-blank"></i>');
             return;
         }
 
-        const dayNames = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-        
-        sortedDays.forEach(day => {
-            const dayEvents = eventsByDate.get(day).sort((a, b) => (a.kind === 'due' ? -1 : 1) - (b.kind === 'due' ? -1 : 1));
-            const dateObj = new Date(year, month, day);
-            const dayName = dayNames[dateObj.getDay()];
-            const isToday = isCurrentMonth && day === today.getDate();
+        const today = new Date();
+        const isThisMonth = today.getFullYear() === year && today.getMonth() === month;
 
-            html += `
-            <div class="schedule-row ${isToday ? 'today' : ''}" id="day-${day}">
-                <div class="schedule-date-block">
-                    <span class="d-month">Tháng ${month + 1}</span>
-                    <span class="d-day">${day}</span>
-                    <span class="d-name">${isToday ? 'Hôm nay' : dayName}</span>
-                </div>
-                <div class="schedule-events-area">
-                    ${dayEvents.map(e => `
-                        <div class="agenda-item">
-                            <a href="/pages/learn.html?enrollmentId=${e.enrollmentId}" 
-                               class="agenda-event ${e.kind} ${e.done ? 'done' : ''}">
-                                <div class="agenda-icon">
-                                    <i class="ph-fill ${calIcon(e)}"></i>
-                                </div>
-                                <div class="agenda-info">
-                                    <h4 class="agenda-title">${esc(e.title)}</h4>
-                                    <p class="agenda-course">${esc(e.subtitle)}</p>
-                                </div>
-                            </a>
-                            <button type="button" class="agenda-bell ${hasReminderFor(e) ? 'on' : ''}"
-                                    title="${hasReminderFor(e) ? 'Đã có nhắc nhở cho việc này' : 'Nhắc tôi học việc này'}"
-                                    data-remind-title="${esc(e.title)}"
-                                    data-remind-enrollment="${e.enrollmentId}"
-                                    data-remind-day="${year},${month},${day}">
-                                <i class="ph-fill ph-alarm"></i>
-                            </button>
-                        </div>
-                    `).join('')}
-                </div>
+        box.innerHTML = `<div class="mc-agenda">${[...eventByDay.keys()].sort((a, b) => a - b).map(day => {
+            const date = new Date(year, month, day);
+            const isToday = isThisMonth && day === today.getDate();
+            // Hạn chót lên trước bài học trong cùng một ngày: nó là mốc cứng, bài học thì học sớm muộn đều được.
+            const eventList = eventByDay.get(day).sort((a, b) => (a.kind === 'due' ? 0 : 1) - (b.kind === 'due' ? 0 : 1));
+            return `<div class="mc-day ${isToday ? 'today' : ''}" id="mc-day-${day}">
+                <div class="mc-day-date"><b>${day}</b>
+                    <span>${esc(isToday ? t('my-course.homNay', 'Hôm nay') : date.toLocaleDateString(Lang.locale, { weekday: 'short' }))}</span></div>
+                <div class="mc-events">${eventList.map(e => eventHtml(e, day)).join('')}</div>
             </div>`;
-        });
-        
-        html += '</div>';
-        calContainer.innerHTML = html;
+        }).join('')}</div>`;
 
-        calContainer.querySelectorAll('.agenda-bell').forEach(btn => btn.addEventListener('click', () => {
+        box.querySelectorAll('[data-remind-title]').forEach(btn => btn.addEventListener('click', () => {
             // Ngày gửi qua ba con số rồi dựng lại tại chỗ: chuỗi "2026-09-08" bị trình duyệt hiểu là nửa đêm
             // giờ UTC, lệch múi giờ là nhảy sang ngày khác.
             const [y, m, d] = btn.dataset.remindDay.split(',').map(Number);
             openReminderForm({
                 title: btn.dataset.remindTitle,
                 enrollmentId: Number(btn.dataset.remindEnrollment) || null,
-                remindAt: suggestedTime(new Date(y, m, d))
+                remindAt: suggestedTime(new Date(y, m, d)),
             });
         }));
 
-        // Tự động cuộn đến ngày hôm nay (nếu có) sau khi render
-        setTimeout(() => {
-            if (isCurrentMonth) {
-                const todayRow = document.getElementById(`day-${today.getDate()}`);
-                const container = document.getElementById('agenda-scroll-container');
-                if (todayRow && container) {
-                    container.scrollTop = todayRow.offsetTop - container.offsetTop - 16; 
-                }
-            }
-        }, 100);
+        function eventHtml(e, day) {
+            const on = hasReminderFor(e);
+            const bellLabel = on ? t('my-course.daCoNhacNho', 'Đã có nhắc nhở cho việc này') : t('my-course.nhacToiViecNay', 'Nhắc tôi học việc này');
+            return `<div class="mc-event ${e.kind} ${e.done ? 'done' : ''}">
+                <a href="/pages/scorm-player.html?enrollmentId=${e.enrollmentId}">
+                    <span class="ic"><i class="ph-fill ${e.icon}"></i></span>
+                    <span class="tx"><b>${esc(e.title)}</b><span>${esc(e.subtitle)}</span></span>
+                </a>
+                <button type="button" class="btn ghost sm icon mc-bell ${on ? 'on' : ''}" title="${esc(bellLabel)}" aria-label="${esc(bellLabel)}"
+                        data-remind-title="${esc(e.title)}" data-remind-enrollment="${e.enrollmentId}" data-remind-day="${year},${month},${day}">
+                    <i class="ph-fill ph-alarm"></i></button>
+            </div>`;
+        }
     }
 
     // ==================== NHẮC NHỞ HỌC TẬP TỰ ĐẶT ====================
     // Người học tự hẹn giờ, máy chủ bắn thông báo đúng phút đó (Services/StudyReminderWorker.cs). Trang này
     // chỉ lo phần đặt/sửa/xóa — việc báo tới nơi là của chuông ở thanh trên cùng (wwwroot/js/app.js).
-
-    const REPEAT_LABEL = {
-        None: 'Không lặp', Daily: 'Hằng ngày', Weekdays: 'Thứ 2 → Thứ 6', Weekly: 'Hằng tuần'
-    };
-    /** DTO trả chu kỳ về dạng chữ, còn ô chọn và thân JSON gửi lên dùng số — đây là chỗ đổi qua lại. */
-    const REPEAT_VALUE = { None: 0, Daily: 1, Weekdays: 2, Weekly: 3 };
-
-    let reminderList = [];
-    /** Id lời nhắc đang sửa; null nghĩa là ô đang mở để tạo mới. */
-    let editingReminderId = null;
 
     /** Việc này đã có lời nhắc đang bật chưa — để tô sáng nút chuông trên lịch. */
     function hasReminderFor(event) {
@@ -822,79 +868,101 @@
              + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
     }
 
+    function syncDesktopNotificationButton() {
+        // Chỉ mời bật khi trình duyệt còn đang hỏi được — đã bật rồi, hoặc đã chặn, thì cái nút chỉ là nhiễu.
+        document.getElementById('btn-enable-desktop-notification')
+            .classList.toggle('hidden', desktopNotificationState() !== 'default');
+    }
+
     async function loadReminderList() {
         const box = document.getElementById('reminder-list');
         box.innerHTML = skeletonHtml('list', { count: 3, avatar: false });
         try {
             reminderList = await API.get('/studyreminder');
         } catch (ex) {
-            box.innerHTML = `<div style="color:#e11d48;">${esc(ex.message)}</div>`;
+            box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning-circle"></i>');
+            document.getElementById('mc-reminder-mini').innerHTML = '';
             return;
         }
         renderReminderList();
+        renderReminderMini();
         // Chuông trên lịch sáng/tắt theo danh sách vừa lấy về.
-        renderCalendar();
+        if (document.getElementById('tab-schedule').classList.contains('active')) renderCalendar();
+    }
+
+    function reminderMetaHtml(x, full) {
+        return `<div class="meta">
+            <span><i class="ph ph-clock"></i> ${esc(x.isActive ? '' : t('my-course.dangTat', 'Đang tắt') + ' · ')}${esc(formatDate(x.remindAt, true))}</span>
+            ${full ? `<span><i class="ph ph-repeat"></i> ${esc(REPEAT_LABEL[x.repeat] || x.repeat)}</span>` : ''}
+            ${full && x.courseTitle ? `<span><i class="ph ph-book-open"></i> ${esc(x.courseTitle)}</span>` : ''}
+            ${full && x.sendEmail ? `<span><i class="ph ph-envelope-simple"></i> ${esc(t('my-course.coGuiEmail', 'Có gửi email'))}</span>` : ''}
+        </div>`;
     }
 
     function renderReminderList() {
         const box = document.getElementById('reminder-list');
-
         if (!reminderList.length) {
-            box.innerHTML = `
-                <div style="text-align:center; padding: 40px 20px; color: var(--text-muted);
-                            border: 1px dashed var(--border); border-radius: 16px;">
-                    <i class="ph-duotone ph-alarm" style="font-size: 48px; display:block; margin-bottom: 12px; color: var(--border);"></i>
-                    <p style="margin:0; font-weight: 500;">Bạn chưa đặt lời nhắc nào.</p>
-                    <p style="margin: 6px 0 0 0; font-size: 0.9rem;">
-                        Bấm <strong>Đặt nhắc nhở</strong>, hoặc bấm nút chuông trên một buổi học ở lịch phía trên.</p>
-                </div>`;
+            box.innerHTML = emptyHtml(t('my-course.chuaCoNhacNhoGoiY', 'Bạn chưa đặt lời nhắc nào. Bấm "Đặt nhắc nhở", hoặc bấm nút chuông trên một buổi học ở lịch.'),
+                '<i class="ph ph-alarm"></i>');
             return;
         }
 
-        box.innerHTML = `<div class="reminder-list">${reminderList.map(x => `
-            <div class="reminder-row ${x.isActive ? '' : 'off'}">
-                <div class="reminder-clock"><i class="ph-fill ${x.isActive ? 'ph-alarm' : 'ph-bell-slash'}"></i></div>
-                <div class="reminder-main">
-                    <h4>${esc(x.title)}</h4>
-                    <div class="reminder-meta">
-                        <span><i class="ph ph-clock"></i>
-                            ${x.isActive ? 'Lần tới' : 'Đang tắt'}: ${esc(formatDate(x.remindAt, true))}</span>
-                        <span><i class="ph ph-repeat"></i> ${esc(REPEAT_LABEL[x.repeat] || x.repeat)}</span>
-                        ${x.courseTitle ? `<span><i class="ph ph-book-open"></i> ${esc(x.courseTitle)}</span>` : ''}
-                        ${x.sendEmail ? '<span><i class="ph ph-envelope-simple"></i> Có gửi email</span>' : ''}
-                        ${x.lastSentAt ? `<span><i class="ph ph-check"></i> Đã báo ${esc(formatDate(x.lastSentAt, true))}</span>` : ''}
-                    </div>
-                </div>
-                <div class="reminder-act">
-                    <button type="button" data-reminder-toggle="${x.id}"
-                            title="${x.isActive ? 'Tạm tắt' : 'Bật lại'}">
+        const pauseLabel = t('my-course.tamTat', 'Tạm tắt'), resumeLabel = t('my-course.batLai', 'Bật lại');
+        const editLabel = t('common.edit', 'Sửa'), deleteLabel = t('common.delete', 'Xóa');
+        box.innerHTML = reminderList.map(x => `
+            <div class="mc-reminder ${x.isActive ? '' : 'off'}">
+                <span class="ic"><i class="ph-fill ${x.isActive ? 'ph-alarm' : 'ph-bell-slash'}"></i></span>
+                <div class="tx"><b>${esc(x.title)}</b>${reminderMetaHtml(x, true)}</div>
+                <div class="act">
+                    <button type="button" class="btn ghost sm icon" data-reminder-toggle="${x.id}"
+                            title="${esc(x.isActive ? pauseLabel : resumeLabel)}" aria-label="${esc(x.isActive ? pauseLabel : resumeLabel)}">
                         <i class="ph ${x.isActive ? 'ph-pause' : 'ph-play'}"></i></button>
-                    <button type="button" data-reminder-edit="${x.id}" title="Sửa"><i class="ph ph-pencil-simple"></i></button>
-                    <button type="button" class="danger" data-reminder-delete="${x.id}" title="Xóa"><i class="ph ph-trash"></i></button>
+                    <button type="button" class="btn ghost sm icon" data-reminder-edit="${x.id}" title="${esc(editLabel)}" aria-label="${esc(editLabel)}">
+                        <i class="ph ph-pencil-simple"></i></button>
+                    <button type="button" class="btn ghost danger sm icon" data-reminder-delete="${x.id}" title="${esc(deleteLabel)}" aria-label="${esc(deleteLabel)}">
+                        <i class="ph ph-trash"></i></button>
                 </div>
-            </div>`).join('')}</div>`;
+            </div>`).join('');
 
         box.querySelectorAll('[data-reminder-toggle]').forEach(btn =>
-            btn.addEventListener('click', () => toggleReminder(Number(btn.dataset.reminderToggle))));
+            btn.addEventListener('click', () => toggleReminder(+btn.dataset.reminderToggle)));
         box.querySelectorAll('[data-reminder-edit]').forEach(btn =>
             btn.addEventListener('click', () => {
-                const item = reminderList.find(x => x.id === Number(btn.dataset.reminderEdit));
+                const item = reminderList.find(x => x.id === +btn.dataset.reminderEdit);
                 if (item) openReminderForm(item);
             }));
         box.querySelectorAll('[data-reminder-delete]').forEach(btn =>
-            btn.addEventListener('click', () => deleteReminder(Number(btn.dataset.reminderDelete))));
+            btn.addEventListener('click', () => deleteReminder(+btn.dataset.reminderDelete)));
+    }
+
+    /** Ba lời nhắc đang bật gần nhất, ở cột phụ của thẻ Khóa học. */
+    function renderReminderMini() {
+        const box = document.getElementById('mc-reminder-mini');
+        const list = reminderList.filter(x => x.isActive)
+            .sort((a, b) => new Date(a.remindAt) - new Date(b.remindAt))
+            .slice(0, 3);
+
+        box.innerHTML = (list.length
+            ? list.map(x => `<div class="mc-reminder mini">
+                    <span class="ic"><i class="ph-fill ph-alarm"></i></span>
+                    <div class="tx"><b>${esc(x.title)}</b>${reminderMetaHtml(x, false)}</div>
+                </div>`).join('')
+            : `<div class="mc-side-empty">${esc(t('my-course.chuaCoNhacNho', 'Chưa có nhắc nhở nào đang bật.'))}</div>`)
+            + `<button type="button" class="btn ghost sm block mt" data-goto="schedule">
+                   ${esc(t('my-course.quanLyLichNhacNho', 'Mở lịch & nhắc nhở'))} <i class="ph ph-arrow-right"></i></button>`;
+        box.querySelector('[data-goto]').addEventListener('click', () => openTab('schedule'));
     }
 
     /** Mở ô đặt nhắc. Truyền vào một lời nhắc đã có (có id) để sửa, hoặc dữ liệu gợi ý sẵn để tạo mới. */
     function openReminderForm(prefill = {}) {
         editingReminderId = prefill.id ?? null;
-
-        document.getElementById('reminder-modal-title').textContent =
-            editingReminderId ? 'Sửa nhắc nhở học tập' : 'Đặt nhắc nhở học tập';
+        document.getElementById('reminder-modal-title').textContent = editingReminderId
+            ? t('my-course.suaNhacNho', 'Sửa nhắc nhở học tập') : t('my-course.datNhacNhoHocTap', 'Đặt nhắc nhở học tập');
 
         const courseSelect = document.getElementById('reminder-enrollment');
-        courseSelect.innerHTML = '<option value="">— Không gắn khóa học —</option>'
-            + allList.map(x => `<option value="${x.id}">${esc(x.courseTitle)}</option>`).join('');
+        courseSelect.innerHTML = `<option value="">— ${esc(t('my-course.khongGanKhoaHoc', 'Không gắn khóa học'))} —</option>`
+            + enrollmentList.filter(x => x.status !== 'Cancelled')
+                .map(x => `<option value="${x.id}">${esc(x.courseTitle)}</option>`).join('');
         courseSelect.value = prefill.enrollmentId ? String(prefill.enrollmentId) : '';
 
         document.getElementById('reminder-title').value = prefill.title || '';
@@ -905,7 +973,7 @@
             toInputValue(prefill.remindAt ? new Date(prefill.remindAt) : suggestedTime(null));
 
         openModal('modal-reminder');
-        document.getElementById('reminder-title').focus();
+        setTimeout(() => document.getElementById('reminder-title').focus(), 50);
     }
 
     async function saveReminder() {
@@ -913,12 +981,12 @@
         const remindAt = document.getElementById('reminder-at').value;
         const repeat = Number(document.getElementById('reminder-repeat').value);
 
-        if (!title) return toastErr('Hãy nhập việc cần nhắc.');
-        if (!remindAt) return toastErr('Hãy chọn giờ nhắc.');
+        if (!title) return toastErr(t('my-course.nhapViecCanNhac', 'Hãy nhập việc cần nhắc.'));
+        if (!remindAt) return toastErr(t('my-course.chonGioNhac', 'Hãy chọn giờ nhắc.'));
         // Chặn ngay tại chỗ cho lời nhắc một lần đặt vào quá khứ — máy chủ cũng chặn, nhưng báo ở đây thì
         // người dùng thấy liền mà không mất một vòng gọi mạng.
         if (repeat === REPEAT_VALUE.None && new Date(remindAt) <= new Date())
-            return toastErr('Giờ nhắc phải nằm ở tương lai.');
+            return toastErr(t('my-course.gioNhacPhaiOTuongLai', 'Giờ nhắc phải nằm ở tương lai.'));
 
         const enrollmentValue = document.getElementById('reminder-enrollment').value;
         const body = {
@@ -929,14 +997,14 @@
             remindAt,
             repeat,
             sendEmail: document.getElementById('reminder-email').checked,
-            enrollmentId: enrollmentValue ? Number(enrollmentValue) : null
+            enrollmentId: enrollmentValue ? Number(enrollmentValue) : null,
         };
 
         try {
             if (editingReminderId) await API.put(`/studyreminder/${editingReminderId}`, body);
             else await API.post('/studyreminder', body);
             closeModal('modal-reminder');
-            toastOk('Đã lưu nhắc nhở. Tới giờ hệ thống sẽ báo cho bạn.');
+            toastOk(t('my-course.daLuuNhacNho', 'Đã lưu nhắc nhở. Tới giờ hệ thống sẽ báo cho bạn.'));
             await loadReminderList();
             await offerDesktopNotification();
         } catch (ex) { toastErr(ex.message); }
@@ -950,7 +1018,7 @@
     }
 
     async function deleteReminder(id) {
-        if (!confirm('Xóa lời nhắc này?')) return;
+        if (!await confirmDialog(t('my-course.xoaNhacNho', 'Xóa lời nhắc này?'), { danger: true, okText: t('common.delete', 'Xóa') })) return;
         try {
             await API.del(`/studyreminder/${id}`);
             await loadReminderList();
@@ -961,22 +1029,68 @@
      *  rõ họ muốn được nhắc, nên lời xin quyền không đến từ đâu rơi xuống. Chỉ hỏi một lần cho mỗi máy. */
     async function offerDesktopNotification() {
         if (desktopNotificationState() !== 'default') return;
-        if (localStorage.getItem('hbe_reminder_permission_asked')) return;
-        localStorage.setItem('hbe_reminder_permission_asked', '1');
+        try {
+            if (localStorage.getItem('hbe_reminder_permission_asked')) return;
+            localStorage.setItem('hbe_reminder_permission_asked', '1');
+        } catch { return; }
         await requestDesktopNotificationPermission();
+        syncDesktopNotificationButton();
     }
 
-    document.getElementById('btn-add-reminder').addEventListener('click', () => openReminderForm());
-    document.getElementById('btn-save-reminder').addEventListener('click', saveReminder);
-    document.getElementById('btn-enable-desktop-notification')
-        .addEventListener('click', requestDesktopNotificationPermission);
+    // ==================== THẺ GỢI Ý ====================
 
-    function calIcon(e) {
-        if (e.kind === 'due') return 'ph-flag';
-        if (e.done) return 'ph-check-circle';
-        return e.inProgress ? 'ph-play-circle' : 'ph-book-open';
+    async function loadAvailable() {
+        const box = document.getElementById('available');
+        box.innerHTML = skeletonHtml('cards', { count: 3 });
+        try {
+            availableList = await API.get('/course/my-available');
+        } catch {
+            box.innerHTML = emptyHtml(t('my-course.khongTaiDuocDanhSach', 'Không tải được danh sách.'), '<i class="ph ph-warning-circle"></i>');
+            return;
+        }
+
+        const countBadge = document.getElementById('mc-suggest-count');
+        countBadge.textContent = availableList.length;
+        countBadge.classList.toggle('hidden', !availableList.length);
+        // Danh sách khóa học trống có nút "Xem khóa học gợi ý" — chỉ vẽ được khi đã biết có gợi ý hay không.
+        if (enrollmentLoaded && !enrollmentList.length) renderCourseList();
+
+        if (!availableList.length) {
+            box.innerHTML = emptyHtml(t('my-course.khongCoKhoaHocMoiPhuHopVoiPhon', 'Không có khóa học mới phù hợp với phòng ban / vị trí của bạn.'), '<i class="ph ph-confetti"></i>');
+            return;
+        }
+
+        box.innerHTML = `<div class="mc-suggest-grid">${availableList.map(c => `
+            <article class="mc-suggest">
+                ${courseThumbHtml(c.title, c.thumbnailUrl)}
+                <div class="mc-suggest-body">
+                    <h4>${esc(c.title)}</h4>
+                    <div class="mc-meta">
+                        <span class="code">${esc(c.code)}</span>
+                        ${c.isMandatory ? `<span class="badge orange">${esc(t('suggest.mandatory', 'Bắt buộc'))}</span>` : ''}
+                    </div>
+                    <div class="mc-meta">
+                        <span><i class="ph ph-clock"></i> ${formatDuration(c.durationMinutes)}</span>
+                        <span><i class="ph ph-list-dashes"></i> ${esc(t('my-course.soBaiHoc', '{n} bài học', { n: c.lessonCount }))}</span>
+                    </div>
+                    ${c.suggestReason ? `<div class="mc-reason"><i class="ph-fill ph-sparkle"></i><span>${esc(suggestReasonText(c.suggestReason))}</span></div>` : ''}
+                    <button type="button" class="btn sm block" data-enroll="${c.id}">
+                        <i class="ph-bold ph-plus-circle"></i> ${esc(t('suggest.enroll', 'Đăng ký học'))}</button>
+                </div>
+            </article>`).join('')}</div>`;
+
+        box.querySelectorAll('[data-enroll]').forEach(b => b.addEventListener('click', async () => {
+            const course = availableList.find(x => x.id === +b.dataset.enroll);
+            b.disabled = true;
+            if (await selfEnrollCourse(course.id, course.title)) {
+                // Khóa vừa đăng ký chuyển từ Gợi ý sang danh sách Khóa học (và lên lịch học).
+                scheduleCache.clear();
+                await Promise.all([loadEnrollment(), loadAvailable()]);
+            } else {
+                b.disabled = false;
+            }
+        }));
     }
-
 })();
 </script>
 </body>

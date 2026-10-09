@@ -13,6 +13,21 @@ public static class WebApplicationExtensions
             app.UseSwagger();
             app.UseSwaggerUI();
         }
+        else
+        {
+            // Lỗi không ai bắt: ghi nhật ký đầy đủ, trả ra ngoài một câu chung chung kèm mã tra cứu.
+            // Chỉ lắp khi chạy thật — môi trường phát triển vẫn dùng trang lỗi chi tiết của ASP.NET để
+            // người lập trình đọc được ngay chỗ hỏng.
+            app.UseSafeExceptionHandler();
+
+            // Nói với trình duyệt: từ nay chỉ gọi tên miền này qua HTTPS. Không có dòng này thì lần gõ địa chỉ
+            // đầu tiên vẫn đi bằng HTTP và thẻ đăng nhập có thể bị đọc trộm ngay trên đường truyền trước khi
+            // UseHttpsRedirection kịp chuyển hướng.
+            app.UseHsts();
+        }
+
+        // Đặt TRƯỚC mọi thứ trả nội dung ra ngoài, để cả tệp tĩnh lẫn phản hồi API đều mang đủ đầu mục bảo vệ.
+        app.UseSecurityHeaders();
 
         app.UseHttpsRedirection();
 
@@ -57,7 +72,41 @@ public static class WebApplicationExtensions
             }
         });
 
-        app.UseCors("AllowAll");
+        // Nội dung các gói SCORM (App_Data/scorm/{khóa}/...) ở /scorm-content/{khóa}/... — CÙNG nguồn gốc với trang
+        // để SCO trong iframe tìm được bộ API (API_1484_11 / API) trên cửa sổ trình phát: khác nguồn gốc là trình
+        // duyệt chặn SCO đọc thuộc tính của cửa sổ cha, mà đó là cách DUY NHẤT chuẩn SCORM cho SCO tìm LMS.
+        //
+        // Gói SCORM là cả một website với đủ loại tệp (font, phụ đề .vtt, dữ liệu .json, tệp riêng của công cụ soạn
+        // bài) — phục vụ cả đuôi lạ, dưới dạng application/octet-stream để nosniff chặn trình duyệt đoán kiểu.
+        var scormRoot = HbELearning.Infrastructure.Files.ScormPackageStorage.ResolveRoot(app.Environment.ContentRootPath);
+        Directory.CreateDirectory(scormRoot);
+        var scormContentTypeProvider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+        scormContentTypeProvider.Mappings[".vtt"] = "text/vtt";
+        scormContentTypeProvider.Mappings[".srt"] = "text/plain";
+        scormContentTypeProvider.Mappings[".mjs"] = "text/javascript";
+        scormContentTypeProvider.Mappings[".xsd"] = "text/xml";
+        scormContentTypeProvider.Mappings[".glb"] = "model/gltf-binary";
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(scormRoot),
+            RequestPath = "/scorm-content",
+            ContentTypeProvider = scormContentTypeProvider,
+            ServeUnknownFileTypes = true,
+            DefaultContentType = "application/octet-stream",
+            OnPrepareResponse = context =>
+            {
+                // Thư mục gói là GUID, nội dung không bao giờ đổi tại chỗ (đổi gói = nhập gói mới, thư mục mới) —
+                // cho trình duyệt giữ một giờ để mỗi lần bấm Tiếp không phải tải lại cả bộ thư viện của gói.
+                context.Context.Response.Headers.CacheControl = app.Environment.IsDevelopment()
+                    ? "no-cache" : "private, max-age=3600";
+            }
+        });
+
+        app.UseCors(ApiServiceExtensions.CorsPolicyName);
+
+        // Đứng TRƯỚC xác thực: một trận dò mật khẩu phải bị chặn từ vòng đếm, chứ không phải sau khi đã tốn
+        // một lượt băm BCrypt cho mỗi lần thử.
+        app.UseRateLimiter();
 
         app.UseAuthentication();   // BẮT BUỘC đứng trước UseAuthorization
         app.UseAuthorization();

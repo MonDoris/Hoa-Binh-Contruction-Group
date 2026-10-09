@@ -37,7 +37,11 @@ public class UploadService : IUploadService
 
     public Result Delete(string url)
     {
-        if (!url.Contains("/uploads/avatar/") && !_currentUser.IsManager) return Result.Forbidden();
+        // So theo TIỀN TỐ chứ không phải "có chứa": với Contains thì một chuỗi như
+        // "/uploads/lesson/../../appsettings.json#/uploads/avatar/" cũng lọt qua cửa này.
+        url = (url ?? string.Empty).Trim();
+        var isAvatar = url.StartsWith("/uploads/avatar/", StringComparison.OrdinalIgnoreCase);
+        if (!isAvatar && !_currentUser.IsManager) return Result.Forbidden();
 
         var deleted = _fileService.Delete(url);
         return deleted

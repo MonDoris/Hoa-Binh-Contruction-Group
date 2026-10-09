@@ -26,10 +26,11 @@ public interface ICurrentUser
 
     bool IsAdmin { get; }
     bool IsTrainer { get; }
+    bool IsInstructor { get; }
     bool IsHeadOfDepartment { get; }
     bool IsDirector { get; }
 
-    /// <summary>Admin hoặc Người soạn bài.</summary>
+    /// <summary>Admin hoặc Người soạn bài hoặc Giảng Viên.</summary>
     bool IsManager { get; }
 
     /// <summary>Được XEM nội dung đã soạn dù không được sửa: <see cref="IsManager"/> + Trưởng phòng + Giám Đốc.</summary>

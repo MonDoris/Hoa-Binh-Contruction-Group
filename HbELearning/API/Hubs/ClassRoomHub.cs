@@ -58,14 +58,33 @@ public class ClassRoomHub : Hub
         await Clients.OthersInGroup(GroupName(roomId)).SendAsync("ParticipantJoined", me);
     }
 
-    /// <summary>Chuyển tiếp gói tin báo hiệu WebRTC (SDP offer/answer, ICE candidate) tới đúng người nhận.</summary>
+    /// <summary>
+    /// Người gọi có thật sự đang ở trong phòng này hay không.
+    ///
+    /// JoinRoom đã kiểm tra quyền vào phòng, nhưng các lệnh phía dưới thì KHÔNG: chúng chỉ nhận một con số
+    /// roomId từ trình duyệt. Thiếu bước này thì bất kỳ ai đăng nhập được cũng gọi thẳng
+    /// SendChatMessage(roomId bất kỳ) để chèn tin nhắn vào buổi học của phòng khác, hoặc gọi
+    /// NotifyRecordingStatus(roomId, false) để tắt chỉ báo "đang ghi hình" trên màn hình mọi người trong khi
+    /// buổi học vẫn đang được ghi.
+    /// </summary>
+    private bool IsInRoom(int roomId) =>
+        _roomList.TryGetValue(roomId, out var participantList)
+        && participantList.ContainsKey(Context.ConnectionId);
+
+    /// <summary>Chuyển tiếp gói tin báo hiệu WebRTC (SDP offer/answer, ICE candidate) tới đúng người nhận.
+    /// Chỉ chuyển trong phạm vi MỘT phòng: hai bên phải cùng có mặt trong cùng một phòng.</summary>
     public async Task Signal(string targetConnectionId, string type, string payload)
     {
+        var sharesRoom = _roomList.Values.Any(participantList =>
+            participantList.ContainsKey(Context.ConnectionId) && participantList.ContainsKey(targetConnectionId));
+        if (!sharesRoom) return;
+
         await Clients.Client(targetConnectionId).SendAsync("Signal", Context.ConnectionId, type, payload);
     }
 
     public async Task SendChatMessage(int roomId, string message)
     {
+        if (!IsInRoom(roomId)) return;
         if (string.IsNullOrWhiteSpace(message)) return;
         var trimmed = message.Trim();
         await Clients.Group(GroupName(roomId)).SendAsync("ChatMessage", CurrentFullName, trimmed, DateTime.Now);
@@ -76,12 +95,14 @@ public class ClassRoomHub : Hub
     /// thật (không phải chỉ báo tĩnh) cho mọi người trong phòng biết buổi học có đang thực sự được ghi lại hay không.</summary>
     public async Task NotifyRecordingStatus(int roomId, bool isRecording)
     {
+        if (!IsInRoom(roomId)) return;
         await Clients.Group(GroupName(roomId)).SendAsync("RecordingStatus", isRecording);
     }
 
     /// <summary>Chỉ để hiển thị chỉ báo đang nói/tắt mic trên giao diện người khác — không ảnh hưởng luồng audio thật.</summary>
     public async Task ToggleMic(int roomId, bool isOn)
     {
+        if (!IsInRoom(roomId)) return;
         await Clients.OthersInGroup(GroupName(roomId)).SendAsync("ParticipantMicToggled", Context.ConnectionId, isOn);
         await _session.LogEventAsync(roomId, isOn ? OnlineClassRoomEventType.MicOn : OnlineClassRoomEventType.MicOff, Attendee);
     }
@@ -89,6 +110,7 @@ public class ClassRoomHub : Hub
     /// <summary>Chỉ để hiển thị chỉ báo đang bật/tắt camera trên giao diện người khác — không ảnh hưởng luồng video thật.</summary>
     public async Task ToggleCam(int roomId, bool isOn)
     {
+        if (!IsInRoom(roomId)) return;
         await Clients.OthersInGroup(GroupName(roomId)).SendAsync("ParticipantCamToggled", Context.ConnectionId, isOn);
         await _session.LogEventAsync(roomId, isOn ? OnlineClassRoomEventType.CamOn : OnlineClassRoomEventType.CamOff, Attendee);
     }
@@ -96,6 +118,7 @@ public class ClassRoomHub : Hub
     /// <summary>Người chủ trì kết thúc buổi học — mọi người bị ngắt kết nối, trạng thái chuyển Ended.</summary>
     public async Task EndRoom(int roomId)
     {
+        if (!IsInRoom(roomId)) return;
         if (!await _session.EndByHostAsync(roomId, Attendee)) return;
 
         await Clients.Group(GroupName(roomId)).SendAsync("RoomEnded");

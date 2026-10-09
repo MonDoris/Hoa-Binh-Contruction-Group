@@ -284,8 +284,8 @@
         <form id="password-form">
             <div class="modal-body">
                 <div class="field"><label data-i18n="account.matKhauHienTai" for="p-current">Mật khẩu hiện tại *</label><input type="password" id="p-current" required></div>
-                <div class="field"><label data-i18n="account.matKhauMoi" for="p-new">Mật khẩu mới *</label><input type="password" id="p-new" required minlength="6"><div data-i18n="account.toiThieu6KyTu" class="hint">Tối thiểu 6 ký tự.</div></div>
-                <div class="field"><label data-i18n="account.xacNhanMatKhauMoi" for="p-confirm">Xác nhận mật khẩu mới *</label><input type="password" id="p-confirm" required minlength="6"></div>
+                <div class="field"><label data-i18n="account.matKhauMoi" for="p-new">Mật khẩu mới *</label><input type="password" id="p-new" required minlength="8"><div class="hint" id="p-rule">Tối thiểu 8 ký tự, phải có cả chữ và số, không dùng mật khẩu dễ đoán.</div></div>
+                <div class="field"><label data-i18n="account.xacNhanMatKhauMoi" for="p-confirm">Xác nhận mật khẩu mới *</label><input type="password" id="p-confirm" required minlength="8"></div>
             </div>
             <div class="modal-foot">
                 <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-password')">Hủy</button>
@@ -480,6 +480,12 @@
             toastErr(t('account.xacNhanMatKhauMoiKhongKhop', 'Xác nhận mật khẩu mới không khớp.'));
             return;
         }
+
+        // Báo ngay tại chỗ bằng đúng bộ quy tắc của máy chủ (js/password.js). Máy chủ vẫn kiểm lại — đây
+        // chỉ để người dùng khỏi phải gửi đi rồi mới biết mình gõ chưa đạt.
+        const profile = Auth.profile ?? {};
+        const ruleError = passwordRuleError(newPassword, profile.email, profile.userName, profile.employeeCode);
+        if (ruleError) { toastErr(ruleError); return; }
         try {
             await API.post('/auth/change-password', {
                 currentPassword: document.getElementById('p-current').value,

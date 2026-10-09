@@ -368,10 +368,13 @@
     const canUpdate = Auth.can('approval-workflow.update') ?? true;
     const canDelete = Auth.can('approval-workflow.delete') ?? true;
 
-    let currentTab = 'department';
+    // Mở lại thẻ ghi trên địa chỉ trang (?tab=): tải lại trang, kể cả khi đổi ngôn ngữ, vẫn đứng nguyên thẻ đang xem.
+    // Thẻ Cấp Công ty chỉ có khi thanh thẻ hiện (xem syncScopeUi) — Admin xem mọi luồng ngay ở thẻ đầu.
+    let currentTab = canViewCompany && !isAdmin && qs('tab') === 'company' ? 'company' : 'department';
 
     const listContainer = document.getElementById('workflow-list');
     const tabBox = document.getElementById('aw-tabs');
+    tabBox.querySelectorAll('.aw-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === currentTab));
     const filterWrap = document.getElementById('aw-filter-wrap');
     const filterSelect = document.getElementById('aw-filter-department');
     const scopeNote = document.getElementById('scopeNote');
@@ -392,6 +395,7 @@
         if (currentTab === tab) return;
         currentTab = tab;
         tabBox.querySelectorAll('.aw-tab').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
+        rememberTab(tab, 'department');
         buildFilterOption();
         syncScopeUi();
         load();

@@ -40,7 +40,15 @@ public static class DatabaseInitializer
             else if (dbProvider == DbProviderSetup.SqlServer) await EnsureNewColumnSqlServerAsync(db);
         }
 
-        await DbSeeder.SeedAsync(db);
+        var isDevelopment = environment.IsDevelopment();
+        await DbSeeder.SeedAsync(db, isDevelopment);
+
+        // Chạy thật mà database chưa có ai: nói rõ ra thay vì im lặng dựng sẵn một tài khoản Admin có mật
+        // khẩu nằm trong mã nguồn (xem DbSeeder.SeedAsync).
+        if (!isDevelopment && !await db.User.AnyAsync())
+            logger.LogWarning(
+                "Database chua co tai khoan nao. He thong KHONG tu tao tai khoan demo khi chay that — "
+                + "hay tao tai khoan quan tri dau tien bang tay va dat mat khau rieng.");
 
         // Nạp wwwroot/locales/*.json vào bảng dịch. Chạy mọi lần khởi động để nhận khóa mới của bản cập nhật,
         // nhưng KHÔNG đè lên câu chữ công ty đã sửa ở màn hình "Dịch ngôn ngữ" — xem TranslationSeeder.
@@ -198,6 +206,31 @@ public static class DatabaseInitializer
         // Moi tai khoan da co deu bat dau tu 0 lan sai va chua bi khoa, dung voi trang thai that cua chung.
         await AddMissingSqlServerColumnListAsync(connection, "HBE_USER",
             ("FAILED_LOGIN_COUNT", "int NOT NULL DEFAULT 0"), ("LOCKED_OUT_AT", "datetime2 NULL"));
+        // Ngay bat dau / ket thuc khoa hoc - bat buoc, xem Course.StartDate. Kem DEFAULT de ALTER chay duoc tren
+        // bang da co du lieu, roi va ngay moi khoa hoc cu: bat dau tu ngay tao, ket thuc sau do mot nam. Moc
+        // 0001-01-01 khong the do nguoi dung nhap ra nen dung lam dau hieu "dong chua duoc va".
+        await AddMissingSqlServerColumnListAsync(connection, "HBE_COURSE",
+            ("START_DATE", "datetime2 NOT NULL DEFAULT '0001-01-01'"),
+            ("END_DATE", "datetime2 NOT NULL DEFAULT '0001-01-01'"));
+        await ExecuteAsync(connection,
+            "UPDATE HBE_COURSE SET START_DATE = CAST(CAST(CREATED_AT AS date) AS datetime2), " +
+            "END_DATE = DATEADD(year, 1, CAST(CAST(CREATED_AT AS date) AS datetime2)) WHERE START_DATE = '0001-01-01'");
+        // Buoc hoc goi SCORM trong lo trinh - null = buoc nay khong phai SCORM. Khong kem khoa ngoai, cung ly do
+        // voi PARENT_ROLE_ID: cot them vao bang da co du lieu; ScormService tu kiem tinh dung dan.
+        await AddMissingSqlServerColumnListAsync(connection, "HBE_PATH_ITEM", ("SCORM_PACKAGE_ID", "int NULL"));
+        // Lo trinh nang thanh SCORM Organization: chuong (muc cha), ten chuong, an khoi muc luc, gioi han luot,
+        // nguong hoan thanh. Mac dinh deu giu nguyen hanh vi cu: nam o goc, hien, khong gioi han.
+        await AddMissingSqlServerColumnListAsync(connection, "HBE_PATH_ITEM",
+            ("PARENT_ITEM_ID", "int NULL"), ("TITLE", "nvarchar(250) NULL"), ("IS_VISIBLE", "bit NOT NULL DEFAULT 1"),
+            ("ATTEMPT_LIMIT", "int NULL"), ("COMPLETION_THRESHOLD", "decimal(5,4) NULL"));
+        // Goi SCORM nhap tu ngoai (0) hay goi cua chinh khoa hoc (1) - moi goi da nhap truoc day deu la goi ngoai.
+        await AddMissingSqlServerColumnListAsync(connection, "HBE_SCORM_PACKAGE",
+            ("KIND", "int NOT NULL DEFAULT 0"), ("UPDATED_AT", "datetime2 NULL"));
+        // Chung nhan ben ngoai do AI doi chieu: quyet dinh cua AI hay Admin, AI doc duoc gi, so lan doc hong.
+        // Giay da duyet tay truoc day giu IS_AI_REVIEWED = 0 - dung la Admin chot.
+        await AddMissingSqlServerColumnListAsync(connection, "HBE_EXTERNAL_CERTIFICATE",
+            ("IS_AI_REVIEWED", "bit NOT NULL DEFAULT 0"), ("AI_RESULT_JSON", "nvarchar(max) NULL"),
+            ("AI_ATTEMPT_COUNT", "int NOT NULL DEFAULT 0"));
     }
 
     /// <summary>Chạy một câu lệnh vá dữ liệu, bỏ qua lỗi "bảng/cột chưa tồn tại".
@@ -343,6 +376,26 @@ public static class DatabaseInitializer
         await AddMissingColumnListAsync(connection, "HBE_CONVERSATION", ("AVATAR_URL", "TEXT NULL"));
         await AddMissingColumnListAsync(connection, "HBE_CONVERSATION_MEMBER",
             ("BACKGROUND_KEY", "TEXT NULL"), ("BACKGROUND_URL", "TEXT NULL"));
+        // Ngày bắt đầu / kết thúc khóa học — xem bản SqlServer bên trên. date() của Sqlite đọc được cả chuỗi
+        // ngày giờ có 7 chữ số lẻ mà EF ghi vào CREATED_AT.
+        await AddMissingColumnListAsync(connection, "HBE_COURSE",
+            ("START_DATE", "TEXT NOT NULL DEFAULT '0001-01-01 00:00:00'"),
+            ("END_DATE", "TEXT NOT NULL DEFAULT '0001-01-01 00:00:00'"));
+        await ExecuteAsync(connection,
+            "UPDATE HBE_COURSE SET START_DATE = date(CREATED_AT) || ' 00:00:00', " +
+            "END_DATE = date(CREATED_AT, '+1 year') || ' 00:00:00' WHERE START_DATE LIKE '0001-01-01%'");
+        // Bước học gói SCORM trong lộ trình — xem bản SqlServer bên trên.
+        await AddMissingColumnListAsync(connection, "HBE_PATH_ITEM", ("SCORM_PACKAGE_ID", "INTEGER NULL"));
+        // Lộ trình nâng thành SCORM Organization — xem bản SqlServer bên trên.
+        await AddMissingColumnListAsync(connection, "HBE_PATH_ITEM",
+            ("PARENT_ITEM_ID", "INTEGER NULL"), ("TITLE", "TEXT NULL"), ("IS_VISIBLE", "INTEGER NOT NULL DEFAULT 1"),
+            ("ATTEMPT_LIMIT", "INTEGER NULL"), ("COMPLETION_THRESHOLD", "TEXT NULL"));
+        await AddMissingColumnListAsync(connection, "HBE_SCORM_PACKAGE",
+            ("KIND", "INTEGER NOT NULL DEFAULT 0"), ("UPDATED_AT", "TEXT NULL"));
+        // Chứng nhận bên ngoài do AI đối chiếu — xem bản SqlServer bên trên.
+        await AddMissingColumnListAsync(connection, "HBE_EXTERNAL_CERTIFICATE",
+            ("IS_AI_REVIEWED", "INTEGER NOT NULL DEFAULT 0"), ("AI_RESULT_JSON", "TEXT NULL"),
+            ("AI_ATTEMPT_COUNT", "INTEGER NOT NULL DEFAULT 0"));
     }
 
     /// <summary>Thêm các cột chỉ định (tên, kiểu Sqlite) còn thiếu trên một bảng đã tồn tại — bỏ qua cột đã có sẵn.</summary>

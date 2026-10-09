@@ -38,7 +38,7 @@
     let quiz = null, countdownTimer = null, submitted = false;
 
     mountLayout('my-course', t('index.stat-quiz', 'Bài kiểm tra'), '');
-    setTopbarAction(`<a href="${enrollmentId ? `/pages/learn.html?enrollmentId=${enrollmentId}` : '/pages/my-course.html'}" class="btn ghost sm"><i class="ph ph-arrow-left"></i> <span data-i18n="quiz.quayLaiKhoaHoc">Quay lại khóa học</span></a>`);
+    setTopbarAction(`<a href="${enrollmentId ? `/pages/scorm-player.html?enrollmentId=${enrollmentId}${quizId ? `&activityId=Q${quizId}` : ''}` : '/pages/my-course.html'}" class="btn ghost sm"><i class="ph ph-arrow-left"></i> <span data-i18n="quiz.quayLaiKhoaHoc">Quay lại khóa học</span></a>`);
 
     if (attemptId) await showResult(attemptId);
     else if (mode === 'history') await showHistory();
@@ -233,7 +233,7 @@
             <div class="card">
                 <div class="card-head">
                     <h3 data-i18n="quiz.chiTietDapAn">Chi tiết đáp án</h3>
-                    <a href="/pages/learn.html?enrollmentId=${enrollmentId}" class="btn ghost sm"><i class="ph ph-arrow-left"></i> <span data-i18n="quiz.veLoTrinhKhoaHoc">Về lộ trình khóa học</span></a>
+                    <a href="/pages/scorm-player.html?enrollmentId=${enrollmentId}&activityId=Q${result.quizId}" class="btn ghost sm"><i class="ph ph-arrow-left"></i> <span data-i18n="quiz.veLoTrinhKhoaHoc">Về lộ trình khóa học</span></a>
                 </div>
                 <div class="card-body">
                     ${result.itemList.map((item, i) => `

@@ -134,6 +134,226 @@
     .vip-cert-actions { flex-direction: row; }
     .vip-cert-actions .btn { flex: 1; }
 }
+
+/* ==================== THẺ TRANG ==================== */
+.cert-tabs { margin-bottom: 18px; }
+.cert-tabs .tab-count {
+    display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 2px;
+    border-radius: 999px; background: #f97316; color: #fff; font-size: 10.5px; font-weight: 800;
+}
+
+/* ==================== CHỨNG NHẬN BÊN NGOÀI — DANH SÁCH ==================== */
+.ext-hero {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    padding: 18px 20px; margin-bottom: 16px; border-radius: 16px; border: 1px solid var(--border);
+    background: linear-gradient(120deg, var(--primary-soft), var(--surface) 65%);
+}
+.ext-hero h3 { font-size: 18px; font-weight: 800; letter-spacing: -.3px; }
+.ext-hero p { margin-top: 4px; max-width: 640px; font-size: 13px; line-height: 1.55; color: var(--text-muted); }
+
+.ext-list { display: flex; flex-direction: column; gap: 10px; }
+/* Một giấy = một dòng thẻ; vạch màu bên trái nói trạng thái trước cả khi đọc chữ (vàng chờ, xanh đã xác nhận,
+   đỏ bị từ chối) — kèm huy hiệu chữ, không để màu là tín hiệu duy nhất. */
+.ext-card {
+    position: relative; overflow: hidden;
+    display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 14px;
+    padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+}
+.ext-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--border); }
+.ext-card.status-pending::before { background: var(--warning); }
+.ext-card.status-approved::before { background: var(--success); }
+.ext-card.status-rejected::before { background: var(--danger); }
+.ext-card-icon {
+    width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center;
+    font-size: 26px; color: var(--primary); background: var(--primary-light);
+}
+.ext-card-top { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; }
+.ext-card-top h4 { font-size: 14.5px; font-weight: 700; }
+.ext-card-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 5px; font-size: 12.5px; color: var(--text-muted); }
+.ext-card-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.ext-card-reason { display: flex; align-items: flex-start; gap: 6px; margin-top: 8px; font-size: 12.5px; color: var(--danger); }
+.ext-card-actions { display: flex; gap: 6px; }
+.ext-badge i { vertical-align: -1px; margin-right: 2px; }
+@media (max-width: 640px) {
+    .ext-card { grid-template-columns: 40px minmax(0, 1fr); }
+    .ext-card-icon { width: 40px; height: 40px; font-size: 22px; }
+    .ext-card-actions { grid-column: 1 / -1; }
+}
+
+/* ==================== HỘP THOẠI "THÊM CHỨNG NHẬN" ==================== */
+.ext-add-body { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 760px) { .ext-add-body { grid-template-columns: minmax(0, 1fr); } }
+.ext-mode {
+    display: flex; gap: 3px; padding: 3px; margin-bottom: 12px;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
+}
+.ext-mode button {
+    flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 10px; border: 0; border-radius: 9px; background: transparent; cursor: pointer;
+    font: 600 13px/1.2 var(--font-sans); color: var(--text-muted);
+}
+.ext-mode button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-xs); }
+
+/* Khung quét: ảnh camera trực tiếp + khung ngắm. Phần ngoài khung tối đi (box-shadow trải rộng), bốn góc
+   sáng — đúng thứ người ta quen thấy ở ứng dụng quét giấy, và cũng chính là vùng sẽ được cắt khi chụp. */
+.scan-frame { position: relative; overflow: hidden; border-radius: 14px; background: #0b1220; }
+.scan-frame video, .scan-frame canvas, .scan-frame img { display: block; width: 100%; height: auto; }
+.scan-guide { position: absolute; border-radius: 6px; box-shadow: 0 0 0 9999px rgba(2, 6, 23, .45); transition: all .25s ease; }
+.scan-guide i { position: absolute; width: 22px; height: 22px; border: 3px solid #fff; }
+.scan-guide .tl { left: -3px; top: -3px; border-right: 0; border-bottom: 0; border-top-left-radius: 7px; }
+.scan-guide .tr { right: -3px; top: -3px; border-left: 0; border-bottom: 0; border-top-right-radius: 7px; }
+.scan-guide .bl { left: -3px; bottom: -3px; border-right: 0; border-top: 0; border-bottom-left-radius: 7px; }
+.scan-guide .br { right: -3px; bottom: -3px; border-left: 0; border-top: 0; border-bottom-right-radius: 7px; }
+.scan-tip {
+    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); max-width: calc(100% - 20px);
+    padding: 6px 12px; border-radius: 999px; background: rgba(2, 6, 23, .65); color: #fff;
+    font-size: 12px; text-align: center;
+}
+.scan-wait { display: grid; place-items: center; gap: 8px; min-height: 240px; color: #cbd5e1; font-size: 13px; text-align: center; padding: 20px; }
+.scan-wait i { font-size: 34px; }
+.scan-bar { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 12px; }
+.scan-shutter {
+    width: 60px; height: 60px; border-radius: 50%; cursor: pointer;
+    border: 4px solid var(--primary); background: var(--primary);
+    box-shadow: inset 0 0 0 4px var(--surface); transition: transform .1s ease;
+}
+.scan-shutter:active { transform: scale(.93); }
+.scan-shutter:focus-visible { outline: 3px solid var(--primary-light); outline-offset: 2px; }
+.scan-side {
+    display: inline-flex; flex-direction: column; align-items: center; gap: 3px; min-width: 64px;
+    border: 0; background: transparent; cursor: pointer; color: var(--text-muted); font: 600 11px/1.2 var(--font-sans);
+}
+.scan-side i { font-size: 20px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.scan-side:hover i { border-color: var(--primary); }
+
+.ext-drop {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    min-height: 250px; padding: 24px; cursor: pointer; text-align: center;
+    border: 2px dashed var(--border); border-radius: 14px; background: var(--bg); color: var(--text-muted);
+    transition: border-color .15s ease, background-color .15s ease;
+}
+.ext-drop:hover, .ext-drop.drag { border-color: var(--primary); background: var(--primary-soft); color: var(--text); }
+.ext-drop i { font-size: 40px; color: var(--primary); }
+.ext-drop b { color: var(--text); font-size: 14px; }
+.ext-preview iframe { width: 100%; height: 340px; border: 0; border-radius: 12px; background: #fff; }
+.ext-preview-bar { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-top: 10px; font-size: 12.5px; color: var(--text-muted); }
+.ext-preview-bar .file { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ext-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600; color: var(--text); }
+.ext-toggle input { width: 16px; height: 16px; }
+
+/* Ô "AI đọc giấy" trên đầu cột thông tin: đang đọc / đã điền sẵn / chỗ lệch. Màu theo kết quả, luôn kèm icon và
+   chữ — không để màu là tín hiệu duy nhất. */
+.ext-ai {
+    display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; padding: 11px 13px;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
+    font-size: 12.5px; line-height: 1.5; color: var(--text-muted);
+}
+.ext-ai > i { font-size: 20px; line-height: 1; margin-top: 1px; color: var(--primary); }
+.ext-ai b { color: var(--text); }
+.ext-ai .spinner { width: 18px; height: 18px; margin: 1px 0 0; flex-shrink: 0; }
+.ext-ai.ok { border-color: color-mix(in srgb, var(--success) 35%, transparent); background: var(--success-light); }
+.ext-ai.ok > i { color: var(--success); }
+.ext-ai.warn { border-color: color-mix(in srgb, var(--warning) 40%, transparent); background: var(--warning-light); }
+.ext-ai.warn > i { color: var(--warning); }
+.ext-ai.bad { border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: var(--danger-light); }
+.ext-ai.bad > i, .ext-ai.bad b { color: var(--danger); }
+.ext-ai ul { margin: 4px 0 0; padding-left: 16px; }
+.ext-ai-holder { display: block; margin-top: 3px; }
+
+/* "AI đọc được trên giấy" trong hộp thoại xem: mỗi mục một dòng, dấu ✓ / ✗ / – theo kết quả so. */
+.ext-ai-read { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.ext-ai-read h5 { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 12.5px; font-weight: 800; color: var(--text); }
+.ext-ai-read ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; font-size: 12.5px; }
+.ext-ai-read li { display: grid; grid-template-columns: 16px 104px minmax(0, 1fr); gap: 6px; align-items: start; }
+.ext-ai-read li span { color: var(--text-muted); }
+.ext-ai-read li b { font-weight: 600; overflow-wrap: anywhere; }
+.ext-ai-read .ok { color: var(--success); }
+.ext-ai-read .bad { color: var(--danger); }
+.ext-ai-read .skip { color: var(--text-muted); }
+.ext-ai-tag { margin-left: 4px; padding: 0 5px; border-radius: 5px; font-size: 10px; font-weight: 800; background: var(--primary-light); color: var(--primary); }
+
+/* ==================== HỘP THOẠI XEM TỆP / DUYỆT ==================== */
+.ext-view-body { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 760px) { .ext-view-body { grid-template-columns: minmax(0, 1fr); } }
+.ext-view-file {
+    display: grid; place-items: center; min-height: 320px; overflow: hidden;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
+}
+.ext-view-file img { display: block; max-width: 100%; max-height: 62vh; }
+.ext-view-file iframe { width: 100%; height: 62vh; border: 0; background: #fff; }
+.ext-view-info h4 { font-size: 16px; font-weight: 800; line-height: 1.35; margin-bottom: 10px; }
+.ext-view-info dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; font-size: 13px; }
+.ext-view-info dt { color: var(--text-muted); }
+.ext-view-info dd { font-weight: 600; overflow-wrap: anywhere; }
+.ext-view-reason { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--danger-light); color: var(--danger); font-size: 12.5px; }
+
+/* ==================== DUYỆT (Admin) ==================== */
+.ext-filter { display: flex; gap: 8px; flex-wrap: wrap; }
+.ext-filter select, .ext-filter input { width: auto; min-width: 170px; }
+
+/* ==================== IN DANH SÁCH (Admin) ====================
+   Bản xem trước là chính tờ giấy sẽ in: nền trắng, chữ mực đen, viền bảng mảnh — kể cả khi đang bật giao diện
+   tối, vì giấy in không có chế độ tối (chữ sáng của giao diện tối in ra là gần như trắng trên trắng). */
+.register-filter-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.register-filter-row .field { margin-bottom: 0; min-width: 150px; }
+.register-filter-row .field.grow { flex: 1; min-width: 200px; }
+.reg-sheet {
+    --ink: #0f172a; --ink-2: #475569; --rule: #cbd5e1;
+    max-width: 1120px; margin: 16px auto 0; padding: 32px 36px;
+    border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow-lg);
+    background: #fff; color: var(--ink); font-size: 12.5px;
+}
+.reg-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
+.reg-brand { display: flex; align-items: center; gap: 12px; }
+.reg-brand img { width: 44px; height: 44px; }
+.reg-brand b { display: block; font-size: 15px; letter-spacing: .6px; }
+.reg-brand span { display: block; font-size: 11.5px; color: var(--ink-2); }
+.reg-meta { text-align: right; font-size: 11.5px; line-height: 1.6; color: var(--ink-2); }
+.reg-title { margin: 18px 0 4px; text-align: center; font-size: 20px; font-weight: 800; letter-spacing: 1px; }
+.reg-sub { text-align: center; font-size: 12px; color: var(--ink-2); }
+.reg-summary { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 16px; font-size: 12px; color: var(--ink-2); }
+.reg-summary b { color: var(--ink); font-size: 13px; }
+.reg-table { width: 100%; border-collapse: collapse; }
+.reg-table th, .reg-table td {
+    padding: 6px 8px; border: 1px solid var(--rule); text-align: left; vertical-align: top;
+    background: transparent; color: var(--ink); font-size: 12px;
+}
+.reg-table th { background: #f1f5f9; font-size: 10.5px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
+.reg-table .c { text-align: center; white-space: nowrap; }
+.reg-table tr.reg-group td { background: #f8fafc; font-weight: 800; }
+/* Tờ giấy không phản ứng khi rê chuột — dòng đang rê lúc bấm In không được mang nền xám lên bản in. */
+.reg-table tbody tr:hover { background: transparent; }
+.reg-table .muted2 { display: block; color: var(--ink-2); font-size: 11px; }
+.reg-src { display: inline-block; padding: 1px 6px; border: 1px solid var(--rule); border-radius: 4px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+.reg-src.ext { border-color: #93c5fd; color: #1d4ed8; }
+.reg-empty { padding: 30px 0; text-align: center; color: var(--ink-2); }
+.reg-sign { display: flex; justify-content: space-between; gap: 24px; margin-top: 26px; text-align: center; }
+.reg-sign > div { width: 40%; }
+.reg-sign .date { margin-bottom: 4px; font-style: italic; color: var(--ink-2); }
+.reg-sign b { display: block; font-size: 12px; text-transform: uppercase; }
+.reg-sign .space { height: 64px; }
+.reg-sign .hint { font-size: 11px; font-style: italic; color: var(--ink-2); }
+
+@page register-sheet { size: A4 landscape; margin: 10mm; }
+@media print {
+    /* Chỉ in tờ danh sách: lớp printing-register do printRegister() bật quanh lệnh in, nên nút "In / Lưu PDF" của
+       từng chứng nhận nội bộ (cũng dùng window.print) vẫn in đúng tấm chứng nhận như trước. */
+    body.printing-register .main .content > :not(#tab-register),
+    body.printing-register #tab-register > :not(#rg-sheet-wrap),
+    body.printing-register .modal-mask,
+    body.printing-register .skip-link,
+    body.printing-register #toast-box,
+    body.printing-register #global-loading-overlay { display: none !important; }
+    body.printing-register #tab-register { display: block !important; }
+    body.printing-register { background: #fff !important; }
+    .reg-sheet {
+        page: register-sheet; max-width: none; margin: 0; padding: 0;
+        border: 0; border-radius: 0; box-shadow: none;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .reg-table thead { display: table-header-group; }   /* lặp lại dòng tiêu đề ở đầu mỗi trang */
+    .reg-table tr, .reg-sign { break-inside: avoid; }
+}
 </style>
 </head>
 <body>
@@ -155,6 +375,72 @@
     </div>
 </div>
 
+<!-- Thêm chứng nhận bên ngoài: bên trái là chỗ lấy tệp (chụp camera / tải PDF, ảnh), bên phải là thông tin giấy.
+     Phần bên trái do JS dựng lại theo từng bước (đang ngắm -> đã chụp -> đã chọn tệp). Có tệp là AI đọc ngay
+     (ô #ext-ai): điền sẵn thông tin, báo sớm chỗ chắc chắn không qua — xem startScan(). -->
+<div class="modal-mask" id="modal-ext-add">
+    <div class="modal wide">
+        <form id="ext-form" novalidate>
+            <div class="modal-head">
+                <h3 data-i18n="certificate.extAddTitle">Thêm chứng nhận bên ngoài</h3>
+                <button type="button" class="close-x" onclick="closeModal('modal-ext-add')">×</button>
+            </div>
+            <div class="modal-body ext-add-body">
+                <div>
+                    <div class="ext-mode" role="tablist">
+                        <button type="button" role="tab" data-ext-mode="camera"><i class="ph ph-camera"></i> <span data-i18n="certificate.extModeCamera">Chụp bằng camera</span></button>
+                        <button type="button" role="tab" data-ext-mode="file"><i class="ph ph-file-arrow-up"></i> <span data-i18n="certificate.extModeFile">Tải tệp PDF / ảnh</span></button>
+                    </div>
+                    <div id="ext-stage"></div>
+                </div>
+                <div>
+                    <div class="ext-ai" id="ext-ai" aria-live="polite"></div>
+                    <div class="field">
+                        <label for="ext-title" data-i18n="certificate.extFieldTitle">Tên chứng nhận *</label>
+                        <input id="ext-title" maxlength="250" required data-i18n-ph="certificate.extFieldTitlePh" placeholder="VD: An toàn lao động nhóm 3">
+                    </div>
+                    <div class="field">
+                        <label for="ext-issuer" data-i18n="certificate.extFieldIssuer">Đơn vị cấp *</label>
+                        <input id="ext-issuer" maxlength="250" required data-i18n-ph="certificate.extFieldIssuerPh" placeholder="VD: Trung tâm Huấn luyện ATLĐ">
+                    </div>
+                    <div class="field">
+                        <label for="ext-no" data-i18n="certificate.extFieldNo">Số hiệu chứng nhận</label>
+                        <input id="ext-no" maxlength="100" data-i18n-ph="certificate.extFieldNoPh" placeholder="Số in trên giấy (nếu có)">
+                    </div>
+                    <div class="row">
+                        <div class="field" style="flex:1"><label for="ext-issued" data-i18n="certificate.extFieldIssued">Ngày cấp *</label><input type="date" id="ext-issued" required></div>
+                        <div class="field" style="flex:1"><label for="ext-expired" data-i18n="certificate.extFieldExpired">Ngày hết hạn</label><input type="date" id="ext-expired"></div>
+                    </div>
+                    <div class="field">
+                        <label for="ext-note" data-i18n="certificate.extFieldNote">Ghi chú</label>
+                        <textarea id="ext-note" rows="2" maxlength="1000" data-i18n-ph="certificate.extFieldNotePh" placeholder="VD: Bản gốc đã nộp phòng Nhân sự"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn ghost" onclick="closeModal('modal-ext-add')" data-i18n="common.cancel">Hủy</button>
+                <button type="submit" class="btn" id="ext-submit"><i class="ph ph-paper-plane-tilt"></i> <span data-i18n="certificate.extSubmit">Gửi xác nhận</span></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Xem tệp quét của một chứng nhận bên ngoài kèm những gì AI đọc được; với Admin thì kèm nút sửa quyết định
+     của AI (Xác nhận / Từ chối / Thu hồi). -->
+<div class="modal-mask" id="modal-ext-view">
+    <div class="modal wide">
+        <div class="modal-head">
+            <h3 data-i18n="certificate.extViewTitle">Chứng nhận bên ngoài</h3>
+            <button type="button" class="close-x" onclick="closeModal('modal-ext-view')">×</button>
+        </div>
+        <div class="modal-body ext-view-body">
+            <div class="ext-view-file" id="ext-view-file"></div>
+            <div class="ext-view-info" id="ext-view-info"></div>
+        </div>
+        <div class="modal-foot" id="ext-view-foot"></div>
+    </div>
+</div>
+
 <script src="/js/api.js"></script>
 <script src="/js/language.js"></script>
 <script src="/js/theme.js"></script>
@@ -170,6 +456,42 @@
 
     const content = document.getElementById('content');
     content.innerHTML = skeletonHtml('cards', { count: 6, thumb: false });
+
+    // ----- Trạng thái của các thẻ chứng nhận bên ngoài / duyệt / in danh sách -----
+    // Khai báo ở ĐÂY, trước lượt dựng trang bên dưới: các hàm dựng thẻ đọc chúng ngay trong lượt chạy đầu, mà
+    // một "let" khai báo phía sau thì lúc đó vẫn nằm trong Temporal Dead Zone.
+    /** Thẻ nào đã tải dữ liệu lần đầu — tải lười, chỉ khi người dùng mở thẻ. */
+    const loadedTab = { external: false, review: false, register: false };
+    let myExternalList = [];
+    let reviewList = [];
+    /** id -> ExternalCertificateDto, gom từ cả "của tôi" lẫn hàng duyệt, để nút Xem tìm lại được giấy. */
+    const externalById = new Map();
+    /** Toàn bộ phòng ban (bộ lọc của Admin) — khác departmentList bên dưới vốn chỉ là phòng ban cấp dưới. */
+    let allDepartmentList = null;
+    let registerRowList = [];
+    /** Hộp thoại "Thêm chứng nhận": cách lấy tệp đang chọn, luồng camera, khung ngắm, ảnh đã chụp, tệp đã chọn. */
+    let scanMode = 'camera';
+    let cameraStream = null;
+    let guideLandscape = true;
+    let capturedCanvas = null;
+    let enhanceCapture = false;
+    let pickedFile = null;
+    let pickedFileUrl = null;
+    let viewFileUrl = null;
+    /** AI đọc giấy trong hộp thoại "Thêm": tệp đang/đã được đọc — ĐÚNG dãy byte sẽ gửi đi, vì máy chủ nhận ra kết
+     *  quả đọc sẵn theo dấu vân tay tệp —, bộ hủy lượt đọc đang chạy, trạng thái, và giá trị AI đã điền vào từng ô
+     *  (ô nhân viên tự sửa thì lượt đọc sau không đè). */
+    let scanFile = null;
+    let scanSeq = 0;
+    let scanController = null;
+    let scanState = 'idle';
+    let scanTimer = null;
+    const aiFilledValue = {};
+    /** Hẹn giờ tải lại danh sách "của tôi" khi còn giấy AI chưa đối chiếu xong. */
+    let myRefreshTimer = null;
+    /** Khớp với ExternalCertificateService (máy chủ còn kiểm lại theo chữ ký đầu tệp). */
+    const acceptedTypeList = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    const maxFileByte = 15 * 1024 * 1024;
 
     let list = [];
     let departmentList = [];
@@ -222,13 +544,17 @@
     // Có khối nhân viên cấp dưới thì bỏ hẳn danh sách "N chứng nhận đã được cấp" bên dưới: chứng nhận của
     // từng người đã xem được qua hai ô chọn ở trên, để thêm một danh sách dài nữa chỉ là lặp lại. Không có
     // khối đó (nhân viên thường) thì danh sách này là thứ DUY NHẤT trên trang, nên vẫn giữ.
-    content.innerHTML = departmentList.length ? subordinateSectionHtml() : (list.length ? `
+    const internalHtml = departmentList.length ? subordinateSectionHtml() : (list.length ? `
         <div style="margin-bottom: 24px;">
             <h3 style="font-size: 20px; font-weight: 800; letter-spacing: -0.3px;">${list.length} chứng nhận đã được cấp</h3>
         </div>
         
         <div class="vip-cert-list">${list.map(vipCertItemHtml).join('')}</div>`
         : emptyHtml(t('certificate.banChuaCoChungNhanNaoHoanThanh', 'Bạn chưa có chứng nhận nào. Hoàn thành một khóa học để được cấp chứng nhận.'), '<i class="ph ph-seal-check"></i>'));
+
+    // Toàn bộ phần chứng nhận nội bộ ở trên giờ là thẻ đầu tiên; các thẻ còn lại (bên ngoài, duyệt, in danh
+    // sách) tải lười khi được mở — xem openCertTab().
+    content.innerHTML = certTabsHtml(internalHtml);
 
     // Một handler ủy quyền cho CẢ trang, thay vì gắn vào từng nút ngay sau lượt vẽ đầu tiên. Thẻ chứng
     // nhận của nhân viên cấp dưới chỉ ra đời khi người ta bấm vào một cái tên — gắn theo kiểu
@@ -241,6 +567,8 @@
     });
 
     bindSubordinateSection();
+    bindExternalFeature();
+    bindCertTabs();
 
     // ==================== CHỨNG NHẬN CỦA NHÂN VIÊN CẤP DƯỚI ====================
 
@@ -585,6 +913,1073 @@
                 </div>
             </div>`;
         openModal('modal-cert');
+    }
+
+    // ==================== THẺ TRANG ====================
+    // Nội bộ (mọi người) | Bên ngoài (nhân viên tự gửi) | Duyệt + In danh sách (chỉ Admin). Admin chỉ quản lý,
+    // không tự gửi chứng nhận bên ngoài — nên không có thẻ "Bên ngoài" (máy chủ cũng chặn). Thẻ đang mở ghi lên
+    // URL (?tab=...) để tải lại trang, hoặc bấm thông báo, là về đúng thẻ đó.
+
+    function certTabsHtml(internalHtml) {
+        const tabList = [
+            ['internal', 'ph-seal-check', t('certificate.tabInternal', 'Chứng nhận nội bộ')],
+            ...(Auth.isAdmin ? [
+                ['review', 'ph-scan', t('certificate.tabExternal', 'Chứng nhận bên ngoài')],
+                ['register', 'ph-printer', t('certificate.tabRegister', 'In danh sách')],
+            ] : [
+                ['external', 'ph-scan', t('certificate.tabExternal', 'Chứng nhận bên ngoài')],
+            ]),
+        ];
+        return `
+            <div class="tabs cert-tabs" role="tablist">
+                ${tabList.map(([key, icon, label]) => `
+                    <button type="button" role="tab" data-tab="${key}">
+                        <i class="ph ${icon}"></i> ${esc(label)}${key === 'review'
+                            ? ' <span class="tab-count hidden" id="review-count"></span>' : ''}</button>`).join('')}
+            </div>
+            <div class="tab-panel" id="tab-internal">${internalHtml}</div>
+            ${Auth.isAdmin
+                ? '<div class="tab-panel" id="tab-review"></div><div class="tab-panel" id="tab-register"></div>'
+                : '<div class="tab-panel" id="tab-external"></div>'}`;
+    }
+
+    function bindCertTabs() {
+        content.querySelectorAll('.cert-tabs [data-tab]').forEach(button =>
+            button.addEventListener('click', () => openCertTab(button.dataset.tab)));
+        const fromUrl = qs('tab');
+        openCertTab(content.querySelector(`.cert-tabs [data-tab="${fromUrl}"]`) ? fromUrl : 'internal');
+        if (Auth.isAdmin) refreshReviewCount();
+    }
+
+    function openCertTab(key) {
+        content.querySelectorAll('.cert-tabs [data-tab]').forEach(button => {
+            button.classList.toggle('active', button.dataset.tab === key);
+            button.setAttribute('aria-selected', String(button.dataset.tab === key));
+        });
+        content.querySelectorAll(':scope > .tab-panel').forEach(panel =>
+            panel.classList.toggle('active', panel.id === `tab-${key}`));
+
+        const url = new URL(location.href);
+        if (key === 'internal') url.searchParams.delete('tab'); else url.searchParams.set('tab', key);
+        history.replaceState(null, '', url);
+
+        if (key === 'external' && !loadedTab.external) loadExternalTab();
+        if (key === 'review' && !loadedTab.review) loadReviewTab();
+        if (key === 'register' && !loadedTab.register) loadRegisterTab();
+    }
+
+    /** Con số trên thẻ chứng nhận bên ngoài của Admin: bao nhiêu giấy AI chưa đối chiếu xong — tăng mãi là dấu
+     *  hiệu máy chủ AI đang tắt. */
+    async function refreshReviewCount() {
+        const badge = document.getElementById('review-count');
+        if (!badge) return;
+        try {
+            const { count } = await API.getSilent('/externalcertificate/pending-count');
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.title = t('certificate.extPendingCount', 'Giấy AI chưa đối chiếu xong');
+            badge.classList.toggle('hidden', !count);
+        } catch { /* chỉ là con số trang trí — lỗi thì thôi */ }
+    }
+
+    // ==================== CHỨNG NHẬN BÊN NGOÀI CỦA TÔI ====================
+
+    async function loadExternalTab() {
+        loadedTab.external = true;
+        const panel = document.getElementById('tab-external');
+        panel.innerHTML = skeletonHtml('list', { count: 3, avatar: false });
+        try {
+            myExternalList = await API.get('/externalcertificate/my');
+        } catch (ex) {
+            loadedTab.external = false;
+            panel.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+            return;
+        }
+        myExternalList.forEach(c => externalById.set(c.id, c));
+        renderExternalTab();
+    }
+
+    function renderExternalTab() {
+        const panel = document.getElementById('tab-external');
+        panel.innerHTML = `
+            <div class="ext-hero">
+                <div>
+                    <h3>${esc(t('certificate.extHeroTitle', 'Chứng nhận bên ngoài'))}</h3>
+                    <p>${esc(t('certificate.extHeroText', 'Đã học ở trường, trung tâm hay hãng bên ngoài? Chụp giấy chứng nhận bằng camera hoặc tải bản PDF lên — AI đọc giấy, tự điền thông tin và đối chiếu với tài khoản của bạn. Khớp là chứng nhận vào hồ sơ năng lực ngay, không phải chờ duyệt.'))}</p>
+                </div>
+                <button type="button" class="btn" data-ext-add><i class="ph ph-scan"></i> ${esc(t('certificate.extAdd', 'Thêm chứng nhận'))}</button>
+            </div>
+            ${myExternalList.length
+                ? `<div class="ext-list">${myExternalList.map(extCardHtml).join('')}</div>`
+                : emptyHtml(t('certificate.extEmpty', 'Bạn chưa gửi chứng nhận bên ngoài nào.'), '<i class="ph ph-certificate"></i>')}`;
+        scheduleMyRefresh();
+    }
+
+    /** Còn giấy AI đang đối chiếu nền thì 15 giây hỏi lại một lần — kết quả tự hiện ra, khỏi bấm tải lại trang. */
+    function scheduleMyRefresh() {
+        clearTimeout(myRefreshTimer);
+        if (!myExternalList.some(c => c.status === 'Pending')) return;
+        myRefreshTimer = setTimeout(async () => {
+            const panel = document.getElementById('tab-external');
+            if (panel?.classList.contains('active') && !document.hidden) {
+                try {
+                    const fresh = await API.getSilent('/externalcertificate/my');
+                    const signature = (listValue) => listValue.map(c => `${c.id}:${c.status}`).join(',');
+                    const isChanged = signature(fresh) !== signature(myExternalList);
+                    myExternalList = fresh;
+                    fresh.forEach(c => externalById.set(c.id, c));
+                    if (isChanged) { renderExternalTab(); return; }
+                } catch { /* mạng chập chờn — lượt sau hỏi lại */ }
+            }
+            scheduleMyRefresh();
+        }, 15000);
+    }
+
+    function extCardHtml(c) {
+        const isPdf = c.contentType === 'application/pdf';
+        return `
+            <article class="ext-card status-${c.status.toLowerCase()}">
+                <div class="ext-card-icon"><i class="ph-duotone ${isPdf ? 'ph-file-pdf' : 'ph-image'}"></i></div>
+                <div>
+                    <div class="ext-card-top"><h4>${esc(c.title)}</h4>${extStatusBadge(c.status, c.isAiReviewed)}</div>
+                    <div class="ext-card-meta">
+                        <span><i class="ph ph-buildings"></i> ${esc(c.issuer)}</span>
+                        ${c.certificateNo ? `<span><i class="ph ph-hash"></i> ${esc(c.certificateNo)}</span>` : ''}
+                        <span><i class="ph ph-calendar-blank"></i> ${esc(t('certificate.extIssuedOn', 'Cấp'))} ${formatDate(c.issuedAt)}${c.expiredAt
+                            ? ` · ${esc(t('certificate.extExpiresOn', 'hết hạn'))} ${formatDate(c.expiredAt)}` : ''}</span>
+                    </div>
+                    ${c.status === 'Rejected' && c.rejectReason
+                        ? `<div class="ext-card-reason"><i class="ph-fill ph-warning-circle"></i><span>${esc(c.rejectReason)}</span></div>` : ''}
+                    ${c.status === 'Pending'
+                        ? `<div class="ext-card-reason" style="color:var(--text-muted)"><span class="spinner-inline"></span><span>${esc(t('certificate.extAiWorking', 'AI đang đọc giấy và đối chiếu — có kết quả sẽ báo cho bạn.'))}</span></div>` : ''}
+                </div>
+                <div class="ext-card-actions">
+                    <button type="button" class="btn ghost sm" data-ext-view="${c.id}"><i class="ph ph-eye"></i> ${esc(t('certificate.extView', 'Xem'))}</button>
+                    ${c.status !== 'Approved'
+                        ? `<button type="button" class="btn ghost sm" data-ext-delete="${c.id}"><i class="ph ph-trash"></i> ${esc(t('common.delete', 'Xóa'))}</button>` : ''}
+                </div>
+            </article>`;
+    }
+
+    /** Huy hiệu trạng thái — luôn có chữ và icon đi kèm màu, không để màu là tín hiệu duy nhất. Quyết định của AI
+     *  gắn thêm nhãn "AI" để phân biệt với giấy Admin chốt tay. */
+    function extStatusBadge(status, isAiReviewed = false) {
+        const [tone, label, icon] = {
+            Pending: ['orange', t('certificate.extPending', 'AI đang đối chiếu'), 'ph-robot'],
+            Approved: ['green', t('certificate.extApproved', 'Đã xác nhận'), 'ph-seal-check'],
+            Rejected: ['red', t('certificate.extRejected', 'Bị từ chối'), 'ph-x-circle'],
+        }[status] || ['gray', status, 'ph-question'];
+        const aiTag = status !== 'Pending' && isAiReviewed ? '<span class="ext-ai-tag">AI</span>' : '';
+        return `<span class="badge ${tone} ext-badge"><i class="ph-fill ${icon}"></i>${esc(label)}${aiTag}</span>`;
+    }
+
+    /** Mọi nút của phần chứng nhận bên ngoài gom vào MỘT handler ủy quyền trên #content — các thẻ / bảng được
+     *  vẽ lại liên tục (đổi bộ lọc, duyệt xong), gắn thẳng vào nút thì nút mới sinh ra không có handler. */
+    function bindExternalFeature() {
+        content.addEventListener('click', (e) => {
+            const target = e.target.closest('[data-ext-add], [data-ext-view], [data-ext-delete], [data-rg-print]');
+            if (!target) return;
+            if (target.hasAttribute('data-ext-add')) openAddModal();
+            else if (target.dataset.extView) openExternalViewer(+target.dataset.extView);
+            else if (target.dataset.extDelete) deleteExternal(+target.dataset.extDelete);
+            else if (target.hasAttribute('data-rg-print')) printRegister();
+        });
+
+        document.querySelectorAll('[data-ext-mode]').forEach(button =>
+            button.addEventListener('click', () => setScanMode(button.dataset.extMode)));
+        document.getElementById('ext-form').addEventListener('submit', submitExternal);
+        document.getElementById('ext-issued').max = dateInputValue(new Date());
+        document.getElementById('ext-issued').addEventListener('change', (e) => {
+            document.getElementById('ext-expired').min = e.target.value;
+        });
+
+        // Hộp thoại đóng bằng bất kỳ đường nào (nút ×, nút Hủy, bấm ra nền, gửi xong) cũng phải TẮT camera —
+        // không thì đèn camera của máy vẫn sáng sau khi hộp thoại đã biến mất. Theo dõi chính lớp "open"
+        // thay vì vá từng nút đóng.
+        observeClose('modal-ext-add', () => { stopCamera(); clearPickedFile(); capturedCanvas = null; resetScan(); });
+        observeClose('modal-ext-view', () => {
+            if (viewFileUrl) { URL.revokeObjectURL(viewFileUrl); viewFileUrl = null; }
+            document.getElementById('ext-view-file').innerHTML = '';
+        });
+    }
+
+    function observeClose(modalId, onClose) {
+        const modal = document.getElementById(modalId);
+        let wasOpen = false;
+        new MutationObserver(() => {
+            const isOpen = modal.classList.contains('open');
+            if (wasOpen && !isOpen) onClose();
+            wasOpen = isOpen;
+        }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    /** "yyyy-MM-dd" theo giờ địa phương cho ô ngày (toISOString đổi sang UTC là lùi một ngày ở múi +7). */
+    function dateInputValue(value) {
+        const d = new Date(value);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function fileSizeText(byte) {
+        return byte >= 1024 * 1024 ? `${(byte / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(byte / 1024))} KB`;
+    }
+
+    // ==================== HỘP THOẠI "THÊM CHỨNG NHẬN" ====================
+
+    function openAddModal() {
+        document.getElementById('ext-form').reset();
+        capturedCanvas = null;
+        clearPickedFile();
+        Object.keys(aiFilledValue).forEach(key => delete aiFilledValue[key]);
+        resetScan();
+        openModal('modal-ext-add');
+        // Máy không có camera dùng được (máy bàn không webcam) thì mở thẳng vào tải tệp.
+        setScanMode(navigator.mediaDevices?.getUserMedia ? 'camera' : 'file');
+        setTimeout(() => document.getElementById('ext-title').focus(), 50);
+    }
+
+    function setScanMode(mode) {
+        scanMode = mode;
+        document.querySelectorAll('[data-ext-mode]').forEach(button => {
+            button.classList.toggle('on', button.dataset.extMode === mode);
+            button.setAttribute('aria-selected', String(button.dataset.extMode === mode));
+        });
+        stopCamera();
+        // Đổi cách lấy tệp là bỏ tệp của cách kia — lượt AI đọc tệp đó cũng thôi.
+        resetScan();
+        if (mode === 'camera') {
+            clearPickedFile();
+            if (capturedCanvas) { renderCaptured(); startScan(); } else startCamera();
+        } else {
+            capturedCanvas = null;
+            if (pickedFile) { renderPickedFile(); startScan(); } else renderFilePicker();
+        }
+    }
+
+    function stage() { return document.getElementById('ext-stage'); }
+
+    // ---------- Camera ----------
+
+    async function startCamera() {
+        // Trình duyệt chỉ mở camera trên trang HTTPS (hoặc localhost). Hệ thống chạy http trong mạng nội bộ thì
+        // getUserMedia không có — quay về ô chọn tệp có capture: trên điện thoại nó mở thẳng ứng dụng camera.
+        if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) {
+            renderCameraFallback(t('certificate.extCamInsecure', 'Trình duyệt chỉ cho mở camera trực tiếp trên kết nối bảo mật (HTTPS). Dùng nút dưới đây để chụp bằng ứng dụng camera của máy.'));
+            return;
+        }
+
+        stage().innerHTML = `<div class="scan-frame"><div class="scan-wait"><i class="ph ph-camera"></i>${esc(t('certificate.extCamOpening', 'Đang mở camera...'))}</div></div>`;
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                audio: false,
+            });
+        } catch (ex) {
+            // Trong lúc chờ quyền camera mà người dùng đã chuyển sang tải tệp (hoặc đóng hộp thoại) thì thôi — vẽ
+            // khung camera lúc này là đè mất ảnh họ vừa chọn.
+            if (scanMode !== 'camera' || !document.getElementById('modal-ext-add').classList.contains('open')) return;
+            renderCameraFallback(ex?.name === 'NotAllowedError'
+                ? t('certificate.extCamDenied', 'Bạn chưa cho phép dùng camera. Cho phép trong thanh địa chỉ của trình duyệt, hoặc dùng nút dưới đây.')
+                : t('certificate.extCamNone', 'Không mở được camera trên máy này. Bạn có thể chụp bằng ứng dụng camera hoặc chuyển sang tải tệp.'));
+            return;
+        }
+
+        // Người dùng đã đóng hộp thoại / đổi sang tải tệp trong lúc chờ quyền camera thì trả camera lại ngay.
+        if (scanMode !== 'camera' || !document.getElementById('modal-ext-add').classList.contains('open')) {
+            stream.getTracks().forEach(track => track.stop());
+            return;
+        }
+        cameraStream = stream;
+
+        stage().innerHTML = `
+            <div class="scan-frame">
+                <video id="scan-video" playsinline muted autoplay></video>
+                <div class="scan-guide" id="scan-guide"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></div>
+                <div class="scan-tip">${esc(t('certificate.extCamTip', 'Đặt giấy vừa khung, đủ sáng, không bị lóa'))}</div>
+            </div>
+            <div class="scan-bar">
+                <button type="button" class="scan-side" id="scan-orient">
+                    <i class="ph ph-arrows-counter-clockwise"></i>${esc(guideLandscape ? t('certificate.extLandscape', 'Khổ ngang') : t('certificate.extPortrait', 'Khổ dọc'))}</button>
+                <button type="button" class="scan-shutter" id="scan-shot" aria-label="${esc(t('certificate.extShoot', 'Chụp'))}"></button>
+                <button type="button" class="scan-side" data-ext-mode-switch>
+                    <i class="ph ph-file-arrow-up"></i>${esc(t('certificate.extUseFile', 'Tải tệp'))}</button>
+            </div>`;
+
+        const video = document.getElementById('scan-video');
+        video.srcObject = cameraStream;
+        video.addEventListener('loadedmetadata', layoutGuide);
+        video.play().catch(() => { /* autoplay bị chặn — muted + playsinline thường đủ để không xảy ra */ });
+        document.getElementById('scan-shot').addEventListener('click', captureFrame);
+        document.getElementById('scan-orient').addEventListener('click', () => {
+            guideLandscape = !guideLandscape;
+            document.getElementById('scan-orient').lastChild.textContent = guideLandscape
+                ? t('certificate.extLandscape', 'Khổ ngang') : t('certificate.extPortrait', 'Khổ dọc');
+            layoutGuide();
+        });
+        stage().querySelector('[data-ext-mode-switch]').addEventListener('click', () => setScanMode('file'));
+    }
+
+    function stopCamera() {
+        cameraStream?.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+
+    function renderCameraFallback(message) {
+        stage().innerHTML = `
+            <div class="ext-drop" style="cursor:default">
+                <i class="ph ph-camera-slash"></i>
+                <span>${esc(message)}</span>
+                <label class="btn sm" style="margin-top:6px">
+                    <i class="ph ph-camera"></i> ${esc(t('certificate.extOpenCamApp', 'Mở camera của máy'))}
+                    <input type="file" accept="image/*" capture="environment" id="scan-native" hidden>
+                </label>
+            </div>`;
+        document.getElementById('scan-native').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            // Ảnh chụp từ ứng dụng camera đi tiếp như một ảnh vừa chụp: vẽ lên canvas để còn "làm rõ chữ".
+            const image = new Image();
+            image.onload = () => {
+                const canvas = document.createElement('canvas');
+                const scale = Math.min(1, 2400 / Math.max(image.naturalWidth, image.naturalHeight));
+                canvas.width = Math.round(image.naturalWidth * scale);
+                canvas.height = Math.round(image.naturalHeight * scale);
+                canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+                URL.revokeObjectURL(image.src);
+                capturedCanvas = canvas;
+                enhanceCapture = false;
+                renderCaptured();
+                startScan();
+            };
+            image.onerror = () => toastErr(t('certificate.extBadImage', 'Không đọc được ảnh vừa chụp.'));
+            image.src = URL.createObjectURL(file);
+        });
+    }
+
+    /** Vùng khung ngắm trong toạ độ điểm ảnh của video: 92% cạnh bị giới hạn, đúng tỷ lệ khổ giấy A (√2). */
+    function guideRect(videoWidth, videoHeight) {
+        const ratio = guideLandscape ? Math.SQRT2 : 1 / Math.SQRT2;
+        let width = videoWidth * 0.92;
+        let height = width / ratio;
+        if (height > videoHeight * 0.92) { height = videoHeight * 0.92; width = height * ratio; }
+        return { x: (videoWidth - width) / 2, y: (videoHeight - height) / 2, width, height };
+    }
+
+    function layoutGuide() {
+        const video = document.getElementById('scan-video');
+        const guide = document.getElementById('scan-guide');
+        if (!video?.videoWidth || !guide) return;
+        // Video hiện đúng tỷ lệ gốc (width 100%, height auto) nên phần trăm trên khung = phần trăm trên ảnh.
+        const r = guideRect(video.videoWidth, video.videoHeight);
+        Object.assign(guide.style, {
+            left: `${r.x / video.videoWidth * 100}%`, top: `${r.y / video.videoHeight * 100}%`,
+            width: `${r.width / video.videoWidth * 100}%`, height: `${r.height / video.videoHeight * 100}%`,
+        });
+    }
+
+    function captureFrame() {
+        const video = document.getElementById('scan-video');
+        if (!video?.videoWidth) return;
+        const r = guideRect(video.videoWidth, video.videoHeight);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(r.width);
+        canvas.height = Math.round(r.height);
+        // Chỉ giữ phần trong khung ngắm: bỏ mặt bàn, ngón tay cầm giấy... — đúng như bản quét.
+        canvas.getContext('2d').drawImage(video, r.x, r.y, r.width, r.height, 0, 0, canvas.width, canvas.height);
+        stopCamera();
+        capturedCanvas = canvas;
+        enhanceCapture = false;
+        renderCaptured();
+        startScan();
+    }
+
+    function renderCaptured() {
+        stage().innerHTML = `
+            <div class="scan-frame"><canvas id="scan-result"></canvas></div>
+            <div class="ext-preview-bar">
+                <label class="ext-toggle"><input type="checkbox" id="scan-enhance" ${enhanceCapture ? 'checked' : ''}>
+                    ${esc(t('certificate.extEnhance', 'Làm rõ chữ (giống bản scan)'))}</label>
+                <span class="file"></span>
+                <button type="button" class="btn ghost sm" id="scan-retake"><i class="ph ph-arrow-counter-clockwise"></i> ${esc(t('certificate.extRetake', 'Chụp lại'))}</button>
+            </div>`;
+        drawCaptured();
+        // "Làm rõ chữ" đổi ảnh sẽ gửi đi → AI đọc lại đúng ảnh đó (ảnh rõ hơn cũng hay đọc đúng hơn).
+        document.getElementById('scan-enhance').addEventListener('change', (e) => { enhanceCapture = e.target.checked; drawCaptured(); startScan(); });
+        document.getElementById('scan-retake').addEventListener('click', () => { capturedCanvas = null; resetScan(); startCamera(); });
+    }
+
+    function drawCaptured() {
+        const canvas = document.getElementById('scan-result');
+        if (!canvas || !capturedCanvas) return;
+        canvas.width = capturedCanvas.width;
+        canvas.height = capturedCanvas.height;
+        const context = canvas.getContext('2d');
+        context.drawImage(capturedCanvas, 0, 0);
+        if (enhanceCapture) enhanceDocument(context, canvas.width, canvas.height);
+    }
+
+    /** "Làm rõ chữ": kéo giãn độ sáng sao cho 2% điểm tối nhất thành đen, 2% sáng nhất thành trắng — nền giấy
+     *  ngả vàng/xám dưới đèn trở về trắng, chữ đậm lên. Cùng một phép biến đổi cho cả ba kênh màu nên con dấu
+     *  đỏ vẫn đỏ (đổi sang ảnh xám thì mất màu dấu — thứ người duyệt hay nhìn nhất). */
+    function enhanceDocument(context, width, height) {
+        const image = context.getImageData(0, 0, width, height);
+        const data = image.data;
+        const histogram = new Uint32Array(256);
+        for (let i = 0; i < data.length; i += 4)
+            histogram[(data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000 | 0]++;
+
+        const total = width * height;
+        let low = 0, high = 255, sum = 0;
+        while (low < 255 && (sum += histogram[low]) < total * 0.02) low++;
+        sum = 0;
+        while (high > 0 && (sum += histogram[high]) < total * 0.02) high--;
+        if (high - low < 30) return;   // ảnh gần như một màu — kéo giãn chỉ làm nhiễu
+
+        const scale = 255 / (high - low);
+        for (let i = 0; i < data.length; i += 4) {
+            data[i] = Math.min(255, Math.max(0, (data[i] - low) * scale));
+            data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - low) * scale));
+            data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - low) * scale));
+        }
+        context.putImageData(image, 0, 0);
+    }
+
+    // ---------- Tải tệp ----------
+
+    function renderFilePicker() {
+        stage().innerHTML = `
+            <label class="ext-drop" id="ext-drop">
+                <i class="ph-duotone ph-file-arrow-up"></i>
+                <b>${esc(t('certificate.extDropTitle', 'Kéo thả hoặc bấm để chọn tệp'))}</b>
+                <span>${esc(t('certificate.extDropHint', 'PDF hoặc ảnh JPG, PNG, WEBP — tối đa 15 MB'))}</span>
+                <input type="file" id="ext-file" accept="application/pdf,image/jpeg,image/png,image/webp" hidden>
+            </label>`;
+        const drop = document.getElementById('ext-drop');
+        document.getElementById('ext-file').addEventListener('change', (e) => acceptFile(e.target.files[0]));
+        drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('drag'); });
+        drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+        drop.addEventListener('drop', (e) => {
+            e.preventDefault();
+            drop.classList.remove('drag');
+            acceptFile(e.dataTransfer.files[0]);
+        });
+    }
+
+    function acceptFile(file) {
+        if (!file) return;
+        if (!acceptedTypeList.includes(file.type)) {
+            toastErr(t('certificate.extBadType', 'Chỉ nhận tệp PDF hoặc ảnh JPG, PNG, WEBP.'));
+            return;
+        }
+        if (file.size > maxFileByte) {
+            toastErr(t('certificate.extTooBig', 'Tệp vượt quá 15 MB.'));
+            return;
+        }
+        clearPickedFile();
+        pickedFile = file;
+        pickedFileUrl = URL.createObjectURL(file);
+        renderPickedFile();
+        startScan();
+    }
+
+    function clearPickedFile() {
+        if (pickedFileUrl) URL.revokeObjectURL(pickedFileUrl);
+        pickedFile = null;
+        pickedFileUrl = null;
+    }
+
+    function renderPickedFile() {
+        const isPdf = pickedFile.type === 'application/pdf';
+        stage().innerHTML = `
+            <div class="ext-preview">
+                ${isPdf
+                    ? `<iframe src="${pickedFileUrl}" title="${esc(pickedFile.name)}"></iframe>`
+                    : `<div class="scan-frame"><img src="${pickedFileUrl}" alt="${esc(pickedFile.name)}"></div>`}
+            </div>
+            <div class="ext-preview-bar">
+                <i class="ph ${isPdf ? 'ph-file-pdf' : 'ph-image'}"></i>
+                <span class="file" title="${esc(pickedFile.name)}">${esc(pickedFile.name)} · ${fileSizeText(pickedFile.size)}</span>
+                <button type="button" class="btn ghost sm" id="ext-file-change"><i class="ph ph-swap"></i> ${esc(t('certificate.extChangeFile', 'Chọn tệp khác'))}</button>
+            </div>`;
+        document.getElementById('ext-file-change').addEventListener('click', () => { clearPickedFile(); resetScan(); renderFilePicker(); });
+    }
+
+    // ---------- AI đọc giấy ----------
+
+    /** Bỏ lượt đọc đang chạy (nếu có) và đưa ô AI về lời dặn ban đầu. */
+    function resetScan() {
+        scanSeq++;
+        const controller = scanController;
+        scanController = null;
+        controller?.abort();
+        scanFile = null;
+        scanState = 'idle';
+        clearInterval(scanTimer);
+        renderAiBox('idle');
+    }
+
+    /** Có tệp mới (vừa chụp, bật/tắt "làm rõ chữ", vừa chọn) → AI đọc ngay. Lượt đọc ảnh cũ bị hủy: máy chủ AI
+     *  chạy CPU chỉ đọc nổi từng ảnh một, để nó đọc nốt ảnh đã bỏ là bắt ảnh mới xếp hàng chờ. */
+    async function startScan() {
+        const seq = ++scanSeq;
+        const previous = scanController;
+        scanController = null;
+        previous?.abort();
+
+        // Xuất ảnh ra JPEG là việc bất đồng bộ — trong lúc chờ mà người dùng đổi ảnh lần nữa thì lượt này bỏ.
+        const file = await fileToSend();
+        if (seq !== scanSeq) return;
+        if (!file) { resetScan(); return; }
+        const controller = new AbortController();
+        scanController = controller;
+        scanFile = file;
+        scanState = 'reading';
+
+        const startedAt = Date.now();
+        renderAiBox('reading', { second: 0 });
+        clearInterval(scanTimer);
+        scanTimer = setInterval(() => {
+            if (scanController === controller) renderAiBox('reading', { second: Math.round((Date.now() - startedAt) / 1000) });
+        }, 1000);
+
+        const form = new FormData();
+        form.append('file', file.blob, file.name);
+        try {
+            const result = await API.postFormSilent('/externalcertificate/scan', form, controller.signal);
+            if (scanController !== controller) return;
+            scanState = 'done';
+            fillFromReading(result.reading);
+            renderAiBox(result.problem ? 'problem' : 'done', result);
+        } catch (ex) {
+            if (ex?.name === 'AbortError' || scanController !== controller) return;
+            scanState = 'error';
+            renderAiBox(ex.status === 503 || ex.status === 0 ? 'unavailable' : 'failed', { message: ex.message });
+        } finally {
+            if (scanController === controller) {
+                scanController = null;
+                clearInterval(scanTimer);
+            }
+        }
+    }
+
+    /** Điền những gì AI đọc được — chỉ vào ô còn trống hoặc ô chính AI đã điền ở lượt trước; ô nhân viên tự gõ
+     *  thì giữ nguyên (họ biết rõ giấy của họ hơn model). */
+    function fillFromReading(reading) {
+        const valueById = {
+            'ext-title': reading.title || '',
+            'ext-issuer': reading.issuer || '',
+            'ext-no': reading.certificateNo || '',
+            'ext-issued': reading.issuedAt ? dateInputValue(reading.issuedAt) : '',
+            'ext-expired': reading.expiredAt ? dateInputValue(reading.expiredAt) : '',
+        };
+        Object.entries(valueById).forEach(([id, value]) => {
+            const input = document.getElementById(id);
+            if (input.value && input.value !== aiFilledValue[id]) return;
+            input.value = value;
+            aiFilledValue[id] = value;
+        });
+        document.getElementById('ext-expired').min = document.getElementById('ext-issued').value;
+    }
+
+    function renderAiBox(state, data = {}) {
+        const box = document.getElementById('ext-ai');
+        if (!box) return;
+        box.className = `ext-ai ${{ done: 'ok', problem: 'bad', mismatch: 'bad', unavailable: 'warn', failed: 'warn' }[state] || ''}`;
+
+        if (state === 'reading') {
+            box.innerHTML = `<div class="spinner"></div><div>
+                <b>${esc(t('certificate.extAiReading', 'AI đang đọc giấy chứng nhận...'))}</b> ${data.second ? `${data.second}s` : ''}<br>
+                ${esc(t('certificate.extAiReadingHint', 'Máy chủ AI nội bộ — thường mất một đến vài phút. Thông tin đọc được sẽ tự điền vào bên dưới; bạn cũng có thể tự nhập và gửi luôn, AI đọc xong sẽ đối chiếu và báo kết quả.'))}</div>`;
+        } else if (state === 'done') {
+            const holder = data.reading?.holderName;
+            box.innerHTML = `<i class="ph-fill ph-check-circle"></i><div>
+                <b>${esc(t('certificate.extAiDone', 'AI đã đọc xong và điền sẵn thông tin — kiểm tra lại rồi bấm Gửi.'))}</b>
+                ${holder ? `<span class="ext-ai-holder">${esc(t('certificate.extAiHolder', 'Họ tên trên giấy'))}: <b>${esc(holder)}</b>${data.isNameMatched
+                    ? ` · ${esc(t('certificate.extAiNameOk', 'khớp tài khoản'))}` : ''}</span>` : ''}</div>`;
+        } else if (state === 'problem') {
+            box.innerHTML = `<i class="ph-fill ph-warning-octagon"></i><div>
+                <b>${esc(t('certificate.extAiProblem', 'Giấy này sẽ không được xác nhận:'))}</b> ${esc(data.problem)}</div>`;
+        } else if (state === 'mismatch') {
+            box.innerHTML = `<i class="ph-fill ph-warning-octagon"></i><div>
+                <b>${esc(t('certificate.extAiMismatch', 'AI đối chiếu thấy chỗ chưa khớp với giấy — sửa lại rồi gửi:'))}</b>
+                <ul>${data.messageList.map(message => `<li>${esc(message)}</li>`).join('')}</ul></div>`;
+        } else if (state === 'unavailable') {
+            box.innerHTML = `<i class="ph-fill ph-cloud-slash"></i><div>${esc(data.message)}
+                ${esc(t('certificate.extAiLater', 'Bạn cứ nhập thông tin rồi gửi — AI sẽ đối chiếu khi máy chủ AI sẵn sàng và báo kết quả cho bạn.'))}</div>`;
+        } else if (state === 'failed') {
+            box.innerHTML = `<i class="ph-fill ph-warning"></i><div>
+                <b>${esc(t('certificate.extAiFailed', 'AI chưa đọc được giấy này:'))}</b> ${esc(data.message)}
+                ${esc(t('certificate.extAiRetry', 'Chụp lại rõ hơn, hoặc tự nhập thông tin rồi gửi để AI đối chiếu lại sau.'))}</div>`;
+        } else {
+            box.innerHTML = `<i class="ph ph-sparkle"></i><div>${esc(t('certificate.extAiIdle', 'Chụp hoặc chọn tệp là AI đọc giấy ngay: tự điền thông tin bên dưới và đối chiếu với tài khoản của bạn. Khớp thì chứng nhận được xác nhận luôn, không phải chờ duyệt.'))}</div>`;
+        }
+    }
+
+    // ---------- Gửi ----------
+
+    /** Tệp sẽ gửi đi: ảnh vừa chụp (xuất JPEG, đã áp "làm rõ chữ" nếu bật) hoặc tệp đã chọn. */
+    async function fileToSend() {
+        if (scanMode === 'file') return pickedFile ? { blob: pickedFile, name: pickedFile.name } : null;
+        if (!capturedCanvas) return null;
+        const source = document.getElementById('scan-result') || capturedCanvas;
+        const blob = await new Promise(resolve => source.toBlob(resolve, 'image/jpeg', 0.9));
+        const now = new Date();
+        const stamp = `${dateInputValue(now).replace(/-/g, '')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+        return blob ? { blob, name: `chung-nhan-${stamp}.jpg` } : null;
+    }
+
+    async function submitExternal(e) {
+        e.preventDefault();
+        const title = document.getElementById('ext-title').value.trim();
+        const issuer = document.getElementById('ext-issuer').value.trim();
+        const issuedAt = document.getElementById('ext-issued').value;
+        const expiredAt = document.getElementById('ext-expired').value;
+
+        // Gửi ĐÚNG tệp AI vừa đọc (cùng dãy byte) để máy chủ nhận ra kết quả đọc sẵn và đối chiếu ngay.
+        const file = scanFile || await fileToSend();
+        if (!file) { toastErr(t('certificate.extNeedFile', 'Vui lòng chụp hoặc tải lên giấy chứng nhận.')); return; }
+        if (!title) { toastErr(t('certificate.extNeedTitle', 'Vui lòng nhập tên chứng nhận.')); document.getElementById('ext-title').focus(); return; }
+        if (!issuer) { toastErr(t('certificate.extNeedIssuer', 'Vui lòng nhập đơn vị cấp.')); document.getElementById('ext-issuer').focus(); return; }
+        if (!issuedAt) { toastErr(t('certificate.extNeedIssued', 'Vui lòng nhập ngày cấp.')); document.getElementById('ext-issued').focus(); return; }
+        if (expiredAt && expiredAt < issuedAt) { toastErr(t('certificate.extBadExpiry', 'Ngày hết hạn phải sau ngày cấp.')); return; }
+
+        const form = new FormData();
+        form.append('title', title);
+        form.append('issuer', issuer);
+        form.append('certificateNo', document.getElementById('ext-no').value.trim());
+        form.append('issuedAt', issuedAt);
+        if (expiredAt) form.append('expiredAt', expiredAt);
+        form.append('note', document.getElementById('ext-note').value.trim());
+        form.append('file', file.blob, file.name);
+
+        const submitButton = document.getElementById('ext-submit');
+        submitButton.disabled = true;
+        try {
+            const result = await API.postForm('/externalcertificate', form);
+            toastOk(result?.message || t('certificate.extSent', 'Đã gửi chứng nhận.'));
+            // Gửi khi AI còn đang đọc: để lượt đọc chạy tiếp (đóng hộp thoại sẽ hủy nó) — máy chủ đối chiếu nền bằng
+            // chính lượt đọc này, khỏi đọc lại từ đầu.
+            if (scanState === 'reading') scanController = null;
+            closeModal('modal-ext-add');
+            loadedTab.external = false;
+            await loadExternalTab();
+        } catch (ex) {
+            // AI đọc giấy và thấy lệch: giấy chưa được lưu, hộp thoại vẫn mở — chỉ ra đúng ô nào lệch để sửa.
+            const failedList = (ex.data?.aiResult?.checkList || []).filter(x => x.ok === false && x.message);
+            if (failedList.length) {
+                const messageList = failedList.map(x => x.message);
+                if (failedList.some(x => !x.found)) messageList.push(t('certificate.extAiRetake', 'Hãy chụp lại rõ hơn: đủ sáng, không lóa, thấy trọn tờ giấy.'));
+                renderAiBox('mismatch', { messageList });
+                toastErr(t('certificate.extAiMismatchToast', 'Thông tin chưa khớp với giấy — xem chi tiết trong hộp thoại.'));
+            } else toastErr(ex.message);
+        } finally {
+            submitButton.disabled = false;
+        }
+    }
+
+    async function deleteExternal(id) {
+        const c = externalById.get(id);
+        if (!await confirmDialog(t('certificate.extDeleteConfirm', 'Xóa chứng nhận "{title}"? Tệp quét đi kèm cũng bị xóa.', { title: c?.title || '' }),
+            { danger: true, okText: t('common.delete', 'Xóa') })) return;
+        try {
+            const result = await API.del(`/externalcertificate/${id}`);
+            toastOk(result?.message || t('certificate.extDeleted', 'Đã xóa.'));
+            externalById.delete(id);
+            if (loadedTab.external) { myExternalList = myExternalList.filter(x => x.id !== id); renderExternalTab(); }
+            if (loadedTab.review) reloadReview();
+            if (Auth.isAdmin) refreshReviewCount();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    // ==================== XEM TỆP / DUYỆT ====================
+
+    async function openExternalViewer(id) {
+        const c = externalById.get(id);
+        if (!c) return;
+        // Admin không phải duyệt, nhưng sửa được quyết định của AI: xác nhận giấy AI từ chối nhầm / chưa đọc được,
+        // thu hồi giấy AI đã xác nhận (AI không phân biệt được giấy giả).
+        const canApprove = Auth.isAdmin && c.status !== 'Approved';
+        const canReject = Auth.isAdmin && c.status !== 'Rejected';
+
+        document.getElementById('ext-view-info').innerHTML = `
+            <h4>${esc(c.title)}</h4>
+            <div style="margin-bottom:12px">${extStatusBadge(c.status, c.isAiReviewed)}</div>
+            <dl>
+                <dt>${esc(t('certificate.extColEmployee', 'Nhân viên'))}</dt>
+                <dd>${esc(c.userFullName)}<span class="small muted" style="display:block;font-weight:500">${esc(c.employeeCode)}${c.departmentName ? ' · ' + esc(c.departmentName) : ''}</span></dd>
+                <dt>${esc(t('certificate.extColIssuer', 'Đơn vị cấp'))}</dt><dd>${esc(c.issuer)}</dd>
+                ${c.certificateNo ? `<dt>${esc(t('certificate.extColNo', 'Số hiệu'))}</dt><dd>${esc(c.certificateNo)}</dd>` : ''}
+                <dt>${esc(t('certificate.extColIssued', 'Ngày cấp'))}</dt><dd>${formatDate(c.issuedAt)}</dd>
+                <dt>${esc(t('certificate.extColExpired', 'Hết hạn'))}</dt><dd>${c.expiredAt ? formatDate(c.expiredAt) : esc(t('certificate.extNoExpiry', 'Không thời hạn'))}</dd>
+                <dt>${esc(t('certificate.extColSent', 'Gửi lúc'))}</dt><dd>${formatDate(c.createdAt, true)}</dd>
+                ${c.note ? `<dt>${esc(t('certificate.extColNote', 'Ghi chú'))}</dt><dd>${esc(c.note)}</dd>` : ''}
+                ${c.reviewedAt ? `<dt>${esc(t('certificate.extColReviewer', 'Người xác nhận'))}</dt><dd>${c.isAiReviewed
+                    ? `AI${c.aiResult?.model ? ` <span class="small muted" style="font-weight:500">(${esc(c.aiResult.model)})</span>` : ''}`
+                    : esc(c.reviewedByName || '—')} · ${formatDate(c.reviewedAt, true)}</dd>` : ''}
+            </dl>
+            ${c.status === 'Rejected' && c.rejectReason ? `<div class="ext-view-reason"><b>${esc(t('certificate.extRejectReason', 'Lý do từ chối'))}:</b> ${esc(c.rejectReason)}</div>` : ''}
+            ${aiReadingHtml(c.aiResult)}`;
+
+        document.getElementById('ext-view-foot').innerHTML = `
+            <button type="button" class="btn ghost" id="ext-view-download"><i class="ph ph-download-simple"></i> ${esc(t('certificate.extDownload', 'Tải tệp'))}</button>
+            <span style="flex:1"></span>
+            ${canReject ? `<button type="button" class="btn danger" id="ext-reject"><i class="ph ph-x"></i> ${esc(c.status === 'Approved'
+                ? t('certificate.extRevoke', 'Thu hồi xác nhận') : t('certificate.extReject', 'Từ chối'))}</button>` : ''}
+            ${canApprove ? `<button type="button" class="btn" id="ext-approve"><i class="ph ph-check"></i> ${esc(t('certificate.extApprove', 'Xác nhận'))}</button>` : ''}
+            ${!canApprove && !canReject ? `<button type="button" class="btn ghost" onclick="closeModal('modal-ext-view')">${esc(t('common.close', 'Đóng'))}</button>` : ''}`;
+
+        document.getElementById('ext-view-download').addEventListener('click', () =>
+            API.download(`/externalcertificate/${id}/file`, c.fileName).catch(ex => toastErr(ex.message)));
+        document.getElementById('ext-approve')?.addEventListener('click', () => approveExternal(id));
+        document.getElementById('ext-reject')?.addEventListener('click', () => rejectExternal(id, c.status === 'Approved'));
+
+        const fileBox = document.getElementById('ext-view-file');
+        fileBox.innerHTML = skeletonHtml('block', { height: '320px' });
+        openModal('modal-ext-view');
+
+        try {
+            const blob = await API.blob(`/externalcertificate/${id}/file`);
+            if (viewFileUrl) URL.revokeObjectURL(viewFileUrl);
+            viewFileUrl = URL.createObjectURL(blob);
+            fileBox.innerHTML = c.contentType === 'application/pdf'
+                ? `<iframe src="${viewFileUrl}" title="${esc(c.fileName)}"></iframe>`
+                : `<img src="${viewFileUrl}" alt="${esc(c.title)}">`;
+        } catch (ex) {
+            fileBox.innerHTML = emptyHtml(ex.message, '<i class="ph ph-file-x"></i>');
+        }
+    }
+
+    /** "AI đọc được trên giấy": từng mục kèm dấu ✓ khớp / ✗ lệch / – không so được — nhân viên thấy vì sao bị
+     *  từ chối, Admin thấy AI đã dựa vào đâu mà xác nhận. */
+    function aiReadingHtml(ai) {
+        if (!ai) return '';
+        const checkByField = Object.fromEntries((ai.checkList || []).map(x => [x.field, x]));
+        const rowList = [
+            ['document', t('certificate.extDocType', 'Loại giấy'), ai.documentType],
+            ['name', t('certificate.extAiHolder', 'Họ tên trên giấy'), ai.holderName],
+            ['title', t('certificate.extColCertificate', 'Chứng nhận'), ai.title],
+            ['issuer', t('certificate.extColIssuer', 'Đơn vị cấp'), ai.issuer],
+            ['no', t('certificate.extColNo', 'Số hiệu'), ai.certificateNo],
+            ['issued', t('certificate.extColIssued', 'Ngày cấp'), ai.issuedAt ? formatDate(ai.issuedAt) : null],
+            ['expired', t('certificate.extColExpired', 'Hết hạn'), ai.expiredAt ? formatDate(ai.expiredAt) : null],
+        ];
+        const mark = (ok) => ok === true ? '<i class="ph-bold ph-check ok"></i>'
+            : ok === false ? '<i class="ph-bold ph-x bad"></i>' : '<i class="ph ph-minus skip"></i>';
+        return `
+            <div class="ext-ai-read">
+                <h5><i class="ph ph-sparkle"></i> ${esc(t('certificate.extAiSection', 'AI đọc được trên giấy'))}</h5>
+                <ul>${rowList.map(([field, label, value]) => `
+                    <li>${mark(checkByField[field]?.ok)}<span>${esc(label)}</span>${value
+                        ? `<b>${esc(value)}</b>` : `<span>${esc(t('certificate.extAiNotRead', 'không có / không đọc được'))}</span>`}</li>`).join('')}
+                </ul>
+                ${ai.note ? `<div class="small muted" style="margin-top:6px">${esc(ai.note)}</div>` : ''}
+            </div>`;
+    }
+
+    async function approveExternal(id) {
+        try {
+            const result = await API.post(`/externalcertificate/${id}/approve`);
+            toastOk(result?.message || t('certificate.extApprovedToast', 'Đã xác nhận.'));
+            afterReview();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    async function rejectExternal(id, isRevoke = false) {
+        const label = isRevoke ? t('certificate.extRevoke', 'Thu hồi xác nhận') : t('certificate.extReject', 'Từ chối');
+        const reason = await promptDialog(isRevoke
+            ? t('certificate.extRevokePrompt', 'Lý do thu hồi xác nhận (nhân viên sẽ đọc được lý do này):')
+            : t('certificate.extRejectPrompt', 'Lý do từ chối (nhân viên sẽ đọc được lý do này):'), {
+            title: label, okText: label, danger: true,
+            placeholder: t('certificate.extRejectPh', 'VD: Ảnh mờ, không đọc được số hiệu'), maxLength: 1000,
+        });
+        if (reason === null || reason === undefined) return;
+        if (reason.trim().length < 3) { toastErr(t('certificate.extNeedReason', 'Vui lòng nhập lý do từ chối.')); return; }
+        try {
+            const result = await API.post(`/externalcertificate/${id}/reject`, { reason: reason.trim() });
+            toastOk(result?.message || t('certificate.extRejectedToast', 'Đã từ chối.'));
+            afterReview();
+        } catch (ex) { toastErr(ex.message); }
+    }
+
+    function afterReview() {
+        closeModal('modal-ext-view');
+        refreshReviewCount();
+        if (loadedTab.review) reloadReview();
+        // Giấy vừa xác nhận phải có mặt trong danh sách in ở lần mở tiếp theo.
+        if (loadedTab.register) reloadRegister();
+    }
+
+    // ==================== DUYỆT CHỨNG NHẬN (Admin) ====================
+
+    async function ensureDepartments() {
+        if (allDepartmentList) return;
+        allDepartmentList = await API.getSilent('/department?isActive=true').catch(() => []);
+    }
+
+    function departmentOptionHtml(allLabel) {
+        return `<option value="">${esc(allLabel)}</option>`
+            + allDepartmentList.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('');
+    }
+
+    async function loadReviewTab() {
+        loadedTab.review = true;
+        const panel = document.getElementById('tab-review');
+        panel.innerHTML = skeletonHtml('table', { rows: 4, cols: 6 });
+        await ensureDepartments();
+        panel.innerHTML = `
+            <div class="card">
+                <div class="card-head">
+                    <h3><i class="ph ph-scan"></i> ${esc(t('certificate.reviewTitle', 'Chứng nhận bên ngoài của nhân viên'))}</h3>
+                    <div class="ext-filter">
+                        <select id="rv-status" aria-label="${esc(t('certificate.extColStatus', 'Trạng thái'))}">
+                            <option value="">${esc(t('certificate.allStatus', 'Mọi trạng thái'))}</option>
+                            <option value="Approved">${esc(t('certificate.extApproved', 'Đã xác nhận'))}</option>
+                            <option value="Rejected">${esc(t('certificate.extRejected', 'Bị từ chối'))}</option>
+                            <option value="Pending">${esc(t('certificate.extPending', 'AI đang đối chiếu'))}</option>
+                        </select>
+                        <select id="rv-dept" aria-label="${esc(t('certificate.department', 'Phòng ban'))}">${departmentOptionHtml(t('certificate.allDepartment', 'Mọi phòng ban'))}</select>
+                        <input type="search" id="rv-keyword" placeholder="${esc(t('certificate.searchPh', 'Tìm tên, mã NV, chứng nhận...'))}">
+                    </div>
+                </div>
+                <div id="rv-body"></div>
+            </div>`;
+        document.getElementById('rv-status').addEventListener('change', reloadReview);
+        document.getElementById('rv-dept').addEventListener('change', reloadReview);
+        let timer;
+        document.getElementById('rv-keyword').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(reloadReview, 350); });
+        reloadReview();
+    }
+
+    async function reloadReview() {
+        const body = document.getElementById('rv-body');
+        if (!body) return;
+        const query = new URLSearchParams();
+        const status = document.getElementById('rv-status').value;
+        const departmentId = document.getElementById('rv-dept').value;
+        const keyword = document.getElementById('rv-keyword').value.trim();
+        if (status) query.set('status', status);
+        if (departmentId) query.set('departmentId', departmentId);
+        if (keyword) query.set('keyword', keyword);
+
+        body.style.opacity = '.5';
+        try {
+            reviewList = await API.getSilent(`/externalcertificate?${query}`);
+        } catch (ex) {
+            body.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+            return;
+        } finally {
+            body.style.opacity = '';
+        }
+        reviewList.forEach(c => externalById.set(c.id, c));
+
+        body.innerHTML = reviewList.length ? `
+            <div class="table-wrap"><table>
+                <thead><tr>
+                    <th>${esc(t('certificate.extColEmployee', 'Nhân viên'))}</th>
+                    <th>${esc(t('certificate.extColCertificate', 'Chứng nhận'))}</th>
+                    <th>${esc(t('certificate.extColIssued', 'Ngày cấp'))}</th>
+                    <th>${esc(t('certificate.extColSent', 'Gửi lúc'))}</th>
+                    <th>${esc(t('certificate.extColStatus', 'Trạng thái'))}</th>
+                    <th class="text-right"></th>
+                </tr></thead>
+                <tbody>${reviewList.map(c => `
+                    <tr>
+                        <td><b>${esc(c.userFullName)}</b><div class="small muted">${esc(c.employeeCode)}${c.departmentName ? ' · ' + esc(c.departmentName) : ''}</div></td>
+                        <td><b>${esc(c.title)}</b><div class="small muted">${esc(c.issuer)}${c.certificateNo ? ' · ' + esc(c.certificateNo) : ''}</div></td>
+                        <td class="nowrap">${formatDate(c.issuedAt)}${c.expiredAt ? `<div class="small muted">→ ${formatDate(c.expiredAt)}</div>` : ''}</td>
+                        <td class="nowrap small">${formatDate(c.createdAt, true)}</td>
+                        <td>${extStatusBadge(c.status, c.isAiReviewed)}</td>
+                        <td class="text-right nowrap">
+                            <button type="button" class="btn ghost sm" data-ext-view="${c.id}">
+                                <i class="ph ph-eye"></i> ${esc(t('certificate.extView', 'Xem'))}</button>
+                            <button type="button" class="btn ghost sm" data-ext-delete="${c.id}" title="${esc(t('common.delete', 'Xóa'))}" aria-label="${esc(t('common.delete', 'Xóa'))}"><i class="ph ph-trash"></i></button>
+                        </td>
+                    </tr>`).join('')}</tbody>
+            </table></div>`
+            : emptyHtml(t('certificate.reviewEmpty', 'Không có chứng nhận nào ở mục này.'), '<i class="ph ph-check-circle"></i>');
+    }
+
+    // ==================== IN DANH SÁCH (Admin) ====================
+
+    async function loadRegisterTab() {
+        loadedTab.register = true;
+        const panel = document.getElementById('tab-register');
+        panel.innerHTML = skeletonHtml('block', { height: '320px' });
+        await ensureDepartments();
+        panel.innerHTML = `
+            <div class="card no-print">
+                <div class="card-body register-filter-row">
+                    <div class="field">
+                        <label for="rg-source">${esc(t('certificate.regSource', 'Nguồn'))}</label>
+                        <select id="rg-source">
+                            <option value="">${esc(t('certificate.regSourceAll', 'Nội bộ + bên ngoài'))}</option>
+                            <option value="internal">${esc(t('certificate.regSourceInternal', 'Chỉ nội bộ'))}</option>
+                            <option value="external">${esc(t('certificate.regSourceExternal', 'Chỉ bên ngoài'))}</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="rg-dept">${esc(t('certificate.department', 'Phòng ban'))}</label>
+                        <select id="rg-dept">${departmentOptionHtml(t('certificate.allDepartment', 'Mọi phòng ban'))}</select>
+                    </div>
+                    <div class="field"><label for="rg-from">${esc(t('certificate.regFrom', 'Cấp từ ngày'))}</label><input type="date" id="rg-from"></div>
+                    <div class="field"><label for="rg-to">${esc(t('certificate.regTo', 'Đến ngày'))}</label><input type="date" id="rg-to"></div>
+                    <div class="field grow">
+                        <label for="rg-keyword">${esc(t('certificate.regSearch', 'Tìm kiếm'))}</label>
+                        <input type="search" id="rg-keyword" placeholder="${esc(t('certificate.searchPh', 'Tìm tên, mã NV, chứng nhận...'))}">
+                    </div>
+                    <button type="button" class="btn" data-rg-print><i class="ph ph-printer"></i> ${esc(t('certificate.regPrint', 'In danh sách'))}</button>
+                </div>
+            </div>
+            <div id="rg-sheet-wrap"></div>`;
+        ['rg-source', 'rg-dept', 'rg-from', 'rg-to'].forEach(id => document.getElementById(id).addEventListener('change', reloadRegister));
+        let timer;
+        document.getElementById('rg-keyword').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(reloadRegister, 350); });
+        reloadRegister();
+    }
+
+    function registerFilter() {
+        return {
+            source: document.getElementById('rg-source').value,
+            departmentId: document.getElementById('rg-dept').value,
+            from: document.getElementById('rg-from').value,
+            to: document.getElementById('rg-to').value,
+            keyword: document.getElementById('rg-keyword').value.trim(),
+        };
+    }
+
+    async function reloadRegister() {
+        const wrap = document.getElementById('rg-sheet-wrap');
+        if (!wrap) return;
+        const filter = registerFilter();
+        const query = new URLSearchParams();
+        Object.entries(filter).forEach(([key, value]) => { if (value) query.set(key, value); });
+
+        // Đổi bộ lọc: giữ tờ cũ, mờ đi trong lúc chờ — không chớp khung xương, không nhảy bố cục.
+        if (wrap.innerHTML) wrap.style.opacity = '.5';
+        else wrap.innerHTML = skeletonHtml('block', { height: '360px' });
+        try {
+            registerRowList = await API.getSilent(`/certificate/register?${query}`);
+        } catch (ex) {
+            wrap.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+            return;
+        } finally {
+            wrap.style.opacity = '';
+        }
+        wrap.innerHTML = registerSheetHtml(filter);
+    }
+
+    /** Tờ danh sách — vừa là bản xem trước trên màn hình, vừa là đúng thứ được in ra (A4 ngang). Nhóm theo
+     *  phòng ban, mỗi nhóm một dòng tiêu đề; số thứ tự chạy liên tục cả tờ. */
+    function registerSheetHtml(filter) {
+        const departmentName = filter.departmentId
+            ? allDepartmentList.find(d => d.id === +filter.departmentId)?.name : null;
+        const sourceLabel = { internal: t('certificate.regSourceInternal', 'Chỉ nội bộ'), external: t('certificate.regSourceExternal', 'Chỉ bên ngoài') }[filter.source]
+            || t('certificate.regSourceAll', 'Nội bộ + bên ngoài');
+        const dateRange = filter.from || filter.to
+            ? `${filter.from ? formatDate(filter.from) : '…'} – ${filter.to ? formatDate(filter.to) : '…'}`
+            : t('certificate.regAllTime', 'mọi thời điểm');
+
+        const internalCount = registerRowList.filter(x => x.source === 'Internal').length;
+        const externalCount = registerRowList.length - internalCount;
+        const peopleCount = new Set(registerRowList.map(x => x.userId)).size;
+
+        let lastDepartment;
+        let no = 0;
+        const rowHtml = registerRowList.map(r => {
+            const department = r.departmentName || t('certificate.regNoDepartment', 'Chưa gắn phòng ban');
+            let group = '';
+            if (department !== lastDepartment) {
+                lastDepartment = department;
+                const count = registerRowList.filter(x => (x.departmentName || t('certificate.regNoDepartment', 'Chưa gắn phòng ban')) === department).length;
+                group = `<tr class="reg-group"><td colspan="9">${esc(department)} — ${count} ${esc(t('certificate.regCertUnit', 'chứng nhận'))}</td></tr>`;
+            }
+            no++;
+            return group + `
+                <tr>
+                    <td class="c">${no}</td>
+                    <td class="c">${esc(r.employeeCode)}</td>
+                    <td><b>${esc(r.fullName)}</b>${r.positionName ? `<span class="muted2">${esc(r.positionName)}</span>` : ''}</td>
+                    <td>${esc(r.title)}</td>
+                    <td>${esc(r.issuer)}</td>
+                    <td>${esc(r.certificateNo || '—')}</td>
+                    <td class="c">${formatDate(r.issuedAt)}</td>
+                    <td class="c">${r.expiredAt ? formatDate(r.expiredAt) : '—'}</td>
+                    <td class="c"><span class="reg-src ${r.source === 'External' ? 'ext' : ''}">${esc(r.source === 'External'
+                        ? t('certificate.regExternal', 'Bên ngoài') : t('certificate.regInternal', 'Nội bộ'))}</span></td>
+                </tr>`;
+        }).join('');
+
+        const now = new Date();
+        return `
+            <div class="reg-sheet">
+                <div class="reg-head">
+                    <div class="reg-brand">
+                        <img src="/img/HoaBinh.png" alt="">
+                        <div><b>HB GROUP</b><span>${esc(t('certificate.regSystem', 'Hệ thống đào tạo nội bộ HB E-Learning'))}</span></div>
+                    </div>
+                    <div class="reg-meta">
+                        ${esc(t('certificate.regPrintedAt', 'Ngày in'))}: ${formatDate(now, true)}<br>
+                        ${esc(t('certificate.regPrintedBy', 'Người in'))}: ${esc(Auth.profile?.fullName || '')}
+                    </div>
+                </div>
+                <div class="reg-title">${esc(t('certificate.regTitle', 'DANH SÁCH CHỨNG NHẬN'))}</div>
+                <div class="reg-sub">${esc(sourceLabel)} · ${esc(departmentName || t('certificate.allDepartment', 'Mọi phòng ban'))} · ${esc(t('certificate.regIssuedIn', 'Ngày cấp'))}: ${esc(dateRange)}${filter.keyword ? ` · "${esc(filter.keyword)}"` : ''}</div>
+                <div class="reg-summary">
+                    <span>${esc(t('certificate.regTotal', 'Tổng'))} <b>${registerRowList.length}</b></span>
+                    <span>${esc(t('certificate.regInternal', 'Nội bộ'))} <b>${internalCount}</b></span>
+                    <span>${esc(t('certificate.regExternal', 'Bên ngoài'))} <b>${externalCount}</b></span>
+                    <span>${esc(t('certificate.regPeople', 'Nhân viên'))} <b>${peopleCount}</b></span>
+                </div>
+                ${registerRowList.length ? `
+                    <table class="reg-table">
+                        <thead><tr>
+                            <th class="c">${esc(t('certificate.regNo', 'STT'))}</th>
+                            <th class="c">${esc(t('certificate.regCode', 'Mã NV'))}</th>
+                            <th>${esc(t('certificate.regName', 'Họ và tên'))}</th>
+                            <th>${esc(t('certificate.extColCertificate', 'Chứng nhận'))}</th>
+                            <th>${esc(t('certificate.extColIssuer', 'Đơn vị cấp'))}</th>
+                            <th>${esc(t('certificate.extColNo', 'Số hiệu'))}</th>
+                            <th class="c">${esc(t('certificate.extColIssued', 'Ngày cấp'))}</th>
+                            <th class="c">${esc(t('certificate.extColExpired', 'Hết hạn'))}</th>
+                            <th class="c">${esc(t('certificate.regSource', 'Nguồn'))}</th>
+                        </tr></thead>
+                        <tbody>${rowHtml}</tbody>
+                    </table>`
+                    : `<div class="reg-empty">${esc(t('certificate.regEmpty', 'Không có chứng nhận nào khớp bộ lọc.'))}</div>`}
+                <div class="reg-sign">
+                    <div>
+                        <div class="date">&nbsp;</div>
+                        <b>${esc(t('certificate.regApprover', 'Xác nhận của đơn vị'))}</b>
+                        <div class="hint">${esc(t('certificate.regSignHint', '(Ký, ghi rõ họ tên)'))}</div>
+                        <div class="space"></div>
+                    </div>
+                    <div>
+                        <div class="date">${esc(t('certificate.regDateLine', 'Ngày {d} tháng {m} năm {y}', { d: now.getDate(), m: now.getMonth() + 1, y: now.getFullYear() }))}</div>
+                        <b>${esc(t('certificate.regMaker', 'Người lập biểu'))}</b>
+                        <div class="hint">${esc(t('certificate.regSignHint', '(Ký, ghi rõ họ tên)'))}</div>
+                        <div class="space"></div>
+                        <b style="text-transform:none">${esc(Auth.profile?.fullName || '')}</b>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    /** In đúng tờ danh sách: bật lớp printing-register quanh lệnh in để CSS @media print giấu mọi thứ khác —
+     *  nút "In / Lưu PDF" của từng chứng nhận nội bộ cũng dùng window.print() và không được bị ảnh hưởng. */
+    function printRegister() {
+        if (!registerRowList.length) {
+            toastErr(t('certificate.regNothing', 'Danh sách đang trống — đổi bộ lọc rồi in lại.'));
+            return;
+        }
+        const finish = () => {
+            document.body.classList.remove('printing-register');
+            window.removeEventListener('afterprint', finish);
+        };
+        document.body.classList.add('printing-register');
+        // Gỡ lớp bằng afterprint chứ KHÔNG gỡ ngay sau window.print(): vài trình duyệt không chặn ở lệnh in mà
+        // dựng bản in sau đó — gỡ sớm là in ra cả trang. Lỡ afterprint không tới thì lớp này cũng chỉ có tác dụng
+        // khi in, không ảnh hưởng gì màn hình.
+        window.addEventListener('afterprint', finish);
+        window.print();
     }
 })();
 </script>

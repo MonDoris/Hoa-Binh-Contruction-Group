@@ -20,7 +20,9 @@ public abstract class BaseApiController : ControllerBase
     {
         ResultKind.Success => result.HasValue ? Ok(result.Value) : Ok(),
         ResultKind.Created => CreatedAtAction(result.CreatedActionName, result.CreatedRouteValues, result.Value),
-        ResultKind.File => File(result.File!.Content, result.File.ContentType, result.File.FileName),
+        ResultKind.File => result.FileStream is not null
+            ? File(result.FileStream, result.File!.ContentType, result.File.FileName)
+            : File(result.File!.Content, result.File.ContentType, result.File.FileName),
         ResultKind.Invalid => result.HasValue ? BadRequest(result.Value) : BadRequest(),
         ResultKind.Unauthorized => result.HasValue ? Unauthorized(result.Value) : Unauthorized(),
         ResultKind.Forbidden => Forbid(),

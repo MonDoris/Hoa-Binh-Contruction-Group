@@ -11,36 +11,141 @@
     <title data-i18n="course.quanLyKhoaHocHbELearning">Quản lý khóa học · HB E-Learning</title>
     <link rel="stylesheet" href="/css/style.css">
     <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+
+    <style>
+        /* ==================== QUẢN LÝ KHÓA HỌC — tổ chức theo VIỆC CẦN LÀM ====================
+           Trang này phục vụ bốn kiểu người với bốn việc khác nhau: Trưởng Nhóm soạn và gửi duyệt, Trưởng phòng /
+           Giám Đốc / người trong luồng cấp duyệt đi duyệt, Admin trông coi (lưu trữ, xóa), Giám Đốc Nhân sự ủy
+           quyền. Một bảng chung với ô lọc 9 trạng thái bắt ai cũng phải tự lọc ra phần của mình — nên ở đây danh
+           sách chia theo nhóm việc, và thẻ đầu tiên "Cần bạn xử lý" tự tính theo đúng vai trò người đang xem.
+           Mọi màu lấy từ biến của css/style.css để tự đổi theo nền sáng / tối. Tiền tố cm- (course manage). */
+
+        .cm-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .cm-toolbar .tabs { margin-bottom: 0; }
+        .cm-toolbar .tabs button { padding: 8px 14px; }
+        .cm-count {
+            min-width: 22px; padding: 1px 7px; border-radius: 999px; text-align: center;
+            background: var(--border); color: var(--text-muted); font-size: 11px; font-weight: 700; line-height: 18px;
+        }
+        .tabs button.active .cm-count { background: var(--primary-light); color: var(--primary-dark); }
+        /* Thẻ "Cần bạn xử lý" có việc thì số đếm đỏ lên — đây là con số duy nhất trên trang đòi người xem làm gì đó. */
+        .tabs button .cm-count.hot { background: var(--danger); color: #fff; }
+
+        .cm-filter { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .cm-filter select { width: auto; min-width: 190px; }
+        .cm-search { position: relative; }
+        .cm-search i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+        .cm-search input { padding-left: 34px; width: 300px; }
+
+        /* Dòng tóm tắt của thẻ "Cần bạn xử lý": việc gì, bao nhiêu — đọc một dòng là biết hôm nay phải làm gì. */
+        .cm-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+        .cm-summary span {
+            display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+            background: var(--surface); border: 1px solid var(--border); font-size: 12.5px; font-weight: 600;
+        }
+        .cm-summary .approve i { color: var(--primary); }
+        .cm-summary .fix i { color: var(--danger); }
+        .cm-summary .submit i { color: var(--warning); }
+
+        .cm-list { display: flex; flex-direction: column; gap: 12px; }
+        .cm-item {
+            display: grid; grid-template-columns: 168px minmax(0, 1fr) auto; align-items: start; overflow: hidden;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); transition: box-shadow .15s ease;
+        }
+        .cm-item:hover { box-shadow: var(--shadow); }
+        /* Viền trái đánh dấu khóa học đang chờ chính người xem: xanh = tới lượt bạn duyệt / gửi, đỏ = bị trả về. */
+        .cm-item.act-approve, .cm-item.act-submit { border-left: 3px solid var(--primary); }
+        .cm-item.act-fix { border-left: 3px solid var(--danger); }
+        /* Ảnh bìa là cả một cột bên trái: tràn kín thẻ từ trên xuống dưới và sát mép trái (thẻ bo góc + overflow
+           hidden lo phần góc). Ô 88×60 cũ chỉ chiếm góc trên, bên dưới bỏ trống. Chữ bắt đầu sau một khoảng an toàn
+           20px (padding-left của .cm-main), không dính sát ảnh. */
+        .cm-thumb-link { align-self: stretch; display: flex; min-height: 112px; }
+        .cm-thumb-link:hover { text-decoration: none; }
+        .cm-thumb-link .course-mini-thumb { flex: 1; width: auto; height: auto; border-radius: 0; font-size: 36px; }
+
+        .cm-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 16px 0 16px 20px; }
+        .cm-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+        .cm-title { font-size: 15px; font-weight: 700; line-height: 1.4; color: var(--text); }
+        .cm-title:hover { color: var(--primary-dark); text-decoration: none; }
+        .cm-flag {
+            display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px;
+            font-size: 11.5px; font-weight: 700; white-space: nowrap;
+            background: var(--primary-light); color: var(--primary-dark);
+        }
+        .cm-flag.fix { background: var(--danger-light); color: var(--danger); }
+        .cm-meta, .cm-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--text-muted); }
+        .cm-meta span, .cm-stats span { display: inline-flex; align-items: center; gap: 5px; }
+        .cm-code { font-weight: 700; color: var(--text); letter-spacing: .2px; }
+        .cm-track { margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--border); }
+        .cm-reject {
+            display: flex; gap: 8px; align-items: flex-start; padding: 9px 12px; border-radius: 10px;
+            background: var(--danger-light); font-size: 12.5px; line-height: 1.5;
+        }
+        .cm-reject > i { color: var(--danger); font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+        .cm-reject b { color: var(--danger); }
+
+        .cm-actions {
+            display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; max-width: 360px;
+            padding: 16px 18px 16px 16px;
+        }
+        .cm-more { margin-top: 12px; text-align: center; }
+        .cm-list .empty { background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius-lg); }
+
+        @media (max-width: 760px) {
+            .cm-toolbar { align-items: stretch; }
+            /* Sáu thẻ trên màn hình hẹp: vuốt ngang thay vì xuống ba dòng đẩy danh sách ra khỏi màn hình. */
+            .cm-toolbar .tabs { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+            .cm-toolbar .tabs button { flex-shrink: 0; }
+            .cm-filter, .cm-search, .cm-filter select { width: 100%; }
+            .cm-search input { width: 100%; }
+            /* Màn hình hẹp: cột ảnh hẹp lại nhưng vẫn kín chiều cao phần nội dung; hàng nút xuống dưới, kẻ ngăn. */
+            .cm-item { grid-template-columns: 104px minmax(0, 1fr); }
+            .cm-thumb-link { min-height: 0; }
+            .cm-thumb-link .course-mini-thumb { font-size: 26px; }
+            .cm-main { padding: 12px 12px 12px 14px; }
+            .cm-actions {
+                grid-column: 1 / -1; justify-content: flex-start; max-width: none;
+                padding: 10px 12px; border-top: 1px solid var(--border);
+            }
+        }
+    </style>
 </head>
 <body>
 <div class="main">
     <div class="content">
-        <div class="card">
-            <div class="card-head">
-                <div class="flex">
-                    <input type="search" id="keyword" data-i18n-ph="course.timTheoTenHoacMaKhoaHoc" placeholder="Tìm theo tên hoặc mã khóa học..." style="width:280px">
-                    <select id="filter-status" aria-label="Lọc theo trạng thái" style="width:170px">
-                        <option data-i18n="course.tatCaTrangThai" value="">Tất cả trạng thái</option>
-                        <option data-i18n="status.Draft" value="0">Bản nháp</option>
-                        <option data-i18n="course.tuChoi" value="6">Từ chối</option>
-                        <option data-i18n="course.choTruongPhongDuyet" value="3">Chờ Trưởng phòng duyệt</option>
-                        <option data-i18n="course.choGiamDocDuyet" value="4">Chờ Giám Đốc duyệt</option>
-                        <option data-i18n="course.choGiamDocNhanSuDuyet" value="5">Chờ Giám Đốc Nhân sự duyệt</option>
-                        <option data-i18n="course.choDuyet" value="7">Chờ duyệt (theo luồng cấp duyệt)</option>
-                        <option data-i18n="status.Published" value="1">Đã xuất bản</option>
-                        <option data-i18n="status.Archived" value="2">Lưu trữ</option>
-                    </select>
+        <div class="cm-toolbar">
+            <div class="tabs" role="tablist" id="cm-tabs" aria-label="Nhóm khóa học">
+                <button type="button" role="tab" data-tab="action" style="display:none">
+                    <i class="ph-fill ph-lightning"></i> <span data-i18n="course.canBanXuLy">Cần bạn xử lý</span>
+                    <span class="cm-count" data-count="action">0</span></button>
+                <button type="button" role="tab" data-tab="draft">
+                    <i class="ph ph-pencil-simple-line"></i> <span data-i18n="course.dangSoan">Đang soạn</span>
+                    <span class="cm-count" data-count="draft">0</span></button>
+                <button type="button" role="tab" data-tab="pending">
+                    <i class="ph ph-hourglass-medium"></i> <span data-i18n="course.dangDuyet">Đang duyệt</span>
+                    <span class="cm-count" data-count="pending">0</span></button>
+                <button type="button" role="tab" data-tab="published">
+                    <i class="ph ph-globe-hemisphere-west"></i> <span data-i18n="status.Published">Đã xuất bản</span>
+                    <span class="cm-count" data-count="published">0</span></button>
+                <button type="button" role="tab" data-tab="archived">
+                    <i class="ph ph-archive"></i> <span data-i18n="status.Archived">Lưu trữ</span>
+                    <span class="cm-count" data-count="archived">0</span></button>
+                <button type="button" role="tab" data-tab="all">
+                    <i class="ph ph-squares-four"></i> <span data-i18n="dashboard.tatCa">Tất cả</span>
+                    <span class="cm-count" data-count="all">0</span></button>
+            </div>
+            <div class="cm-filter">
+                <select id="cm-scope" class="hidden" aria-label="Phạm vi"></select>
+                <div class="cm-search">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="search" id="keyword" data-i18n-ph="course.timTheoTenHoacMaKhoaHoc" placeholder="Tìm theo tên hoặc mã khóa học...">
                 </div>
             </div>
-            <div class="table-wrap"><table>
-                <thead><tr>
-                    <th data-i18n="index.stat-course">Khóa học</th><th data-i18n="dashboard.colStatus">Trạng thái</th><th data-i18n="course-detail.noiDung" class="text-center">Nội dung</th>
-                    <th class="text-center" data-i18n="role.Học viên">Học viên</th><th data-i18n="course-detail.thoiLuong">Thời lượng</th><th data-i18n="course.nguoiTao">Người tạo</th>
-                    <th data-i18n="course.thaoTac" class="text-right">Thao tác</th>
-                </tr></thead>
-                <tbody id="tbody"></tbody>
-            </table></div>
         </div>
+        <div id="cm-summary" class="cm-summary hidden"></div>
+        <div id="course-list" class="cm-list"></div>
+        <div id="cm-more" class="cm-more small muted hidden"></div>
     </div>
 </div>
 
@@ -54,6 +159,35 @@
             <div class="modal-body">
                 <input type="hidden" id="f-id">
 
+                <!-- Khóa học mới: chọn nguồn nội dung. Khóa học nào cũng là một gói SCORM 2004 4th Edition — soạn trên hệ
+                     thống thì dựng cấu trúc chương / SCO ở trang chi tiết; từ gói có sẵn thì gói đó là nội dung khóa học. -->
+                <div id="f-source-section" class="hidden">
+                    <div class="form-section"><i class="ph-fill ph-tree-structure"></i> <span data-i18n="course.nguonNoiDung">Nguồn nội dung</span></div>
+                    <div class="source-choice">
+                        <label class="source-opt">
+                            <input type="radio" name="f-source" value="author" checked>
+                            <span><b data-i18n="course.soanTrenHeThong">Soạn trên hệ thống</b>
+                                <small data-i18n="course.soanTrenHeThongGoiY">Dựng cấu trúc chương, bài học, bài kiểm tra, mô phỏng 3D ngay trên hệ thống.</small></span>
+                        </label>
+                        <label class="source-opt">
+                            <input type="radio" name="f-source" value="scorm">
+                            <span><b data-i18n="course.tuGoiScorm">Từ gói SCORM (.zip)</b>
+                                <small data-i18n="course.tuGoiScormGoiY">Dùng gói SCORM 1.2 / 2004 xuất từ iSpring, Articulate, Captivate... làm nội dung.</small></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Chỉ hiện khi nguồn là gói SCORM: gói .zip trở thành nội dung của khóa học (một mục của cấu trúc). -->
+                <div id="f-scorm-section" class="hidden">
+                    <div class="form-section"><i class="ph-fill ph-package"></i> <span data-i18n="scorm.goiScorm">Gói SCORM</span></div>
+                    <div class="drop-zone compact" id="f-scorm-drop">
+                        <div class="big"><i class="ph ph-package"></i></div>
+                        <div id="f-scorm-label"></div>
+                    </div>
+                    <input type="file" id="f-scorm-file" accept=".zip,application/zip,application/x-zip-compressed" hidden>
+                    <div id="f-scorm-progress" class="mt hidden"></div>
+                </div>
+
                 <div class="form-section"><i class="ph-fill ph-book-bookmark"></i> <span data-i18n="course.thongTinKhoaHoc">Thông tin khóa học</span></div>
                 <div class="row">
                     <div class="field" id="f-department-row"><label for="f-department" data-i18n="course.phongBan">Phòng ban *</label><select id="f-department"></select></div>
@@ -61,6 +195,10 @@
                     <div class="field"><label for="f-duration" data-i18n="course-detail.thoiLuongPhut">Thời lượng (phút)</label><input type="number" id="f-duration" min="0" value="60"></div>
                 </div>
                 <div class="field"><label for="f-title" data-i18n="course.tenKhoaHoc">Tên khóa học *</label><input id="f-title" required maxlength="250"></div>
+                <div class="row">
+                    <div class="field"><label for="f-startDate" data-i18n="course.ngayBatDau">Ngày bắt đầu *</label><input type="date" id="f-startDate" required></div>
+                    <div class="field"><label for="f-endDate" data-i18n="course.ngayKetThuc">Ngày kết thúc *</label><input type="date" id="f-endDate" required></div>
+                </div>
                 <div class="field">
                     <label for="f-workflow" data-i18n="course.luongCapDuyet">Luồng cấp duyệt</label>
                     <select id="f-workflow"></select>
@@ -136,8 +274,24 @@
     // Admin không soạn nội dung — trên khóa học chỉ xem, lưu trữ và xóa (xem RoleName.ContentAuthor ở server).
     const canCreate = Auth.can('course.create') ?? Auth.isTrainer;
 
-    const tbody = document.getElementById('tbody');
+    // ----- Trạng thái của danh sách — khai báo TRƯỚC mọi lệnh await bên dưới: bấm thẻ trong lúc trang còn đang
+    // tải mà biến còn nằm trong Temporal Dead Zone thì handler chết lặng, không báo gì. -----
+    const listBox = document.getElementById('course-list');
+    const tabBox = document.getElementById('cm-tabs');
+    /** Người này có nằm trong chuỗi duyệt không — quyết định có hiện thẻ "Cần bạn xử lý" ngay cả khi nó đang trống. */
+    const isApproverRole = Auth.hasRole('Trưởng phòng') || Auth.hasRole('Giám Đốc')
+        || Auth.isApprovalDelegate || Auth.isWorkflowApprover;
+    /** Thứ tự trong thẻ "Cần bạn xử lý": việc đang chặn người khác (chờ mình duyệt) lên trước, rồi tới bài bị
+     *  trả về, cuối cùng là bản nháp chưa gửi. */
+    const ACTION_ORDER = { approve: 0, fix: 1, submit: 2 };
+    let courseList = [];      // khóa học đã tải (server đã lọc theo quyền xem và từ khóa)
+    let totalCount = 0;       // tổng số khớp ở server — lớn hơn courseList.length nghĩa là còn khóa chưa tải
+    let currentTab = null;    // null = chưa chọn, sẽ chọn theo dữ liệu ở lần tải đầu
+    let currentScope = qs('scope') || 'all';
     let timer = null;
+    /** Biểu mẫu khóa học đang mở ở chế độ chỉ xem. Nút "Tạo khóa học" bấm được ngay cả khi danh sách còn đang
+     *  tải, nên biến này phải có mặt từ trước lệnh await đầu tiên. */
+    let isReadOnlyForm = false;
 
     const departmentList = await API.get('/department');
     const hrDepartmentId = departmentList.find(d => d.isHrDepartment)?.id;
@@ -172,60 +326,267 @@
     if (topbarActionHtml) setTopbarAction(topbarActionHtml);
 
     if (canCreate) document.getElementById('btn-new').addEventListener('click', () => openForm());
+    document.querySelectorAll('input[name="f-source"]').forEach(radio =>
+        radio.addEventListener('change', () => applySourceMode(radio.value === 'scorm' && radio.checked, null, false)));
+
+    // ---------- Nhập gói SCORM thành khóa học ----------
+    let scormMode = false;
+    let scormFile = null;
+    attachDropZone(document.getElementById('f-scorm-drop'), document.getElementById('f-scorm-file'), (file) => {
+        if (!/\.zip$/i.test(file.name)) { toastErr(t('scorm.chiNhanZip', 'Gói SCORM phải là tệp .zip.')); return; }
+        scormFile = file;
+        renderScormLabel();
+    });
+
+    function renderScormLabel() {
+        const drop = document.getElementById('f-scorm-drop');
+        drop.classList.toggle('has-file', !!scormFile);
+        document.getElementById('f-scorm-label').innerHTML = scormFile
+            ? `<b>${esc(scormFile.name)}</b><div class="small muted">${(scormFile.size / 1024 / 1024).toFixed(1)} MB</div>`
+            : `<b>${esc(t('scorm.keoThaGoiVaoDay', 'Kéo thả gói .zip vào đây'))}</b>
+               <div class="small muted">${esc(t('scorm.hoTroPhienBan', 'SCORM 1.2 hoặc SCORM 2004 (2nd / 3rd / 4th Edition) — tối đa 500 MB'))}</div>`;
+    }
     if (isHrDirector) document.getElementById('btn-delegate').addEventListener('click', openDelegateModal);
-    document.getElementById('filter-status').addEventListener('change', load);
     // Từ khóa gõ ở ô tìm kiếm trên thanh trên được chuyển sang đây qua URL — điền sẵn vào ô lọc của trang
     // để người dùng thấy mình đang xem kết quả của từ khóa nào và sửa tiếp được.
     const keywordFromUrl = qs('keyword');
     if (keywordFromUrl) document.getElementById('keyword').value = keywordFromUrl;
 
     document.getElementById('keyword').addEventListener('input', () => {
-        clearTimeout(timer); timer = setTimeout(load, 350);
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            // Từ khóa cũng nằm trên địa chỉ trang: F5 hay đổi ngôn ngữ (phải tải lại trang) vẫn còn nguyên kết quả lọc.
+            setUrlParam('keyword', document.getElementById('keyword').value.trim());
+            load();
+        }, 350);
     });
+
+    tabBox.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => {
+        currentTab = button.dataset.tab;
+        markTab();
+        // Ghi lên địa chỉ trang (?tab=) — thẻ mặc định tính theo dữ liệu nên luôn ghi, không bỏ tham số.
+        rememberTab(currentTab);
+        renderList();
+    }));
+
+    buildScopeSelect();
     document.getElementById('course-form').addEventListener('submit', save);
     document.getElementById('f-thumb-file').addEventListener('change', uploadThumbnail);
+    document.getElementById('f-startDate').addEventListener('change', syncEndDateMin);
 
     await load();
 
-    async function load() {
-        tbody.innerHTML = skeletonHtml('table', { rows: 6, cols: 7 });
-        const keyword = document.getElementById('keyword').value.trim();
-        const status = document.getElementById('filter-status').value;
+    // ==================== DANH SÁCH KHÓA HỌC THEO VIỆC CẦN LÀM ====================
 
-        const query = new URLSearchParams({ page: 1, pageSize: 100 });
+    /** Tải một lần mọi khóa học người này được xem (server lọc theo quyền và từ khóa), rồi chia nhóm tại chỗ —
+     *  nhờ vậy số đếm trên từng thẻ luôn khớp với đúng danh sách bấm vào sẽ thấy. 200 là trần pageSize của API. */
+    async function load() {
+        listBox.innerHTML = skeletonHtml('list', { count: 5, avatar: false });
+        const keyword = document.getElementById('keyword').value.trim();
+        const query = new URLSearchParams({ page: 1, pageSize: 200 });
         if (keyword) query.set('keyword', keyword);
-        if (status !== '') query.set('status', status);
 
         try {
             const result = await API.get(`/course?${query}`);
-            tbody.innerHTML = result.item.length ? result.item.map(rowHtml).join('')
-                : `<tr><td colspan="7">${emptyHtml(t('course.chuaCoKhoaHocNaoBamTaoKhoaHocD', 'Chưa có khóa học nào. Bấm "Tạo khóa học" để bắt đầu.'), '<i class="ph ph-books"></i>')}</td></tr>`;
-            bindRow(result.item);
+            courseList = result.item;
+            totalCount = result.total ?? result.item.length;
+            if (!currentTab) pickInitialTab();
+            renderList();
         } catch (ex) {
-            tbody.innerHTML = `<tr><td colspan="7">${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</td></tr>`;
+            listBox.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
         }
     }
 
-    function rowHtml(c) {
-        const trackHtml = approvalTrackHtml(c, workflowOptionList);
-        return `<tr>
-            <td><a href="/pages/course-detail.html?id=${c.id}"><b>${esc(c.title)}</b></a>
-                <div class="small muted">${esc(c.code)}${c.isMandatory ? ' · <span data-i18n="course.batBuoc" class="badge orange">Bắt buộc</span>' : ''}</div></td>
-            <td>${statusBadge(c.status)}</td>
-            <td class="text-center small">${esc(t('course.baiDe', '{lesson} bài · {quiz} đề', { lesson: c.lessonCount, quiz: c.quizCount }))}</td>
-            <td class="text-center">${c.enrollmentCount}</td>
-            <td class="nowrap">${formatDuration(c.durationMinutes)}</td>
-            <td class="small">${esc(c.createdByName)}<div class="muted">${formatDate(c.createdAt)}</div></td>
-            <td class="text-right nowrap">
-                <a data-i18n="course-detail.noiDung" class="btn ghost sm" href="/pages/course-detail.html?id=${c.id}">Nội dung</a>
-                ${isOwnTrainerCourse(c) && (c.status === 'Draft' || c.status === 'Rejected')
-                    ? `<button data-i18n="common.edit" class="btn ghost sm" data-edit="${c.id}" style="background-color: yellow">Sửa</button>`
-                    : isOwnTrainerCourse(c) ? `<button class="btn ghost sm" data-view="${c.id}">Xem</button>` : ''}
+    /** Thẻ mở đầu tiên: thẻ ghi trên địa chỉ (?tab=) nếu có, không thì "Cần bạn xử lý" khi đang có việc, còn lại
+     *  là "Tất cả". Người đi duyệt vào trang là thấy ngay hàng chờ của mình, không phải tự lọc. */
+    function pickInitialTab() {
+        const hasAction = courseList.some(c => inScope(c) && actionOf(c));
+        syncActionTab(hasAction);
+        currentTab = tabFromUrl(hasAction ? 'action' : 'all');
+        markTab();
+    }
+
+    /** Thẻ "Cần bạn xử lý" chỉ có với người soạn và người trong chuỗi duyệt; người khác (Admin) chỉ thấy khi thật
+     *  sự có việc — một thẻ luôn trống là một thẻ dạy người dùng bỏ qua nó. Thẻ vừa bị ẩn mà đang được chọn thì
+     *  lùi về "Tất cả", không để người dùng đứng trên một thẻ không còn nhìn thấy. */
+    function syncActionTab(hasAction) {
+        const visible = canCreate || Auth.isTrainer || isApproverRole || hasAction;
+        tabBox.querySelector('[data-tab="action"]').style.display = visible ? '' : 'none';
+        if (!visible && currentTab === 'action') { currentTab = 'all'; markTab(); }
+    }
+
+    function markTab() {
+        tabBox.querySelectorAll('[data-tab]').forEach(b => {
+            const on = b.dataset.tab === currentTab;
+            b.classList.toggle('active', on);
+            b.setAttribute('aria-selected', String(on));
+        });
+    }
+
+    /** Ô "Phạm vi": chỉ hiện những lựa chọn có nghĩa với người đang xem, và ẩn hẳn khi chỉ còn một lựa chọn. */
+    function buildScopeSelect() {
+        const select = document.getElementById('cm-scope');
+        const optionList = [
+            { key: 'all', label: t('course.phamViTatCa', 'Mọi khóa học bạn được xem') },
+            ...((canCreate || Auth.isTrainer) ? [{ key: 'mine', label: t('course.phamViCuaToi', 'Do tôi soạn') }] : []),
+            ...(Auth.profile?.departmentId != null ? [{ key: 'dept', label: t('course.phamViPhongBan', 'Phòng ban của tôi') }] : []),
+        ];
+        if (!optionList.some(x => x.key === currentScope)) currentScope = 'all';
+        select.innerHTML = optionList.map(x => `<option value="${x.key}">${esc(x.label)}</option>`).join('');
+        select.value = currentScope;
+        select.classList.toggle('hidden', optionList.length < 2);
+        select.addEventListener('change', () => {
+            currentScope = select.value;
+            setUrlParam('scope', currentScope === 'all' ? '' : currentScope);
+            renderList();
+        });
+    }
+
+    function inScope(c) {
+        if (currentScope === 'mine') return c.createdById === Auth.profile?.id;
+        if (currentScope === 'dept') return c.createdByDepartmentId != null && c.createdByDepartmentId === Auth.profile?.departmentId;
+        return true;
+    }
+
+    /** Nhóm trạng thái của khóa học. Bị từ chối đi chung nhóm "Đang soạn": nó đã quay về tay người soạn. */
+    function bucketOf(c) {
+        if (c.status === 'Draft' || c.status === 'Rejected') return 'draft';
+        if (c.status === 'Published') return 'published';
+        if (c.status === 'Archived') return 'archived';
+        return 'pending';
+    }
+
+    /** Việc mà CHÍNH người đang xem phải làm với khóa học này, hoặc null. Luật duyệt dùng chung canApproveCourse()
+     *  với Tổng quan và nút Duyệt — tự đoán lại theo vai trò là lệch: kê ra khóa học mở vào không bấm được gì.
+     *  "Đổi người duyệt" cố ý không tính: đó là đường lui khi người duyệt vắng mặt, không phải việc thường ngày. */
+    function actionOf(c) {
+        if (canApproveCourse(c, hrDepartmentId)) return 'approve';
+        if (isOwnTrainerCourse(c) && c.status === 'Rejected') return 'fix';
+        if (isOwnTrainerCourse(c) && c.status === 'Draft') return 'submit';
+        return null;
+    }
+
+    function inTab(c, tab) {
+        if (tab === 'all') return true;
+        if (tab === 'action') return !!actionOf(c);
+        return bucketOf(c) === tab;
+    }
+
+    function renderList() {
+        const scopedList = courseList.filter(inScope);
+
+        tabBox.querySelectorAll('[data-count]').forEach(el => {
+            const count = scopedList.filter(c => inTab(c, el.dataset.count)).length;
+            el.textContent = count;
+            if (el.dataset.count === 'action') {
+                el.classList.toggle('hot', count > 0);
+                syncActionTab(count > 0);
+            }
+        });
+
+        const list = scopedList.filter(c => inTab(c, currentTab));
+        if (currentTab === 'action') list.sort((a, b) => ACTION_ORDER[actionOf(a)] - ACTION_ORDER[actionOf(b)]);
+
+        renderSummary(currentTab === 'action' ? list : []);
+        listBox.innerHTML = list.length ? list.map(itemHtml).join('') : emptyStateHtml();
+        bindList(list);
+
+        const more = document.getElementById('cm-more');
+        more.classList.toggle('hidden', totalCount <= courseList.length);
+        more.textContent = t('course.dangHienMotPhan', 'Đang hiện {shown}/{total} khóa học mới nhất — gõ từ khóa để tìm khóa học cũ hơn.',
+            { shown: courseList.length, total: totalCount });
+    }
+
+    /** Thẻ "Cần bạn xử lý": một dòng đếm theo từng loại việc. */
+    function renderSummary(actionList) {
+        const box = document.getElementById('cm-summary');
+        const count = (kind) => actionList.filter(c => actionOf(c) === kind).length;
+        const partList = [
+            ['approve', 'ph-fill ph-stamp', t('course.demChoBanDuyet', '{n} khóa học chờ bạn duyệt')],
+            ['fix', 'ph-fill ph-arrow-u-up-left', t('course.demBiTuChoi', '{n} khóa học bị trả về cần sửa')],
+            ['submit', 'ph-fill ph-paper-plane-tilt', t('course.demChuaGui', '{n} bản nháp chưa gửi duyệt')],
+        ].filter(([kind]) => count(kind) > 0);
+
+        box.classList.toggle('hidden', !partList.length);
+        box.innerHTML = partList.map(([kind, icon, label]) =>
+            `<span class="${kind}"><i class="${icon}"></i> ${esc(label.replace('{n}', count(kind)))}</span>`).join('');
+    }
+
+    function emptyStateHtml() {
+        const keyword = document.getElementById('keyword').value.trim();
+        if (keyword)
+            return emptyHtml(t('course.khongKhopTuKhoa', 'Không có khóa học nào khớp "{keyword}".', { keyword }), '<i class="ph ph-magnifying-glass"></i>');
+
+        const messageByTab = {
+            action: [t('course.khongCoViecCho', 'Không có việc nào đang chờ bạn.'), 'ph-check-circle'],
+            draft: [canCreate
+                ? t('course.chuaCoBanNhapBamTao', 'Chưa có bản nháp nào. Bấm "Tạo khóa học" để bắt đầu soạn.')
+                : t('course.khongCoKhoaDangSoan', 'Không có khóa học nào đang soạn.'), 'ph-pencil-simple-line'],
+            pending: [t('course.khongCoKhoaDangDuyet', 'Không có khóa học nào đang chờ duyệt.'), 'ph-hourglass-medium'],
+            published: [t('course.chuaCoKhoaXuatBan', 'Chưa có khóa học nào được xuất bản.'), 'ph-globe-hemisphere-west'],
+            archived: [t('course.khongCoKhoaLuuTru', 'Không có khóa học nào trong lưu trữ.'), 'ph-archive'],
+            all: [canCreate
+                ? t('course.chuaCoKhoaHocNaoBamTaoKhoaHocD', 'Chưa có khóa học nào. Bấm "Tạo khóa học" để bắt đầu.')
+                : t('course.chuaCoKhoaHocNao', 'Chưa có khóa học nào.'), 'ph-books'],
+        };
+        const [message, icon] = messageByTab[currentTab] || messageByTab.all;
+        return emptyHtml(message, `<i class="ph ${icon}"></i>`);
+    }
+
+    function itemHtml(c) {
+        const href = `/pages/course-detail.html?id=${c.id}`;
+        const action = actionOf(c);
+        const isMine = c.createdById === Auth.profile?.id;
+        const flagHtml = {
+            approve: `<span class="cm-flag"><i class="ph-fill ph-stamp"></i> ${esc(t('course.choBanDuyet', 'Chờ bạn duyệt'))}</span>`,
+            fix: `<span class="cm-flag fix"><i class="ph-fill ph-arrow-u-up-left"></i> ${esc(t('course.canSuaLai', 'Cần sửa lại'))}</span>`,
+            submit: `<span class="cm-flag"><i class="ph-fill ph-paper-plane-tilt"></i> ${esc(t('course.chuaGuiDuyet', 'Chưa gửi duyệt'))}</span>`,
+        }[action] || '';
+
+        // Thanh lộ trình duyệt chỉ có nghĩa khi khóa học còn đang trên đường đi duyệt. Đã xuất bản thì mọi bước
+        // đều xanh — năm chấm xanh lặp lại trên mọi dòng chỉ là nhiễu.
+        const trackHtml = ['draft', 'pending'].includes(bucketOf(c)) ? approvalTrackHtml(c, workflowOptionList) : '';
+        const rejectHtml = c.status === 'Rejected' && c.rejectionReason
+            ? `<div class="cm-reject"><i class="ph-fill ph-warning-circle"></i>
+                   <div><b>${esc(t('course.biTuChoiBoi', 'Bị {role} từ chối', { role: c.rejectedByRoleName ? roleLabel(c.rejectedByRoleName) : t('course-detail.nguoiDuyet', 'người duyệt') }))}:</b>
+                        ${esc(c.rejectionReason)}</div></div>`
+            : '';
+
+        const contentLabel = isOwnTrainerCourse(c) && bucketOf(c) === 'draft'
+            ? [t('course.soanNoiDung', 'Soạn nội dung'), 'ph-pencil-simple']
+            : [t('course.xemNoiDung', 'Xem nội dung'), 'ph-eye'];
+        const hasMenu = isOwnTrainerCourse(c) || Auth.isAdmin;
+
+        return `<article class="cm-item ${action ? 'act-' + action : ''}">
+            <a class="cm-thumb-link" href="${href}" tabindex="-1" aria-hidden="true">${courseThumbHtml(c.title, c.thumbnailUrl)}</a>
+            <div class="cm-main">
+                <div class="cm-title-line">
+                    <a class="cm-title" href="${href}">${esc(c.title)}</a>
+                    ${statusBadge(c.status)}
+                    ${c.isMandatory ? `<span class="badge orange">${esc(t('course.batBuoc', 'Bắt buộc'))}</span>` : ''}
+                    ${flagHtml}
+                </div>
+                <div class="cm-meta">
+                    <span class="cm-code">${esc(c.code)}</span>
+                    <span><i class="ph ph-calendar-blank"></i> ${formatDate(c.startDate)} – ${formatDate(c.endDate)}</span>
+                    <span><i class="ph ph-user-circle"></i> ${esc(isMine ? t('course.ban', 'Bạn') : c.createdByName)} · ${formatDate(c.createdAt)}</span>
+                </div>
+                <div class="cm-stats">
+                    <span><i class="ph ph-stack"></i> ${esc(t('course.baiDe', '{lesson} bài · {quiz} đề', { lesson: c.lessonCount, quiz: c.quizCount }))}${c.scormPackageCount
+                        ? ` · ${esc(t('scorm.soGoiScorm', '{count} gói SCORM', { count: c.scormPackageCount }))}` : ''}</span>
+                    <span><i class="ph ph-users-three"></i> ${esc(t('course.soHocVien', '{n} học viên', { n: c.enrollmentCount }))}</span>
+                    <span><i class="ph ph-clock"></i> ${formatDuration(c.durationMinutes)}</span>
+                </div>
+                ${rejectHtml}
+                ${trackHtml ? `<div class="cm-track">${trackHtml}</div>` : ''}
+            </div>
+            <div class="cm-actions">
                 ${courseWorkflowActionsHtml(c, hrDepartmentId)}
-                ${Auth.isAdmin ? `<button data-i18n="common.delete" class="btn ghost sm" data-del="${c.id}" style="background-color: red; color: white">Xóa</button>` : ''}
-            </td>
-        </tr>
-        ${trackHtml ? `<tr class="approval-track-row"><td colspan="7">${trackHtml}</td></tr>` : ''}`;
+                <a class="btn ghost sm" href="${href}"><i class="ph ${contentLabel[1]}"></i> ${esc(contentLabel[0])}</a>
+                ${hasMenu ? `<button type="button" class="btn ghost sm icon" data-menu="${c.id}"
+                    aria-label="${esc(t('org.thaoTacKhac', 'Thao tác khác'))}"><i class="ph-bold ph-dots-three"></i></button>` : ''}
+            </div>
+        </article>`;
     }
 
     /** Trưởng Nhóm (không phải Admin) đang xem đúng khóa học do chính mình tạo — điều kiện chung để quyết
@@ -234,23 +595,32 @@
         return !Auth.isAdmin && Auth.isTrainer && c.createdById === Auth.profile?.id;
     }
 
-    function bindRow(list) {
-        tbody.querySelectorAll('[data-edit]').forEach(b =>
-            b.addEventListener('click', () => openForm(list.find(x => x.id == b.dataset.edit))));
-        tbody.querySelectorAll('[data-view]').forEach(b =>
-            b.addEventListener('click', () => openForm(list.find(x => x.id == b.dataset.view), true)));
+    /** Thao tác phụ gom vào menu "⋯": sửa / xem thông tin, xóa. Hàng nút chỉ còn việc chính của dòng đó. */
+    function menuOf(c) {
+        const menu = [];
+        if (isOwnTrainerCourse(c)) {
+            menu.push(bucketOf(c) === 'draft'
+                ? { icon: 'ph ph-pencil-simple', label: t('course.suaThongTin', 'Sửa thông tin khóa học'), onClick: () => openForm(c) }
+                : { icon: 'ph ph-info', label: t('course.xemThongTin', 'Xem thông tin khóa học'), onClick: () => openForm(c, true) });
+        }
+        if (Auth.isAdmin)
+            menu.push({ icon: 'ph ph-trash', label: t('course.xoaKhoaHoc', 'Xóa khóa học'), danger: true, onClick: () => deleteCourse(c) });
+        return menu;
+    }
 
-        bindCourseWorkflowButtons(tbody, load);
+    function bindList(list) {
+        bindCourseWorkflowButtons(listBox, load);
+        listBox.querySelectorAll('[data-menu]').forEach(b =>
+            bindPopMenu(b, () => menuOf(list.find(x => x.id === +b.dataset.menu))));
+    }
 
-        tbody.querySelectorAll('[data-del]').forEach(b =>
-            b.addEventListener('click', async () => {
-                if (!await confirmDialog(t('course.xoaKhoaHocNayToanBoBaiHocBaiKi', 'Xóa khóa học này? Toàn bộ bài học, bài kiểm tra và lộ trình liên quan sẽ bị xóa theo.'), { danger: true, okText: t('common.delete', 'Xóa') })) return;
-                try {
-                    const r = await API.del(`/course/${b.dataset.del}`);
-                    toastOk(r.message);
-                    load();
-                } catch (ex) { toastErr(ex.message); }
-            }));
+    async function deleteCourse(c) {
+        if (!await confirmDialog(t('course.xoaKhoaHocNayToanBoBaiHocBaiKi', 'Xóa khóa học này? Toàn bộ bài học, bài kiểm tra và lộ trình liên quan sẽ bị xóa theo.'), { danger: true, okText: t('common.delete', 'Xóa') })) return;
+        try {
+            const r = await API.del(`/course/${c.id}`);
+            toastOk(r.message);
+            load();
+        } catch (ex) { toastErr(ex.message); }
     }
 
     /** Xem trước ảnh đại diện khóa học đang chọn, kèm nút gỡ ảnh. */
@@ -283,19 +653,39 @@
         } catch (ex) { hint.textContent = t('course.loiTaiAnh', 'Lỗi tải ảnh.'); toastErr(ex.message); }
     }
 
-    let isReadOnlyForm = false;
-
     /** Sau khi gửi duyệt, Trưởng Nhóm không được sửa nội dung khóa học nữa (đang chờ duyệt) — mở form này ở
      * chế độ chỉ xem: khóa hết input, ẩn nút Lưu, chỉ để họ xem lại những gì đã gửi. */
-    function openForm(course, readOnly = false) {
-        isReadOnlyForm = readOnly;
+    /** Nguồn nội dung của khóa học mới: soạn trên hệ thống, hay nguyên một gói SCORM có sẵn. */
+    function applySourceMode(fromScorm, course, readOnly) {
+        scormMode = fromScorm && !course;
+        document.getElementById('f-scorm-section').classList.toggle('hidden', !scormMode);
+        document.getElementById('f-scorm-progress').classList.add('hidden');
+        // Nhập từ gói: tên khóa học được phép để trống — lấy theo tên trong manifest.
+        document.getElementById('f-title').required = !scormMode;
+        document.getElementById('f-title').placeholder = scormMode ? t('scorm.deTrongLayTenTrongGoi', 'Để trống = lấy tên trong gói') : '';
         document.getElementById('modal-title').textContent = readOnly ? 'Xem khóa học' : (course ? 'Sửa khóa học' : t('course.taoKhoaHoc', 'Tạo khóa học'));
+    }
+
+    function openForm(course, readOnly = false, fromScorm = false) {
+        isReadOnlyForm = readOnly;
+        scormFile = null;
+        renderScormLabel();
+        document.getElementById('f-scorm-file').value = '';
+        // Chọn nguồn nội dung chỉ có lúc TẠO khóa học — sửa khóa học đã có thì nội dung soạn ở trang chi tiết.
+        document.getElementById('f-source-section').classList.toggle('hidden', !!course || readOnly);
+        document.querySelectorAll('input[name="f-source"]').forEach(radio => { radio.checked = radio.value === (fromScorm ? 'scorm' : 'author'); });
+        applySourceMode(fromScorm, course, readOnly);
         document.getElementById('f-id').value = course?.id || '';
         document.getElementById('f-title').value = course?.title || '';
         document.getElementById('f-description').value = course?.description || '';
         document.getElementById('f-duration').value = course?.durationMinutes ?? 60;
         document.getElementById('f-passScore').value = course?.passScore ?? 70;
         document.getElementById('f-deadlineDay').value = course?.deadlineDay ?? '';
+        // Khóa học mới: bắt đầu từ hôm nay, còn ngày kết thúc để trống cho người soạn tự chọn — điền sẵn một mốc
+        // đoán mò thì rất dễ bấm Lưu luôn mà không ai để ý.
+        document.getElementById('f-startDate').value = course ? dateInputValue(course.startDate) : dateInputValue(new Date());
+        document.getElementById('f-endDate').value = course ? dateInputValue(course.endDate) : '';
+        syncEndDateMin();
         document.getElementById('f-mandatory').checked = !!course?.isMandatory;
         document.getElementById('f-thumb-file').value = '';
         document.getElementById('f-thumbnail').value = course?.thumbnailUrl || '';
@@ -303,7 +693,7 @@
         renderThumbPreview(course?.thumbnailUrl || '');
         renderWorkflowField(course, readOnly);
 
-        ['f-title', 'f-duration', 'f-passScore', 'f-deadlineDay', 'f-mandatory', 'f-thumb-file'].forEach(id =>
+        ['f-title', 'f-startDate', 'f-endDate', 'f-duration', 'f-passScore', 'f-deadlineDay', 'f-mandatory', 'f-thumb-file'].forEach(id =>
             document.getElementById(id).disabled = readOnly);
         document.getElementById('f-thumb-file').style.display = readOnly ? 'none' : '';
         document.getElementById('f-thumb-hint').style.display = readOnly ? 'none' : '';
@@ -322,6 +712,20 @@
         document.getElementById('f-code').value = course?.code || '';
 
         openModal('modal-course');
+    }
+
+    /** "yyyy-MM-dd" cho ô <input type="date">. Ghép tay từ giờ địa phương chứ không dùng toISOString(): đổi
+     *  sang UTC thì 00:00 ngày 01/10 ở múi giờ +7 thành 30/09, ô ngày lùi mất một ngày. */
+    function dateInputValue(value) {
+        if (!value) return '';
+        const d = new Date(value);
+        if (isNaN(d)) return '';
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    /** Ngày kết thúc không được chọn trước ngày bắt đầu — chặn ngay trên lịch chọn ngày thay vì để bấm Lưu rồi báo lỗi. */
+    function syncEndDateMin() {
+        document.getElementById('f-endDate').min = document.getElementById('f-startDate').value;
     }
 
     /**
@@ -385,6 +789,13 @@
         if (isReadOnlyForm) return;
         const id = document.getElementById('f-id').value;
         const deadline = document.getElementById('f-deadlineDay').value;
+        const startDate = document.getElementById('f-startDate').value;
+        const endDate = document.getElementById('f-endDate').value;
+        // Chuỗi "yyyy-MM-dd" so sánh được trực tiếp theo thứ tự chữ. Server cũng kiểm lại điều này.
+        if (endDate < startDate) {
+            toastErr(t('course.ngayKetThucTruocNgayBatDau', 'Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.'));
+            return;
+        }
 
         const body = {
             title: document.getElementById('f-title').value.trim(),
@@ -393,6 +804,8 @@
             durationMinutes: +document.getElementById('f-duration').value || 0,
             passScore: +document.getElementById('f-passScore').value || 0,
             deadlineDay: deadline ? +deadline : null,
+            startDate,
+            endDate,
             isMandatory: document.getElementById('f-mandatory').checked,
             approvalWorkflowId: +document.getElementById('f-workflow').value || null
         };
@@ -404,6 +817,8 @@
             body.departmentId = body.allDepartment ? null : (+department || null);
         }
 
+        if (scormMode) { await saveFromScorm(body); return; }
+
         try {
             if (id) await API.put(`/course/${id}`, body);
             else await API.post('/course', body);
@@ -411,6 +826,38 @@
             closeModal('modal-course');
             load();
         } catch (ex) { toastErr(ex.message); }
+    }
+
+    /** Gửi gói .zip kèm thông tin khóa học trong CÙNG một yêu cầu: máy chủ đọc gói trước, gói hỏng thì không có
+     *  khóa học rỗng nào được tạo ra. Xong thì mở thẳng trang nội dung của khóa học mới. */
+    async function saveFromScorm(body) {
+        if (!scormFile) { toastErr(t('scorm.chonGoiTruoc', 'Vui lòng chọn tệp gói SCORM (.zip).')); return; }
+        const form = new FormData();
+        form.append('file', scormFile);
+        for (const [key, value] of Object.entries(body))
+            if (value !== null && value !== undefined && value !== '') form.append(key, String(value));
+
+        const submit = document.querySelector('#course-form button[type="submit"]');
+        const progress = document.getElementById('f-scorm-progress');
+        submit.disabled = true;
+        progress.classList.remove('hidden');
+        progress.innerHTML = progressBar(0, { label: t('scorm.dangTaiLen', 'Đang tải lên...') });
+        try {
+            const result = await API.postFormWithProgress('/scorm/import-course', form, percent => {
+                progress.innerHTML = percent < 100
+                    ? progressBar(percent, { label: t('scorm.dangTaiLen', 'Đang tải lên...') })
+                    : `<div class="small muted"><i class="ph ph-spinner"></i> ${esc(t('scorm.dangGiaiNenVaKiemTra', 'Đang giải nén và kiểm tra gói...'))}</div>`;
+            });
+            toastOk(result?.message || t('course.daLuuKhoaHoc', 'Đã lưu khóa học.'));
+            closeModal('modal-course');
+            if (result?.id) location.href = `/pages/course-detail.html?id=${result.id}`;
+            else load();
+        } catch (ex) {
+            toastErr(ex.message);
+            progress.classList.add('hidden');
+        } finally {
+            submit.disabled = false;
+        }
     }
 
     // ==================== ỦY QUYỀN DUYỆT (Giám Đốc Nhân sự) ====================

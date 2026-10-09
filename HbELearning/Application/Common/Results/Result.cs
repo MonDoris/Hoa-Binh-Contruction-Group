@@ -78,6 +78,18 @@ public sealed class Result
     public static Result FileDownload(byte[] content, string contentType, string fileName)
         => new(ResultKind.File, null, false) { File = new FileContent(content, contentType, fileName) };
 
+    /// <summary>Tệp trả về dạng LUỒNG (chỉ có với <see cref="ResultKind.File"/>) — cho tệp lớn như gói SCORM xuất ra,
+    /// dồn cả vào một mảng byte thì mỗi lượt tải chiếm trọn dung lượng gói trong RAM máy chủ. Tầng API đóng luồng
+    /// sau khi gửi xong.</summary>
+    public Stream? FileStream { get; private init; }
+
+    public static Result FileStreamDownload(Stream stream, string contentType, string fileName)
+        => new(ResultKind.File, null, false)
+        {
+            File = new FileContent(Array.Empty<byte>(), contentType, fileName),
+            FileStream = stream,
+        };
+
     public static Result Invalid() => new(ResultKind.Invalid, null, false);
     public static Result Invalid(object? error) => new(ResultKind.Invalid, error, true);
 

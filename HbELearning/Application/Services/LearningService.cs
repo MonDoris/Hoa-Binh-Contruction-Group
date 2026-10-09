@@ -1,4 +1,5 @@
 ﻿// File: Application/Services/LearningService.cs
+using HbELearning.Application.Features.Scorm.CoursePackage;
 using Microsoft.EntityFrameworkCore;
 
 namespace HbELearning.Application.Services;
@@ -24,9 +25,9 @@ public class LearningService : ILearningService
             .FirstOrDefaultAsync(x => x.Id == enrollmentId);
         if (enrollment is null) return result;
 
-        var path = await _db.LearningPath.AsNoTracking()
-            .Include(p => p.PathItemList)
-            .FirstOrDefaultAsync(p => p.CourseId == enrollment.CourseId);
+        // Cấu trúc khóa học (SCORM Organization) người soạn đã dựng, hoặc cấu trúc mặc định nếu chưa có — cùng một
+        // nguồn với cây hoạt động của trình phát, nên thứ tự lộ trình ở đây khớp đúng thứ tự "Tiếp" khi học.
+        var (path, itemList) = await DefaultOrganization.LoadAsync(_db, enrollment.CourseId);
 
         var lessonDict = await _db.Lesson.AsNoTracking()
             .Where(l => l.CourseId == enrollment.CourseId && l.IsActive)
@@ -36,9 +37,15 @@ public class LearningService : ILearningService
             .Where(q => q.CourseId == enrollment.CourseId && q.IsActive)
             .ToDictionaryAsync(q => q.Id);
 
+        // Mô phỏng chưa có tình huống nào không giao cho học viên (không bao giờ đạt được) — trình phát cũng bỏ nó
+        // khỏi cây hoạt động.
         var scenarioDict = await _db.ScenarioScene.AsNoTracking()
-            .Where(s => s.CourseId == enrollment.CourseId && s.IsActive)
+            .Where(s => s.CourseId == enrollment.CourseId && s.IsActive && s.NodeList.Count > 0)
             .ToDictionaryAsync(s => s.Id);
+
+        var scormPackageDict = await _db.ScormPackage.AsNoTracking()
+            .Where(p => p.CourseId == enrollment.CourseId && p.Kind == ScormPackageKind.Imported)
+            .ToDictionaryAsync(p => p.Id);
 
         // Số câu hỏi chèn giữa video của từng bài học — gom một lượt cho cả khóa. Cây nội dung bên phải màn
         // hình học chỉ cần CON SỐ để hiện "3 câu hỏi"; nội dung từng câu do người học bấm mở mới tải
@@ -58,42 +65,12 @@ public class LearningService : ILearningService
             .Select(g => new { LessonId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.LessonId, x => x.Count);
 
-        // Danh sách bước: ưu tiên lộ trình đã cấu hình; nếu chưa có thì tự sinh (bài học trước, kiểm tra sau)
-        var stepList = new List<(int PathItemId, PathItemType Type, int? LessonId, int? QuizId, int? ScenarioSceneId, int Order, bool Required, DateTime? StartDate, DateTime? EndDate)>();
-
-        if (path is not null && path.PathItemList.Count > 0)
-        {
-            foreach (var item in path.PathItemList.OrderBy(x => x.OrderIndex))
-                stepList.Add((item.Id, item.ItemType, item.LessonId, item.QuizId, item.ScenarioSceneId, item.OrderIndex, item.IsRequired, item.StartDate, item.EndDate));
-        }
-        else
-        {
-            // Cùng quy tắc với AutoGenerate: bài học -> mô phỏng 3D (thực hành) -> bài kiểm tra (đánh giá),
-            // trong đó mô phỏng/bài kiểm tra gắn theo một bài học ("con" của bài học) đứng ngay sau bài học
-            // đó; loại không gắn bài học nào (VD thi cuối khóa) xếp sau cùng.
-            // Mô phỏng chưa có tình huống nào bị bỏ qua — MaxScore bằng 0 nên không thể đạt, đưa vào lộ
-            // trình tuần tự sẽ chặn đứng học viên tại đúng bước đó (xem LearningPathService.AutoGenerate).
-            var readyScenarioIdSet = (await _db.ScenarioNode.AsNoTracking()
-                .Where(n => scenarioDict.Keys.Contains(n.ScenarioSceneId))
-                .Select(n => n.ScenarioSceneId)
-                .Distinct()
-                .ToListAsync()).ToHashSet();
-            var readyScenarioList = scenarioDict.Values.Where(s => readyScenarioIdSet.Contains(s.Id)).ToList();
-
-            var order = 1;
-            foreach (var lesson in lessonDict.Values.OrderBy(x => x.OrderIndex))
-            {
-                stepList.Add((0, PathItemType.Lesson, lesson.Id, null, null, order++, true, null, null));
-                foreach (var childScenario in readyScenarioList.Where(s => s.LessonId == lesson.Id).OrderBy(s => s.Id))
-                    stepList.Add((0, PathItemType.Simulation, null, null, childScenario.Id, order++, true, null, null));
-                foreach (var childQuiz in quizDict.Values.Where(q => q.LessonId == lesson.Id).OrderBy(q => q.Id))
-                    stepList.Add((0, PathItemType.Quiz, null, childQuiz.Id, null, order++, true, null, null));
-            }
-            foreach (var standaloneQuiz in quizDict.Values.Where(q => q.LessonId is null).OrderBy(q => q.Id))
-                stepList.Add((0, PathItemType.Quiz, null, standaloneQuiz.Id, null, order++, true, null, null));
-            foreach (var standaloneScenario in readyScenarioList.Where(s => s.LessonId is null).OrderBy(s => s.Id))
-                stepList.Add((0, PathItemType.Simulation, null, null, standaloneScenario.Id, order++, true, null, null));
-        }
+        // Danh sách bước = các mục LÁ của cấu trúc theo đúng thứ tự cây (chương chỉ là cụm, không phải một bước học).
+        var stepList = OrganizationOrder.FlattenLeaves(itemList)
+            .Select((item, index) => (PathItemId: item.Id > 0 ? item.Id : 0, Type: item.ItemType, item.LessonId, item.QuizId,
+                item.ScenarioSceneId, Order: index + 1, Required: item.IsRequired, item.StartDate, item.EndDate,
+                item.ScormPackageId, CustomTitle: item.Title))
+            .ToList();
 
         var progressDict = await _db.LessonProgress.AsNoTracking()
             .Where(x => x.EnrollmentId == enrollmentId)
@@ -108,6 +85,17 @@ public class LearningService : ILearningService
         var scenarioAttemptList = await _db.ScenarioAttempt.AsNoTracking()
             .Where(x => x.EnrollmentId == enrollmentId)
             .ToListAsync();
+
+        // Gói nhập ngoài được học BÊN TRONG lượt học khóa học (gói SCORM của khóa học, cụm "P{id}") — kết quả đọc thẳng
+        // từ trạng thái đã lưu. Bản ghi học riêng từng gói là dữ liệu từ trước khi khóa học thành một gói SCORM: vẫn
+        // tính, để không ai mất tiến độ đã có.
+        var registrationList = await _db.ScormRegistration.AsNoTracking()
+            .Where(x => x.EnrollmentId == enrollmentId)
+            .Select(x => new { x.ScormPackageId, x.ScormPackage.Kind, x.StateJson, x.CompletedAt, x.LastAccessedAt, x.AttemptCount, x.BestScoreScaled })
+            .ToListAsync();
+        var courseStateJson = registrationList.FirstOrDefault(x => x.Kind == ScormPackageKind.Course)?.StateJson;
+        var legacyRegistrationDict = registrationList.Where(x => x.Kind == ScormPackageKind.Imported)
+            .ToDictionary(x => x.ScormPackageId);
 
         var isSequential = path?.IsSequential ?? true;
         var previousDone = true;
@@ -179,9 +167,28 @@ public class LearningService : ILearningService
                        : myCompletedList.Count > 0 ? ProgressStatus.InProgress.ToString()
                        : ProgressStatus.NotStarted.ToString();
             }
+            else if (step.Type == PathItemType.Scorm && step.ScormPackageId is int packageId
+                && scormPackageDict.TryGetValue(packageId, out var scormPackage))
+            {
+                title = scormPackage.Title;
+                duration = scormPackage.DurationMinutes;
+                var cluster = CourseScormService.PackageState(courseStateJson, packageId);
+                legacyRegistrationDict.TryGetValue(packageId, out var legacy);
+                hasEverAttempted = cluster is { AttemptCount: > 0 } || legacy?.LastAccessedAt is not null;
+                attemptUsed = Math.Max(cluster?.AttemptCount ?? 0, legacy?.AttemptCount ?? 0);
+                var bestScaled = new[] { cluster?.BestMeasure is double m ? (decimal?)m : null, legacy?.BestScoreScaled }.Max();
+                bestScore = bestScaled is decimal best ? Math.Round(Math.Clamp(best, -1m, 1m) * 100, 2) : null;
+
+                // Hoàn thành do CHÍNH GÓI quyết định (rollup của cụm: đạt, hoặc hoàn thành mà không bị đánh trượt) —
+                // và đã đạt một lần là giữ, học lại không kéo bước về "chưa xong".
+                var done = cluster is not null && (cluster.EverSatisfied || (cluster.EverCompleted && !cluster.EverFailed));
+                status = done || legacy?.CompletedAt is not null ? completedText
+                       : hasEverAttempted ? ProgressStatus.InProgress.ToString()
+                       : ProgressStatus.NotStarted.ToString();
+            }
             else
             {
-                continue; // bước trỏ tới bài học/bài kiểm tra/mô phỏng đã bị vô hiệu hóa
+                continue; // bước trỏ tới bài học/bài kiểm tra/mô phỏng/gói SCORM đã bị vô hiệu hóa
             }
 
             // Bước có gán lịch (StartDate/EndDate) -> ngày tháng là điều kiện mở/khóa duy nhất, bỏ qua tuần tự.
@@ -199,12 +206,15 @@ public class LearningService : ILearningService
                 isUnlocked = !isSequential || previousDone;
             }
 
+            // Tên người soạn đặt riêng cho mục (nếu có) — đúng chữ học viên thấy trong mục lục của trình phát.
+            if (!string.IsNullOrWhiteSpace(step.CustomTitle)) title = step.CustomTitle.Trim();
+
             result.Add(new PathProgressDto(
                 step.PathItemId, step.Type.ToString(), step.LessonId, step.QuizId,
                 title, duration, step.Order, step.Required,
                 status, isUnlocked, bestScore, attemptUsed, maxAttempt, lastPosition,
                 step.StartDate, step.EndDate, hasEverAttempted, step.ScenarioSceneId,
-                contentType, videoQuestionCount, parentLessonId, videoChapterCount));
+                contentType, videoQuestionCount, parentLessonId, videoChapterCount, step.ScormPackageId));
 
             // Lộ trình tuần tự: gặp bước bắt buộc chưa xong thì khóa toàn bộ bước sau
             if (step.Required && status != completedText) previousDone = false;
@@ -244,6 +254,16 @@ public class LearningService : ILearningService
 
             if (scoreList.Count > 0) bestFinalScore = scoreList.Max();
         }
+        else
+        {
+            // Không có bài thi cuối khóa nhưng có gói SCORM tự chấm điểm (khóa học nhập nguyên từ gói SCORM là
+            // trường hợp điển hình): điểm cuối khóa — điểm in trên chứng nhận — lấy trung bình điểm cao nhất của
+            // các gói. Để trống thì chứng nhận ghi 100 điểm cho người gói chấm 60.
+            var scormScoreList = pathList.Where(x => x.ScormPackageId.HasValue && x.BestScore.HasValue)
+                .Select(x => x.BestScore!.Value).ToList();
+            if (scormScoreList.Count > 0)
+                bestFinalScore = Math.Round(Math.Clamp(scormScoreList.Average(), 0m, 100m), 2);
+        }
         // Quy tắc tính % và quyết định hoàn thành nằm ở thực thể — xem Enrollment.ApplyProgress.
         enrollment.ApplyProgress(requiredList.Count, completedCount, finalQuizIdList.Count > 0,
             bestFinalScore, enrollment.Course.PassScore, DateTime.Now);
@@ -264,6 +284,9 @@ public class LearningService : ILearningService
                 await _rankingService.AwardPointsAsync(enrollment.UserId, PointReason.QuizPassed, "Quiz", quizId);
             else if (step.ItemType == nameof(PathItemType.Simulation) && step.ScenarioSceneId is int sceneId)
                 await _rankingService.AwardPointsAsync(enrollment.UserId, PointReason.SimulationCompleted, "Scenario", sceneId);
+            // Một gói SCORM là cả một bài học trọn gói — cộng như hoàn thành bài học, nguồn riêng "Scorm".
+            else if (step.ItemType == nameof(PathItemType.Scorm) && step.ScormPackageId is int packageId)
+                await _rankingService.AwardPointsAsync(enrollment.UserId, PointReason.LessonCompleted, "Scorm", packageId);
         }
         if (enrollment.Status == EnrollmentStatus.Completed)
             await _rankingService.AwardPointsAsync(enrollment.UserId, PointReason.CourseCompleted, "Course", enrollment.CourseId);

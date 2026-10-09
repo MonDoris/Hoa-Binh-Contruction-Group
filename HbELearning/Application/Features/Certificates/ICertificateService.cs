@@ -44,4 +44,9 @@ public interface ICertificateService
     Task<Result> Issue(int enrollmentId);
 
     Task<Result> Revoke(int id);
+
+    /// <summary>Danh sách chứng nhận để Admin in: chứng nhận nội bộ còn hiệu lực + chứng nhận bên ngoài đã được
+    /// xác nhận, gộp chung một khuôn. <paramref name="source"/>: "internal" | "external" | null = cả hai.
+    /// Khoảng ngày lọc theo NGÀY CẤP.</summary>
+    Task<Result> GetRegister(string? source, int? departmentId, DateTime? from, DateTime? to, string? keyword);
 }

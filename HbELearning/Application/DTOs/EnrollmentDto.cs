@@ -71,4 +71,7 @@ public record PathProgressDto(
     /// <summary>Số chương (đoạn nội dung theo thời gian) của video bài học này. Cây nội dung dựa vào nó để
     /// biết có gì để mở ra hay không: video chỉ có chương mà chưa có câu hỏi nào vẫn phải bung được mục lục,
     /// nếu chỉ nhìn VideoQuestionCount thì nhánh đó câm luôn, học viên tưởng video không chia phần.</summary>
-    int VideoChapterCount = 0);
+    int VideoChapterCount = 0,
+
+    /// <summary>Gói SCORM của bước loại Scorm; null với các loại bước khác.</summary>
+    int? ScormPackageId = null);

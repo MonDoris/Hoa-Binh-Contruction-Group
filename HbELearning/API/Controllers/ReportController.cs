@@ -21,6 +21,11 @@ public class ReportController : BaseApiController
     public async Task<ActionResult<OverviewReportDto>> GetOverview()
         => ToActionResult(await _service.GetOverview());
 
+    [HttpGet("completion-trend")]
+    [Authorize(Roles = RoleName.ReportViewers)]
+    public async Task<ActionResult<CompletionTrendDto>> GetCompletionTrend([FromQuery] int? year)
+        => ToActionResult(await _service.GetCompletionTrend(year));
+
     [HttpGet("course")]
     [Authorize(Roles = RoleName.ReportViewers)]
     public async Task<ActionResult<IEnumerable<CourseReportDto>>> GetCourseReport()

@@ -12,12 +12,27 @@ public class TokenService : ITokenService
 
     public TokenService(IConfiguration config) => _config = config;
 
+    /// <summary>Vé SignalR sống bao lâu. Đủ để trình duyệt mở xong kết nối (kể cả lúc mạng chậm hay phải
+    /// lùi về long-polling), ngắn tới mức một dòng nhật ký rò ra ngoài cũng không còn dùng được.</summary>
+    private const int HubTicketMinutes = 2;
+
     public (string Token, DateTime ExpiresAt) CreateToken(User user)
     {
         var jwt = _config.GetSection("Jwt");
-        var key = jwt["Key"] ?? throw new InvalidOperationException("Thiếu cấu hình Jwt:Key");
         var expireMinutes = int.TryParse(jwt["ExpireMinutes"], out var m) ? m : 480;
-        var expiresAt = DateTime.UtcNow.AddMinutes(expireMinutes);
+        return Create(user, TimeSpan.FromMinutes(expireMinutes), tokenUse: null);
+    }
+
+    public (string Token, DateTime ExpiresAt) CreateHubTicket(User user) =>
+        Create(user, TimeSpan.FromMinutes(HubTicketMinutes), AppClaimType.HubTokenUse);
+
+    /// <summary>Dựng thẻ. Vé SignalR mang ĐÚNG bộ claim của thẻ thường (hub vẫn phải biết người dùng là ai
+    /// và giữ vai trò gì), chỉ khác hạn dùng và một claim đánh dấu mục đích.</summary>
+    private (string Token, DateTime ExpiresAt) Create(User user, TimeSpan lifetime, string? tokenUse)
+    {
+        var jwt = _config.GetSection("Jwt");
+        var key = jwt["Key"] ?? throw new InvalidOperationException("Thiếu cấu hình Jwt:Key");
+        var expiresAt = DateTime.UtcNow.Add(lifetime);
 
         var claimList = new List<Claim>
         {
@@ -58,6 +73,9 @@ public class TokenService : ITokenService
             claimList.Add(new Claim("departmentId", user.DepartmentId.Value.ToString()));
         if (user.PositionId.HasValue)
             claimList.Add(new Claim("positionId", user.PositionId.Value.ToString()));
+
+        if (tokenUse is not null)
+            claimList.Add(new Claim(AppClaimType.TokenUseClaimType, tokenUse));
 
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),

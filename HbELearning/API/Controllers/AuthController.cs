@@ -1,6 +1,7 @@
 // File: API/Controllers/AuthController.cs
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace HbELearning.API.Controllers;
 
@@ -13,6 +14,7 @@ public class AuthController : BaseApiController
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting(ApiServiceExtensions.AuthRateLimitPolicy)]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest request)
         => ToActionResult(await _service.Login(request));
 
@@ -25,23 +27,32 @@ public class AuthController : BaseApiController
         => ToActionResult(await _service.UpdateMe(request));
 
     [HttpPost("change-password")]
+    [EnableRateLimiting(ApiServiceExtensions.AuthRateLimitPolicy)]
     public async Task<ActionResult<MessageResponse>> ChangePassword(ChangePasswordRequest request)
         => ToActionResult(await _service.ChangePassword(request));
 
     [HttpPost("forgot-password")]
     [AllowAnonymous]
+    [EnableRateLimiting(ApiServiceExtensions.AuthRateLimitPolicy)]
     public async Task<ActionResult<MessageResponse>> ForgotPassword(ForgotPasswordRequest request)
         => ToActionResult(await _service.ForgotPassword(request));
 
     [HttpPost("verify-otp")]
     [AllowAnonymous]
+    [EnableRateLimiting(ApiServiceExtensions.AuthRateLimitPolicy)]
     public async Task<ActionResult<VerifyOtpResponse>> VerifyOtp(VerifyOtpRequest request)
         => ToActionResult(await _service.VerifyOtp(request));
 
     [HttpPost("reset-password")]
     [AllowAnonymous]
+    [EnableRateLimiting(ApiServiceExtensions.AuthRateLimitPolicy)]
     public async Task<ActionResult<MessageResponse>> ResetPassword(ResetPasswordRequest request)
         => ToActionResult(await _service.ResetPassword(request));
+
+    /// <summary>Vé ngắn hạn để mở kết nối SignalR. Phải đăng nhập rồi mới xin được.</summary>
+    [HttpGet("hub-ticket")]
+    public async Task<ActionResult<HubTicketResponse>> HubTicket()
+        => ToActionResult(await _service.CreateHubTicket());
 
     [HttpGet("role")]
     [Authorize(Roles = RoleName.Admin)]

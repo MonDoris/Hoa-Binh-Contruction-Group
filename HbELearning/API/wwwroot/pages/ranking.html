@@ -312,6 +312,7 @@
     // yên vĩnh viễn kèm lời hứa "còn N điểm nữa lên hạng" không bao giờ tới. Dùng hasRole để tính cả vai trò
     // kế thừa Admin, đúng bằng luật phía server.
     const joinsRanking = !Auth.hasRole('Admin');
+    const defaultTab = joinsRanking ? 'mine' : 'board';
     if (!joinsRanking) {
         document.getElementById('tab-btn-mine').style.display = 'none';
         document.getElementById('tab-btn-mine').classList.remove('active');
@@ -326,11 +327,8 @@
 
     document.querySelectorAll('.tabs button').forEach(button => {
         button.addEventListener('click', () => {
-            document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            button.classList.add('active');
             currentTab = button.dataset.tab;
-            document.getElementById(`tab-${currentTab}`).classList.add('active');
+            showTab(currentTab, defaultTab);
             loadTab(currentTab);
         });
     });
@@ -340,7 +338,11 @@
     document.getElementById('btn-add-code').addEventListener('click', addCode);
 
     tierList = await API.get('/ranking/tier');
-    await loadTab(joinsRanking ? 'mine' : 'board');
+    // Mở lại thẻ ghi trên địa chỉ trang (?tab=): tải lại trang, kể cả khi đổi ngôn ngữ, vẫn đứng nguyên thẻ đang xem.
+    // Thẻ quản lý chỉ hiện theo vai trò — tabFromUrl bỏ qua thẻ đang ẩn, gõ ?tab=manage vào địa chỉ cũng không mở được.
+    currentTab = tabFromUrl(defaultTab);
+    showTab(currentTab, defaultTab);
+    await loadTab(currentTab);
 
     async function loadTab(tab) {
         if (tab === 'mine') await renderMine();

@@ -17,6 +17,12 @@ public class LearningPathController : BaseApiController
     public async Task<ActionResult<LearningPathDto>> GetByCourse(int courseId)
         => ToActionResult(await _service.GetByCourse(courseId));
 
+    /// <summary>Khóa học chưa có cấu trúc thì lưu cấu trúc mặc định xuống để bắt đầu chỉnh sửa; trả về cấu trúc.</summary>
+    [HttpPost("ensure/{courseId:int}")]
+    [Authorize(Roles = RoleName.ContentAuthor)]
+    public async Task<ActionResult<LearningPathDto>> EnsureOrganization(int courseId)
+        => ToActionResult(await _service.EnsureOrganization(courseId));
+
     [HttpPost]
     [Authorize(Roles = RoleName.ContentAuthor)]
     public async Task<ActionResult<MessageResponse>> Create(LearningPathRequest request)
@@ -36,6 +42,17 @@ public class LearningPathController : BaseApiController
     [Authorize(Roles = RoleName.ContentAuthor)]
     public async Task<ActionResult<MessageResponse>> AddItem(int pathId, PathItemRequest request)
         => ToActionResult(await _service.AddItem(pathId, request));
+
+    [HttpPut("item/{itemId:int}")]
+    [Authorize(Roles = RoleName.ContentAuthor)]
+    public async Task<ActionResult<MessageResponse>> UpdateItem(int itemId, PathItemUpdateRequest request)
+        => ToActionResult(await _service.UpdateItem(itemId, request));
+
+    /// <summary>Lưu cả cây sau khi kéo thả — danh sách mọi mục theo thứ tự mới, kèm chương cha.</summary>
+    [HttpPut("{pathId:int}/tree")]
+    [Authorize(Roles = RoleName.ContentAuthor)]
+    public async Task<ActionResult<MessageResponse>> MoveTree(int pathId, List<PathItemPlacement> placementList)
+        => ToActionResult(await _service.MoveTree(pathId, placementList));
 
     [HttpPut("item/{itemId:int}/schedule")]
     [Authorize(Roles = RoleName.ContentAuthor)]

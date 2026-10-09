@@ -95,11 +95,8 @@
 
     document.querySelectorAll('.tabs button').forEach(button => {
         button.addEventListener('click', () => {
-            document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            button.classList.add('active');
             currentTab = button.dataset.tab;
-            document.getElementById(`tab-${currentTab}`).classList.add('active');
+            showTab(currentTab, 'system');
             // Không gọi lại API: cả hai tab đọc chung một danh sách vừa tải, chỉ khác phần lọc.
             renderTab();
         });
@@ -117,6 +114,9 @@
     document.getElementById('btn-new')?.addEventListener('click', () => openForm());
     document.getElementById('role-form').addEventListener('submit', save);
 
+    // Mở lại thẻ ghi trên địa chỉ trang (?tab=): tải lại trang, kể cả khi đổi ngôn ngữ, vẫn đứng nguyên thẻ đang xem.
+    currentTab = tabFromUrl('system');
+    showTab(currentTab, 'system');
     await load();
 
     /** Đếm số quyền đã cấp để hiện nhanh trên bảng, VD "5 chức năng · 14 quyền". */

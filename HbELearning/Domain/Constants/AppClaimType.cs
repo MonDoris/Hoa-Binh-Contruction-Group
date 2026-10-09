@@ -18,4 +18,11 @@ public static class AppClaimType
 
     /// <summary>"true" = vai trò cài sẵn của hệ thống, "false" = vai trò do Admin tự tạo.</summary>
     public const string SystemRoleClaimType = "isSystemRole";
+
+    /// <summary>Thẻ này dùng để làm gì. Vắng mặt = thẻ đăng nhập thường (gọi được mọi API).
+    /// <see cref="HubTokenUse"/> = vé vào kênh thời gian thực, chỉ dùng được cho đường /hubs.</summary>
+    public const string TokenUseClaimType = "token_use";
+
+    /// <summary>Giá trị của <see cref="TokenUseClaimType"/> cho vé SignalR.</summary>
+    public const string HubTokenUse = "hub";
 }

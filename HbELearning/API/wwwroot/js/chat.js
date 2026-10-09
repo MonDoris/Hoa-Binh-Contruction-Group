@@ -80,7 +80,9 @@ const ChatBox = (() => {
 
     function connect() {
         connection = new signalR.HubConnectionBuilder()
-            .withUrl('/hubs/chat', { accessTokenFactory: () => Auth.token })
+            // Vé ngắn hạn thay cho thẻ đăng nhập — xem Auth.hubTicket(). SignalR gọi lại hàm này ở mỗi lần
+            // kết nối và mỗi lần nối lại, nên vé luôn còn hạn.
+            .withUrl('/hubs/chat', { accessTokenFactory: () => Auth.hubTicket() })
             .withAutomaticReconnect()          // mạng chập chờn / máy ngủ dậy thì tự nối lại
             .build();
 

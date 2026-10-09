@@ -16,6 +16,9 @@ public record LessonDetailDto(int Id, int CourseId, string CourseTitle, string T
 public class LessonRequest
 {
     [Required] public int CourseId { get; set; }
+
+    /// <summary>Chương của cấu trúc khóa học sẽ chứa nội dung mới (chỉ dùng lúc tạo); null = tự xếp chỗ.</summary>
+    public int? ParentItemId { get; set; }
     [Required, MaxLength(250)] public string Title { get; set; } = null!;
     public string? Content { get; set; }
     public LessonContentType ContentType { get; set; } = LessonContentType.Text;

@@ -58,6 +58,10 @@ public interface IAppDbContext
     DbSet<WeeklyMission> WeeklyMission { get; }
     DbSet<ShopProduct> ShopProduct { get; }
     DbSet<ShopRedemption> ShopRedemption { get; }
+    DbSet<ExternalCertificate> ExternalCertificate { get; }
+    DbSet<ScormPackage> ScormPackage { get; }
+    DbSet<ScormRegistration> ScormRegistration { get; }
+    DbSet<ScormRuntime> ScormRuntime { get; }
     DbSet<ShopPromotion> ShopPromotion { get; }
     DbSet<ShopPromotionItem> ShopPromotionItem { get; }
     DbSet<PointRule> PointRule { get; }

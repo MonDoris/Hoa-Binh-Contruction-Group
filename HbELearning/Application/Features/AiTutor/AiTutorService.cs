@@ -435,7 +435,7 @@ public class AiTutorService : IAiTutorService
     /// </summary>
     private async Task<List<int>?> GetReadableCourseIdListAsync(CancellationToken cancellationToken)
     {
-        if (_currentUser.IsAdmin || _currentUser.IsTrainer || _currentUser.IsHeadOfDepartment || _currentUser.IsDirector) return null;
+        if (_currentUser.IsAdmin || _currentUser.IsTrainer || _currentUser.IsInstructor || _currentUser.IsHeadOfDepartment || _currentUser.IsDirector) return null;
 
         var userId = _currentUser.UserId;
         return await _db.Course.AsNoTracking()

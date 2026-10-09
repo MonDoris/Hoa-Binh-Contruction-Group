@@ -30,6 +30,8 @@ global using HbELearning.Application.Features.Courses;
 global using HbELearning.Application.Features.Dashboard;
 global using HbELearning.Application.Features.Departments;
 global using HbELearning.Application.Features.Enrollments;
+global using HbELearning.Application.Features.ExternalCertificates;
+global using HbELearning.Application.Features.Scorm;
 global using HbELearning.Application.Features.Import;
 global using HbELearning.Application.Features.LearningPaths;
 global using HbELearning.Application.Features.LessonNotes;

@@ -11,6 +11,9 @@ public interface IReportService
     /// <summary>Tổng quan toàn hệ thống — dùng cho dashboard.</summary>
     Task<Result> GetOverview();
 
+    /// <summary>Lượt đào tạo hoàn thành / chưa hoàn thành theo tháng của một năm (mặc định năm nay) và theo năm.</summary>
+    Task<Result> GetCompletionTrend(int? year);
+
     /// <summary>Thống kê theo từng khóa học.</summary>
     Task<Result> GetCourseReport();
 

@@ -105,6 +105,7 @@
 <script src="/js/theme.js"></script>
 <script src="/js/password.js"></script>
 <script src="/js/app.js"></script>
+<script src="/js/sco-runtime.js"></script>
 <script type="module">
 import { getSimScene } from '/js/sim-registry.js';
 
@@ -114,16 +115,44 @@ import { getSimScene } from '/js/sim-registry.js';
 
     if (!Auth.require()) return;
 
+    // sco=1: trang chạy làm SCO "Mô phỏng 3D" (hoạt động S{id}) trong trình phát SCORM của khóa học — khung SCO
+    // tối giản, kết quả báo về trình phát qua cmi.* (máy chủ đối chiếu lại với ScenarioAttempt ở mỗi lần Commit).
+    const scoMode = qs('sco') === '1';
     const enrollmentId = parseInt(qs('enrollmentId') || '0', 10);
     const scenarioSceneId = parseInt(qs('scenarioSceneId') || '0', 10);
+    if (scoMode && scenarioSceneId && !enrollmentId) { renderScoPreview(); return; }
     if (!enrollmentId || !scenarioSceneId) { location.href = '/pages/my-course.html'; return; }
 
-    mountLayout('my-course', t('course-detail.moPhong3d', 'Mô phỏng 3D'), '');
-    setTopbarAction(`
-        <button class="btn ghost sm" id="btn-back"><i class="ph ph-arrow-left"></i> <span data-i18n="simulation.loTrinhHoc">Lộ trình học</span></button>
-        <button data-i18n="simulation.ketThucMoPhong" class="btn sm" id="btn-finish" disabled>Kết thúc mô phỏng</button>`);
-    document.getElementById('btn-back').addEventListener('click', () =>
-        location.href = `/pages/learn.html?enrollmentId=${enrollmentId}`);
+    if (scoMode) {
+        mountScoLayout(t('course-detail.moPhong3d', 'Mô phỏng 3D'));
+        setScoHead(undefined, undefined,
+            `<button data-i18n="simulation.ketThucMoPhong" class="btn sm" id="btn-finish" disabled>Kết thúc mô phỏng</button>`);
+        ScoRuntime.initialize();
+        if (ScoRuntime.phase === 'running') { ScoRuntime.set('cmi.completion_status', 'incomplete'); ScoRuntime.commit(); }
+    } else {
+        mountLayout('my-course', t('course-detail.moPhong3d', 'Mô phỏng 3D'), '');
+        setTopbarAction(`
+            <button class="btn ghost sm" id="btn-back"><i class="ph ph-arrow-left"></i> <span data-i18n="simulation.loTrinhHoc">Lộ trình học</span></button>
+            <button data-i18n="simulation.ketThucMoPhong" class="btn sm" id="btn-finish" disabled>Kết thúc mô phỏng</button>`);
+        document.getElementById('btn-back').addEventListener('click', () =>
+            location.href = `/pages/scorm-player.html?enrollmentId=${enrollmentId}&activityId=S${scenarioSceneId}`);
+    }
+
+    /** Bản xem thử của người soạn: mô phỏng cần một lượt học thật để máy chủ chấm điểm từng lựa chọn. */
+    function renderScoPreview() {
+        mountScoLayout(t('course-detail.moPhong3d', 'Mô phỏng 3D'));
+        ScoRuntime.initialize();
+        document.querySelector('.main').innerHTML = `<div class="sco-main">
+            <div class="sco-preview-note"><i class="ph ph-eye"></i> ${esc(t('sco.banXemThuMoPhong', 'Bản xem thử — mô phỏng 3D chấm điểm trên máy chủ theo lượt học của học viên, nên không chơi thử được ở đây.'))}</div>
+            <div class="sco-done-bar">
+                <span class="small muted">${esc(t('sco.moPhongXemThuGoiY', 'Mở cảnh 3D trong tab "Mô phỏng 3D" của trang soạn khóa học để xem trước nội dung. Bấm hoàn thành để xem thử phần còn lại của khóa học.'))}</span>
+                <button class="btn" id="btn-preview-done"><i class="ph-bold ph-check"></i> ${esc(t('sco.danhDauHoanThanh', 'Đánh dấu hoàn thành'))}</button>
+            </div></div>`;
+        document.getElementById('btn-preview-done').addEventListener('click', () => {
+            ScoRuntime.reportResult({ completed: true, passed: true, scaled: 1 });
+            ScoRuntime.continueNext();
+        });
+    }
 
     const stageEl = document.getElementById('sim-stage');
     const wrapEl = document.getElementById('sim-wrap');
@@ -535,9 +564,18 @@ import { getSimScene } from '/js/sim-registry.js';
         stageEl.remove();
         creditEl.remove();
         tabsEl.remove();
-        setTopbarAction(`<button class="btn ghost sm" id="btn-back2"><i class="ph ph-arrow-left"></i> <span data-i18n="simulation.loTrinhHoc">Lộ trình học</span></button>`);
-        document.getElementById('btn-back2').addEventListener('click', () =>
-            location.href = `/pages/learn.html?enrollmentId=${enrollmentId}`);
+        if (scoMode) {
+            setScoHead(undefined, undefined, '');
+            // Kết quả lượt chơi theo mô hình dữ liệu SCORM — điểm chuẩn hóa -1..1 vì điểm mô phỏng có thể âm.
+            ScoRuntime.reportResult({
+                completed: true, passed: !!r.isPassed,
+                scaled: r.maxScore > 0 ? r.score / r.maxScore : 0, raw: r.score, max: r.maxScore,
+            });
+        } else {
+            setTopbarAction(`<button class="btn ghost sm" id="btn-back2"><i class="ph ph-arrow-left"></i> <span data-i18n="simulation.loTrinhHoc">Lộ trình học</span></button>`);
+            document.getElementById('btn-back2').addEventListener('click', () =>
+                location.href = `/pages/scorm-player.html?enrollmentId=${enrollmentId}&activityId=S${scenarioSceneId}`);
+        }
 
         document.getElementById('sim-title').textContent = r.title;
         document.getElementById('sim-meta').textContent = `Lượt chơi #${r.attemptNo}`;
@@ -565,11 +603,21 @@ import { getSimScene } from '/js/sim-registry.js';
                 <div class="flex-between mt" style="border-top:1px solid var(--border);padding-top:16px">
                     <span data-i18n="simulation.banCoTheChoiLaiDeCaiThienDiemS" class="small muted">Bạn có thể chơi lại để cải thiện điểm số bất cứ lúc nào.</span>
                     <div class="flex gap-sm">
-                        <button data-i18n="simulation.choiLai" class="btn ghost" onclick="location.reload()">Chơi lại</button>
-                        <a data-i18n="simulation.quayLaiLoTrinhHoc" class="btn" href="/pages/learn.html?enrollmentId=${enrollmentId}">Quay lại lộ trình học</a>
+                        <button data-i18n="simulation.choiLai" class="btn ghost" id="btn-replay">Chơi lại</button>
+                        ${scoMode
+                            ? (ScoRuntime.isTracked ? `<button class="btn" id="btn-next">${esc(t('sco.tiepTuc', 'Tiếp tục'))} <i class="ph ph-caret-right"></i></button>` : '')
+                            : `<a data-i18n="simulation.quayLaiLoTrinhHoc" class="btn" href="/pages/scorm-player.html?enrollmentId=${enrollmentId}">Quay lại lộ trình học</a>`}
                     </div>
                 </div>
             </div>`;
+
+        document.getElementById('btn-replay').addEventListener('click', () => {
+            // Trong trình phát, SCO không được tự nạp lại trang (phiên RTE của nó đã kết thúc): xin trình phát giao
+            // lại chính hoạt động này — một lượt thử mới, đúng cách của SCORM.
+            if (scoMode && ScoRuntime.isTracked) ScoRuntime.terminate(`{target=S${scenarioSceneId}}choice`);
+            else location.reload();
+        });
+        document.getElementById('btn-next')?.addEventListener('click', () => ScoRuntime.continueNext());
     }
 })();
 </script>

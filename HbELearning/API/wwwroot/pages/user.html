@@ -64,7 +64,7 @@
                 <div class="form-section"><i class="ph-fill ph-sign-in"></i> <span data-i18n="user.thongTinDangNhap">Thông tin đăng nhập</span></div>
                 <div class="row">
                     <div class="field"><label for="u-email">Email *</label><input type="email" id="u-email" required maxlength="150"></div>
-                    <div class="field" id="password-field"><label data-i18n="user.matKhau" for="u-password">Mật khẩu *</label><input type="password" id="u-password" minlength="6">
+                    <div class="field" id="password-field"><label data-i18n="user.matKhau" for="u-password">Mật khẩu *</label><input type="password" id="u-password" minlength="8">
                         <div data-i18n="account.toiThieu6KyTu" class="hint">Tối thiểu 6 ký tự.</div></div>
                 </div>
                 <div class="field"><label data-i18n="user.tenTaiKhoan" for="u-username">Tên tài khoản</label>
@@ -103,15 +103,21 @@
 <script src="/js/password.js"></script>
 <script src="/js/app.js"></script>
 <script>
+// Khóa viết thường: tên vai trò hệ thống không thống nhất hoa/thường ("Học viên", "Trưởng phòng", "Giám Đốc").
 const ROLE_BADGE_CLASS = {
-    'Admin': 'red',
-    'Tổng Giám Đốc': 'orange',
-    'Giám Đốc': 'green',
-    'Trưởng phòng': 'blue',
-    'Trưởng Nhóm': 'cyan',
-    'Học Viên': 'gray'
+    'admin': 'red',
+    'tổng giám đốc': 'orange',
+    'giám đốc': 'green',
+    'trưởng phòng': 'blue',
+    'trưởng nhóm': 'cyan',
+    'học viên': 'gray'
 };
-function roleBadgeClass(roleName) { return ROLE_BADGE_CLASS[roleName] || 'gray'; }
+/** Vai trò con ("Trưởng Phòng IT", "Giám Đốc Nhân Sự"...) mang màu của vai trò cha — nhìn là biết thuộc nhánh nào.
+ *  Kế thừa chỉ một cấp (cha luôn là vai trò hệ thống), nên tra cha một lần là đủ. */
+function roleBadgeClass(roleName, roleList) {
+    const baseName = roleList.find(r => r.name === roleName)?.parentRoleName || roleName || '';
+    return ROLE_BADGE_CLASS[baseName.toLowerCase()] || 'gray';
+}
 
 (async function () {
     // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
@@ -263,7 +269,7 @@ function roleBadgeClass(roleName) { return ROLE_BADGE_CLASS[roleName] || 'gray';
                     <td><code>${esc(u.employeeCode)}</code></td>
                     <td><b>${esc(u.fullName)}</b></td>
                     <td class="small">${esc(u.email)}</td>
-                    <td><span class="badge ${roleBadgeClass(u.roleName)}">${esc(u.roleName)}</span></td>
+                    <td><span class="badge ${roleBadgeClass(u.roleName, roleList)}">${esc(u.roleName)}</span></td>
                     <td class="small">${esc(u.departmentName || '—')}</td>
                     <td class="small">${esc(u.positionName || '—')}</td>
                     <td>
@@ -438,6 +444,12 @@ function roleBadgeClass(roleName) { return ROLE_BADGE_CLASS[roleName] || 'gray';
             avatarUrl: document.getElementById('u-avatar').value || null,
             functionKeys: getFunctionPermission()
         };
+
+        if (!id) {
+            const email = document.getElementById('u-email').value.trim();
+            const ruleError = passwordRuleError(document.getElementById('u-password').value, email);
+            if (ruleError) { toastErr(ruleError); return; }
+        }
 
         try {
             if (id) {

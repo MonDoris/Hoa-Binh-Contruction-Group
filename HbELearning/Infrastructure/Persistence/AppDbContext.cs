@@ -59,6 +59,11 @@ public class AppDbContext : DbContext, IAppDbContext
     // Cửa hàng điểm thưởng: món quà bày bán và từng lượt người học đổi điểm lấy quà.
     public DbSet<ShopProduct> ShopProduct => Set<ShopProduct>();
     public DbSet<ShopRedemption> ShopRedemption => Set<ShopRedemption>();
+    public DbSet<ExternalCertificate> ExternalCertificate => Set<ExternalCertificate>();
+    // Gói SCORM, bản ghi học gói (registration) và dữ liệu run-time từng SCO.
+    public DbSet<ScormPackage> ScormPackage => Set<ScormPackage>();
+    public DbSet<ScormRegistration> ScormRegistration => Set<ScormRegistration>();
+    public DbSet<ScormRuntime> ScormRuntime => Set<ScormRuntime>();
     public DbSet<ShopPromotion> ShopPromotion => Set<ShopPromotion>();
     public DbSet<ShopPromotionItem> ShopPromotionItem => Set<ShopPromotionItem>();
     public DbSet<PointRule> PointRule => Set<PointRule>();
@@ -180,6 +185,9 @@ public class AppDbContext : DbContext, IAppDbContext
         b.Entity<ShopRedemption>().HasIndex(x => new { x.UserId, x.CreatedAt });
         b.Entity<ShopRedemption>().HasIndex(x => new { x.ShopProductId, x.CreatedAt });
         b.Entity<ShopRedemption>().HasIndex(x => x.Status);
+        // Hai cách đọc bảng chứng nhận bên ngoài: "giấy của tôi" (theo người) và hàng chờ duyệt của Admin.
+        b.Entity<ExternalCertificate>().HasIndex(x => new { x.UserId, x.CreatedAt });
+        b.Entity<ExternalCertificate>().HasIndex(x => x.Status);
         // Mỗi đợt khuyến mãi một tên: hai đợt trùng tên thì nhãn trên thẻ hàng không nói được món đang
         // giảm vì đợt nào, mà đó chính là việc của cái nhãn.
         b.Entity<ShopPromotion>().HasIndex(x => x.Name).IsUnique();
@@ -489,6 +497,13 @@ public class AppDbContext : DbContext, IAppDbContext
         // tạo bảng khi giữa hai bảng có nhiều hơn một đường lan truyền xóa. Cắt nhánh phụ này bằng NoAction.
         b.Entity<ShopRedemption>().HasOne(x => x.HandledBy).WithMany()
             .HasForeignKey(x => x.HandledById).OnDelete(DeleteBehavior.NoAction);
+        // Chứng nhận bên ngoài: cùng cách với lượt đổi quà ở trên — người sở hữu Restrict (xóa tài khoản mà còn
+        // giấy tờ thì phải dọn có chủ đích, kèm xóa tệp quét trong kho riêng), người duyệt NoAction để SqlServer
+        // không thấy hai đường lan truyền xóa cùng đổ về HBE_USER.
+        b.Entity<ExternalCertificate>().HasOne(x => x.User).WithMany()
+            .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<ExternalCertificate>().HasOne(x => x.ReviewedBy).WithMany()
+            .HasForeignKey(x => x.ReviewedById).OnDelete(DeleteBehavior.NoAction);
         b.Entity<ShopRedemption>().HasOne(x => x.ShopProduct).WithMany(x => x.RedemptionList)
             .HasForeignKey(x => x.ShopProductId).OnDelete(DeleteBehavior.Restrict);
         // Người tạo sản phẩm rời công ty thì món quà vẫn còn bày bán, chỉ mất tên người tạo.
@@ -535,6 +550,67 @@ public class AppDbContext : DbContext, IAppDbContext
         b.Entity<DocumentChunk>().HasIndex(x => new { x.SourceKind, x.LessonId });
         b.Entity<DocumentChunk>().HasIndex(x => new { x.SourceKind, x.CourseId });
 
+        // ================= SCORM =================
+        // Gói thuộc về khóa học: xóa khóa học thì xóa gói (tệp trên đĩa do CourseService.Delete dọn).
+        b.Entity<ScormPackage>().HasOne(x => x.Course).WithMany(x => x.ScormPackageList)
+            .HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<ScormPackage>().HasOne(x => x.CreatedBy).WithMany()
+            .HasForeignKey(x => x.CreatedById).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<ScormPackage>().HasIndex(x => x.CourseId);
+        b.Entity<ScormPackage>().HasIndex(x => x.StorageKey).IsUnique();
+        // Bước lộ trình trỏ tới gói: cùng lý do với Lesson/Quiz/ScenarioScene ở trên — từ Course đã có đường
+        // Course -> LearningPath -> PathItem, thêm đường Course -> ScormPackage -> PathItem là hai đường. Việc gỡ
+        // bước khi xóa gói do ScormService.Delete lo.
+        b.Entity<PathItem>().HasOne(x => x.ScormPackage).WithMany(x => x.PathItemList)
+            .HasForeignKey(x => x.ScormPackageId).OnDelete(DeleteBehavior.NoAction);
+        // Chương (Module) chứa mục con: quan hệ tự tham chiếu. NoAction vì SqlServer không cho lan truyền xóa vòng
+        // trên cùng một bảng — xóa chương thì LearningPathService.DeleteItem tự đưa các mục con ra ngoài trước.
+        b.Entity<PathItem>().HasOne(x => x.ParentItem).WithMany()
+            .HasForeignKey(x => x.ParentItemId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<PathItem>().Property(x => x.CompletionThreshold).HasPrecision(5, 4);
+        // Mỗi khóa học chỉ có MỘT gói "của khóa học" — tra theo (khóa học, loại) ở mọi lượt mở trình phát.
+        b.Entity<ScormPackage>().HasIndex(x => new { x.CourseId, x.Kind });
+
+        // Bản ghi học gói đi theo lượt học: hủy/xóa lượt học thì xóa theo. Hai khóa ngoại còn lại (người học, gói)
+        // để NoAction vì đều có đường thứ hai tới cùng bảng (User -> Enrollment -> đây, Course -> Package /
+        // Course -> Enrollment -> đây). Bản XEM THỬ (không có lượt học) do UserService / ScormService /
+        // CourseService dọn trước khi xóa người dùng / gói / khóa học.
+        b.Entity<ScormRegistration>().HasOne(x => x.Enrollment).WithMany(x => x.ScormRegistrationList)
+            .HasForeignKey(x => x.EnrollmentId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<ScormRegistration>().HasOne(x => x.User).WithMany()
+            .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<ScormRegistration>().HasOne(x => x.ScormPackage).WithMany(x => x.RegistrationList)
+            .HasForeignKey(x => x.ScormPackageId).OnDelete(DeleteBehavior.NoAction);
+        // Một lượt học chỉ có MỘT bản ghi cho mỗi gói — hai bản ghi thì tiến độ chia đôi, học viên học hoài không xong.
+        // SqlServer coi mọi NULL là trùng nhau nên phải lọc bỏ bản xem thử (EnrollmentId null).
+        var scormEnrollmentIndex = b.Entity<ScormRegistration>().HasIndex(x => new { x.EnrollmentId, x.ScormPackageId }).IsUnique();
+        if (Database.IsSqlServer()) scormEnrollmentIndex.HasFilter("[ENROLLMENT_ID] IS NOT NULL");
+        b.Entity<ScormRegistration>().HasIndex(x => new { x.UserId, x.ScormPackageId, x.IsPreview });
+
+        b.Entity<ScormRuntime>().HasOne(x => x.ScormRegistration).WithMany(x => x.RuntimeList)
+            .HasForeignKey(x => x.ScormRegistrationId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<ScormRuntime>().HasIndex(x => new { x.ScormRegistrationId, x.ActivityId }).IsUnique();
+
+        b.Entity<ScormRegistration>().Property(x => x.ScoreScaled).HasPrecision(10, 7);
+        b.Entity<ScormRegistration>().Property(x => x.BestScoreScaled).HasPrecision(10, 7);
+        b.Entity<ScormRuntime>().Property(x => x.ScoreScaled).HasPrecision(10, 7);
+        b.Entity<ScormRuntime>().Property(x => x.ProgressMeasure).HasPrecision(10, 7);
+        b.Entity<ScormRuntime>().Property(x => x.ScoreRaw).HasPrecision(18, 6);
+        b.Entity<ScormRuntime>().Property(x => x.ScoreMin).HasPrecision(18, 6);
+        b.Entity<ScormRuntime>().Property(x => x.ScoreMax).HasPrecision(18, 6);
+
+        // Ba cột JSON có thể rất dài (cây hoạt động cả nghìn mục, suspend_data 64.000 ký tự, interactions...).
+        foreach (var longText in new[]
+                 {
+                     b.Entity<ScormPackage>().Property(x => x.ActivityTreeJson),
+                     b.Entity<ScormRegistration>().Property(x => x.StateJson),
+                     b.Entity<ScormRuntime>().Property(x => x.CmiJson),
+                 })
+        {
+            if (Database.ProviderName == "Oracle.EntityFrameworkCore") longText.HasColumnType("NCLOB");
+            else if (Database.ProviderName == "Microsoft.EntityFrameworkCore.SqlServer") longText.HasColumnType("nvarchar(max)");
+        }
+
         // ================= LỊCH SỬ HỎI ĐÁP VỚI PICO B =================
         // Xóa tài khoản thì xóa luôn lịch sử hỏi đáp của người đó: dữ liệu này chỉ có nghĩa với chính chủ,
         // giữ lại chỉ còn là một đống câu hỏi vô chủ.
@@ -559,7 +635,8 @@ public class AppDbContext : DbContext, IAppDbContext
             NewSystemRole(3, "Học viên",         "Nhân viên tham gia học"),
             NewSystemRole(4, "Tổng Giám Đốc",    "Quản lý giám đốc, xem báo cáo và bảng xếp hạng toàn công ty"),
             NewSystemRole(5, "Giám Đốc",         "Quản lý theo phòng ban, duyệt nội dung bài học do Trưởng phòng đưa lên"),
-            NewSystemRole(6, "Trưởng phòng",     "Duyệt nội dung bài học do Trưởng Nhóm tạo, báo cáo theo phòng ban")
+            NewSystemRole(6, "Trưởng phòng",     "Duyệt nội dung bài học do Trưởng Nhóm tạo, báo cáo theo phòng ban"),
+            NewSystemRole(7, "Giảng Viên",       "Tạo nội dung bài học, xuất bản khóa học mà không cần duyệt")
         );
 
         // ================= ÁNH XẠ TÊN BẢNG / CỘT KIỂU ORACLE =================

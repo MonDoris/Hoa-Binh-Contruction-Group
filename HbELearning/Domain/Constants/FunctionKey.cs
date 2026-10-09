@@ -215,6 +215,15 @@ public static class FunctionKey
                 "report.view", "report.export",
                 "information.view", "information.update"
             },
+            RoleName.Instructor => new[]
+            {
+                "dashboard.view", "my-course.view", "ai-tutor.view", "certificate.view", "certificate.export", "ranking.view", "shop.view",
+                "online-class.view", "online-class.create", "online-class.update", "online-class.delete",
+                "course.view", "course.create", "course.update", "course.delete",
+                "sim-library.view", "sim-library.create", "sim-library.update", "sim-library.delete",
+                "report.view", "report.export",
+                "information.view", "information.update"
+            },
             RoleName.HeadOfDepartment or RoleName.Director => new[]
             {
                 "dashboard.view", "my-course.view", "ai-tutor.view", "certificate.view", "ranking.view", "shop.view",

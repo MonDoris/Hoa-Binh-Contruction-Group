@@ -33,6 +33,7 @@ public class Enrollment
     public ICollection<LessonProgress> LessonProgressList { get; set; } = new List<LessonProgress>();
     public ICollection<QuizAttempt> QuizAttemptList { get; set; } = new List<QuizAttempt>();
     public ICollection<ScenarioAttempt> ScenarioAttemptList { get; set; } = new List<ScenarioAttempt>();
+    public ICollection<ScormRegistration> ScormRegistrationList { get; set; } = new List<ScormRegistration>();
     public Certificate? Certificate { get; set; }
 
     // ==================== HÀNH VI ====================

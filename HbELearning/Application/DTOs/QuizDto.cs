@@ -21,6 +21,9 @@ public class QuizRequest
 {
     [Required] public int CourseId { get; set; }
 
+    /// <summary>Chương của cấu trúc khóa học sẽ chứa nội dung mới (chỉ dùng lúc tạo); null = tự xếp chỗ.</summary>
+    public int? ParentItemId { get; set; }
+
     /// <summary>Bài học mà bài kiểm tra này gắn theo (nếu có) — null = bài kiểm tra độc lập (VD thi cuối khóa).</summary>
     public int? LessonId { get; set; }
 

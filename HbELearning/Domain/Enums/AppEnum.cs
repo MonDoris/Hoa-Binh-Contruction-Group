@@ -81,7 +81,32 @@ public enum VideoSeekPolicy
 }
 
 /// <summary>Loại phần tử trong lộ trình học tập.</summary>
-public enum PathItemType { Lesson = 0, Quiz = 1, Simulation = 2 }
+/// <summary>Loại một mục trong cấu trúc khóa học (= &lt;item&gt; của SCORM Organization). Module là CỤM (cluster) —
+/// một chương gom các mục con, tự nó không có nội dung để phát. Các loại còn lại là hoạt động LÁ, mỗi loại trỏ
+/// tới một tài nguyên (SCO) cụ thể.</summary>
+public enum PathItemType { Lesson = 0, Quiz = 1, Simulation = 2, Scorm = 3, Module = 4 }
+
+/// <summary>Gói SCORM nhập từ ngoài, hay "gói" của chính một khóa học soạn trên hệ thống (cây hoạt động sinh ra
+/// từ cấu trúc khóa học). GIÁ TRỊ SỐ LÀ VĨNH VIỄN — nằm trong HBE_SCORM_PACKAGE.KIND.</summary>
+public enum ScormPackageKind
+{
+    /// <summary>Gói .zip người soạn tải lên — tệp nằm trong kho SCORM, cây đọc từ imsmanifest.xml.</summary>
+    Imported = 0,
+
+    /// <summary>Gói của khóa học: mỗi khóa học có đúng một, cây hoạt động dựng từ cấu trúc khóa học (lộ trình +
+    /// chương + mục), mỗi bài học / bài kiểm tra / mô phỏng là một SCO do hệ thống phục vụ.</summary>
+    Course = 1
+}
+
+/// <summary>Phiên bản chuẩn SCORM của một gói nội dung. Quyết định trình phát dựng bộ API nào cho nội dung tìm
+/// thấy: <c>API</c> (1.2) hay <c>API_1484_11</c> (2004). GIÁ TRỊ SỐ LÀ VĨNH VIỄN — nằm trong HBE_SCORM_PACKAGE.VERSION.</summary>
+public enum ScormVersion
+{
+    Scorm12 = 0,
+
+    /// <summary>SCORM 2004, mọi bản (2nd / 3rd / 4th Edition) — tên bản cụ thể nằm ở ScormPackage.SchemaVersion.</summary>
+    Scorm2004 = 1
+}
 
 /// <summary>Trạng thái phân công khóa học của người học.</summary>
 public enum EnrollmentStatus { Assigned = 0, InProgress = 1, Completed = 2, Failed = 3, Cancelled = 4 }
@@ -110,7 +135,31 @@ public enum NotificationType
 
     /// <summary>Nhắc nhở do CHÍNH người học tự hẹn giờ trên Lịch học (xem <see cref="StudyReminder"/>).
     /// Khác mọi loại trên ở chỗ giờ bắn do người học đặt, không do hệ thống suy ra từ hạn hoàn thành.</summary>
-    StudyReminder = 12
+    StudyReminder = 12,
+
+    /// <summary>Diễn biến của một chứng nhận BÊN NGOÀI (xem <see cref="ExternalCertificate"/>): báo nhân viên giấy
+    /// của mình đã được AI / Admin xác nhận, bị từ chối hoặc bị thu hồi. (Trước khi AI đối chiếu thay Admin, loại
+    /// này còn dùng để báo Admin có giấy mới chờ duyệt — thông báo cũ đó vẫn dẫn về đúng thẻ của Admin.)</summary>
+    ExternalCertificate = 13,
+
+    /// <summary>Học viên có phản hồi / bình luận / đánh giá mới về khóa học — thông báo cho chủ khóa học.</summary>
+    CourseFeedback = 14
+}
+
+/// <summary>Trạng thái của một chứng nhận bên ngoài do nhân viên tự tải lên.
+///
+/// GIÁ TRỊ SỐ LÀ VĨNH VIỄN — chúng nằm trong HBE_EXTERNAL_CERTIFICATE.STATUS của mọi giấy đã gửi.</summary>
+public enum ExternalCertificateStatus
+{
+    /// <summary>Vừa gửi lên, AI chưa đối chiếu xong (đang xếp hàng, hoặc máy chủ AI đang tắt).</summary>
+    Pending = 0,
+
+    /// <summary>Thông tin trên giấy khớp với thông tin khai và họ tên tài khoản (AI xác nhận, hoặc Admin xác
+    /// nhận tay) — chỉ lúc này mới vào danh sách chứng nhận in ra.</summary>
+    Approved = 1,
+
+    /// <summary>Không khớp / không đọc được, kèm lý do. Nhân viên xóa đi rồi gửi lại bản đúng.</summary>
+    Rejected = 2
 }
 
 /// <summary>Chu kỳ lặp của một lời nhắc học tập người dùng tự đặt.
@@ -293,4 +342,16 @@ public enum QuickReplyMatchType
     /// Ranh giới từ là phần bắt buộc: so chuỗi con thì từ khóa "hi" khớp luôn cả "lịch sử thi công" hay
     /// "quy trình nghiệm thu", và người hỏi nhận được lời chào thay cho câu trả lời họ cần.</summary>
     Contains = 1
+}
+
+/// <summary>Loại phản hồi của học viên về một khóa học.
+///
+/// GIÁ TRỊ SỐ LÀ VĨNH VIỄN — nằm trong HBE_COURSE_FEEDBACK.KIND.</summary>
+public enum FeedbackKind
+{
+    /// <summary>Bình luận về một vấn đề gặp phải trong quá trình học. Có thể có các trả lời từ Giảng Viên hoặc chủ khóa.</summary>
+    Comment = 0,
+
+    /// <summary>Đánh giá sao (1–5) cho khóa học sau khi hoàn thành. Mỗi học viên chỉ đánh giá một lần per enrollment, nhưng có thể sửa được.</summary>
+    Review = 1
 }

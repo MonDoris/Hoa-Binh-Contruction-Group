@@ -16,7 +16,13 @@
     --danger-light: #fee2e2;
     --info: #0891b2;
     --info-light: #cffafe;
-    
+
+    /* Hai chuỗi của biểu đồ "hoàn thành / chưa hoàn thành" ở trang Tổng quan. Không mượn --primary/--success:
+       xanh thương hiệu chỉ đạt 2.9:1 trên nền trắng (cột mảnh là mất hút), và đôi màu này đã được kiểm tách
+       bạch được cả với người mù màu đỏ–lục. Bản tối là bước khác của cùng hai sắc, không phải đảo màu. */
+    --viz-done: #2a78d6;
+    --viz-open: #eb6834;
+
     --sidebar-bg: #ffffff;
     --sidebar-hover: #f1f5f9;
     --sidebar-text: #475569;
@@ -42,6 +48,9 @@
     --shadow-primary: 0 8px 20px -6px rgba(0, 161, 230, .35);
     --sidebar-width: 246px;
     --sidebar-width-collapsed: 76px;
+    /* Chiều cao dải đầu trang — dùng chung cho thanh trên VÀ khối logo của thanh bên, để đường kẻ dưới của hai
+       khối nối liền thành một dải từ mép trái sang mép phải màn hình. */
+    --topbar-h: 64px;
 
     --font-sans: "Manrope", "Segoe UI", -apple-system, system-ui, "Helvetica Neue", sans-serif;
 
@@ -123,20 +132,29 @@ a:hover { text-decoration: underline; }
     transition: width .2s cubic-bezier(.4,0,.2,1);
 }
 
+/* Nút thu gọn: đứng yên thì chỉ là một icon mờ, rê chuột mới hiện khung — nó là việc phụ, không được tranh
+   chỗ với logo ở góc đẹp nhất màn hình. */
 .sidebar-toggle {
     margin-left: auto; flex-shrink: 0;
-    width: 30px; height: 30px; border-radius: 8px;
-    border: 1px solid var(--border); background: var(--surface);
+    width: 30px; height: 30px; border-radius: 9px;
+    border: 1px solid transparent; background: transparent;
     color: var(--sidebar-muted); cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    font-size: 15px; transition: background .15s, color .15s;
+    font-size: 15px; transition: background .15s, color .15s, border-color .15s, opacity .15s;
 }
-.sidebar-toggle:hover { background: var(--sidebar-hover); color: var(--text); }
+.sidebar-toggle:hover, .sidebar-toggle:focus-visible {
+    background: var(--sidebar-hover); border-color: var(--border); color: var(--text); outline: none;
+}
 .sidebar-toggle i { transition: transform .2s; }
 
+/* Khối logo cao ĐÚNG bằng thanh trên và mang cùng đường kẻ dưới: hai khối thành một dải đầu trang liền mạch, chữ
+   "HB E-Learning" thẳng hàng với tiêu đề trang. Trước đây khối này cao 77px còn thanh trên 65px — đường kẻ gãy
+   khúc ở mép thanh bên và hai dòng chữ lệch nhau. */
 .sidebar-brand {
-    padding: 18px 18px 16px;
+    position: relative; flex: none;
+    height: var(--topbar-h); padding: 0 14px 0 18px;
     display: flex; align-items: center; gap: 11px;
+    border-bottom: 1px solid var(--border);
 }
 .sidebar-brand img {
     width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px;
@@ -248,10 +266,18 @@ a:hover { text-decoration: underline; }
 @media (min-width: 901px) {
     body.sidebar-collapsed { --sidebar-width: var(--sidebar-width-collapsed); }
 
-    /* Logo và nút thu gọn xếp dọc cho vừa bề ngang còn lại. */
-    body.sidebar-collapsed .sidebar-brand { padding: 16px 0 14px; flex-direction: column; gap: 10px; }
+    /* Thu gọn: dải đầu vẫn cao đúng --topbar-h, chỉ còn logo ở giữa. Nút mở rộng nằm chồng lên logo, ẩn đi và
+       chỉ hiện khi rê chuột / focus bằng bàn phím — xếp logo với nút thành hai tầng như trước thì khối này cao
+       hơn thanh trên và đường kẻ lại gãy. Nút ẩn vẫn bấm được nên trên máy cảm ứng (không có rê chuột) chạm
+       vào logo là mở ra. */
+    body.sidebar-collapsed .sidebar-brand { padding: 0; justify-content: center; gap: 0; }
     body.sidebar-collapsed .sidebar-brand .txt { display: none; }
-    body.sidebar-collapsed .sidebar-toggle { margin-left: 0; }
+    body.sidebar-collapsed .sidebar-toggle {
+        position: absolute; inset: 0; margin: auto; width: 38px; height: 38px;
+        opacity: 0; background: var(--sidebar-bg); border-color: var(--border); box-shadow: var(--shadow-xs);
+    }
+    body.sidebar-collapsed .sidebar-brand:hover .sidebar-toggle,
+    body.sidebar-collapsed .sidebar-toggle:focus-visible { opacity: 1; }
     body.sidebar-collapsed .sidebar-toggle i { transform: rotate(180deg); }
 
     body.sidebar-collapsed .sidebar-nav { padding: 6px 10px 14px; }
@@ -284,10 +310,11 @@ a:hover { text-decoration: underline; }
 }
 .sidebar-backdrop.show { display: block; }
 
+/* Cùng khuôn 40px / bo 12px với nút kính lúp và hai khối bên phải thanh trên. */
 .mobile-menu-btn {
-    display: none; background: none; border: 1px solid var(--border);
-    border-radius: 8px; width: 36px; height: 36px; cursor: pointer;
-    font-size: 16px; color: var(--text); flex-shrink: 0;
+    display: none; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 12px; width: 40px; height: 40px; cursor: pointer;
+    font-size: 19px; color: var(--text); flex-shrink: 0;
 }
 
 .main {
@@ -295,85 +322,177 @@ a:hover { text-decoration: underline; }
     display: flex; flex-direction: column; min-width: 0;
     transition: margin-left .2s cubic-bezier(.4,0,.2,1);
 }
+/* ==================== THANH TRÊN (topbar) ====================
+   Ba vùng: tiêu đề trang | ô tìm kiếm | cụm bên phải. Cụm bên phải là hai KHỐI LIỀN — số liệu (chuỗi ngày,
+   điểm) và tiện ích (chat, chuông, sáng/tối, ngôn ngữ) — rồi tới hành động riêng của trang sau một vạch ngăn.
+   Mọi thứ cao 40px để cả hàng thẳng một đường. */
 .topbar {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 24px; display: flex; align-items: center;
-    justify-content: space-between; gap: 16px;
     position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    min-height: var(--topbar-h); padding: 0 24px;
+    background: transparent;
+    border-bottom: 1px solid var(--border);
+    transition: box-shadow .2s ease;
 }
-.topbar h1 { font-size: 17px; font-weight: 800; letter-spacing: -.3px; color: var(--text); }
-.topbar .sub { color: var(--text-muted); font-size: 12px; margin-top: 1px; }
+/* Nền mờ nằm ở lớp giả phía sau, KHÔNG đặt thẳng lên .topbar: backdrop-filter biến phần tử thành khối chứa của
+   mọi con position: fixed, mà trên điện thoại bảng chat và bảng thông báo (đều là con của thanh này) định vị
+   fixed theo màn hình — đặt lên .topbar là hai bảng đó bị nhốt vào trong thanh cao 64px. */
+.topbar::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: var(--surface);
+    background: color-mix(in srgb, var(--surface) 84%, transparent);
+    -webkit-backdrop-filter: saturate(1.6) blur(14px);
+    backdrop-filter: saturate(1.6) blur(14px);
+}
+/* Đứng ở đầu trang thì thanh hòa vào nền; cuộn xuống mới nổi lên (lớp is-scrolled do mountTopbarChrome bật). */
+.topbar.is-scrolled { box-shadow: 0 12px 24px -20px rgba(15, 23, 42, .5); }
 
-/* Ô tìm kiếm ở giữa thanh trên. Ẩn trên màn hình hẹp thay vì ép co lại: một ô tìm kiếm rộng 80px thì gõ
-   vào cũng không đọc được mình vừa gõ gì. */
-.topbar-search { position: relative; flex: 1; max-width: 340px; }
-.topbar-search i {
-    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+/* Khối tiêu đề là thứ NHƯỜNG chỗ: tiêu đề và dòng mô tả gọn một dòng, dài quá thì cắt bằng dấu ba chấm (dòng
+   mô tả đầy đủ vẫn ở thuộc tính title). Trang Thư viện 3D có dòng mô tả dài cả câu — để nó tự xuống dòng thì
+   thanh trên cao vọt lên 85px, còn để nó giành chỗ thì cụm nút bên phải bị đẩy lòi ra ngoài mép màn hình. */
+.topbar-title { min-width: 0; gap: 12px; }
+.topbar-heading { min-width: 0; }
+.topbar h1 { font-size: 17px; font-weight: 800; letter-spacing: -.3px; line-height: 1.25; color: var(--text); }
+.topbar .sub { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+.topbar h1, .topbar .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Ô biểu tượng của trang (icon của mục menu đang mở) — cùng khuôn 40px / bo 12px với mọi thứ trên thanh. Nền
+   xanh nhạt + viền trong rất mảnh cùng sắc, để ô có mép rõ cả trên nền trắng lẫn nền tối. */
+.topbar-icon {
+    flex: none; width: 40px; height: 40px; border-radius: 12px;
+    display: grid; place-items: center; font-size: 22px;
+    color: var(--primary); background: var(--primary-light);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+/* Liên kết "Bỏ qua tới nội dung chính" — phần tử đầu tiên của trang, nằm khuất phía trên mép màn hình, chỉ trượt
+   xuống khi được focus. Nổi trên cả thanh bên lẫn lớp phủ menu di động. */
+.skip-link {
+    position: fixed; left: 16px; top: 12px; z-index: 1000;
+    padding: 9px 14px; border-radius: 10px;
+    background: var(--primary); color: #fff; font-size: 13px; font-weight: 700;
+    transform: translateY(-200%); transition: transform .15s ease;
+}
+.skip-link:focus { transform: none; text-decoration: none; outline: 3px solid var(--primary-light); }
+.main .content:focus { outline: none; }
+
+/* Ô tìm kiếm: không viền khi đứng yên (chỉ một mảng nền nhạt), hiện viền khi rê chuột, sáng hẳn lên khi gõ.
+   Gợi ý phím tắt nằm bên phải ô và tự lặn khi đang gõ / đã có chữ. Ẩn trên màn hẹp thay vì ép co lại — một ô
+   rộng 80px thì gõ vào cũng không đọc được mình vừa gõ gì; ở đó nút kính lúp trong khối tiện ích thay chỗ. */
+.topbar-search { position: relative; flex: 1; min-width: 200px; max-width: 380px; }
+.topbar-search > i {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
     color: var(--text-muted); font-size: 16px; pointer-events: none;
 }
 .topbar-search input {
-    width: 100%; padding: 9px 12px 9px 36px;
-    border: 1px solid var(--border); border-radius: 10px;
+    width: 100%; height: 40px; padding: 0 70px 0 38px;
+    border: 1px solid transparent; border-radius: 12px;
     background: var(--bg); color: var(--text); font: inherit; font-size: 13px;
+    transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
+.topbar-search input:hover { border-color: var(--border); }
 .topbar-search input:focus {
     outline: none; background: var(--surface);
     border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light);
 }
+.topbar-kbd {
+    position: absolute; right: 9px; top: 50%; transform: translateY(-50%); pointer-events: none;
+    padding: 4px 7px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); box-shadow: 0 1px 0 var(--border);
+    font: 700 10.5px/1 var(--font-sans); letter-spacing: .3px; color: var(--text-muted);
+    transition: opacity .15s ease;
+}
+.topbar-search input:focus ~ .topbar-kbd,
+.topbar-search input:not(:placeholder-shown) ~ .topbar-kbd { opacity: 0; }
 
-/* Nửa bên phải thanh trên. Hai cụm tách bạch: tiện ích dùng chung ở mọi trang, rồi tới hành động riêng
-   của trang đang mở. Vạch ngăn mảnh giữa hai cụm làm việc của cả khoảng trắng lẫn dấu chấm câu — không có
-   nó thì bảy nút nằm cách đều nhau thành một hàng rào, mắt phải đọc từng chữ mới biết nút nào là nút chính. */
-.topbar-right { display: flex; align-items: center; min-width: 0; }
-.topbar-tools { display: flex; align-items: center; gap: 6px; }
+/* Nửa bên phải. Vạch ngăn mảnh trước cụm hành động của trang làm việc của cả khoảng trắng lẫn dấu chấm câu:
+   bên trái là tiện ích dùng chung ở mọi trang, bên phải là việc của riêng trang đang mở. */
+/* Cụm bên phải KHÔNG co: co lại thì nút bấm bị đẩy ra ngoài mép màn hình, còn tiêu đề cắt bớt chữ vẫn đọc được. */
+.topbar-right { display: flex; align-items: center; flex: none; }
+.topbar-tools { display: flex; align-items: center; gap: 8px; }
 .topbar-action { display: flex; align-items: center; gap: 8px; }
 .topbar-action:not(:empty) {
     margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--border);
 }
 
-/* Ba nút tiện ích (chuông, sáng/tối, ngôn ngữ) về chung một khuôn: cùng cao 34px, cùng bo góc. Trước đây
-   hai nút tròn đứng cạnh một nút bo góc vuông trông như ba thứ chắp vá từ ba màn hình khác nhau.
-   Chỉ đổi trong phạm vi .topbar — trang giới thiệu và trang đăng nhập dùng lại chính các class này. */
-.topbar .notif-btn,
-.topbar .theme-switch {
-    width: 34px; height: 34px; border-radius: 10px; flex: none;
-}
-.topbar .notif-btn svg { width: 18px; height: 18px; }
-.topbar .theme-switch { font-size: 16px; }
-.topbar .lang-switch {
-    height: 34px; padding: 0 9px; border-radius: 10px;
-    background: var(--bg); gap: 6px; font-size: 12px;
-}
-.topbar .lang-switch .flag { width: 19px; height: 13px; }
-
-/* Viên chỉ số (chuỗi ngày, điểm tích lũy) — số liệu tóm tắt luôn nhìn thấy ở mọi màn hình.
-   Nền để trung tính, chỉ riêng icon giữ màu: hai mảng nền cam và xanh đặc nằm sát nhau hút mắt mạnh hơn cả
-   nút chính của trang, mà chúng chỉ là số liệu tham khảo. Nền trung tính cũng là cách duy nhất để hai viên
-   này không chóe lên khi bật giao diện tối. */
-.topbar-pill {
-    display: inline-flex; align-items: center; gap: 5px;
-    height: 34px; padding: 0 10px; border-radius: 10px;
+/* Khối liền: một nền, một viền, bo 12px — các con bên trong không có viền riêng. */
+.topbar-stats,
+.topbar-dock {
+    display: flex; align-items: center; gap: 2px;
+    min-height: 40px; padding: 3px; border-radius: 12px;
     border: 1px solid var(--border); background: var(--bg);
-    font-size: 12.5px; font-weight: 700; color: var(--text);
-    white-space: nowrap;
 }
-.topbar-pill i { font-size: 15px; }
+/* Chưa viên số liệu nào được đổ vào (API xếp hạng chưa trả, hoặc vai trò không có) thì giấu luôn cái vỏ rỗng. */
+.topbar-stats:not(:has(.topbar-pill:not(.hidden))) { display: none; }
+
+/* Viên chỉ số — số liệu tham khảo nên nền trung tính, chỉ icon giữ màu; hai mảng nền cam và xanh đặc nằm
+   sát nhau sẽ hút mắt hơn cả nút chính của trang, và chóe lên khi bật giao diện tối. */
+.topbar-pill {
+    position: relative; display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 10px; border-radius: 9px;
+    font-size: 12.5px; font-weight: 800; color: var(--text); white-space: nowrap;
+}
+.topbar-pill:not(.hidden) + .topbar-pill:not(.hidden) { margin-left: 3px; }
+.topbar-pill:not(.hidden) + .topbar-pill:not(.hidden)::before {
+    content: ""; position: absolute; left: -3px; top: 8px; bottom: 8px; width: 1px; background: var(--border);
+}
+.topbar-pill i { font-size: 16px; }
 .topbar-pill.streak i { color: #f97316; }
 .topbar-pill.point i { color: var(--primary); }
-/* Viên điểm bấm được thì phải TRÔNG như bấm được — không có gì gợi ý thì nó vẫn chỉ là một con số, và
-   đường vào cửa hàng coi như không tồn tại. Chỉ nhấc nhẹ khi rê chuột: đây vẫn là chỉ số, không phải nút. */
-.topbar-pill.clickable { cursor: pointer; }
-.topbar-pill.clickable:hover { border-color: var(--primary); background: var(--primary-light); }
+/* Viên điểm bấm được (dẫn vào cửa hàng) thì phải TRÔNG như bấm được — nhấc nhẹ khi rê chuột, giống hệt các nút
+   trong khối tiện ích bên cạnh. */
+.topbar-pill.clickable { cursor: pointer; transition: background-color .15s ease, box-shadow .15s ease; }
+.topbar-pill.clickable:hover { background: var(--surface); box-shadow: var(--shadow-xs); }
 
-/* Nút hành động của trang thấp hơn nút trong thân trang một chút, để cả hàng bên phải cùng cao 34px. */
-.topbar-action .btn { padding: 0 13px; height: 34px; font-size: 13px; }
+/* Nút trong khối tiện ích: không viền, không nền, icon màu chữ phụ; rê chuột thì nút "nhô" lên thành một ô
+   trắng nhỏ trong khối. Chỉ đổi trong phạm vi .topbar-dock — trang đăng nhập dùng lại chính các class này. */
+.topbar-dock .notif-btn,
+.topbar-dock .theme-switch {
+    width: 32px; height: 32px; flex: none;
+    border: 0; border-radius: 9px; background: transparent; color: var(--text-muted);
+    transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.topbar-dock .notif-btn svg { width: 18px; height: 18px; }
+.topbar-dock .notif-btn i { font-size: 19px; }
+.topbar-dock .theme-switch { font-size: 17px; }
+.topbar-dock .lang-switch {
+    height: 32px; padding: 0 8px; gap: 6px;
+    border: 0; border-radius: 9px; background: transparent; box-shadow: none; font-size: 12px;
+}
+.topbar-dock .lang-switch .flag { width: 19px; height: 13px; }
+.topbar-dock .notif-btn:hover,
+.topbar-dock .theme-switch:hover,
+.topbar-dock .lang-switch:hover,
+.topbar-dock .notif-btn[aria-expanded="true"] {
+    background: var(--surface); color: var(--text); box-shadow: var(--shadow-xs);
+}
+.topbar-dock .notif-btn:focus-visible,
+.topbar-dock .theme-switch:focus-visible,
+.topbar-dock .lang-switch:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+/* Huy hiệu số ngồi trên GÓC nút, nửa trong nửa ngoài — đặt sát vào trong thì số hai chữ số ("11") che mất
+   gần hết cái chuông. Viền cùng màu nền khối để tách khỏi icon bên dưới. */
+.topbar-dock .notif-badge { top: -6px; right: -7px; border-color: var(--bg); }
+
+/* Nút kính lúp thay ô tìm kiếm trên màn hẹp — cùng khuôn 40px, cùng nền và viền với hai khối bên phải. */
+.topbar-search-toggle {
+    display: none; flex: none; align-items: center; justify-content: center;
+    width: 40px; height: 40px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
+    color: var(--text-muted); font-size: 19px;
+    transition: background-color .15s ease, color .15s ease;
+}
+.topbar-search-toggle:hover,
+.topbar-search-toggle[aria-expanded="true"] { background: var(--surface); color: var(--text); }
+.topbar-search-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+/* Nút hành động của trang cùng cao 40px với hai khối bên trái vạch ngăn. */
+.topbar-action .btn { padding: 0 14px; height: 40px; font-size: 13px; border-radius: 11px; }
 
 /* Nút "…" gom các việc phụ. Cùng khuôn với ba nút tiện ích bên trái vạch ngăn. */
 .topbar-more {
-    width: 34px; height: 34px; flex: none; cursor: pointer;
+    width: 40px; height: 40px; flex: none; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
-    border: 1px solid var(--border); border-radius: 10px;
+    border: 1px solid var(--border); border-radius: 11px;
     background: var(--bg); color: var(--text); font-size: 18px;
     transition: background-color .15s ease, border-color .15s ease;
 }
@@ -398,15 +517,31 @@ a:hover { text-decoration: underline; }
 :root[data-theme="dark"] .pop-menu { box-shadow: 0 14px 34px rgba(0, 0, 0, .55); }
 
 
-@media (max-width: 1180px) {    
-    .topbar-action .btn:has(span) { width: 34px; padding: 0; }
-    .topbar-action .btn span { display: none; }    
+@media (max-width: 1180px) {
+    .topbar-action .btn:has(span) { width: 40px; padding: 0; }
+    .topbar-action .btn span { display: none; }
     .topbar-action { flex-wrap: wrap; justify-content: flex-end; }
+    /* Trang có nút hành động riêng (thường là trang quản lý): nhường chỗ cho tiêu đề bằng cách cất khối chuỗi
+       ngày / điểm và rút nút ngôn ngữ còn lá cờ. Không làm vậy thì ở 1024px trang Người dùng (ba nút) chỉ còn
+       đọc được "Quản lý n…". Trang không có nút riêng (trang của học viên) vẫn giữ nguyên khối số liệu. */
+    .topbar-right:has(.topbar-action:not(:empty)) .topbar-stats { display: none; }
+    .topbar-right:has(.topbar-action:not(:empty)) .lang-switch > span,
+    .topbar-right:has(.topbar-action:not(:empty)) .lang-caret { display: none; }
+}
+
+/* Từ laptop nhỏ trở xuống (trừ thanh bên 246px, phần còn lại chỉ ~850px) ô tìm kiếm 200px cộng cụm bên phải
+   là tiêu đề hết chỗ. Cất ô đi, nút kính lúp thay chỗ: bấm là ô trải ra thành một dòng riêng ngay dưới thanh,
+   rộng hết bề ngang (xem mountTopbarSearch). */
+@media (max-width: 1100px) {
+    .topbar-search { display: none; }
+    .topbar-search-toggle { display: inline-flex; margin-left: auto; }
+    .topbar.search-open { flex-wrap: wrap; row-gap: 10px; padding-top: 12px; padding-bottom: 12px; }
+    .topbar.search-open .topbar-search { display: block; order: 10; flex: 1 0 100%; max-width: none; }
 }
 
 .content { padding: 22px 24px; flex: 1; }
 @media (max-width: 720px) {
-    .topbar-pill { display: none; }
+    .topbar-stats { display: none; }
     .topbar { padding: 10px 14px; gap: 10px; }
     .topbar h1 { font-size: 15.5px; }
 }
@@ -621,8 +756,34 @@ a:hover { text-decoration: underline; }
 .btn.danger:hover:not(:disabled) { background: #b91c1c; box-shadow: 0 8px 20px -6px rgba(220, 38, 38, .35); }
 .btn.success { background: var(--success); }
 .btn.success:hover:not(:disabled) { background: #15803d; box-shadow: 0 8px 20px -6px rgba(22, 163, 74, .35); }
+/* Nút viền chữ đỏ — thao tác nguy hiểm nhưng KHÔNG phải nút chính (Từ chối cạnh Duyệt, Xóa trong một hàng
+   thao tác). Nút đỏ đặc giành mất sự chú ý của nút chính đứng ngay bên cạnh. */
+.btn.ghost.danger { background: var(--surface); color: var(--danger); border-color: var(--border); }
+.btn.ghost.danger:hover:not(:disabled) { background: var(--danger-light); border-color: var(--danger); box-shadow: none; }
 .btn.sm { padding: 6px 11px; font-size: 12.5px; }
 .btn.block { width: 100%; }
+/* Nút vuông chỉ có biểu tượng (menu "⋯" cuối một dòng). */
+.btn.icon { padding: 0; width: 32px; height: 32px; }
+.btn.icon.sm { width: 30px; height: 30px; }
+
+/* Ảnh bìa thu nhỏ của khóa học trong danh sách (xem courseThumbHtml trong js/app.js): ảnh thật nếu có,
+   không thì mảng màu theo tên khóa học. Ảnh nằm tuyệt đối để kích thước gốc của ảnh không kéo giãn khung. */
+.course-mini-thumb {
+    position: relative; flex-shrink: 0; overflow: hidden;
+    width: 88px; height: 60px; border-radius: 10px;
+    display: grid; place-items: center; color: rgba(255, 255, 255, .8); font-size: 26px;
+    background: var(--cover-fallback, linear-gradient(135deg, var(--primary), var(--primary-dark)));
+}
+.course-mini-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+/* Ảnh bìa hiện trọn vẹn (xem courseCoverHtml trong js/app.js): ảnh thật nằm gọn trong khung, phần thừa phủ bằng
+   bản phóng to + làm mờ của chính nó. Có ảnh thì giấu biểu tượng dự phòng và bỏ mảng màu nền. Viết kèm tên khung
+   để thắng luật "img { object-fit: cover }" sẵn có của từng khung. */
+.course-mini-thumb.has-cover, .dash-thumb.has-cover { background: var(--bg); }
+.has-cover > i { display: none; }
+.has-cover .cover-backdrop, .has-cover .cover-image { position: absolute; inset: 0; width: 100%; height: 100%; }
+.has-cover .cover-backdrop { object-fit: cover; filter: blur(14px) saturate(1.1); transform: scale(1.25); opacity: .65; }
+.has-cover .cover-image { object-fit: contain; }
 
 /* Biểu mẫu */
 .field { margin-bottom: 15px; }
@@ -1208,6 +1369,139 @@ body.learn-tree-collapsed .learn-tree-toggle i { transform: rotate(180deg); }
 .drop-zone.compact { padding: 24px 18px; border-radius: 12px; }
 .drop-zone.compact .big { font-size: 32px; margin-bottom: 6px; }
 
+/* ==================== GÓI SCORM (trang soạn khóa học) ==================== */
+.scorm-pkg-list { display: flex; flex-direction: column; gap: 12px; }
+.scorm-pkg { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
+.scorm-pkg-main { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; flex-wrap: wrap; }
+.scorm-pkg-icon {
+    width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    background: var(--primary-light); color: var(--primary-dark); font-size: 24px;
+}
+.scorm-pkg-body { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 4px; }
+.scorm-pkg-title { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 15px; }
+.scorm-pkg-warn {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; padding: 6px 10px;
+    border-radius: 8px; background: var(--warning-light); color: #b45309; font-size: 13px; font-weight: 600;
+}
+.scorm-pkg-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.scorm-tree { border-top: 1px solid var(--border); padding: 10px 16px 14px; max-height: 360px; overflow-y: auto; }
+.scorm-tree.hidden { display: none; }
+.scorm-tree-node { display: flex; gap: 8px; align-items: center; padding: 4px 0; font-size: 13.5px; }
+.scorm-tree-node > i { color: var(--text-muted); font-size: 16px; }
+tr.clickable { cursor: pointer; }
+.scorm-activity { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+.scorm-activity-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.scorm-activity details { margin-top: 8px; }
+.scorm-activity summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--primary-dark); }
+.scorm-interaction-table td { word-break: break-word; max-width: 260px; }
+
+/* ==================== CẤU TRÚC KHÓA HỌC (SCORM ORGANIZATION) — trang soạn khóa học ====================
+   Cây chương / mục của khóa học: mỗi dòng là một <item> của gói SCORM. Thụt lề theo độ sâu (--depth), chương có
+   nền nhạt và đường dọc nối các mục bên trong để nhìn ra phạm vi của cụm. */
+.org-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 18px; border-bottom: 1px solid var(--border); background: var(--bg);
+}
+.org-bar .grow { flex: 1; }
+.org-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.org-switch input { width: auto; margin: 0; }
+.org-body { padding: 10px 12px 16px; }
+.org-tree { display: flex; flex-direction: column; gap: 4px; }
+.org-row {
+    --depth: 0;
+    display: flex; align-items: flex-start; gap: 10px;
+    margin-left: calc(var(--depth) * 26px); padding: 9px 10px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface); position: relative;
+}
+.org-row:hover { border-color: var(--primary-light); }
+.org-row.module { background: var(--bg); border-style: solid; }
+.org-row.module .org-title { font-weight: 800; }
+.org-row.depth-child::before {
+    content: ''; position: absolute; left: -15px; top: -6px; bottom: 50%; width: 12px;
+    border-left: 2px solid var(--border); border-bottom: 2px solid var(--border); border-bottom-left-radius: 8px;
+}
+.org-row.muted-row .org-title { color: var(--text-muted); }
+.org-ic {
+    width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 17px; background: var(--primary-light); color: var(--primary-dark);
+}
+.org-ic.Module { background: #fef3c7; color: #b45309; }
+.org-ic.Quiz { background: #fce7f3; color: #be185d; }
+.org-ic.Simulation { background: #ede9fe; color: #6d28d9; }
+.org-ic.Scorm { background: #dcfce7; color: #15803d; }
+[data-theme='dark'] .org-ic.Module { background: rgba(245, 158, 11, .16); color: #fbbf24; }
+[data-theme='dark'] .org-ic.Quiz { background: rgba(236, 72, 153, .16); color: #f472b6; }
+[data-theme='dark'] .org-ic.Simulation { background: rgba(139, 92, 246, .18); color: #a78bfa; }
+[data-theme='dark'] .org-ic.Scorm { background: rgba(34, 197, 94, .16); color: #4ade80; }
+.org-main { flex: 1; min-width: 0; }
+.org-title { font-size: 14px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.org-aid {
+    font: 600 11px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--text-muted);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0 6px;
+}
+.org-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; font-size: 12.5px; color: var(--text-muted); }
+.org-tag { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 1px 8px; font-size: 11.5px; font-weight: 700; background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); }
+.org-tag.req { background: var(--primary-light); border-color: transparent; color: var(--primary-dark); }
+.org-tag.warn { background: var(--warning-light); border-color: transparent; color: #b45309; }
+.org-note { margin-top: 6px; font-size: 12.5px; font-weight: 600; color: #b45309; display: flex; gap: 6px; align-items: center; }
+.org-actions { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.org-actions .btn { width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.org-unplaced { margin-top: 18px; border-top: 1px dashed var(--border); padding-top: 12px; }
+.org-unplaced h4 { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; }
+.org-unplaced-item { display: flex; align-items: center; gap: 10px; padding: 6px 4px; font-size: 13.5px; }
+.org-unplaced-item > span { flex: 1; min-width: 0; }
+.org-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.org-hint code { font-size: 11.5px; }
+@media (max-width: 640px) {
+    .org-row { margin-left: calc(var(--depth) * 12px); }
+    .org-row.depth-child::before { display: none; }
+}
+
+/* Chọn nguồn nội dung khi tạo khóa học (soạn trên hệ thống / từ gói SCORM). */
+.source-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+.source-opt {
+    display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid var(--border);
+    border-radius: 12px; cursor: pointer; background: var(--surface);
+}
+.source-opt input { width: auto; margin-top: 3px; flex-shrink: 0; }
+.source-opt b { display: block; font-size: 14px; }
+.source-opt small { display: block; color: var(--text-muted); font-size: 12.5px; margin-top: 2px; line-height: 1.4; }
+.source-opt:has(input:checked) { border-color: var(--primary); background: var(--primary-light); }
+@media (max-width: 640px) { .source-choice { grid-template-columns: 1fr; } }
+
+/* ==================== TRANG SCO (chạy trong khung nội dung của trình phát SCORM) ====================
+   Không thanh bên, không thanh trên — trình phát đã có mục lục, nút Tiếp/Trước và tên khóa học. */
+body.sco-mode { background: var(--bg); min-height: 100vh; }
+/* Trang dùng chung bố cục .main / .content (VD mô phỏng 3D) khi chạy làm SCO: không có thanh bên để chừa chỗ. */
+body.sco-mode .main { margin-left: 0 !important; }
+body.sco-mode .content { padding: 14px 16px; }
+.sco-head {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 12px; padding: 12px 22px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.sco-head-text { flex: 1; min-width: 0; }
+.sco-head h1 { margin: 0; font-size: 18px; line-height: 1.3; overflow-wrap: anywhere; }
+.sco-sub { font-size: 12.5px; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+.sco-sub:empty { display: none; }
+.sco-head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.sco-main { max-width: 1080px; margin: 0 auto; padding: 22px 22px 40px; }
+.sco-main.wide { max-width: 1400px; }
+.sco-done-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    margin-top: 20px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface);
+}
+.sco-done-bar.done { border-color: var(--success); background: var(--success-light); }
+.sco-done-bar .small { display: flex; gap: 6px; align-items: center; }
+.sco-preview-note {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 14px; padding: 8px 12px; border-radius: 10px;
+    background: var(--warning-light); color: #b45309; font-size: 13px; font-weight: 600;
+}
+@media (max-width: 640px) {
+    .sco-head { padding: 10px 14px; }
+    .sco-main { padding: 14px 12px 28px; }
+}
+
 /* ==================== TÀI LIỆU NHÚNG TRONG BÀI HỌC ====================
    Bài học dạng PDF hiện thẳng bản gốc trong trang thay vì chỉ đưa một đường dẫn tải về. */
 .pdf-embed {
@@ -1678,9 +1972,23 @@ body.learn-tree-collapsed .learn-tree-toggle i { transform: rotate(180deg); }
 .pm-item + .pm-item { margin-top: 2px; }
 .pm-item:hover { background: var(--bg); border-color: var(--border); }
 
-/* Bài kiểm tra gắn theo một bài học ("con" của bài học) — thụt vào, dính liền ngay dưới bài học đó */
+/* Bước đi theo một bài học (bài kiểm tra / mô phỏng 3D của bài đó) — thụt vào, dính liền ngay dưới bài học */
 .pm-item.child { margin-left: 30px; margin-top: 0; background: var(--bg); border-color: var(--border); }
 .pm-item.child .pm-mark { width: 24px; height: 24px; font-size: 12px; }
+
+/* Bài học có bước đi theo: bấm cả dòng để xổ / gập các bước đó. Mặc định gập. */
+.pm-branch + .pm-branch { margin-top: 2px; }
+.pm-item.has-children { cursor: pointer; }
+.pm-child-count {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    background: var(--primary-light); color: var(--primary-dark);
+}
+.pm-child-count i { font-size: 10px; transition: transform .18s ease; }
+.pm-branch.open .pm-child-count i { transform: rotate(180deg); }
+.pm-children { display: none; margin: 2px 0 6px; }
+.pm-branch.open > .pm-children { display: block; }
+.pm-children .pm-item + .pm-item { margin-top: 4px; }
 
 .pm-mark {
     width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;
@@ -1921,8 +2229,9 @@ body.learn-tree-collapsed .learn-tree-toggle i { transform: rotate(180deg); }
         box-shadow: none;
     }
     .sidebar.open { transform: none; }
-    .topbar-search { display: none; }
     .mobile-menu-btn { display: inline-flex; align-items: center; justify-content: center; }
+    /* Màn hẹp: nút menu đã đứng đúng chỗ của ô biểu tượng trang, hai ô vuông cạnh nhau chỉ tốn chỗ của tiêu đề. */
+    .topbar-icon { display: none; }
     .main { margin-left: 0; }
     .learn-grid,
     body.learn-tree-collapsed .learn-grid { grid-template-columns: 1fr; }
@@ -1939,7 +2248,8 @@ body.learn-tree-collapsed .learn-tree-toggle i { transform: rotate(180deg); }
         writing-mode: horizontal-tb; font-size: 15px; color: var(--text);
     }
     body.learn-tree-collapsed .learn-tree-toggle i { transform: rotate(90deg); }
-    .content, .topbar { padding: 16px; }
+    .content { padding: 16px; }
+    .topbar { padding: 10px 16px; }
 }
 
 .ql-toolbar.ql-snow { border-color: var(--border); border-radius: 8px 8px 0 0; }
@@ -2666,6 +2976,7 @@ body.learn-tree-collapsed .learn-tree-toggle i { transform: rotate(180deg); }
     height: 128px; position: relative; display: grid; place-items: center;
     color: rgba(255, 255, 255, .55); font-size: 40px;
     overflow: hidden;
+    background: var(--cover-fallback, linear-gradient(135deg, var(--primary), var(--primary-dark)));
 }
 /* Ảnh bìa phải nằm TUYỆT ĐỐI trong khung. Để nó làm ô lưới bình thường thì hàng lưới bị giãn theo kích
    thước gốc của ảnh (min-content thắng height: 128px), ảnh tràn xuống che mất tiêu đề khóa học. */
@@ -2748,6 +3059,157 @@ body.learn-tree-collapsed .learn-tree-toggle i { transform: rotate(180deg); }
 .dash-rank .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash-rank .pt { color: var(--text-muted); font-weight: 700; font-size: 11.5px; }
 
+/* ==================== TỔNG QUAN QUẢN LÝ ("bảng điều hành") ====================
+   Phần số liệu của Admin / Tổng Giám Đốc / Trưởng Nhóm. Bốn chỉ số là MỘT dải liền chia ô bằng đường kẻ mảnh —
+   đọc một lượt từ trái sang phải như mặt đồng hồ của một bảng điều khiển, thay vì bốn thẻ rời phải nhìn từng cái.
+   Bên dưới là một khung biểu đồ duy nhất: hai biểu đồ dùng chung chú thích, chung bộ lọc năm, chung nút đổi dạng xem. */
+.ops { display: flex; flex-direction: column; gap: 18px; margin-bottom: 20px; }
+.ops.mt { margin: 20px 0 0; }
+
+@keyframes ops-rise { from { opacity: 0; transform: translateY(6px); } }
+@keyframes trend-grow { from { transform: scaleY(0); } }
+
+.ops-kpi {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs); overflow: hidden;
+}
+.ops-kpi-cell {
+    position: relative; display: flex; flex-direction: column; gap: 3px; min-width: 0;
+    padding: 18px 20px 16px; color: inherit; border-left: 1px solid var(--border);
+    animation: ops-rise .5s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 70ms);
+    transition: background .2s;
+}
+.ops-kpi-cell:first-child { border-left: 0; }
+/* Vạch màu nhận diện trên đỉnh ô — chỉ để nhận ra ô, không mang số liệu nào. */
+.ops-kpi-cell::before {
+    content: ""; position: absolute; left: 20px; right: 20px; top: 0; height: 3px;
+    border-radius: 0 0 3px 3px; background: var(--tone);
+}
+a.ops-kpi-cell:hover, a.ops-kpi-cell:focus-visible {
+    background: color-mix(in srgb, var(--tone) 6%, var(--surface)); text-decoration: none; outline: none;
+}
+.ops-kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ops-kpi-label { font-size: 12.5px; font-weight: 700; color: var(--text-muted); }
+.ops-kpi-icon {
+    flex: none; width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center;
+    font-size: 17px; color: var(--tone); background: color-mix(in srgb, var(--tone) 14%, var(--surface));
+}
+.ops-kpi-value { font-size: 32px; font-weight: 800; letter-spacing: -1px; line-height: 1.1; margin-top: 4px; }
+.ops-kpi-foot { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.ops-kpi-foot .go { margin-left: auto; color: var(--text); opacity: 0; transform: translateX(-4px); transition: .2s; }
+a.ops-kpi-cell:hover .go, a.ops-kpi-cell:focus-visible .go { opacity: 1; transform: none; }
+
+@media (max-width: 900px) {
+    .ops-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ops-kpi-cell:nth-child(3) { border-left: 0; }
+    .ops-kpi-cell:nth-child(n + 3) { border-top: 1px solid var(--border); }
+}
+@media (max-width: 480px) {
+    .ops-kpi { grid-template-columns: minmax(0, 1fr); }
+    .ops-kpi-cell { border-left: 0; }
+    .ops-kpi-cell + .ops-kpi-cell { border-top: 1px solid var(--border); }
+}
+
+/* ---------- Khung "Mức độ hoàn thành" ---------- */
+.ops-trend {
+    position: relative; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
+    animation: ops-rise .5s .2s cubic-bezier(.2, .7, .2, 1) both;
+}
+.ops-trend-head {
+    display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px;
+    padding: 18px 20px 15px; border-bottom: 1px solid var(--border);
+}
+.ops-trend-head h3 { font-size: 17px; font-weight: 800; letter-spacing: -.3px; }
+.ops-trend-head p { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
+.ops-trend-head p b { color: var(--text); font-size: 13.5px; }
+.ops-filter { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; }
+.ops-legend { display: flex; gap: 14px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.ops-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ops-legend i { width: 10px; height: 10px; border-radius: 3px; }
+.ops-year { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.ops-year select { width: auto; min-width: 86px; padding: 5px 28px 5px 10px; font-size: 12.5px; font-weight: 700; }
+/* Nút đổi "Biểu đồ / Bảng" — bảng là bản đọc được không cần rê chuột, cho cả trình đọc màn hình. */
+.ops-seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); }
+.ops-seg button {
+    display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; cursor: pointer;
+    padding: 5px 12px; border-radius: 999px; font: 600 12px/1.2 var(--font-sans); color: var(--text-muted);
+}
+.ops-seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow-xs); }
+
+.ops-trend-body { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.ops-trend-pane { min-width: 0; padding: 16px 20px 18px; transition: opacity .2s; }
+.ops-trend-pane + .ops-trend-pane { border-left: 1px solid var(--border); }
+/* Đổi năm: giữ nguyên hình cũ, mờ đi trong lúc chờ — không chớp khung xương, không nhảy bố cục. */
+.ops-trend-pane.is-loading { opacity: .45; pointer-events: none; }
+.ops-pane-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 14px; font-size: 13px; font-weight: 700; }
+.ops-pane-title small { font-size: 11.5px; font-weight: 600; color: var(--text-muted); text-align: right; }
+@media (max-width: 1000px) {
+    .ops-trend-body { grid-template-columns: minmax(0, 1fr); }
+    .ops-trend-pane + .ops-trend-pane { border-left: 0; border-top: 1px solid var(--border); }
+}
+
+/* ---------- Biểu đồ cột chồng ----------
+   Cột mảnh (tối đa 24px), bo 4px ở đầu cột và vuông ở chân, các khúc cách nhau 2px màu nền thay vì kẻ viền.
+   Cả ô cột (không chỉ phần tô màu) là vùng rê chuột / bấm. */
+.trend { display: grid; grid-template-columns: 30px minmax(0, 1fr); grid-template-rows: 210px auto; }
+.trend-yaxis { position: relative; }
+.trend-yaxis span {
+    position: absolute; right: 8px; transform: translateY(50%);
+    font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+.trend-plot { position: relative; border-bottom: 1px solid color-mix(in srgb, var(--text-muted) 45%, transparent); }
+.trend-grid { position: absolute; inset: 0; pointer-events: none; }
+.trend-grid i { position: absolute; left: 0; right: 0; height: 1px; background: var(--border); }
+.trend-cols { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }
+.trend-col {
+    position: relative; display: flex; align-items: flex-end; justify-content: center;
+    margin: 0 2px; padding: 0; border: 0; border-radius: 8px 8px 0 0; background: transparent;
+    font: inherit; color: inherit; outline: none;
+}
+button.trend-col { cursor: pointer; }
+.trend-col:hover, .trend-col:focus-visible { background: color-mix(in srgb, var(--text) 5%, transparent); }
+.trend-col:focus-visible { box-shadow: inset 0 0 0 2px var(--primary); }
+.trend-col.is-selected { background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.trend-bar { width: min(24px, 60%); display: flex; flex-direction: column; gap: 2px; transform-origin: bottom; }
+.trend-bar span { flex: var(--v) 1 0; min-height: 2px; }
+.trend-bar span:first-child { border-radius: 4px 4px 0 0; }
+.trend-bar .done { background: var(--viz-done); }
+.trend-bar .open { background: var(--viz-open); }
+.trend-col:hover .trend-bar, .trend-col:focus-visible .trend-bar { filter: brightness(1.12); }
+.ops-trend:not(.is-ready) .trend-bar {
+    animation: trend-grow .65s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(.25s + var(--i, 0) * 35ms);
+}
+.trend-xaxis { grid-column: 2; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); padding-top: 7px; }
+.trend-xaxis span { text-align: center; font-size: 11px; font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.trend-xaxis span.is-selected { color: var(--text); font-weight: 800; }
+.trend-empty {
+    position: absolute; inset: 0; display: grid; place-items: center; padding: 0 20px;
+    text-align: center; font-size: 12.5px; color: var(--text-muted); pointer-events: none;
+}
+
+/* Một chú thích nổi dùng chung cho mọi cột — số đứng trước, tên chuỗi đứng sau, khóa màu là một nét ngắn. */
+.trend-tip {
+    position: absolute; z-index: 5; min-width: 168px; padding: 9px 11px; pointer-events: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg);
+    font-size: 12px; color: var(--text-muted); transform: translate(-50%, calc(-100% - 8px));
+    opacity: 0; transition: opacity .12s;
+}
+.trend-tip.on { opacity: 1; }
+.trend-tip .tt-title { margin-bottom: 6px; font-size: 11.5px; font-weight: 700; }
+.trend-tip .tt-row { display: flex; align-items: center; gap: 8px; line-height: 1.7; }
+.trend-tip .tt-row b { min-width: 20px; font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+.trend-tip .tt-key { width: 12px; height: 3px; border-radius: 2px; }
+.trend-tip .tt-foot { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+
+.trend-table td.num, .trend-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.trend-table tr.is-selected td { background: color-mix(in srgb, var(--primary) 8%, transparent); font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) {
+    .ops-kpi-cell, .ops-trend, .ops-trend:not(.is-ready) .trend-bar { animation: none; }
+}
+
 /* ==================== BỐ CỤC BIỂU MẪU TRONG HỘP THOẠI ==================== */
 /* Tiêu đề nhóm chia biểu mẫu dài thành từng mảng có nghĩa. Một hộp thoại mười ô nhập xếp thẳng hàng thì
    người dùng phải đọc hết từng nhãn mới biết ô nào thuộc việc gì. */
@@ -2819,6 +3281,9 @@ body.learn-tree-collapsed .learn-tree-toggle i { transform: rotate(180deg); }
     --info: #22d3ee;
     --info-light: #0b3038;
 
+    --viz-done: #3987e5;
+    --viz-open: #d95926;
+
     --sidebar-bg: #0f172a;
     --sidebar-hover: #1e293b;
     --sidebar-text: #cbd5e1;
@@ -2855,6 +3320,9 @@ body.learn-tree-collapsed .learn-tree-toggle i { transform: rotate(180deg); }
         --danger-light: #3b1717;
         --info: #22d3ee;
         --info-light: #0b3038;
+
+        --viz-done: #3987e5;
+        --viz-open: #d95926;
 
         --sidebar-bg: #0f172a;
         --sidebar-hover: #1e293b;
@@ -2995,7 +3463,10 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
    hình, phần né vùng khuất phải tự lo ở đây. Không có mấy dòng này thì nút trên cùng nằm dưới tai thỏ và
    nút dưới cùng bị thanh vuốt của iOS chồng lên. */
 @supports (padding: env(safe-area-inset-left)) {
-    .topbar { padding-top: max(12px, env(safe-area-inset-top)); }
+    /* Desktop: thanh trên không có đệm dọc (cao đúng --topbar-h, xem .topbar) nên chỉ cộng phần tai thỏ — máy
+       tính thì phần đó bằng 0. Màn hẹp có đệm 10px, giữ đệm đó khi không có tai thỏ. */
+    .topbar { padding-top: env(safe-area-inset-top); }
+    @media (max-width: 900px) { .topbar { padding-top: max(10px, env(safe-area-inset-top)); } }
     .sidebar { padding-top: env(safe-area-inset-top); }
     .sidebar-user { margin-bottom: max(14px, env(safe-area-inset-bottom)); }
     .content { padding-bottom: max(22px, calc(22px + env(safe-area-inset-bottom))); }
@@ -3018,7 +3489,7 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
        mà dòng nào cũng cao thêm 10px thì phải cuộn gấp rưỡi. 40px vẫn đủ để không bấm nhầm sang nút bên. */
     .btn.sm { min-height: 40px; }
 
-    .notif-btn, .theme-switch, .topbar-more, .mobile-menu-btn,
+    .notif-btn, .theme-switch, .topbar-more, .mobile-menu-btn, .topbar-search-toggle,
     .topbar .notif-btn, .topbar .theme-switch, .lang-switch, .close-x {
         min-width: 44px; min-height: 44px;
     }
@@ -3145,6 +3616,9 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
     }
     .topbar-right { flex: none; }
     .topbar-tools { gap: 4px; }
+    /* Máy cảm ứng không có bàn phím vật lý để bấm Ctrl K — gợi ý phím tắt chỉ chiếm chỗ của chữ gõ vào. */
+    .topbar-kbd { display: none; }
+    .topbar-search input { padding-right: 12px; }
 
     /* --- Hàng lọc/tìm kiếm trong đầu thẻ ---
        Các trang đặt bề rộng thẳng vào thuộc tính style (VD style="width:280px"), cộng lại vượt bề ngang
@@ -3200,6 +3674,16 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
        đủ, không cắt cụt), dòng dưới là toàn bộ nút, canh phải. */
     .topbar { flex-wrap: wrap; row-gap: 10px; }
     .topbar-right { flex: 1 0 100%; flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
+    /* Dòng nút thứ hai cho gọn: nút ngôn ngữ chỉ còn lá cờ (tên mã vẫn ở title), bỏ vạch ngăn trước nút của
+       trang. Không gọn lại thì khối tiện ích và nút "+ Tạo khóa học" tách thành hai dòng riêng, thanh trên
+       dính đầu màn hình cao 162px — gần một phần năm màn hình điện thoại. */
+    .topbar-dock .lang-switch > span,
+    .topbar-dock .lang-caret { display: none; }
+    .topbar-action:not(:empty) { margin-left: 8px; padding-left: 0; border-left: 0; }
+    /* Dòng 1: tiêu đề + kính lúp. Mở tìm kiếm thì ô tìm kiếm chen vào dòng 2, ngay dưới tiêu đề; hàng nút
+       lùi xuống dòng 3 — ô vừa bấm mở phải nằm sát chỗ ngón tay vừa chạm, không phải tít dưới hàng nút. */
+    .topbar-right { order: 2; }
+    .topbar.search-open .topbar-search { order: 1; }
 
     /* Chuông thông báo: xổ ra gần kín bề ngang, canh theo mép phải màn hình chứ không theo nút — panel
        rộng 392px canh theo nút thì tràn hẳn ra ngoài bên phải. */

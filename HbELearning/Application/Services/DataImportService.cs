@@ -24,14 +24,18 @@ public class DataImportService : IDataImportService
     private readonly IImportFileReader _fileReader;
     private readonly IImportTemplateWriter _templateWriter;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IHtmlSanitizer _htmlSanitizer;
+    private readonly ILearningPathService _learningPathService;
 
     public DataImportService(IAppDbContext db, IImportFileReader fileReader, IImportTemplateWriter templateWriter,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher, IHtmlSanitizer htmlSanitizer, ILearningPathService learningPathService)
     {
+        _learningPathService = learningPathService;
         _db = db;
         _fileReader = fileReader;
         _templateWriter = templateWriter;
         _passwordHasher = passwordHasher;
+        _htmlSanitizer = htmlSanitizer;
     }
 
     // ==================================================================
@@ -377,7 +381,7 @@ public class DataImportService : IDataImportService
         {
             ("Họ và tên (*)", "Bắt buộc."),
             ("Email (*)", "Bắt buộc, dùng để đăng nhập. Email đã có trong hệ thống thì dòng đó bị bỏ qua."),
-            ("Mật khẩu (*)", "Bắt buộc, tối thiểu 6 ký tự. Nên đặt chung một mật khẩu tạm rồi yêu cầu nhân viên tự đổi sau lần đăng nhập đầu."),
+            ("Mật khẩu (*)", "Bắt buộc. " + PasswordPolicy.Description + " Nên đặt mật khẩu tạm khác nhau cho từng người rồi yêu cầu nhân viên tự đổi sau lần đăng nhập đầu."),
             ("Vai trò (*)", "Ghi đúng tên vai trò đang có trong màn hình \"Vai trò & Phân quyền\" (VD Học viên, Trưởng Nhóm, Trưởng phòng)."),
             ("Số điện thoại", "Không bắt buộc."),
             ("Phòng ban", "Ghi tên hoặc mã phòng ban đã có. Bỏ trống = chưa xếp phòng."),
@@ -592,7 +596,10 @@ public class DataImportService : IDataImportService
                 DurationMinutes = row.Int(3),
                 OrderIndex = order > 0 ? order : nextOrder++,
                 ResourceUrl = NullIfEmpty(row.Text(5)),
-                Content = NullIfEmpty(row.Text(6)),
+                // Cột "Nội dung (HTML)" nhận thẻ HTML thô theo đúng thiết kế của file mẫu — cũng vì vậy
+                // nó là đường ngắn nhất để một thẻ <script> đi từ một file Excel người ngoài gửi tới thẳng
+                // vào màn hình của mọi học viên. Lọc trước khi lưu.
+                Content = _htmlSanitizer.Sanitize(NullIfEmpty(row.Text(6))),
                 IsActive = visible is not ("không" or "khong" or "no" or "false" or "0")
             });
         }
@@ -601,6 +608,8 @@ public class DataImportService : IDataImportService
         {
             _db.Lesson.AddRange(newList);
             await _db.SaveChangesAsync();
+            foreach (var lesson in newList.OrderBy(x => x.OrderIndex))
+                await _learningPathService.AppendResourceAsync(courseId, PathItemType.Lesson, lesson.Id);
         }
 
         return new ImportResultDto(totalRow, newList.Count, errorList.Count, errorList);
@@ -770,14 +779,14 @@ public class DataImportService : IDataImportService
                 errorList.Add(new ImportErrorDto(rowNumber, $"Email \"{email}\" không hợp lệ."));
                 continue;
             }
+            if (PasswordPolicy.Validate(password, email) is string weakPassword)
+            {
+                errorList.Add(new ImportErrorDto(rowNumber, weakPassword));
+                continue;
+            }
             if (!existingEmailSet.Add(email))
             {
                 errorList.Add(new ImportErrorDto(rowNumber, $"Email \"{email}\" đã có tài khoản."));
-                continue;
-            }
-            if (password.Length < 6)
-            {
-                errorList.Add(new ImportErrorDto(rowNumber, "Mật khẩu phải có tối thiểu 6 ký tự."));
                 continue;
             }
 
