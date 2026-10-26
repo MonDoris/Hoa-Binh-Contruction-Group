@@ -192,7 +192,7 @@ import { createAssetWorld } from '/js/sim-asset-scene.js';
 
 (async function () {
     await Lang.ready;
-    if (!Auth.require(['Admin', 'Trưởng Nhóm'], 'sim-library.view')) return;
+    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Giảng Viên'], 'sim-library.view')) return;
 
     mountLayout('sim-library', 'Thư viện 3D',
         'Kho bối cảnh dùng chung cho mọi mô phỏng: các không gian dựng sẵn của hệ thống, cùng model 3D và '

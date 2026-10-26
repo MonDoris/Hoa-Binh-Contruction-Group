@@ -15,9 +15,17 @@ public class OnlineClassRoomController : BaseApiController
     public async Task<ActionResult<IEnumerable<OnlineClassRoomListDto>>> GetList([FromQuery] OnlineClassRoomStatus? status)
         => ToActionResult(await _service.GetList(status));
 
+    [HttpGet("history")]
+    public async Task<ActionResult<IEnumerable<OnlineClassRoomHistoryDto>>> GetHistory([FromQuery] OnlineClassRoomHistoryQuery query)
+        => ToActionResult(await _service.GetHistory(query));
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<OnlineClassRoomListDto>> GetById(int id)
         => ToActionResult(await _service.GetById(id));
+
+    [HttpGet("{id:int}/review")]
+    public async Task<ActionResult<OnlineClassRoomReviewDto>> GetReview(int id)
+        => ToActionResult(await _service.GetReview(id));
 
     [HttpGet("resolve-code/{code}")]
     public async Task<ActionResult<MessageResponse>> ResolveByCode(string code)

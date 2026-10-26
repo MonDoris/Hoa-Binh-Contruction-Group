@@ -13,9 +13,9 @@ public class ChatService : IChatService
 {
     private const int PageSize = 30;
 
-    /// <summary>Trần cỡ một tệp đính kèm trong chat. Thấp hơn hẳn trần chung của Upload:MaxFileSizeMb (200 MB,
+    /// <summary>Trần cỡ một tệp đính kèm trong chat. Thấp hơn hẳn trần chung của Upload:MaxFileSizeMb (2 GB,
     /// đặt cho video bài học): hộp chat gửi kèm được cả THƯ MỤC, nên một thao tác có thể là hàng chục tệp một
-    /// lúc, và không ai chờ nổi một lượt gửi 200 MB trong cái bảng rộng 340 pixel.</summary>
+    /// lúc, và không ai chờ nổi một lượt gửi hàng trăm MB trong cái bảng rộng 340 pixel.</summary>
     public const long MaxAttachmentByte = 50L * 1024 * 1024;
 
     /// <summary>Thư mục lưu đính kèm chat, nằm trong wwwroot/uploads.</summary>

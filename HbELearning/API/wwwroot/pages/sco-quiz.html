@@ -44,12 +44,18 @@
     let countdownTimer = null;
     let submitted = false;
     let startedAt = 0;
+    // Chế độ khóa cho bài thi cuối khóa: trình duyệt không cho chặn hẳn việc đổi tab, nên ta phát hiện, đếm vi phạm
+    // và tự nộp bài khi vượt ngưỡng.
+    const MAX_VIOLATION = 3;
+    let lockdownOn = false;
+    let violationCount = 0;
+    let lastViolationAt = 0;
 
     const main = document.getElementById('sco-main');
     mountScoLayout(t('common.baiKiemTra', 'Bài kiểm tra'));
     main.innerHTML = skeletonHtml('detail', { lines: 5 });
     ScoRuntime.initialize();
-    ScoRuntime.onLeave(() => clearInterval(countdownTimer));
+    ScoRuntime.onLeave(() => { clearInterval(countdownTimer); leaveLockdown(); });
 
     if (!quizId) { main.innerHTML = emptyHtml(t('sco.thieuBaiKiemTra', 'Thiếu bài kiểm tra cần mở.'), '<i class="ph ph-warning"></i>'); return; }
 
@@ -136,6 +142,73 @@
         document.getElementById('btn-next')?.addEventListener('click', () => ScoRuntime.continueNext());
     }
 
+    // ==================== KHÓA MÀN HÌNH (BÀI THI CUỐI KHÓA) ====================
+
+    function requestFullscreen() {
+        const el = document.documentElement;
+        try { return Promise.resolve(el.requestFullscreen?.()).then(() => true, () => false); }
+        catch { return Promise.resolve(false); }
+    }
+
+    function enterLockdown() {
+        if (lockdownOn) return;
+        lockdownOn = true;
+        violationCount = 0;
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        window.addEventListener('blur', onWindowBlur);
+        ['contextmenu', 'copy', 'cut', 'paste'].forEach(name => document.addEventListener(name, blockEvent));
+        requestFullscreen().then(ok => { if (!ok) showLockdownOverlay(t('sco.canToanManHinh', 'Bài thi cuối khóa yêu cầu làm ở chế độ toàn màn hình.')); });
+    }
+
+    function leaveLockdown() {
+        if (!lockdownOn) return;
+        lockdownOn = false;
+        document.removeEventListener('fullscreenchange', onFullscreenChange);
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+        window.removeEventListener('blur', onWindowBlur);
+        ['contextmenu', 'copy', 'cut', 'paste'].forEach(name => document.removeEventListener(name, blockEvent));
+        document.getElementById('lockdown-overlay')?.remove();
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => { });
+    }
+
+    function blockEvent(e) { e.preventDefault(); }
+    function onFullscreenChange() { if (!document.fullscreenElement) recordViolation(t('sco.thoatToanManHinh', 'Bạn đã thoát chế độ toàn màn hình.')); }
+    function onVisibilityChange() { if (document.hidden) recordViolation(t('sco.chuyenTab', 'Bạn đã chuyển sang tab hoặc cửa sổ khác.')); }
+    function onWindowBlur() { recordViolation(t('sco.chuyenTab', 'Bạn đã chuyển sang tab hoặc cửa sổ khác.')); }
+
+    /** Một lần rời màn hình thường bắn nhiều sự kiện cùng lúc (blur + visibilitychange + fullscreenchange) — chỉ tính một. */
+    function recordViolation(reason) {
+        if (!lockdownOn || submitted) return;
+        const now = Date.now();
+        if (now - lastViolationAt < 1500) return;
+        lastViolationAt = now;
+        violationCount++;
+        if (violationCount >= MAX_VIOLATION) {
+            toastErr(t('sco.viPhamQuaNguong', 'Vi phạm quá {n} lần — bài thi được nộp tự động.', { n: MAX_VIOLATION }));
+            submit(true);
+            return;
+        }
+        showLockdownOverlay(`${reason} ${t('sco.canhBaoViPham', 'Cảnh báo {a}/{b}: vi phạm {b} lần bài thi sẽ tự động nộp.', { a: violationCount, b: MAX_VIOLATION })}`);
+    }
+
+    function showLockdownOverlay(message) {
+        if (!lockdownOn || submitted) return;
+        document.getElementById('lockdown-overlay')?.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'lockdown-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.92);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:#fff';
+        overlay.innerHTML = `<div style="max-width:420px">
+            <i class="ph-fill ph-warning" style="font-size:48px;color:#f59e0b"></i>
+            <p style="margin:12px 0 20px;font-size:16px;line-height:1.5">${esc(message)}</p>
+            <button class="btn" id="btn-lockdown-back">${esc(t('sco.quayLaiLamBai', 'Quay lại làm bài'))}</button></div>`;
+        document.body.appendChild(overlay);
+        document.getElementById('btn-lockdown-back').addEventListener('click', async () => {
+            await requestFullscreen();
+            overlay.remove();
+        });
+    }
+
     // ==================== LÀM BÀI ====================
 
     async function startAttempt() {
@@ -210,6 +283,8 @@
         startCountdown(new Date(attempt.deadlineAt));
         // Đang làm dở mà rời trang thì lượt này bỏ ngang — trình phát vẫn cho quay lại, nhưng báo trước cho rõ.
         if (ScoRuntime.phase === 'running') ScoRuntime.set('cmi.location', `attempt-${attempt.attemptId}`);
+        // Chỉ bài thi cuối khóa của học viên thật; bản xem thử của người soạn thì không khóa.
+        if (attempt.isFinalExam && enrollmentId && !preview) enterLockdown();
     }
 
     function questionHtml(question, index) {
@@ -265,6 +340,7 @@
 
         submitted = true;
         clearInterval(countdownTimer);
+        leaveLockdown();
         const button = document.getElementById('btn-submit');
         if (button) { button.disabled = true; button.textContent = t('quiz.dangChamDiem', 'Đang chấm điểm...'); }
 
@@ -285,6 +361,7 @@
         } catch (ex) {
             submitted = false;
             toastErr(ex.message);
+            if (attempt?.isFinalExam && enrollmentId && !preview) enterLockdown();
             if (button) { button.disabled = false; button.textContent = t('quiz.nopBai', 'Nộp bài'); }
         }
     }
@@ -342,16 +419,7 @@
                 <div class="stat"><div class="label">${esc(t('quiz.soCauDung', 'Số câu đúng'))}</div><div class="value">${result.correctCount}/${result.totalQuestion}</div></div>
                 <div class="stat"><div class="label">${esc(t('quiz.luotLamBai', 'Lượt làm bài'))}</div><div class="value">${result.attemptNo}</div>
                     <div class="foot">${formatDate(result.submittedAt, true)}</div></div>
-            </div>
-            <div class="sco-done-bar ${result.isPassed ? 'done' : ''} mb">
-                <span class="small">${result.isPassed
-                    ? `<i class="ph-fill ph-check-circle" style="color:var(--success)"></i> ${esc(t('sco.chucMungDat', 'Chúc mừng — bạn đã đạt bài kiểm tra này.'))}`
-                    : `<i class="ph ph-info"></i> ${esc(t('sco.chuaDatLamLai', 'Chưa đạt — xem lại đáp án rồi làm lại nếu còn lượt.'))}`}</span>
-                <div class="flex gap-sm wrap">
-                    <button class="btn ghost" id="btn-overview"><i class="ph ph-arrow-counter-clockwise"></i> ${esc(t('sco.veTongQuan', 'Về tổng quan'))}</button>
-                    ${canContinue ? `<button class="btn" id="btn-next">${esc(t('sco.tiepTuc', 'Tiếp tục'))} <i class="ph ph-caret-right"></i></button>` : ''}
-                </div>
-            </div>
+            </div>            
             <div class="card">
                 <div class="card-head"><h3>${esc(t('quiz.chiTietDapAn', 'Chi tiết đáp án'))}</h3></div>
                 <div class="card-body">
@@ -369,6 +437,15 @@
                             ${item.explanation ? `<div class="small" style="background:var(--info-light);padding:10px 13px;border-radius:8px;margin-top:8px">
                                 <i class="ph ph-lightbulb"></i> ${esc(item.explanation)}</div>` : ''}
                         </div>`).join('')}
+                </div>
+            </div>
+            <div class="sco-done-bar ${result.isPassed ? 'done' : ''} mb">
+                <span class="small">${result.isPassed
+                    ? `<i class="ph-fill ph-check-circle" style="color:var(--success)"></i> ${esc(t('sco.chucMungDat', 'Chúc mừng — bạn đã đạt bài kiểm tra này.'))}`
+                    : `<i class="ph ph-info"></i> ${esc(t('sco.chuaDatLamLai', 'Chưa đạt — xem lại đáp án rồi làm lại nếu còn lượt.'))}`}</span>
+                <div class="flex gap-sm wrap">
+                    <button class="btn ghost" id="btn-overview"><i class="ph ph-arrow-counter-clockwise"></i> ${esc(t('sco.veTongQuan', 'Về tổng quan'))}</button>
+                    ${canContinue ? `<button class="btn" id="btn-next">${esc(t('sco.tiepTuc', 'Tiếp tục'))} <i class="ph ph-caret-right"></i></button>` : ''}
                 </div>
             </div>`;
         document.getElementById('btn-overview').addEventListener('click', renderOverview);

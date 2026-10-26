@@ -13,7 +13,7 @@ public static class DependencyInjection
         var dbProvider = DbProviderSetup.Resolve(configuration, args);
         services.AddSingleton(new DatabaseProviderName(dbProvider));
 
-        // Khóa học / bài học vừa đổi thì báo Pico B học lại ngay (xem CourseKnowledgeChangeInterceptor).
+        // Khóa học / bài học vừa đổi thì báo HB Minerva học lại ngay (xem CourseKnowledgeChangeInterceptor).
         services.AddSingleton<ICourseKnowledgeSyncQueue, CourseKnowledgeSyncQueue>();
         services.AddSingleton<CourseKnowledgeChangeInterceptor>();
 
@@ -53,6 +53,14 @@ public static class DependencyInjection
         services.AddHttpClient<IZaloZnsService, ZaloZnsService>();
         services.AddHttpClient<IEsmsService, EsmsService>();
 
+        // ---------- Phần mềm quản lý nhân sự ----------
+        // Provider = "Mock" dùng dữ liệu giả để chạy thử luồng đồng bộ; còn lại là bộ nối REST đọc theo cấu hình
+        // HrSystem (chưa có API Key thì IsConfigured = false và giao diện hiện hướng dẫn). Đổi Provider cần khởi động lại.
+        if (string.Equals(configuration["HrSystem:Provider"], "Mock", StringComparison.OrdinalIgnoreCase))
+            services.AddSingleton<IHrSystemClient, MockHrSystemClient>();
+        else
+            services.AddHttpClient<IHrSystemClient, HttpHrSystemClient>();
+
         // ---------- AI (Ollama) ----------
         services.AddHttpClient<IAiContentService, OllamaContentService>();
         services.AddHttpClient<IEmbeddingService, OllamaEmbeddingService>();
@@ -67,9 +75,13 @@ public static class DependencyInjection
         // Để AI tự học nội dung các khóa học đã xuất bản — ngay khi xuất bản/sửa bài, và quét lại định kỳ
         // (xem CourseKnowledgeSyncWorker).
         services.AddHostedService<CourseKnowledgeSyncWorker>();
+        // Nạp sẵn model Ollama vào RAM lúc khởi động để người hỏi đầu tiên không chờ thêm 12 giây (xem OllamaWarmUpWorker).
+        services.AddHostedService<OllamaWarmUpWorker>();
         // AI đối chiếu chứng nhận bên ngoài chưa có kết quả quét sẵn (xem ExternalCertificateVerifyWorker).
         services.AddSingleton<IExternalCertificateVerifyQueue, ExternalCertificateVerifyQueue>();
         services.AddHostedService<ExternalCertificateVerifyWorker>();
+        // Tự đồng bộ nhân sự mỗi ngày một lần nếu bật HrSync:AutoSyncHour (mặc định tắt — xem HrSyncWorker).
+        services.AddHostedService<HrSyncWorker>();
 
         return services;
     }

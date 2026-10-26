@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace HbELearning.Domain.Entities;
 
-/// <summary>Một lượt nói trong hội thoại với Pico B — câu hỏi của người dùng hoặc câu trả lời của AI.</summary>
+/// <summary>Một lượt nói trong hội thoại với HB Minerva — câu hỏi của người dùng hoặc câu trả lời của AI.</summary>
 public class AiChatMessage
 {
     public int Id { get; set; }

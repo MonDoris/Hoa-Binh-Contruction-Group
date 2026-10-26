@@ -293,66 +293,418 @@
 
 /* ==================== IN DANH SÁCH (Admin) ====================
    Bản xem trước là chính tờ giấy sẽ in: nền trắng, chữ mực đen, viền bảng mảnh — kể cả khi đang bật giao diện
-   tối, vì giấy in không có chế độ tối (chữ sáng của giao diện tối in ra là gần như trắng trên trắng). */
+   tối, vì giấy in không có chế độ tối. */
 .register-filter-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .register-filter-row .field { margin-bottom: 0; min-width: 150px; }
 .register-filter-row .field.grow { flex: 1; min-width: 200px; }
-.reg-sheet {
-    --ink: #0f172a; --ink-2: #475569; --rule: #cbd5e1;
-    max-width: 1120px; margin: 16px auto 0; padding: 32px 36px;
-    border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow-lg);
-    background: #fff; color: var(--ink); font-size: 12.5px;
-}
-.reg-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--ink); }
-.reg-brand { display: flex; align-items: center; gap: 12px; }
-.reg-brand img { width: 44px; height: 44px; }
-.reg-brand b { display: block; font-size: 15px; letter-spacing: .6px; }
-.reg-brand span { display: block; font-size: 11.5px; color: var(--ink-2); }
-.reg-meta { text-align: right; font-size: 11.5px; line-height: 1.6; color: var(--ink-2); }
-.reg-title { margin: 18px 0 4px; text-align: center; font-size: 20px; font-weight: 800; letter-spacing: 1px; }
-.reg-sub { text-align: center; font-size: 12px; color: var(--ink-2); }
-.reg-summary { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 16px; font-size: 12px; color: var(--ink-2); }
-.reg-summary b { color: var(--ink); font-size: 13px; }
-.reg-table { width: 100%; border-collapse: collapse; }
-.reg-table th, .reg-table td {
-    padding: 6px 8px; border: 1px solid var(--rule); text-align: left; vertical-align: top;
-    background: transparent; color: var(--ink); font-size: 12px;
-}
-.reg-table th { background: #f1f5f9; font-size: 10.5px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
-.reg-table .c { text-align: center; white-space: nowrap; }
-.reg-table tr.reg-group td { background: #f8fafc; font-weight: 800; }
-/* Tờ giấy không phản ứng khi rê chuột — dòng đang rê lúc bấm In không được mang nền xám lên bản in. */
-.reg-table tbody tr:hover { background: transparent; }
-.reg-table .muted2 { display: block; color: var(--ink-2); font-size: 11px; }
-.reg-src { display: inline-block; padding: 1px 6px; border: 1px solid var(--rule); border-radius: 4px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
-.reg-src.ext { border-color: #93c5fd; color: #1d4ed8; }
-.reg-empty { padding: 30px 0; text-align: center; color: var(--ink-2); }
-.reg-sign { display: flex; justify-content: space-between; gap: 24px; margin-top: 26px; text-align: center; }
-.reg-sign > div { width: 40%; }
-.reg-sign .date { margin-bottom: 4px; font-style: italic; color: var(--ink-2); }
-.reg-sign b { display: block; font-size: 12px; text-transform: uppercase; }
-.reg-sign .space { height: 64px; }
-.reg-sign .hint { font-size: 11px; font-style: italic; color: var(--ink-2); }
 
-@page register-sheet { size: A4 landscape; margin: 10mm; }
+/* 1. Giao diện trang in (.reg-sheet) */
+.reg-sheet {
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif; /* Đảm bảo font rõ ràng, hiện đại */
+    --ink: #111827;
+    --ink-2: #6b7280;
+    --rule: #d1d5db;
+    max-width: 1120px;
+    margin: 16px auto 0;
+    padding: 32px 36px;
+    border: 1px solid var(--border); 
+    border-radius: 6px; 
+    box-shadow: var(--shadow-lg);
+    background: #fff; 
+    color: var(--ink); 
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* 2. Header: Flexbox dàn đều 2 bên */
+.reg-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #374151; /* Đường kẻ viền dày giống form hành chính */
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+}
+.reg-brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.reg-brand img {
+    height: 48px;
+    width: auto;
+    object-fit: contain;
+}
+.reg-brand-text b {
+    display: block;
+    font-size: 18px;
+    color: #0369a1; /* Màu xanh tương đồng logo HB */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.reg-brand-text span {
+    display: block;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+.reg-meta {
+    text-align: right;
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.6;
+}
+
+/* 3. Title & Summary */
+.reg-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    color: var(--ink);
+    letter-spacing: 0.5px;
+}
+.reg-sub {
+    text-align: center;
+    font-size: 13px;
+    color: var(--ink-2);
+    margin-bottom: 16px;
+}
+.reg-summary {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    font-size: 14px;
+    margin-bottom: 24px;
+    color: #4b5563;
+}
+.reg-summary b {
+    color: var(--ink);
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+/* 4. Bảng dữ liệu */
+.reg-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 40px;
+    font-size: 13px;
+}
+.reg-table th, .reg-table td {
+    padding: 12px 10px;
+    border: 1px solid var(--rule);
+    text-align: left;
+    vertical-align: middle; /* Canh giữa nội dung theo chiều dọc */
+    color: var(--ink);
+}
+.reg-table th {
+    background-color: #f3f4f6; /* Nền xám nhạt cho header */
+    color: #374151;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+.reg-table th.c, .reg-table td.c {
+    text-align: center;
+}
+/* Tránh bị đổi màu khi hover vào bảng lúc đang chuẩn bị in */
+.reg-table tbody tr:hover {
+    background: transparent;
+}
+.reg-table tr.reg-group td { 
+    background: #f8fafc; 
+    font-weight: 800; 
+}
+
+/* Kiểu chữ riêng cho tên/mô tả trong bảng */
+.reg-table b {
+    font-size: 14px; /* Tên nhân viên to hơn chút */
+}
+.reg-table .muted2 {
+    display: block;
+    color: var(--ink-2);
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+/* Nguồn (badge) */
+.reg-src {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid #d1d5db; /* Viền xám mặc định (Nội bộ) */
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #4b5563;
+    white-space: nowrap;
+}
+.reg-src.ext {
+    border-color: #3b82f6; /* Viền xanh (Bên ngoài) */
+    color: #3b82f6;
+}
+
+.reg-empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--ink-2);
+    border: 1px dashed var(--rule);
+    background: #f9fafb;
+    margin-bottom: 40px;
+}
+
+/* 5. Chữ ký */
+.reg-sign {
+    display: flex;
+    justify-content: space-around; /* Dàn đều 2 cụm chữ ký */
+    margin-top: 30px;
+    font-size: 14px;
+}
+.reg-sign > div {
+    text-align: center;
+    width: 40%;
+}
+.reg-sign .date {
+    font-style: italic;
+    color: #4b5563;
+    margin-bottom: 8px;
+    min-height: 21px;
+}
+.reg-sign b {
+    display: block;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--ink);
+}
+.reg-sign .hint {
+    font-style: italic;
+    color: var(--ink-2);
+    font-size: 12px;
+    margin-top: 4px;
+}
+.reg-sign .space {
+    height: 100px; /* Không gian để ký */
+}
+
+/* 6. Thiết lập in ấn */
+@page register-sheet { size: A4 landscape; margin: 15mm; }
 @media print {
-    /* Chỉ in tờ danh sách: lớp printing-register do printRegister() bật quanh lệnh in, nên nút "In / Lưu PDF" của
-       từng chứng nhận nội bộ (cũng dùng window.print) vẫn in đúng tấm chứng nhận như trước. */
     body.printing-register .main .content > :not(#tab-register),
     body.printing-register #tab-register > :not(#rg-sheet-wrap),
     body.printing-register .modal-mask,
     body.printing-register .skip-link,
     body.printing-register #toast-box,
     body.printing-register #global-loading-overlay { display: none !important; }
+    
     body.printing-register #tab-register { display: block !important; }
     body.printing-register { background: #fff !important; }
+    
     .reg-sheet {
-        page: register-sheet; max-width: none; margin: 0; padding: 0;
-        border: 0; border-radius: 0; box-shadow: none;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        page: register-sheet; 
+        max-width: none; 
+        margin: 0; 
+        padding: 0;
+        border: 0; 
+        border-radius: 0; 
+        box-shadow: none;
+        -webkit-print-color-adjust: exact; 
+        print-color-adjust: exact;
     }
-    .reg-table thead { display: table-header-group; }   /* lặp lại dòng tiêu đề ở đầu mỗi trang */
-    .reg-table tr, .reg-sign { break-inside: avoid; }
+    
+    .reg-table thead { display: table-header-group; } /* lặp lại dòng tiêu đề ở đầu mỗi trang */
+    .reg-table tr, .reg-sign { break-inside: avoid; } /* Không để hàng hoặc vùng ký tên bị cắt ngang trang */
+}
+
+/* ================= TỜ CHỨNG NHẬN HOÀN THÀNH (hbc) =================
+   Ý tưởng: tờ chứng nhận là một BẢN VẼ KỸ THUẬT CÔNG TRÌNH của Hòa Bình. Giấy kẻ ô xanh nhạt, khung bản vẽ có đánh số
+   vùng, vòng "chi tiết" chứa linh vật (đội mũ kỹ sư, cầm bản vẽ) và ô tiêu đề ở chân tờ giống khung tên của bản vẽ.
+   Bảng màu chỉ có một tông: xanh mực + xanh bản vẽ trên nền giấy xanh nhạt, cộng một điểm nhấn cam an toàn lấy từ chiếc
+   áo và mỏ của linh vật (chỉ dùng ở ba chỗ nhỏ), nên các màu luôn cùng họ với nhau.
+   Cỡ chữ và khoảng cách tính theo cqw (bề ngang tờ) nên co giãn đúng tỉ lệ trong hộp thoại, trên di động và khi in.
+   Nghiêng 3D, vệt sáng và thị sai của linh vật chỉ có khi xem trên màn hình: in ra là tờ phẳng. */
+.hbc-stage {
+    --mx: 50%; --my: 28%;
+    position: relative; overflow: hidden; border-radius: 16px;
+    padding: clamp(10px, 2.4vw, 28px);
+    perspective: 1500px;
+    background:
+        radial-gradient(560px circle at var(--mx) var(--my), rgba(60, 140, 220, .30), transparent 62%),
+        linear-gradient(160deg, #0a1b31 0%, #0c2747 55%, #071222 100%);
+}
+.hbc {
+    --hbc-ink: #0a2540;          /* mực: chữ chính, nét khung */
+    --hbc-blue: #1d5fa8;         /* xanh bản vẽ: nhấn mạnh, tên học viên */
+    --hbc-muted: #5f7791;        /* nhãn phụ */
+    --hbc-line: #b9d0e8;         /* nét mảnh */
+    --hbc-paper: #f4f8fd;
+    --hbc-orange: #ff7a1a;       /* điểm nhấn duy nhất */
+    --rx: 0deg; --ry: 0deg; --px: 0; --py: 0;
+    container-type: inline-size;
+    /* Không cao hơn khung nhìn: bề ngang tối đa theo chiều cao còn lại của màn hình (tỉ lệ tờ 1,414) để thấy trọn tờ. */
+    width: min(100%, 920px, calc((100dvh - 250px) * 1.414)); min-width: min(100%, 420px); margin: 0 auto;
+    transform: rotateX(var(--rx)) rotateY(var(--ry));
+    transition: transform .5s cubic-bezier(.16, 1, .3, 1);
+    will-change: transform;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+
+/* Vỏ ngoài (khay kính) ôm lõi giấy: hai lớp lồng nhau, bán kính đồng tâm */
+.hbc-shell {
+    padding: 1cqw; border-radius: 2.2cqw; aspect-ratio: 1.414 / 1;
+    background: linear-gradient(150deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .07));
+    border: 1px solid rgba(255, 255, 255, .26);
+    box-shadow: 0 3.4cqw 6cqw -2.4cqw rgba(0, 0, 0, .65), inset 0 1px 0 rgba(255, 255, 255, .38);
+    animation: hbcPop .9s cubic-bezier(.16, 1, .3, 1) both;
+}
+.hbc-paper {
+    position: relative; height: 100%; overflow: hidden; border-radius: 1.2cqw;
+    background:
+        linear-gradient(rgba(29, 95, 168, .05) .12cqw, transparent .12cqw) 0 0 / 2.5cqw 2.5cqw,
+        linear-gradient(90deg, rgba(29, 95, 168, .05) .12cqw, transparent .12cqw) 0 0 / 2.5cqw 2.5cqw,
+        linear-gradient(rgba(29, 95, 168, .09) .14cqw, transparent .14cqw) 0 0 / 12.5cqw 12.5cqw,
+        linear-gradient(90deg, rgba(29, 95, 168, .09) .14cqw, transparent .14cqw) 0 0 / 12.5cqw 12.5cqw,
+        radial-gradient(120% 90% at 20% 0%, #ffffff 0%, var(--hbc-paper) 62%, #e9f1fa 100%);
+    box-shadow: inset 0 1px 0 #fff;
+}
+
+/* Khung bản vẽ: nét đậm ngoài + nét mảnh trong, có đánh số vùng ở mép */
+.hbc-frame { position: absolute; inset: 2.4cqw; border: .22cqw solid var(--hbc-ink); pointer-events: none; }
+.hbc-frame::before { content: ''; position: absolute; inset: .5cqw; border: .1cqw solid var(--hbc-line); }
+.hbc-zones { position: absolute; display: flex; justify-content: space-around; color: var(--hbc-muted); font: 700 max(6px, .85cqw)/1 ui-monospace, Consolas, monospace; pointer-events: none; }
+.hbc-zones.top, .hbc-zones.bottom { left: 2.4cqw; right: 2.4cqw; height: 2.4cqw; align-items: center; }
+.hbc-zones.top { top: 0; } .hbc-zones.bottom { bottom: 0; }
+.hbc-zones.left, .hbc-zones.right { top: 2.4cqw; bottom: 2.4cqw; width: 2.4cqw; flex-direction: column; align-items: center; }
+.hbc-zones.left { left: 0; } .hbc-zones.right { right: 0; }
+
+/* Vệt sáng quét ngang theo con trỏ, chỉ dịch chuyển bằng transform */
+.hbc-sheen {
+    --sx: -40;
+    position: absolute; top: 0; left: 0; width: 55cqw; height: 100%; z-index: 6; pointer-events: none; opacity: 0;
+    background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, .6) 50%, transparent 100%);
+    mix-blend-mode: soft-light;
+    transform: translate3d(calc(var(--sx) * 1cqw), 0, 0) skewX(-18deg);
+    transition: opacity .35s ease;
+}
+.hbc-stage.is-live .hbc-sheen { opacity: 1; }
+
+/* ---------- Bố cục: hàng trên (chữ | chi tiết) + hàng dưới (ô tiêu đề) ---------- */
+.hbc-sheet {
+    position: absolute; z-index: 2; inset: 5.4cqw 5.6cqw 5.2cqw;
+    display: grid; grid-template-columns: minmax(0, 1fr) 27cqw; grid-template-rows: minmax(0, 1fr) auto; gap: 2.4cqw 3.6cqw;
+}
+.hbc-copy { display: flex; flex-direction: column; min-width: 0; }
+
+.hbc-brand { display: flex; align-items: center; gap: 1.1cqw; }
+.hbc-brand img { width: 3.7cqw; height: 3.7cqw; object-fit: contain; }
+.hbc-brand b { display: block; font-size: max(9px, 1.45cqw); font-weight: 800; color: var(--hbc-ink); line-height: 1.15; }
+.hbc-brand small { display: block; font-size: max(7px, 1.05cqw); color: var(--hbc-muted); line-height: 1.3; }
+
+.hbc-title {
+    margin: 2.4cqw 0 0; font-family: 'Bricolage Grotesque', 'Manrope', sans-serif; font-weight: 800;
+    font-size: max(18px, 5.4cqw); line-height: 1; letter-spacing: -.035em; color: var(--hbc-ink); padding-bottom: .5cqw;
+}
+.hbc-title em { font-style: normal; color: var(--hbc-blue); }
+.hbc-lead { margin: 1.8cqw 0 0; font-size: max(9px, 1.4cqw); color: var(--hbc-muted); }
+.hbc-name {
+    margin: .2cqw 0 0; font-family: 'Great Vibes', 'Brush Script MT', cursive; font-weight: 400;
+    font-size: max(22px, var(--nf, 7.4cqw)); line-height: 1.16; color: var(--hbc-blue); overflow-wrap: anywhere;
+}
+.hbc-name::after { content: ''; display: block; width: 8cqw; height: .3cqw; margin-top: .5cqw; border-radius: 1cqw; background: var(--hbc-orange); }
+.hbc-text { margin: 1.6cqw 0 0; font-size: max(9px, 1.5cqw); color: var(--hbc-ink); }
+.hbc-course {
+    margin: .6cqw 0 0; max-width: 94%; font-family: 'Bricolage Grotesque', 'Manrope', sans-serif; font-weight: 700;
+    font-size: max(13px, 2.8cqw); line-height: 1.2; letter-spacing: -.015em; color: var(--hbc-ink);
+}
+
+/* ---------- Vòng chi tiết có linh vật ---------- */
+.hbc-detail { position: relative; align-self: center; width: 100%; aspect-ratio: 1; }
+/* Đường tâm nét đứt kéo dài ra ngoài vòng như bản vẽ kỹ thuật */
+.hbc-detail::before, .hbc-detail::after { content: ''; position: absolute; pointer-events: none; opacity: .5; }
+.hbc-detail::before { left: -2.4cqw; right: -2.4cqw; top: 50%; height: .1cqw; background: repeating-linear-gradient(90deg, var(--hbc-blue) 0 1.1cqw, transparent 1.1cqw 1.7cqw); }
+.hbc-detail::after { top: -2.4cqw; bottom: -2.4cqw; left: 50%; width: .1cqw; background: repeating-linear-gradient(180deg, var(--hbc-blue) 0 1.1cqw, transparent 1.1cqw 1.7cqw); }
+.hbc-disc {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 50% 38%, #ffffff 0%, #dcebf9 62%, #c4dcf2 100%);
+    border: .22cqw solid var(--hbc-ink);
+    box-shadow: inset 0 0 0 .7cqw #f6faff, inset 0 0 0 .8cqw var(--hbc-line), 0 1.2cqw 2.2cqw -1.2cqw rgba(10, 37, 64, .35);
+}
+/* Vạch chia độ quanh vòng, mỗi 5 độ một vạch */
+.hbc-disc::before {
+    content: ''; position: absolute; inset: -1.5cqw; border-radius: 50%; pointer-events: none;
+    background: repeating-conic-gradient(from 0deg, var(--hbc-ink) 0 .45deg, transparent .45deg 5deg);
+    -webkit-mask-image: radial-gradient(circle, transparent 0, transparent 90%, #000 90.5%, #000 100%);
+    mask-image: radial-gradient(circle, transparent 0, transparent 90%, #000 90.5%, #000 100%); opacity: .55;
+}
+/* Điểm mốc cam trên vòng */
+.hbc-disc::after { content: ''; position: absolute; top: 14.6%; right: 14.6%; width: 1.5cqw; height: 1.5cqw; border-radius: 50%; background: var(--hbc-orange); border: .25cqw solid #fff; box-shadow: 0 0 0 .12cqw var(--hbc-ink); }
+.hbc-mascot-wrap {
+    position: absolute; z-index: 3; left: -.6cqw; bottom: -.9cqw; width: 28.2cqw; pointer-events: none;
+    transition: transform .6s cubic-bezier(.16, 1, .3, 1);
+    transform: translate3d(calc(var(--px) * -.9cqw), calc(var(--py) * -.6cqw), 0);
+}
+.hbc-mascot { display: block; width: 100%; height: auto; filter: drop-shadow(0 1.1cqw 1.4cqw rgba(10, 37, 64, .35)); animation: hbcBob 5.5s ease-in-out infinite; }
+
+/* ---------- Ô tiêu đề (khung tên bản vẽ) ---------- */
+.hbc-titleblock {
+    grid-column: 1 / -1; display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.5fr 1.6fr;
+    border: .2cqw solid var(--hbc-ink); background: rgba(255, 255, 255, .78);
+}
+.hbc-cell { min-width: 0; padding: 1.1cqw 1.5cqw; display: flex; flex-direction: column; justify-content: center; gap: .55cqw; border-left: .12cqw solid var(--hbc-ink); }
+.hbc-cell:first-child { border-left: 0; }
+.hbc-cell .hbc-k { font-size: max(6px, .9cqw); letter-spacing: .08em; text-transform: uppercase; color: var(--hbc-muted); font-weight: 700; }
+.hbc-cell .hbc-v { margin: 0; font-size: max(9px, 1.45cqw); font-weight: 800; color: var(--hbc-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.hbc-cell.qr { flex-direction: row; align-items: center; gap: 1.3cqw; }
+.hbc-qr, .hbc-qr-empty { width: 7.6cqw; height: 7.6cqw; flex: none; display: block; }
+.hbc-qr { padding: .35cqw; background: #fff; border: .12cqw solid var(--hbc-line); border-radius: .6cqw; }
+.hbc-cell.qr .hbc-v { font-size: max(8px, 1.15cqw); font-weight: 700; line-height: 1.3; color: var(--hbc-ink); }
+.hbc-cell .hbc-sign-name { font-family: 'Great Vibes', 'Brush Script MT', cursive; font-size: max(14px, 3cqw); line-height: 1.05; font-weight: 400; color: var(--hbc-blue); white-space: nowrap; }
+.hbc-cell .mark { display: inline-block; width: .9cqw; height: .9cqw; margin-right: .6cqw; background: var(--hbc-orange); vertical-align: .05cqw; }
+
+.hbc-revoked {
+    position: absolute; z-index: 7; top: 50%; left: 50%; pointer-events: none;
+    transform: translate(-50%, -50%) rotate(-14deg);
+    padding: .5cqw 2.4cqw; border: .5cqw solid #dc2626; border-radius: .9cqw; color: #dc2626;
+    background: rgba(255, 255, 255, .6); font-size: max(14px, 4.4cqw); font-weight: 800; letter-spacing: .1em;
+    opacity: .9; white-space: nowrap;
+}
+.hbc.revoked .hbc-paper { filter: grayscale(.75); }
+
+/* Vào cảnh lệch pha 55ms giữa các phần tử */
+.hbc [data-r] { animation: hbcRise .8s cubic-bezier(.16, 1, .3, 1) both; animation-delay: calc(var(--i, 0) * 55ms + 140ms); }
+@keyframes hbcPop { from { opacity: 0; transform: translate3d(0, 18px, 0) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes hbcRise { from { opacity: 0; transform: translate3d(0, 12px, 0); } to { opacity: 1; transform: none; } }
+@keyframes hbcBob { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -.7cqw, 0); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .hbc, .hbc-sheen, .hbc-mascot-wrap { transition: none; }
+    .hbc-shell, .hbc [data-r], .hbc-mascot { animation: none; }
+}
+
+@media print {
+    .hbc-stage { padding: 0; overflow: visible; perspective: none; background: none !important; border-radius: 0; }
+    /* 262mm: tờ cao 185mm, chừa dư vài mm so với vùng in 194mm của A4 ngang. Ở 270mm (191mm cao) Chrome vẫn sinh thêm một trang trống. */
+    .hbc { width: 262mm; min-width: 0; transform: none !important; }
+    .hbc-shell { background: none; border: .2mm solid #cfd8e3; box-shadow: none; animation: none; padding: 1cqw; }
+    .hbc [data-r], .hbc-mascot { animation: none; }
+    .hbc-mascot-wrap { transform: none !important; }
+    .hbc-sheen { display: none; }
+
+    /* In tờ chứng nhận: giấu toàn bộ trang phía sau (danh sách chứng nhận, thanh bên, thông báo...) và các hộp thoại
+       khác, chỉ để lại thân hộp thoại chứng nhận: bản in phải đúng là thứ đang xem trên màn hình. */
+    body.printing-cert .main,
+    body.printing-cert .modal-mask:not(#modal-cert),
+    body.printing-cert .skip-link,
+    body.printing-cert #toast-box,
+    body.printing-cert #global-loading-overlay { display: none !important; }
+    html:has(body.printing-cert), body.printing-cert { height: auto !important; overflow: visible !important; background: #fff !important; }
+    body.printing-cert #modal-cert { position: static !important; display: block !important; background: none !important; padding: 0 !important; overflow: visible !important; backdrop-filter: none !important; }
+    body.printing-cert #modal-cert .modal { box-shadow: none !important; border: 0 !important; background: none !important; max-width: none !important; width: auto !important; max-height: none !important; }
+    body.printing-cert #modal-cert .modal-body { padding: 0 !important; overflow: visible !important; max-height: none !important; }
+    /* Hộp thoại có hiệu ứng mở (mờ dần + trượt): bộ dựng bản in không chạy hoạt ảnh, lấy luôn trạng thái đầu là trong suốt
+       nên tờ chứng nhận ra trang trắng. Ép về trạng thái cuối. */
+    body.printing-cert #modal-cert, body.printing-cert #modal-cert .modal, body.printing-cert #modal-cert .modal-body {
+        animation: none !important; opacity: 1 !important; visibility: visible !important; transform: none !important;
+    }
 }
 </style>
 </head>
@@ -370,7 +722,7 @@
         <div class="modal-body" id="cert-view"></div>
         <div class="modal-foot no-print">
             <button data-i18n="common.close" class="btn ghost" onclick="closeModal('modal-cert')">Đóng</button>
-            <button class="btn" onclick="window.print()"><i class="ph ph-printer"></i> <span data-i18n="certificate.inLuuPdf">In / Lưu PDF</span></button>
+            <button class="btn" id="btn-print-cert"><i class="ph ph-printer"></i> <span data-i18n="certificate.inLuuPdf">In / Lưu PDF</span></button>
         </div>
     </div>
 </div>
@@ -581,10 +933,11 @@
             <div class="card" id="sub-cert-box">
                 <div class="card-head sub-cert-head">
                     <div class="body">
-                        <h3><i class="ph ph-users-three"></i> Chứng nhận của nhân viên cấp dưới</h3>
-                        <small>${total} người thuộc phạm vi quản lý của bạn${singleDepartment
-                            ? ' — chọn một nhân viên để xem chứng nhận.'
-                            : ` ở ${departmentList.length} phòng ban — chọn phòng ban rồi chọn nhân viên.`}</small>
+                       <h3 style="display: inline-flex; align-items: center; gap: 10px;">
+                       <i class="ph ph-users-three"></i>
+                        <span style="margin-top: 5px">Chứng nhận của nhân viên cấp dưới</span>
+                    </h3>
+                        
                     </div>
                     <div class="sub-cert-search">
                         <i class="ph ph-magnifying-glass"></i>
@@ -812,107 +1165,95 @@
     }
 
     function showCertificate(c) {
+        // Tên dài thì thu nhỏ chữ thư pháp để vẫn gọn trong cột trái (mỗi ký tự rộng khoảng 0,48 lần cỡ chữ).
+        const nameLength = (c.userFullName || '').length;
+        const nameSize = nameLength <= 16 ? 7.4 : nameLength <= 20 ? 6 : nameLength <= 26 ? 4.8 : 4;
+        // Số vùng (1-4) ở mép trên và dưới, chữ vùng (A-C) ở mép trái và phải, như khung của bản vẽ kỹ thuật.
+        const zone = (items) => items.map(x => `<span>${x}</span>`).join('');
         document.getElementById('cert-view').innerHTML = `
-            <!-- Khung bao ngoài với tỷ lệ dọc khổ A4, đổ bóng nhẹ -->
-            <div class="cert ${c.isRevoked ? 'revoked' : ''}" style="max-width: 600px; margin: 0 auto; background: #ffffff; padding: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); box-sizing: border-box; aspect-ratio: 1 / 1.414;">
-                
-                <!-- Viền kép màu Xanh Navy: Viền ngoài dày 3px, viền trong mảnh 1px -->
-                <div style="width: 100%; height: 100%; border: 3px solid #0f4c81; padding: 8px; box-sizing: border-box;">
-                    <div style="width: 100%; height: 100%; border: 1px solid #0f4c81; box-sizing: border-box; position: relative; padding: 40px 30px; text-align: center; display: flex; flex-direction: column; align-items: center; background: radial-gradient(circle, #f4fbff 0%, #ffffff 100%);">
-                        
-                        <!-- Hoa văn góc (4 góc viền vuông) -->
-                        <div style="position: absolute; top: 12px; left: 12px; width: 30px; height: 30px; border-top: 2px solid #0f4c81; border-left: 2px solid #0f4c81;"></div>
-                        <div style="position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-top: 2px solid #0f4c81; border-right: 2px solid #0f4c81;"></div>
-                        <div style="position: absolute; bottom: 12px; left: 12px; width: 30px; height: 30px; border-bottom: 2px solid #0f4c81; border-left: 2px solid #0f4c81;"></div>
-                        <div style="position: absolute; bottom: 12px; right: 12px; width: 30px; height: 30px; border-bottom: 2px solid #0f4c81; border-right: 2px solid #0f4c81;"></div>
+            <div class="hbc-stage">
+                <div class="hbc ${c.isRevoked ? 'revoked' : ''}">
+                    <div class="hbc-shell">
+                        <div class="hbc-paper">
+                            <div class="hbc-frame"></div>
+                            <div class="hbc-zones top">${zone([1, 2, 3, 4])}</div><div class="hbc-zones bottom">${zone([1, 2, 3, 4])}</div>
+                            <div class="hbc-zones left">${zone(['A', 'B', 'C'])}</div><div class="hbc-zones right">${zone(['A', 'B', 'C'])}</div>
 
-                        <!-- Con dấu Xanh Gradient trên cùng -->
-                        <div style="width: 76px; height: 76px; background: linear-gradient(135deg, #0f4c81, #00a1e5, #003f5c, #0ea5e9, #0f4c81); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); margin-bottom: 24px; border: 2px dashed #fff; outline: 3px solid #0f4c81;">
-                            <i class="ph-fill ph-crown" style="font-size: 36px; color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);"></i>
-                        </div>
-
-                        <!-- Chữ CERTIFICATE to bản, có chân -->
-                        <h1 style="font-family: 'Times New Roman', serif; color: #0f4c81; font-size: 46px; letter-spacing: 8px; margin: 0 0 12px 0; font-weight: normal; text-transform: uppercase;">Certificate</h1>
-                        
-                        <!-- Dải sao trang trí màu xanh sáng -->
-                        <div style="color: #00a1e5; font-size: 14px; letter-spacing: 6px; margin-bottom: 24px;">
-                            ★ ★ ★ ★ ★ ★ ★
-                        </div>
-
-                        <div style="font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 30px;">
-                            CHỨNG NHẬN KẾT QUẢ ĐÀO TẠO
-                        </div>
-
-                        <!-- Đường gạch họa tiết trên Tên -->
-                        <div style="display: flex; align-items: center; justify-content: center; width: 90%; margin-bottom: 10px;">
-                            <div style="width: 6px; height: 6px; background: #0f4c81; transform: rotate(45deg);"></div>
-                            <div style="flex: 1; height: 1px; background: #0f4c81; margin: 0 8px;"></div>
-                            <div style="width: 8px; height: 8px; background: #00a1e5; transform: rotate(45deg);"></div>
-                            <div style="flex: 1; height: 1px; background: #0f4c81; margin: 0 8px;"></div>
-                            <div style="width: 6px; height: 6px; background: #0f4c81; transform: rotate(45deg);"></div>
-                        </div>
-
-                        <!-- TÊN HỌC VIÊN: Dùng font uốn lượn thư pháp -->
-                        <div class="cert-name" style="font-family: 'Great Vibes', 'Brush Script MT', cursive; font-size: 56px; color: #0f4c81; margin: 16px 0; font-weight: 500; text-shadow: 1px 1px 0px rgba(0,0,0,0.05); line-height: 1;">
-                            ${esc(c.userFullName)}
-                        </div>
-
-                        <!-- Đường gạch họa tiết dưới Tên -->
-                        <div style="display: flex; align-items: center; justify-content: center; width: 90%; margin-top: 10px; margin-bottom: 30px;">
-                            <div style="width: 6px; height: 6px; background: #0f4c81; transform: rotate(45deg);"></div>
-                            <div style="flex: 1; height: 1px; background: #0f4c81; margin: 0 8px;"></div>
-                            <div style="width: 8px; height: 8px; background: #00a1e5; transform: rotate(45deg);"></div>
-                            <div style="flex: 1; height: 1px; background: #0f4c81; margin: 0 8px;"></div>
-                            <div style="width: 6px; height: 6px; background: #0f4c81; transform: rotate(45deg);"></div>
-                        </div>
-
-                        <div style="font-family: 'Times New Roman', serif; font-size: 18px; font-weight: bold; color: #222; letter-spacing: 2px; margin-bottom: 15px;">
-                            HONOR CERTIFICATE
-                        </div>
-
-                        <div style="font-size: 14px; color: #555; line-height: 1.6; padding: 0 20px; font-style: italic;">
-                            Mã nhân viên: ${esc(c.employeeCode)}<br>
-                            Đã hoàn thành xuất sắc khóa đào tạo<br>
-                            <strong style="font-style: normal; color: #0f4c81; font-size: 18px; display: block; margin-top: 8px;">${esc(c.courseTitle)}</strong>
-                        </div>
-
-                        ${c.isRevoked ? '<div style="margin-top: 15px; background: #ef4444; color: white; padding: 4px 12px; font-size: 12px; font-weight: bold;">ĐÃ BỊ THU HỒI</div>' : ''}
-
-                        <!-- Chân trang: Chữ ký, Mã QR, Ngày tháng -->
-                        <div style="display: flex; justify-content: space-between; align-items: flex-end; width: 100%; margin-top: auto; padding-top: 20px;">
-                            
-                            <!-- Trái: QR Code -->
-                            <div style="text-align: center; width: 100px;">
-                                ${c.qrCodeUrl ? `
-                                <img src="${esc(c.qrCodeUrl)}" alt="QR" style="width: 64px; height: 64px; margin-bottom: 8px; border: 1px solid #e5e7eb; padding: 2px;">
-                                ` : '<div style="height: 64px; margin-bottom: 8px;"></div>'}
-                                <div style="border-top: 1px solid #ccc; font-size: 11px; padding-top: 5px; color: #555; font-family: 'Times New Roman', serif;">Mã xác thực</div>
-                            </div>
-
-                            <!-- Giữa: Các icon và điểm -->
-                            <div style="text-align: center; flex: 1;">
-                                <div style="display: flex; justify-content: center; gap: 12px; font-size: 18px; color: #00a1e5; margin-bottom: 8px;">
-                                    <i class="ph-fill ph-medal"></i>
-                                    <i class="ph-fill ph-star"></i>
-                                    <i class="ph-fill ph-graduation-cap"></i>
+                            <div class="hbc-sheet">
+                                <div class="hbc-copy">
+                                    <div class="hbc-brand" data-r style="--i:0">
+                                        <img src="/img/HB.png" alt="">
+                                        <span><b>HB E-Learning</b><small>Đào tạo nội bộ Hòa Bình</small></span>
+                                    </div>
+                                    <h1 class="hbc-title" data-r style="--i:1">Chứng nhận<br><em>hoàn thành</em></h1>
+                                    <p class="hbc-lead" data-r style="--i:2">Trân trọng trao tặng</p>
+                                    <div class="hbc-name" data-r style="--i:3;--nf:${nameSize}cqw">${esc(c.userFullName)}</div>
+                                    <p class="hbc-text" data-r style="--i:4">đã hoàn thành xuất sắc khóa đào tạo</p>
+                                    <div class="hbc-course" data-r style="--i:5">${esc(c.courseTitle)}</div>
                                 </div>
-                                <div style="font-size: 11px; color: #666; font-family: 'Times New Roman', serif;">
-                                    Số hiệu: ${esc(c.certificateNo)}<br>
-                                    Đánh giá: <strong style="color: #0f4c81;">${c.finalScore}/100</strong>
+
+                                <div class="hbc-detail" data-r style="--i:3">
+                                    <div class="hbc-disc"></div>
+                                    <div class="hbc-mascot-wrap"><img class="hbc-mascot" src="/emoji/hb-mascot-lg.png" alt=""></div>
+                                </div>
+
+                                <div class="hbc-titleblock" data-r style="--i:6">
+                                    <div class="hbc-cell qr">
+                                        ${c.qrCodeUrl ? `<img class="hbc-qr" src="${esc(c.qrCodeUrl)}" alt="QR xác thực">` : '<div class="hbc-qr-empty"></div>'}
+                                        <span class="hbc-v">Quét mã để<br>xác thực</span>
+                                    </div>
+                                    <div class="hbc-cell"><div class="hbc-k">Mã nhân viên</div><div class="hbc-v">${esc(c.employeeCode)}</div></div>
+                                    <div class="hbc-cell"><div class="hbc-k">Ngày cấp</div><div class="hbc-v">${formatDate(c.issuedAt)}</div></div>
+                                    <div class="hbc-cell"><div class="hbc-k">Số hiệu</div><div class="hbc-v">${esc(c.certificateNo)}</div></div>
+                                    <div class="hbc-cell"><div class="hbc-k"><span class="mark"></span>Đơn vị cấp</div><div class="hbc-v hbc-sign-name">HB Group</div></div>
                                 </div>
                             </div>
 
-                            <!-- Phải: Chữ ký & Ngày -->
-                            <div style="text-align: center; width: 100px;">
-                                <div style="font-family: 'Great Vibes', 'Brush Script MT', cursive; font-size: 28px; color: #0f4c81; margin-bottom: 8px;">HB Group</div>
-                                <div style="border-top: 1px solid #ccc; font-size: 11px; padding-top: 5px; color: #555; font-family: 'Times New Roman', serif;">Ngày ${formatDate(c.issuedAt)}</div>
-                            </div>
+                            <div class="hbc-sheen"></div>
+                            ${c.isRevoked ? '<div class="hbc-revoked">ĐÃ BỊ THU HỒI</div>' : ''}
                         </div>
-
                     </div>
                 </div>
             </div>`;
+        bindCertificateTilt();
         openModal('modal-cert');
+    }
+
+    /** Nghiêng 3D + vệt sáng + thị sai của linh vật, chạy theo con trỏ. Chỉ khi có chuột (hover) và người dùng không tắt
+     *  hiệu ứng; các listener gắn lên chính phần tử vừa vẽ nên bị dọn cùng nó ở lần vẽ sau. */
+    function bindCertificateTilt() {
+        const stage = document.querySelector('#cert-view .hbc-stage');
+        const cert = stage?.querySelector('.hbc');
+        const sheen = stage?.querySelector('.hbc-sheen');
+        if (!stage || !cert) return;
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches || !matchMedia('(hover: hover)').matches) return;
+
+        const MAX_TILT = 6;
+        let frame = 0;
+        stage.addEventListener('pointermove', e => {
+            if (frame) return;
+            frame = requestAnimationFrame(() => {
+                frame = 0;
+                const box = stage.getBoundingClientRect();
+                const nx = Math.max(-1, Math.min(1, (e.clientX - box.left - box.width / 2) / (box.width / 2)));
+                const ny = Math.max(-1, Math.min(1, (e.clientY - box.top - box.height / 2) / (box.height / 2)));
+                cert.style.setProperty('--ry', `${(nx * MAX_TILT).toFixed(2)}deg`);
+                cert.style.setProperty('--rx', `${(-ny * MAX_TILT).toFixed(2)}deg`);
+                cert.style.setProperty('--px', nx.toFixed(3));
+                cert.style.setProperty('--py', ny.toFixed(3));
+                stage.style.setProperty('--mx', `${e.clientX - box.left}px`);
+                stage.style.setProperty('--my', `${e.clientY - box.top}px`);
+                // offsetLeft/offsetWidth là kích thước bố cục, không đổi theo phép nghiêng nên vệt sáng không giật.
+                const along = (e.clientX - box.left - cert.offsetLeft) / cert.offsetWidth * 100;
+                sheen.style.setProperty('--sx', (along - 27).toFixed(1));
+            });
+        });
+        stage.addEventListener('pointerenter', () => stage.classList.add('is-live'));
+        stage.addEventListener('pointerleave', () => {
+            stage.classList.remove('is-live');
+            ['--rx', '--ry'].forEach(name => cert.style.setProperty(name, '0deg'));
+            ['--px', '--py'].forEach(name => cert.style.setProperty(name, '0'));
+        });
     }
 
     // ==================== THẺ TRANG ====================
@@ -1910,16 +2251,19 @@
 
         const now = new Date();
         return `
-            <div class="reg-sheet">
-                <div class="reg-head">
-                    <div class="reg-brand">
-                        <img src="/img/HoaBinh.png" alt="">
-                        <div><b>HB GROUP</b><span>${esc(t('certificate.regSystem', 'Hệ thống đào tạo nội bộ HB E-Learning'))}</span></div>
+                <div class="reg-sheet">
+                    <div class="reg-head">
+                        <div class="reg-brand">
+                        <img src="/img/HoaBinh.png" alt="Hoà Bình Contruction Group">
+                        <div class="reg-brand-text">
+                        <b>Hoà Bình Contruction Group</b>
+                        <span>${esc(t('certificate.regSystem', 'Hệ thống đào tạo nội bộ HB E-Learning'))}</span>
                     </div>
-                    <div class="reg-meta">
-                        ${esc(t('certificate.regPrintedAt', 'Ngày in'))}: ${formatDate(now, true)}<br>
-                        ${esc(t('certificate.regPrintedBy', 'Người in'))}: ${esc(Auth.profile?.fullName || '')}
-                    </div>
+                </div>
+                <div class="reg-meta">
+                    ${esc(t('certificate.regPrintedAt', 'Ngày in'))}: ${formatDate(now, true)}<br>
+                    ${esc(t('certificate.regPrintedBy', 'Người in'))}: ${esc(Auth.profile?.fullName || '')}
+                </div>
                 </div>
                 <div class="reg-title">${esc(t('certificate.regTitle', 'DANH SÁCH CHỨNG NHẬN'))}</div>
                 <div class="reg-sub">${esc(sourceLabel)} · ${esc(departmentName || t('certificate.allDepartment', 'Mọi phòng ban'))} · ${esc(t('certificate.regIssuedIn', 'Ngày cấp'))}: ${esc(dateRange)}${filter.keyword ? ` · "${esc(filter.keyword)}"` : ''}</div>
@@ -1981,6 +2325,27 @@
         window.addEventListener('afterprint', finish);
         window.print();
     }
+
+    /** In đúng TỜ CHỨNG NHẬN đang mở. window.print() trần in cả trang phía sau hộp thoại (danh sách chứng nhận) nên
+     *  bản in khác hẳn thứ đang xem; lớp printing-cert làm CSS @media print giấu mọi thứ ngoài hộp thoại này. Gỡ lớp
+     *  bằng afterprint, không gỡ ngay sau lệnh in (cùng lý do với printRegister). */
+    function printCertificate() {
+        const finish = () => {
+            document.body.classList.remove('printing-cert');
+            window.removeEventListener('afterprint', finish);
+        };
+        // Khổ giấy A4 ngang đặt bằng @page tạm trong lúc in. Không dùng trang có tên (page: ...) trên chính tờ chứng nhận:
+        // Chrome chèn thêm một trang trống phía sau phần tử đổi tên trang.
+        const pageStyle = document.createElement('style');
+        pageStyle.textContent = '@page { size: A4 landscape; margin: 8mm; }';
+        document.head.appendChild(pageStyle);
+        const finishAll = () => { pageStyle.remove(); finish(); };
+        window.removeEventListener('afterprint', finish);
+        document.body.classList.add('printing-cert');
+        window.addEventListener('afterprint', finishAll, { once: true });
+        window.print();
+    }
+    document.getElementById('btn-print-cert').addEventListener('click', printCertificate);
 })();
 </script>
 </body>

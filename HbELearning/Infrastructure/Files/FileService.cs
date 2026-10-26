@@ -8,11 +8,15 @@ public class FileService : IFileService
     private readonly long _maxSizeByte;
     private readonly HashSet<string> _allowedExtension;
 
+    /// <summary>Trần dung lượng một tệp khi appsettings không khai Upload:MaxFileSizeMb: 2 GB — đủ cho video bài học
+    /// 1080p dài. Trần của yêu cầu HTTP ở UploadController phải không thấp hơn con số này.</summary>
+    public const int DefaultMaxFileSizeMb = 2048;
+
     public FileService(IWebHostEnvironment env, IConfiguration config)
     {
         _env = env;
 
-        var maxMb = config.GetValue<int?>("Upload:MaxFileSizeMb") ?? 200;
+        var maxMb = config.GetValue<int?>("Upload:MaxFileSizeMb") ?? DefaultMaxFileSizeMb;
         _maxSizeByte = maxMb * 1024L * 1024L;
 
         var allowed = config["Upload:AllowedExtension"] ?? ".pdf,.png,.jpg,.mp4";

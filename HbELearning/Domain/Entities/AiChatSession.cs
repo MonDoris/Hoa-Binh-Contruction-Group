@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace HbELearning.Domain.Entities;
 
-/// <summary>Một cuộc hỏi đáp với Pico B, tương đương một "hội thoại" trong danh sách lịch sử bên trái
-/// trang Pico B.
+/// <summary>Một cuộc hỏi đáp với HB Minerva, tương đương một "hội thoại" trong danh sách lịch sử bên trái
+/// trang HB Minerva.
 ///
 /// Cố ý KHÔNG dùng lại <see cref="Conversation"/>/<see cref="ChatMessage"/> của phần chat giữa người với
 /// người: hai thứ chỉ giống nhau ở cái tên. Chat người-với-người có thành viên, có đã-đọc/chưa-đọc, có

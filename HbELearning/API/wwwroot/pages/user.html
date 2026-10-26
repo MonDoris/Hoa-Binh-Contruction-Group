@@ -95,6 +95,18 @@
     </div>
 </div>
 
+<!-- Đồng bộ nhân sự từ phần mềm quản lý nhân sự -->
+<div class="modal-mask" id="modal-hr-sync">
+    <div class="modal wide">
+        <div class="modal-head"><h3>Đồng bộ nhân sự</h3>
+            <button class="close-x" onclick="closeModal('modal-hr-sync')">×</button></div>
+        <div class="modal-body" id="hr-sync-body"></div>
+        <div class="modal-foot">
+            <button class="btn ghost" onclick="closeModal('modal-hr-sync')">Đóng</button>
+        </div>
+    </div>
+</div>
+
 <input type="file" id="import-user-file" accept=".xlsx,.xlsm" hidden aria-label="Chọn tệp Excel danh sách người dùng">
 
 <script src="/js/api.js"></script>
@@ -110,6 +122,7 @@ const ROLE_BADGE_CLASS = {
     'giám đốc': 'green',
     'trưởng phòng': 'blue',
     'trưởng nhóm': 'cyan',
+    'giảng viên': 'cyan',
     'học viên': 'gray'
 };
 /** Vai trò con ("Trưởng Phòng IT", "Giám Đốc Nhân Sự"...) mang màu của vai trò cha — nhìn là biết thuộc nhánh nào.
@@ -136,6 +149,8 @@ function roleBadgeClass(roleName, roleList) {
                 <i class="ph ph-download-simple"></i> <span data-i18n="import.taiFileMau">Tải file mẫu</span></button>
             <button class="btn ghost" id="btn-user-import">
                 <i class="ph ph-upload-simple"></i> <span data-i18n="import.importExcel">Import Excel</span></button>
+            <button class="btn ghost" id="btn-hr-sync">
+                <i class="ph ph-arrows-clockwise"></i> <span>Đồng bộ nhân sự</span></button>
             <button data-i18n="user.themNguoiDung2" class="btn" id="btn-new">+ Thêm người dùng</button>`);
 
     const tbody = document.getElementById('tbody');
@@ -169,6 +184,99 @@ function roleBadgeClass(roleName, roleList) {
         fileName: 'Mau_Import_NguoiDung.xlsx',
         onDone: () => load(),
     });
+
+    // ==================== ĐỒNG BỘ NHÂN SỰ ====================
+    // Lấy phòng ban / vị trí / nhân viên từ phần mềm quản lý nhân sự (cấu hình HrSystem ở máy chủ). Luôn "Xem trước"
+    // (không ghi gì) rồi mới cho "Đồng bộ ngay" — đây là thao tác tạo / sửa / khóa hàng loạt tài khoản.
+    const hrBody = document.getElementById('hr-sync-body');
+    document.getElementById('btn-hr-sync')?.addEventListener('click', openHrSync);
+
+    async function openHrSync() {
+        openModal('modal-hr-sync');
+        hrBody.innerHTML = skeletonHtml('list', { count: 3, avatar: false });
+        try {
+            renderHrStatus(await API.get('/hrsync/status'));
+        } catch (ex) {
+            hrBody.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning-circle"></i>');
+        }
+    }
+
+    function hrStatHtml(label, value) {
+        return `<div class="stat"><div class="label">${esc(label)}</div><div class="value">${value}</div></div>`;
+    }
+
+    function hrResultHtml(r) {
+        const issues = r.issueList.length ? `
+            <h4 class="mt">Cần xem lại (${r.issueCount})</h4>
+            <div class="table-wrap" style="max-height:240px;overflow:auto"><table>
+                <thead><tr><th>Đối tượng</th><th>Vấn đề</th></tr></thead>
+                <tbody>${r.issueList.map(i => `<tr><td><b>${esc(i.subject)}</b></td><td>${esc(i.message)}</td></tr>`).join('')}</tbody>
+            </table></div>
+            ${r.issueCount > r.issueList.length ? `<div class="small muted mt">Chỉ hiện ${r.issueList.length} dòng đầu.</div>` : ''}` : '';
+        return `
+            <div class="small muted mb">${esc(r.isPreview ? 'Bản xem trước — chưa ghi gì vào hệ thống.' : 'Đã đồng bộ lúc ' + formatDate(r.runAt, true))}</div>
+            <div class="grid grid-4 mb">
+                ${hrStatHtml('Người mới', r.userCreated)}
+                ${hrStatHtml('Cập nhật', r.userUpdated)}
+                ${hrStatHtml('Vô hiệu hóa (đã nghỉ)', r.userDeactivated)}
+                ${hrStatHtml('Không đổi', r.userUnchanged)}
+            </div>
+            <div class="small muted">Phòng ban: +${r.departmentCreated} mới, ${r.departmentUpdated} đổi tên · Vị trí: +${r.positionCreated} mới, ${r.positionUpdated} đổi</div>
+            ${issues}`;
+    }
+
+    function renderHrStatus(s) {
+        if (!s.isConfigured) {
+            hrBody.innerHTML = `
+                <div class="empty" style="padding:8px 0 16px">
+                    <div class="icon"><i class="ph ph-plugs"></i></div>
+                    <p><b>Chưa kết nối phần mềm nhân sự.</b></p>
+                    <p class="small muted">Khi có API Key: mở <code>appsettings.json</code>, điền mục <code>HrSystem</code> (BaseUrl, ApiKey, đường dẫn và tên trường theo tài liệu API của phần mềm), khởi động lại ứng dụng rồi quay lại đây.</p>
+                </div>`;
+            return;
+        }
+
+        hrBody.innerHTML = `
+            <div class="mb"><b>Nguồn:</b> ${esc(s.providerName)} · <span class="small muted">người mới nhận vai trò “${esc(s.defaultRoleName)}”, không có mật khẩu — vào bằng “Quên mật khẩu” hoặc Admin “Reset MK”.</span></div>
+            <div class="flex gap-sm wrap mb">
+                <button class="btn ghost" id="btn-hr-preview"><i class="ph ph-eye"></i> Xem trước</button>
+                <button class="btn" id="btn-hr-run" disabled><i class="ph ph-arrows-clockwise"></i> Đồng bộ ngay</button>
+            </div>
+            <div id="hr-result">${s.lastRun ? '<h4 class="mb">Lượt đồng bộ gần nhất</h4>' + hrResultHtml(s.lastRun)
+                : '<div class="small muted">Bấm “Xem trước” để biết sẽ thêm / sửa / khóa bao nhiêu người trước khi đồng bộ thật.</div>'}</div>`;
+
+        const preview = document.getElementById('btn-hr-preview');
+        const run = document.getElementById('btn-hr-run');
+        const resultBox = document.getElementById('hr-result');
+
+        preview.addEventListener('click', async () => {
+            preview.disabled = true; run.disabled = true;
+            resultBox.innerHTML = skeletonHtml('list', { count: 3, avatar: false });
+            try {
+                resultBox.innerHTML = hrResultHtml(await API.post('/hrsync/preview'));
+                run.disabled = false;
+            } catch (ex) {
+                resultBox.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning-circle"></i>');
+            }
+            preview.disabled = false;
+        });
+
+        run.addEventListener('click', async () => {
+            if (!await confirmDialog('Đồng bộ nhân sự sẽ tạo tài khoản mới, cập nhật thông tin và vô hiệu hóa người đã nghỉ việc theo phần mềm nhân sự. Tiếp tục?',
+                { okText: 'Đồng bộ ngay' })) return;
+            preview.disabled = true; run.disabled = true;
+            resultBox.innerHTML = skeletonHtml('list', { count: 3, avatar: false });
+            try {
+                const r = await API.post('/hrsync/run');
+                resultBox.innerHTML = hrResultHtml(r);
+                toastOk(`Đã đồng bộ: ${r.userCreated} người mới, ${r.userUpdated} cập nhật, ${r.userDeactivated} vô hiệu hóa.`);
+                load();
+            } catch (ex) {
+                resultBox.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning-circle"></i>');
+            }
+            preview.disabled = false;
+        });
+    }
 
     document.getElementById('u-avatar-file').addEventListener('change', uploadUserAvatar);
     document.getElementById('u-avatar-clear').addEventListener('click', () => {

@@ -14,9 +14,24 @@ public class AiTutorController : BaseApiController
     public async Task<ActionResult<AiTutorStatusDto>> GetStatus(CancellationToken cancellationToken)
         => ToActionResult(await _service.GetStatus(cancellationToken));
 
+    /// <summary>Nhận multipart/form-data: question, sessionId (tùy chọn) và tối đa vài tệp trong trường "files".
+    /// Tệp đọc hết vào bộ nhớ ở đây vì tầng Application không biết gì về IFormFile; dung lượng từng tệp được
+    /// <see cref="AiTutorService"/> kiểm tra lại, còn RequestSizeLimit chặn từ cổng vào.</summary>
     [HttpPost("ask")]
-    public async Task Ask(AiTutorAskRequest request, CancellationToken cancellationToken)
-        => await _service.Ask(request, new ServerSentEventStream(Response), cancellationToken);
+    [RequestSizeLimit(32 * 1024 * 1024)]
+    public async Task Ask([FromForm] string? question, [FromForm] int? sessionId, [FromForm] List<IFormFile>? files, CancellationToken cancellationToken)
+    {
+        var attachmentList = new List<AiTutorAttachment>();
+        foreach (var file in files ?? [])
+        {
+            using var buffer = new MemoryStream();
+            await file.CopyToAsync(buffer, cancellationToken);
+            attachmentList.Add(new AiTutorAttachment(file.FileName, file.ContentType, buffer.ToArray()));
+        }
+
+        await _service.Ask(new AiTutorAskRequest(question ?? string.Empty, sessionId, attachmentList),
+            new ServerSentEventStream(Response), cancellationToken);
+    }
 
     [HttpGet("session")]
     public async Task<ActionResult<IEnumerable<AiChatSessionDto>>> GetSessionList(CancellationToken cancellationToken)

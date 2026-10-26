@@ -10,244 +10,454 @@
     <script src="/js/head.js"></script>
     <title data-i18n="classroom.phongHocHbELearning">Phòng học · HB E-Learning</title>
     <link rel="stylesheet" href="/css/style.css">
-    <!-- Sử dụng Plus Jakarta Sans để mang lại cảm giác công nghệ, sắc nét -->
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
+    /* ==========================================================================================================
+       PHÒNG HỌC — "buồng điều khiển phát sóng".
+       Nền tối kiểu hội nghị truyền hình (dễ nhìn video, không chói), nhưng dựng từ bộ màu TỐI của hệ thống
+       (css/style.css: --surface #131c2e, --border #26324a, --text-muted #93a3bd, màu thương hiệu sáng hơn một bậc) và
+       cùng font Manrope — không còn bộ màu / font riêng. Phòng luôn tối dù người dùng chọn theme sáng: video và
+       màn hình chia sẻ đọc tốt nhất trên nền tối.
+       Dấu ấn: huy hiệu REC như đèn báo phát sóng (viền khung hình đổi màu khi đang ghi / tạm dừng), đồng hồ dùng số
+       đơn cách (tabular), thanh điều khiển là một "bàn điều khiển" có nhãn trạng thái dưới mỗi nút.
+       ========================================================================================================== */
     :root {
-        --cr-bg: #090B10;
-        --cr-bg-gradient: radial-gradient(circle at 50% 0%, #151a2a 0%, #090b10 80%);
-        --cr-panel: #11151F;
-        --cr-panel-alt: #161B26;
-        --cr-border: #202636;
-        --cr-border-hover: #2D3548;
-        --cr-text: #F8FAFC;
-        --cr-muted: #94A3B8;
-        --cr-accent: #0EA5E9;
-        --cr-accent-hover: #0284C7;
-        --cr-accent-glow: rgba(14, 165, 233, 0.25);
-        --cr-danger: #F43F5E;
-        --cr-success: #10B981;
+        --cr-bg: #0A101C;
+        --cr-bg-gradient:
+            radial-gradient(900px 420px at 12% -8%, rgba(56, 189, 248, .10), transparent 60%),
+            radial-gradient(800px 380px at 100% 110%, rgba(129, 140, 248, .07), transparent 60%),
+            linear-gradient(180deg, #0C1424 0%, #0A101C 70%);
+        --cr-panel: #131C2E;
+        --cr-panel-alt: #182338;
+        --cr-border: #26324A;
+        --cr-border-hover: #34425F;
+        --cr-text: #F1F5F9;
+        --cr-muted: #93A3BD;
+        --cr-accent: #38BDF8;
+        --cr-accent-hover: #0EA5E9;
+        --cr-accent-glow: rgba(56, 189, 248, .25);
+        --cr-danger: #F87171;
+        --cr-success: #4ADE80;
+        --cr-warn: #FBBF24;
+        --cr-dock-h: 92px;
     }
 
-    body {
-        margin: 0;
-        font-family: 'Plus Jakarta Sans', sans-serif;
-    }
+    html, body { margin: 0; background: var(--cr-bg); font-family: var(--font-sans); }
+
+    /* Trong phòng học không bao giờ che cả màn hình bằng "Đang xử lý...": việc chạy nền (gửi từng đoạn ghi hình...) không được
+       làm gián đoạn buổi học — lớp che còn bị quay luôn vào bản ghi. */
+    #global-loading-overlay { display: none !important; }
 
     .cr-wrap {
-        display: flex; flex-direction: column; height: 100vh; color: var(--cr-text);
+        display: flex; flex-direction: column; height: 100vh; height: 100dvh; color: var(--cr-text);
         background: var(--cr-bg); background-image: var(--cr-bg-gradient);
         position: relative; overflow: hidden; z-index: 0;
     }
 
-    /* TOPBAR - ĐƠN GIẢN, PHẲNG */
+    /* ---------- Thanh trên ---------- */
     .cr-topbar {
-        display: flex; align-items: center; gap: 16px; padding: 14px 24px;
-        background: var(--cr-panel); border-bottom: 1px solid var(--cr-border);
-        position: relative; z-index: 10;
+        display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px;
+        background: color-mix(in srgb, var(--cr-panel) 88%, transparent); backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--cr-border); position: relative; z-index: 10;
     }
-    .cr-topbar h2 {
-        margin: 0; font-size: 15px; font-weight: 600; flex: 1; color: var(--cr-text);
-    }
+    .cr-title-block { min-width: 0; }
+    .cr-title { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -.25px; line-height: 1.3; color: var(--cr-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cr-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 4px; font-size: 12px; color: var(--cr-muted); }
+    /* Huy hiệu trạng thái của hệ thống (nền nhạt) đổi sang bản tối cho hợp phòng học. */
+    .cr-sub .badge { font-size: 11px; background: rgba(148, 163, 184, .14); color: var(--cr-muted); border: 1px solid rgba(148, 163, 184, .22); }
+    .cr-sub .badge.red { background: rgba(248, 113, 113, .14); color: #FCA5A5; border-color: rgba(248, 113, 113, .32); }
+    .cr-sub .badge.green { background: rgba(74, 222, 128, .12); color: #86EFAC; border-color: rgba(74, 222, 128, .3); }
+    .cr-sub .badge.blue, .cr-sub .badge.cyan { background: rgba(56, 189, 248, .12); color: #7DD3FC; border-color: rgba(56, 189, 248, .3); }
+    .cr-sub .badge.orange { background: rgba(251, 191, 36, .12); color: #FCD34D; border-color: rgba(251, 191, 36, .3); }
+    .cr-chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .cr-chip i { font-size: 14px; }
+    .cr-chip b { color: var(--cr-text); font-weight: 700; }
+    .cr-elapsed { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; }
+    .cr-elapsed[hidden] { display: none; }
+    .cr-top-actions { display: flex; align-items: center; gap: 10px; flex: none; }
 
-    .cr-body { flex: 1; display: flex; overflow: hidden; position: relative; }
-    .cr-stage { flex: 1; display: flex; flex-direction: column; padding: 24px; gap: 20px; overflow: hidden; position: relative; }
-    
-    /* VIDEO CHÍNH - VIỀN MỎNG, GÓC CẠNH HƠN */
-    .cr-main-video {
-        flex: 1; background: #000; border-radius: 12px; position: relative;
-        display: flex; align-items: center; justify-content: center; overflow: hidden;
-        border: 1px solid var(--cr-border);
-        box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
+    .cr-panel-btn {
+        position: relative; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--cr-border); cursor: pointer;
+        background: var(--cr-panel-alt); color: var(--cr-text); font-size: 19px; display: grid; place-items: center;
+        transition: background .15s, border-color .15s;
     }
-    .cr-main-video video { width: 100%; height: 100%; object-fit: contain; }
-    .cr-main-video video.mirror { transform: scaleX(-1); }
-    .cr-main-video .placeholder { color: var(--cr-muted); font-size: 14px; font-weight: 500; letter-spacing: 0.5px; }
+    .cr-panel-btn:hover { background: var(--cr-border-hover); }
+    .cr-panel-btn[aria-expanded="true"] { color: var(--cr-accent); border-color: color-mix(in srgb, var(--cr-accent) 45%, var(--cr-border)); }
+    .cr-unread {
+        position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+        background: var(--cr-danger); color: #fff; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center;
+    }
+    .cr-unread[hidden] { display: none; }
 
-    /* DANH SÁCH HỌC VIÊN */
-    .cr-viewer-strip { display: flex; gap: 12px; overflow-x: auto; padding: 0 0 80px; }
-    
-    .cr-tile {
-        flex: 0 0 auto; width: 148px; background: var(--cr-panel);
-        border: 1px solid var(--cr-border); border-radius: 10px; padding: 12px; 
-        text-align: center; transition: all 0.2s ease;
+    /* Huy hiệu mã phòng và ghi hình */
+    .cr-rec-badge, .cr-code-badge {
+        display: none; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--cr-muted);
+        background: var(--cr-panel-alt); border: 1px solid var(--cr-border); padding: 6px 12px; border-radius: 999px;
     }
-    .cr-tile:hover { border-color: var(--cr-accent); box-shadow: 0 4px 20px -8px var(--cr-accent-glow); }
-    
-    .cr-tile .avatar {
-        width: 44px; height: 44px; border-radius: 8px; margin: 0 auto 12px;
+    .cr-rec-badge.show, .cr-code-badge.show { display: inline-flex; }
+    /* Đèn báo phát sóng: đỏ có quầng sáng khi đang ghi, hổ phách đứng yên khi tạm dừng. Có cả chấm, chữ lẫn số — không chỉ màu. */
+    .cr-rec-badge { color: #FECACA; background: rgba(248, 113, 113, .12); border-color: rgba(248, 113, 113, .4); }
+    .cr-rec-badge .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--cr-danger); box-shadow: 0 0 10px 2px rgba(248, 113, 113, .65); animation: cr-rec-pulse 1.5s infinite alternate; }
+    @keyframes cr-rec-pulse { 0% { opacity: 1; } 100% { opacity: .35; } }
+    .cr-rec-badge .time { font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; color: var(--cr-text); }
+    .cr-rec-badge.paused { color: #FDE68A; background: rgba(251, 191, 36, .1); border-color: rgba(251, 191, 36, .4); }
+    .cr-rec-badge.paused .dot { background: var(--cr-warn); box-shadow: none; animation: none; }
+
+    .cr-code-label { font-size: 11px; letter-spacing: .4px; text-transform: uppercase; }
+    .cr-code-chars { display: flex; gap: 3px; }
+    .cr-code-char {
+        width: 20px; height: 22px; display: flex; align-items: center; justify-content: center;
+        background: var(--cr-bg); border: 1px solid var(--cr-border); border-radius: 5px;
+        font-family: ui-monospace, monospace; font-weight: 800; font-size: 12px; color: var(--cr-accent);
+    }
+    .cr-copy-btn { width: 26px; height: 26px; border-radius: 50%; border: none; background: transparent; color: var(--cr-muted); font-size: 14px; cursor: pointer; transition: .2s; }
+    .cr-copy-btn:hover { background: var(--cr-border); color: var(--cr-text); }
+    .cr-copy-btn.copied { color: var(--cr-success); }
+
+    /* ---------- Thân phòng ---------- */
+    .cr-body { flex: 1; display: flex; min-height: 0; position: relative; }
+    .cr-stage { flex: 1; min-width: 0; display: flex; padding: 12px 12px calc(var(--cr-dock-h) + 12px); overflow: hidden; position: relative; }
+
+    /* Lưới người tham gia kiểu cuộc họp trực tuyến. Mọi ô là con trực tiếp của khung và được đặt bằng toạ độ tuyệt đối
+       do JS tính (renderGallery) — đổi số người hay đổi bố cục chỉ là dời ô, không dựng lại video nên hình không chớp. */
+    .cr-gallery {
+        flex: 1; min-width: 0; min-height: 0; position: relative; overflow: hidden; background: #05080F;
+        border-radius: 18px; border: 1px solid var(--cr-border); box-shadow: 0 18px 50px -18px rgba(0, 0, 0, .75);
+        transition: box-shadow .25s, border-color .25s;
+    }
+    /* Viền khung hình báo trạng thái ghi hình cho cả phòng. */
+    .cr-wrap.is-recording .cr-gallery { border-color: rgba(248, 113, 113, .65); box-shadow: 0 0 0 1px rgba(248, 113, 113, .5), 0 0 34px -6px rgba(248, 113, 113, .4), 0 18px 50px -18px rgba(0, 0, 0, .75); }
+    .cr-wrap.is-paused .cr-gallery { border-color: rgba(251, 191, 36, .55); box-shadow: 0 0 0 1px rgba(251, 191, 36, .4), 0 18px 50px -18px rgba(0, 0, 0, .75); }
+    .cr-gallery .placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: var(--cr-muted); font-size: 14px; font-weight: 600; letter-spacing: .3px; padding: 0 24px; text-align: center; }
+    .cr-gallery .placeholder[hidden] { display: none; }
+
+    /* Một ô = một người. */
+    .gl-tile {
+        position: absolute; left: 0; top: 0; overflow: hidden; border-radius: 14px; --face: 72px;
         background: var(--cr-panel-alt); border: 1px solid var(--cr-border);
-        display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px; color: var(--cr-accent);
     }
-    .cr-tile video.cr-tile-video { width: 100%; height: 84px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: #000; border: 1px solid var(--cr-border); }
-    .cr-tile .name { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--cr-text); }
-    .cr-tile .mic, .cr-tile .cam { font-size: 11px; color: var(--cr-muted); margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 4px; font-weight: 500; }
-    .cr-tile .mic.on, .cr-tile .cam.on { color: var(--cr-success); }
+    .gl-tile.ready { transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.2, .8, .2, 1), height .28s cubic-bezier(.2, .8, .2, 1), border-color .2s; }
+    .gl-tile.pinned, .gl-tile:focus-within { outline: 2px solid var(--cr-accent); outline-offset: -2px; }
+    .gl-tile.share { background: #000; }
+    .gl-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
+    .gl-tile.share .gl-video { object-fit: contain; }
+    .gl-video.mirror { transform: scaleX(-1); }
+    .gl-video[hidden], .gl-face[hidden], .gl-mic[hidden], .gl-name i[hidden] { display: none; }
+    .gl-face { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(120% 120% at 50% 0%, #1A2640 0%, #111A2D 70%); }
 
-    /* SIDEBAR CHAT - KHỐI RÕ RÀNG */
+    /* Ảnh đại diện tròn. Chữ cái đầu luôn nằm bên dưới ảnh: ảnh chưa tải kịp hay lỗi thì vẫn thấy chữ, không bao giờ trống. */
+    .gl-avatar {
+        position: relative; width: var(--face, 72px); height: var(--face, 72px); border-radius: 50%; overflow: hidden; flex: none;
+        display: grid; place-items: center; box-sizing: border-box; border: 1px solid rgba(255, 255, 255, .12);
+        background: hsl(var(--hue, 210) 42% 36%); color: #fff; font-weight: 800; font-size: calc(var(--face, 72px) * .4); line-height: 1; user-select: none;
+    }
+    .gl-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .gl-name {
+        position: absolute; left: 10px; bottom: 10px; max-width: calc(100% - 20px); display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: var(--cr-text); white-space: nowrap;
+        background: rgba(10, 16, 28, .72); backdrop-filter: blur(6px); border: 1px solid rgba(255, 255, 255, .08);
+    }
+    .gl-name span { overflow: hidden; text-overflow: ellipsis; }
+    .gl-name i { flex: none; font-size: 13px; color: var(--cr-accent); }
+    .gl-mic {
+        position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+        font-size: 15px; background: rgba(248, 113, 113, .92); color: #2A0B0B;
+    }
+    .gl-pin {
+        position: absolute; top: 10px; left: 10px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .12); cursor: pointer;
+        display: grid; place-items: center; font-size: 14px; background: rgba(10, 16, 28, .72); color: var(--cr-text); opacity: 0; transition: opacity .15s, background .15s;
+    }
+    .gl-tile:hover .gl-pin, .gl-pin:focus-visible, .gl-tile.pinned .gl-pin { opacity: 1; }
+    .gl-pin:hover { background: var(--cr-border-hover); }
+    .gl-pin:focus-visible, .gl-more:focus-visible { outline: 2px solid var(--cr-accent); outline-offset: 2px; }
+    .gl-pin[hidden] { display: none; }
+    @media (hover: none) { .gl-pin { opacity: .85; } }
+
+    /* Ô nhỏ (dải bên cạnh khi phóng to, hoặc nhiều người): chữ và nút gọn lại. */
+    .gl-tile.compact .gl-name { left: 6px; bottom: 6px; padding: 2px 8px; font-size: 11px; max-width: calc(100% - 12px); }
+    .gl-tile.compact .gl-name i { font-size: 11px; }
+    .gl-tile.compact .gl-mic { top: 6px; right: 6px; width: 22px; height: 22px; font-size: 12px; }
+    .gl-tile.compact .gl-pin { top: 6px; left: 6px; width: 22px; height: 22px; font-size: 11px; }
+
+    /* Ô "+N": còn bao nhiêu người chưa vừa khung. */
+    .gl-more {
+        display: grid; place-content: center; justify-items: center; gap: 6px; padding: 0; cursor: pointer; font: inherit; color: var(--cr-text);
+        background: var(--cr-panel); text-align: center;
+    }
+    .gl-more:hover { background: var(--cr-panel-alt); border-color: var(--cr-border-hover); }
+    .gl-more b { font-size: clamp(22px, calc(var(--face) * .7), 44px); font-weight: 800; letter-spacing: -.5px; line-height: 1; color: var(--cr-accent); }
+    .gl-more span { font-size: 12px; font-weight: 700; color: var(--cr-muted); padding: 0 6px; }
+    .gl-tile.compact.gl-more span { display: none; }
+
+    /* ---------- Khung chat / người tham gia ---------- */
     .cr-side {
-        width: 320px; flex-shrink: 0; background: var(--cr-panel);
-        border-left: 1px solid var(--cr-border); overflow: hidden; 
-        transition: width .25s ease; z-index: 10;
+        width: 340px; flex-shrink: 0; background: var(--cr-panel); border-left: 1px solid var(--cr-border);
+        overflow: hidden; transition: width .25s ease, transform .25s ease; z-index: 10;
     }
     .cr-side.collapsed { width: 0; border-left-color: transparent; }
-    .cr-side-inner { width: 320px; height: 100%; display: flex; flex-direction: column; }
-    
-    .cr-side-toggle {
-        position: absolute; top: 50%; right: 320px; transform: translateY(-50%);
-        width: 20px; height: 60px; border-radius: 6px 0 0 6px; border: 1px solid var(--cr-border); border-right: none;
-        background: var(--cr-panel-alt); color: var(--cr-muted); cursor: pointer; z-index: 20;
-        display: flex; align-items: center; justify-content: center; font-size: 12px;
-        transition: all .25s ease;
-    }
-    .cr-side-toggle:hover { color: var(--cr-accent); background: var(--cr-panel); }
-    .cr-body.side-collapsed .cr-side-toggle { right: 0; }
-    .cr-body.side-collapsed .cr-side-toggle i { transform: rotate(180deg); }
-
+    .cr-side-inner { width: 340px; height: 100%; display: flex; flex-direction: column; }
     .cr-side-tabs { display: flex; align-items: center; border-bottom: 1px solid var(--cr-border); }
-    .cr-side-tabs button {
-        flex: 1; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--cr-muted); 
-        padding: 16px 12px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .2s;
+    .cr-side-tabs button[data-panel] {
+        flex: 1; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--cr-muted);
+        padding: 15px 10px; cursor: pointer; font: 700 13px/1.2 var(--font-sans); transition: color .2s, border-color .2s;
     }
-    .cr-side-tabs button:hover { color: var(--cr-text); }
-    .cr-side-tabs button.active { color: var(--cr-accent); border-bottom-color: var(--cr-accent); }
-    
+    .cr-side-tabs button[data-panel]:hover { color: var(--cr-text); }
+    .cr-side-tabs button[data-panel].active { color: var(--cr-accent); border-bottom-color: var(--cr-accent); }
     .cr-side-close {
-        flex: none !important; width: 48px; height: 100%; border: none !important;
-        display: flex; align-items: center; justify-content: center; font-size: 14px;
+        flex: none; width: 46px; height: 48px; border: none; background: transparent; color: var(--cr-muted); cursor: pointer;
+        display: flex; align-items: center; justify-content: center; font-size: 15px;
     }
-    .cr-side-close:hover { color: var(--cr-danger) !important; background: rgba(244, 63, 94, 0.1) !important; }
-    
-    .cr-side-panel { flex: 1; overflow-y: auto; padding: 20px 16px; display: none; }
+    .cr-side-close:hover { color: var(--cr-danger); background: rgba(248, 113, 113, .1); }
+
+    .cr-side-panel { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 14px; display: none; }
     .cr-side-panel.active { display: flex; flex-direction: column; }
-    
-    /* TIN NHẮN CHAT - ĐƯỜNG KẺ NHẤN BÊN TRÁI */
-    .cr-chat-msg { 
-        margin-bottom: 16px; font-size: 13px; padding-left: 12px;
-        border-left: 2px solid var(--cr-border);
-    }
+    #cr-chat-log { flex: 1; overflow-y: auto; }
+
+    .cr-chat-msg { margin-bottom: 14px; font-size: 13px; padding-left: 12px; border-left: 2px solid var(--cr-border); }
     .cr-chat-msg:hover { border-left-color: var(--cr-accent); }
-    .cr-chat-msg b { color: var(--cr-text); font-size: 13px; font-weight: 600; }
-    .cr-chat-msg .time { color: var(--cr-muted); font-size: 11px; margin-left: 8px; font-weight: 500; }
-    .cr-chat-msg > div:last-child { margin-top: 4px; line-height: 1.6; color: #CBD5E1; }
-    
-    .cr-chat-input { display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--cr-border); background: var(--cr-panel); }
+    .cr-chat-msg.mine { border-left-color: var(--cr-accent); }
+    .cr-chat-msg b { color: var(--cr-text); font-size: 13px; font-weight: 700; }
+    .cr-chat-msg .time { color: var(--cr-muted); font-size: 11px; margin-left: 8px; font-weight: 600; }
+    .cr-chat-msg > div:last-child { margin-top: 3px; line-height: 1.55; color: #CBD5E1; overflow-wrap: anywhere; }
+    .cr-chat-empty { margin: auto; text-align: center; font-size: 12.5px; color: var(--cr-muted); padding: 24px 12px; }
+
+    .cr-chat-input { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--cr-border); background: var(--cr-panel); }
     .cr-chat-input input {
-        flex: 1; border-radius: 6px; border: 1px solid var(--cr-border); background: var(--cr-bg);
-        color: var(--cr-text); padding: 10px 14px; font-size: 13px; transition: 0.2s;
+        flex: 1; min-width: 0; border-radius: 10px; border: 1px solid var(--cr-border); background: var(--cr-bg);
+        color: var(--cr-text); padding: 10px 14px; font: 500 13px var(--font-sans); transition: .2s;
     }
-    .cr-chat-input input:focus { outline: none; border-color: var(--cr-accent); box-shadow: 0 0 0 2px var(--cr-accent-glow); }
+    .cr-chat-input input:focus { outline: none; border-color: var(--cr-accent); box-shadow: 0 0 0 3px var(--cr-accent-glow); }
     .cr-chat-input button {
-        border-radius: 6px; padding: 0 16px; background: var(--cr-accent); color: #fff; border: none; font-weight: 600; cursor: pointer; transition: 0.2s;
+        border-radius: 10px; padding: 0 16px; background: var(--cr-accent); color: #04121E; border: none; font: 800 13px var(--font-sans); cursor: pointer; transition: .2s;
     }
     .cr-chat-input button:hover { background: var(--cr-accent-hover); }
 
-    .cr-participant { display: flex; align-items: center; gap: 12px; padding: 10px; font-size: 13px; border-radius: 6px; margin-bottom: 4px; font-weight: 500; }
+    .cr-participant { display: flex; align-items: center; gap: 12px; padding: 9px 8px; font-size: 13px; border-radius: 10px; margin-bottom: 2px; font-weight: 600; }
     .cr-participant:hover { background: var(--cr-panel-alt); }
-    .cr-participant .avatar {
-        width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0;
-        background: var(--cr-bg); border: 1px solid var(--cr-border);
-        display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--cr-accent);
-    }
+    .cr-participant .gl-avatar { --face: 34px; font-size: 13px; }
+    .cr-participant .tags { color: var(--cr-success); font-size: 12px; font-weight: 600; }
 
-    /* DOCK ĐIỀU KHIỂN - HÌNH CHỮ NHẬT BO GÓC NHẸ */
+    /* ---------- Bàn điều khiển ---------- */
     .cr-controls {
-        position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 20;
-        display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 12px;
-        background: var(--cr-panel); border: 1px solid var(--cr-border);
-        border-radius: 12px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7);
+        position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 20; max-width: calc(100% - 24px);
+        display: flex; align-items: stretch; justify-content: center; gap: 6px; padding: 8px;
+        background: color-mix(in srgb, var(--cr-panel) 92%, transparent); backdrop-filter: blur(12px);
+        border: 1px solid var(--cr-border); border-radius: 20px;
+        box-shadow: 0 24px 50px -14px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255, 255, 255, .05);
     }
-    
+    .cr-ctrl-sep { width: 1px; margin: 6px 4px; background: var(--cr-border); flex: none; }
     .cr-ctrl-btn {
-        width: 44px; height: 44px; border-radius: 8px; border: 1px solid transparent; 
-        background: var(--cr-panel-alt); color: var(--cr-text);
-        font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-        transition: all 0.2s ease;
+        min-width: 64px; padding: 9px 8px 7px; border-radius: 14px; border: 1px solid transparent; cursor: pointer;
+        background: transparent; color: var(--cr-text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+        transition: background .15s, border-color .15s, color .15s;
     }
-    .cr-ctrl-btn:hover:not(:disabled) { background: var(--cr-border-hover); }
-    .cr-ctrl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    
-    .cr-ctrl-btn.off { background: rgba(244, 63, 94, 0.1); color: var(--cr-danger); border-color: rgba(244, 63, 94, 0.2); }
-    .cr-ctrl-btn.off:hover:not(:disabled) { background: rgba(244, 63, 94, 0.2); }
-    
-    .cr-ctrl-btn.active { 
-        background: var(--cr-accent); color: #fff;
-        box-shadow: 0 4px 12px var(--cr-accent-glow); 
-    }
-    
-    .cr-leave-btn { background: var(--cr-danger) !important; color: white; margin-left: 12px; }
-    .cr-leave-btn:hover { background: #E11D48 !important; }
+    .cr-ctrl-btn i { font-size: 21px; line-height: 1; }
+    .cr-ctrl-label { font-size: 11px; font-weight: 700; line-height: 1.1; white-space: nowrap; color: var(--cr-muted); }
+    .cr-ctrl-btn:hover:not(:disabled) { background: var(--cr-panel-alt); }
+    .cr-ctrl-btn:hover:not(:disabled) .cr-ctrl-label { color: var(--cr-text); }
+    .cr-ctrl-btn:focus-visible, .cr-panel-btn:focus-visible, .cr-side-close:focus-visible, .cr-copy-btn:focus-visible, .cr-side-tabs button:focus-visible { outline: 2px solid var(--cr-accent); outline-offset: 2px; }
+    .cr-ctrl-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .cr-ctrl-btn[hidden] { display: none; }
+    .cr-ctrl-btn.off { color: var(--cr-danger); background: rgba(248, 113, 113, .09); }
+    .cr-ctrl-btn.off .cr-ctrl-label { color: #FCA5A5; }
+    .cr-ctrl-btn.active { color: var(--cr-accent); background: rgba(56, 189, 248, .12); border-color: rgba(56, 189, 248, .3); }
+    .cr-ctrl-btn.active .cr-ctrl-label { color: #BAE6FD; }
+    .cr-leave-btn { background: var(--cr-danger) !important; color: #2A0B0B !important; margin-left: 4px; }
+    .cr-leave-btn .cr-ctrl-label { color: #2A0B0B !important; }
+    .cr-leave-btn:hover { background: #FCA5A5 !important; }
 
-    /* BADGE GHI HÌNH & MÃ PHÒNG */
-    .cr-rec-badge, .cr-code-badge {
-        display: none; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--cr-muted);
-        background: var(--cr-panel-alt); border: 1px solid var(--cr-border); padding: 6px 12px; border-radius: 6px;
-    }
-    .cr-rec-badge { color: var(--cr-danger); background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); }
-    .cr-rec-badge.show, .cr-code-badge.show { display: flex; }
-    
-    .cr-code-chars { display: flex; gap: 4px; margin-left: 4px; }
-    .cr-code-char {
-        width: 20px; height: 22px; display: flex; align-items: center; justify-content: center;
-        background: var(--cr-bg); border: 1px solid var(--cr-border); border-radius: 4px;
-        font-family: ui-monospace, monospace; font-weight: 700; font-size: 12px; color: var(--cr-accent);
-    }
-    .cr-copy-btn {
-        width: 26px; height: 26px; border-radius: 4px; border: none;
-        background: transparent; color: var(--cr-muted); font-size: 14px; cursor: pointer; transition: 0.2s;
-    }
-    .cr-copy-btn:hover { background: var(--cr-border); color: var(--cr-text); }
-    .cr-copy-btn.copied { color: var(--cr-success); }
-    
-    .cr-rec-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cr-danger); animation: cr-rec-pulse 1.5s infinite alternate; }
-    @keyframes cr-rec-pulse { 0% { opacity: 1; } 100% { opacity: 0.3; } }
+    .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
-    /* SCROLLBAR - VUÔNG VỨC & TINH TẾ */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--cr-border); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--cr-muted); }
+
+    /* ---------- Màn hình nhỏ: khung chat thành tấm trượt từ dưới lên, thanh điều khiển trải hết bề ngang ---------- */
+    @media (max-width: 860px) {
+        .cr-topbar { padding: 10px 14px; flex-wrap: wrap; row-gap: 8px; }
+        .cr-title-block { flex: 1 1 100%; }
+        .cr-top-actions { flex: 1 1 100%; justify-content: flex-start; }
+        .cr-panel-btn { margin-left: auto; }
+        .cr-code-label { display: none; }
+        .cr-stage { padding: 12px 12px calc(var(--cr-dock-h) + 10px); }
+        .cr-side {
+            position: fixed; left: 0; right: 0; bottom: calc(var(--cr-dock-h) + 8px); width: auto; height: min(62dvh, 520px);
+            border: 1px solid var(--cr-border); border-radius: 20px 20px 0 0; box-shadow: 0 -20px 50px -20px rgba(0, 0, 0, .8);
+            z-index: 30; transform: translateY(0);
+        }
+        .cr-side.collapsed { width: auto; transform: translateY(calc(100% + var(--cr-dock-h) + 24px)); visibility: hidden; transition: transform .25s ease, visibility 0s linear .25s; }
+        .cr-side-inner { width: 100%; }
+        .cr-controls { left: 0; right: 0; bottom: 0; transform: none; max-width: none; border-radius: 20px 20px 0 0; border-bottom: 0; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); overflow-x: auto; justify-content: flex-start; }
+        .cr-controls { gap: 2px; justify-content: space-between; }
+        .cr-ctrl-sep { display: none; }
+        .cr-ctrl-btn { min-width: 0; flex: 1 1 0; padding: 8px 2px 6px; }
+        .cr-ctrl-label { font-size: 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+        .cr-leave-btn { margin-left: 2px; }
+    }
+    @media (max-width: 520px) {
+        .cr-title { font-size: 15px; }
+        .cr-top-actions { gap: 6px; }
+        .cr-rec-badge, .cr-code-badge { padding: 5px 9px; }
+        .cr-code-char { width: 17px; height: 20px; font-size: 11px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .cr-rec-badge .dot { animation: none; }
+        .cr-side, .cr-gallery, .cr-ctrl-btn, .cr-panel-btn { transition: none; }
+        .gl-tile.ready { transition: none; }
+    }
+
+    /* ==================== MÀN HÌNH XEM TRƯỚC ==================== */
+    .cr-preview {
+        position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 24px; overflow: auto;
+        background: var(--cr-bg); background-image: var(--cr-bg-gradient);
+    }
+    .cr-preview[hidden] { display: none; }
+    .pv-card {
+        width: min(940px, 100%); display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, 1fr); gap: 26px; padding: 20px;
+        background: var(--cr-panel); border: 1px solid var(--cr-border); border-radius: 20px; box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .7);
+    }
+    .pv-stage { position: relative; aspect-ratio: 16 / 10; background: #000; border-radius: 14px; overflow: hidden; border: 1px solid var(--cr-border); }
+    .pv-stage video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+    .pv-stage video[hidden], .pv-off[hidden] { display: none; }
+    .pv-off { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px; padding: 20px; text-align: center; color: var(--cr-muted); background: #080C15; font-size: 13px; }
+    .pv-avatar { width: 72px; height: 72px; border-radius: 20px; display: grid; place-items: center; font-size: 28px; font-weight: 800; color: var(--cr-accent); background: var(--cr-panel-alt); border: 1px solid var(--cr-border); }
+    .pv-toggles { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; gap: 12px; }
+    .pv-toggle {
+        width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--cr-border); cursor: pointer; font-size: 19px;
+        display: grid; place-items: center; color: var(--cr-text); background: rgba(19, 28, 46, .85); backdrop-filter: blur(6px);
+        transition: background .15s, border-color .15s;
+    }
+    .pv-toggle:hover:not(:disabled) { background: var(--cr-border-hover); }
+    .pv-toggle.off { color: var(--cr-danger); background: rgba(248, 113, 113, .14); border-color: rgba(248, 113, 113, .4); }
+    .pv-toggle:disabled { opacity: .45; cursor: not-allowed; }
+    .pv-toggle:focus-visible, .pv-join:focus-visible, .pv-field select:focus-visible, .pv-back:focus-visible { outline: 2px solid var(--cr-accent); outline-offset: 2px; }
+    .pv-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .pv-side h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
+    .pv-room { margin: 4px 0 0; font-size: 13.5px; font-weight: 700; color: var(--cr-text); overflow-wrap: anywhere; }
+    .pv-sub { margin: 4px 0 0; font-size: 13px; color: var(--cr-muted); }
+    .pv-status { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; border: 1px solid var(--cr-border); background: var(--cr-panel-alt); }
+    .pv-status i { font-size: 18px; flex: none; }
+    .pv-status.live { color: #86EFAC; border-color: rgba(74, 222, 128, .35); background: rgba(74, 222, 128, .09); }
+    .pv-status.wait { color: #FCD34D; border-color: rgba(251, 191, 36, .3); background: rgba(251, 191, 36, .08); }
+    .pv-status.bad { color: #FDA4AF; border-color: rgba(248, 113, 113, .35); background: rgba(248, 113, 113, .1); }
+    .pv-field label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; color: var(--cr-muted); }
+    .pv-field select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--cr-border); background: var(--cr-bg); color: var(--cr-text); font: inherit; font-size: 13px; }
+    .pv-field .pv-name { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--cr-border); background: var(--cr-bg); font-size: 13px; overflow-wrap: anywhere; }
+    .pv-field .pv-name[hidden], .pv-field select[hidden] { display: none; }
+    .pv-meter { display: flex; align-items: flex-end; gap: 3px; height: 18px; margin-top: 10px; }
+    .pv-meter i { flex: 1; height: 100%; border-radius: 2px; background: var(--cr-border); transition: background .06s; }
+    .pv-meter i.on { background: var(--cr-success); }
+    .pv-meter i:nth-child(n+9).on { background: var(--cr-warn); }
+    .pv-meter i:nth-child(n+11).on { background: var(--cr-danger); }
+    .pv-notes { display: flex; flex-direction: column; gap: 8px; }
+    .pv-note { padding: 9px 12px; border-radius: 10px; font-size: 12.5px; line-height: 1.5; color: var(--cr-muted); background: var(--cr-panel-alt); border: 1px solid var(--cr-border); }
+    .pv-note.warn { color: #FCD34D; border-color: rgba(251, 191, 36, .3); }
+    .pv-note.bad { color: #FDA4AF; border-color: rgba(248, 113, 113, .35); }
+    .pv-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: auto; padding-top: 6px; }
+    .pv-join {
+        flex: 1 1 170px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 13px 18px; border: 0; border-radius: 12px;
+        background: var(--cr-accent); color: #04121E; font: 800 14px/1 var(--font-sans); cursor: pointer; transition: background .15s;
+    }
+    .pv-join:hover:not(:disabled) { background: var(--cr-accent-hover); }
+    .pv-join:disabled { opacity: .45; cursor: not-allowed; }
+    .pv-back { padding: 12px 16px; border-radius: 12px; border: 1px solid var(--cr-border); color: var(--cr-muted); font-weight: 700; font-size: 13.5px; text-decoration: none; }
+    .pv-back:hover { color: var(--cr-text); background: var(--cr-panel-alt); text-decoration: none; }
+    .pv-as { font-size: 12px; color: var(--cr-muted); }
+    @media (max-width: 760px) { .pv-card { grid-template-columns: minmax(0, 1fr); gap: 18px; } .cr-preview { padding: 14px; place-items: start center; } }
+    @media (prefers-reduced-motion: reduce) { .pv-meter i, .pv-toggle, .pv-join { transition: none; } }
 </style>
     <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
 </head>
 <body>
 <div class="cr-wrap">
-    <div class="cr-topbar">
-        <h2 data-i18n="classroom.dangTai" id="cr-title">Đang tải...</h2>
-        <span id="cr-status"></span>
-        <span class="cr-code-badge" id="cr-code-badge"></span>
-        <span class="cr-rec-badge" id="cr-rec-badge"><span class="dot"></span> Đang ghi hình <span class="time" id="cr-rec-time">00:00</span></span>
-    </div>
+    <header class="cr-topbar">
+        <div class="cr-title-block">
+            <h1 class="cr-title" id="cr-title">Đang tải...</h1>
+            <div class="cr-sub">
+                <span id="cr-status"></span>
+                <span class="cr-chip cr-elapsed" id="cr-elapsed" hidden data-i18n-title="classroom.thoiGianDaDienRa" title="Thời gian buổi học đã diễn ra"><i class="ph ph-timer"></i><b id="cr-elapsed-text">00:00</b></span>
+                <span class="cr-chip" id="cr-people-chip" data-i18n-title="classroom.nguoiThamGia" title="Người tham gia"><i class="ph ph-users"></i><b id="cr-people-chip-count">1</b></span>
+            </div>
+        </div>
+        <div class="cr-top-actions">
+            <span class="cr-code-badge" id="cr-code-badge"></span>
+            <span class="cr-rec-badge" id="cr-rec-badge"><span class="dot" aria-hidden="true"></span><span id="cr-rec-label">Đang ghi</span> <span class="time" id="cr-rec-time">00:00</span></span>
+            <!-- Thông báo cho trình đọc màn hình chỉ khi trạng thái ĐỔI; đồng hồ nhảy mỗi giây thì không đọc. -->
+            <span class="sr-only" id="cr-rec-announce" role="status"></span>
+            <button type="button" class="cr-panel-btn" id="cr-side-toggle" aria-controls="cr-side" aria-expanded="true" data-i18n-title="classroom.anHienKhungChat" title="Ẩn/hiện khung chat" aria-label="Ẩn/hiện khung chat">
+                <i class="ph ph-chat-circle-text"></i><span class="cr-unread" id="cr-unread" hidden></span></button>
+        </div>
+    </header>
     <div class="cr-body">
+        <!-- Màn hình xem trước: hiện trước khi vào phòng, ẩn đi khi bấm vào (xem runPreview). -->
+        <div class="cr-preview" id="cr-preview" hidden role="region" aria-labelledby="pv-title">
+            <div class="pv-card">
+                <div class="pv-stage">
+                    <video id="pv-video" autoplay muted playsinline hidden></video>
+                    <div class="pv-off" id="pv-off">
+                        <div class="pv-avatar" id="pv-avatar" aria-hidden="true"></div>
+                        <div id="pv-off-text"></div>
+                    </div>
+                    <div class="pv-toggles">
+                        <button type="button" class="pv-toggle" id="pv-toggle-mic" aria-pressed="false"><i class="ph ph-microphone-slash"></i></button>
+                        <button type="button" class="pv-toggle" id="pv-toggle-cam" aria-pressed="false"><i class="ph ph-video-camera-slash"></i></button>
+                    </div>
+                </div>
+                <div class="pv-side">
+                    <div>
+                        <h2 id="pv-title" data-i18n="classroom.pvTitle">Sẵn sàng tham gia?</h2>
+                        <p class="pv-room" id="pv-room"></p>
+                        <p class="pv-sub" id="pv-sub"></p>
+                    </div>
+                    <div class="pv-status wait" id="pv-status" role="status"><i class="ph-fill ph-hourglass-medium"></i><span id="pv-status-text"></span></div>
+                    <div class="pv-field">
+                        <label for="pv-cam" data-i18n="classroom.pvCamera">Camera</label>
+                        <select id="pv-cam" hidden></select><div class="pv-name" id="pv-cam-name"></div>
+                    </div>
+                    <div class="pv-field">
+                        <label for="pv-mic" data-i18n="classroom.pvMic">Micro</label>
+                        <select id="pv-mic" hidden></select><div class="pv-name" id="pv-mic-name"></div>
+                        <div class="pv-meter" id="pv-meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Mức âm thanh micro">
+                            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                        </div>
+                    </div>
+                    <div class="pv-notes" id="pv-notes" aria-live="polite"></div>
+                    <div class="pv-actions">
+                        <button type="button" class="pv-join" id="pv-join" disabled><i class="ph ph-sign-in"></i><span data-i18n="classroom.pvJoin">Tham gia</span></button>
+                        <a class="pv-back" href="/pages/online-class.html" data-i18n="classroom.pvBack">Quay lại</a>
+                    </div>
+                    <div class="pv-as" id="pv-join-as"></div>
+                </div>
+            </div>
+        </div>
         <div class="cr-stage">
-            <div class="cr-main-video" id="cr-main-video">
+            <div class="cr-gallery" id="cr-gallery" role="group" aria-label="Người tham gia trong phòng">
                 <div data-i18n="classroom.dangKetNoi" class="placeholder" id="cr-placeholder">Đang kết nối...</div>
             </div>
-            <div class="cr-viewer-strip" id="cr-viewer-strip"></div>
         </div>
-        <button type="button" class="cr-side-toggle" id="cr-side-toggle" data-i18n-title="classroom.anHienKhungChat" title="Ẩn/hiện khung chat"><i class="ph ph-caret-right"></i></button>
-        <div class="cr-side" id="cr-side">
+        <aside class="cr-side" id="cr-side" aria-label="Chat và người tham gia">
             <div class="cr-side-inner">
                 <div class="cr-side-tabs">
-                    <button class="active" data-panel="chat">Chat</button>
-                    <button data-panel="people">Người tham gia (<span id="cr-people-count">0</span>)</button>
-                    <button type="button" class="cr-side-close" id="cr-side-close" data-i18n-title="classroom.dongKhungChat" title="Đóng khung chat"><i class="ph ph-x"></i></button>
+                    <button type="button" class="active" data-panel="chat" data-i18n="classroom.tabChat">Chat</button>
+                    <button type="button" data-panel="people"><span data-i18n="classroom.nguoiThamGia">Người tham gia</span> (<span id="cr-people-count">0</span>)</button>
+                    <button type="button" class="cr-side-close" id="cr-side-close" data-i18n-title="classroom.dongKhungChat" title="Đóng khung chat" aria-label="Đóng khung chat"><i class="ph ph-x"></i></button>
                 </div>
                 <div class="cr-side-panel active" id="panel-chat">
-                    <div id="cr-chat-log" style="flex:1;overflow-y:auto"></div>
+                    <div id="cr-chat-log"><div class="cr-chat-empty" id="cr-chat-empty" data-i18n="classroom.chuaCoTinNhan">Chưa có tin nhắn.</div></div>
                 </div>
                 <div class="cr-side-panel" id="panel-people">
                     <div id="cr-people-list"></div>
                 </div>
                 <div class="cr-chat-input">
-                    <input id="cr-chat-text" data-i18n-ph="classroom.nhapTinNhan" placeholder="Nhập tin nhắn..." maxlength="500">
-                    <button data-i18n="classroom.gui" class="btn sm" id="cr-chat-send">Gửi</button>
+                    <input id="cr-chat-text" data-i18n-ph="classroom.nhapTinNhan" placeholder="Nhập tin nhắn..." maxlength="500" aria-label="Nhập tin nhắn">
+                    <button type="button" data-i18n="classroom.gui" id="cr-chat-send">Gửi</button>
                 </div>
             </div>
-        </div>
+        </aside>
     </div>
-    <div class="cr-controls" id="cr-controls"></div>
+    <div class="cr-controls" id="cr-controls" role="toolbar" aria-label="Điều khiển buổi học"></div>
 </div>
 
 <script src="/js/api.js"></script>
@@ -261,7 +471,7 @@
     // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
     await Lang.ready;
 
-    if (!Auth.require(['Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'online-class.view')) return;
+    if (!Auth.require(['Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'online-class.view')) return;
     ensurePhosphorIcons();
     ensureUicons();
 
@@ -294,6 +504,28 @@
     let recordingStartAt = null; // mốc thời gian bắt đầu ghi (đồng hồ trình duyệt), dùng tính thời lượng thật lúc kết thúc + chạy đồng hồ hiển thị
     let recTimerInterval = null;
     let uploadQueue = Promise.resolve(); // hàng đợi tải từng đoạn lên tuần tự, tránh 2 đoạn ghi đè lẫn nhau trên server
+    // Trạng thái ghi hình do SERVER giữ và phát cho cả phòng (xem ClassRoomHub: RecordingState). Mỗi trình duyệt chỉ
+    // chạy đồng hồ hiển thị cục bộ từ con số server gửi, nên người vào muộn thấy đúng thời gian và không ai lệch nhau.
+    let recState = 'Idle';       // 'Idle' | 'Recording' | 'Paused'
+    let recBaseMs = 0;           // thời gian đã ghi (ms, không tính đoạn tạm dừng) tại lúc nhận trạng thái
+    let recBaseAt = 0;           // performance.now() lúc nhận trạng thái
+    let recActiveMs = 0;         // host: thời gian đã ghi THẬT của Bản ghi hiện tại, tự cộng dồn để vá thời lượng tệp
+    let recResumedAt = 0;        // host: Date.now() lúc bắt đầu / tiếp tục đoạn đang chạy
+    let meetingTimer = null;     // đồng hồ "đã diễn ra" của buổi học trên thanh trên
+    let unreadCount = 0;         // tin nhắn chat chưa đọc khi khung chat đang đóng
+    // Lưới người tham gia (xem renderGallery). Khai báo ở ĐÂY, không để cạnh code dùng chúng: sự kiện của hub chạy được ngay
+    // khi hàm khởi động còn đang chờ ở `await`, nên một `const/let` nằm phía dưới sẽ báo lỗi "Cannot access before initialization".
+    const GAL_GAP = 8, GAL_PAD = 8, GAL_MAX_TILES = 16, GAL_MIN_W = 150, GAL_MIN_H = 96;
+    const GAL_MIN_ASPECT = 0.75, GAL_MAX_ASPECT = 16 / 9, GAL_MORE_KEY = '__more';
+    const tileMap = new Map();   // khoá ('self' hoặc connectionId) -> phần tử ô
+    let joined = false;          // đã vào phòng xong (nhận Joined); trước đó khung chỉ có dòng "Đang kết nối..."
+    let hostStream = null;       // học viên: luồng hình + tiếng nhận từ Chủ trì
+    let mySharing = false;       // mình đang chia sẻ màn hình
+    let myScreenTrack = null;    // học viên: track màn hình đang chia sẻ (gửi tới Chủ trì)
+    let pinnedKey = null;        // ô người dùng ghim
+    let dismissedKey = null;     // người chia sẻ màn hình mà người dùng đã thu về lưới
+    let currentSpotKey = null;   // ô đang phóng to ở lần vẽ gần nhất
+    let galleryFrame = 0;
 
     try {
         room = await API.get(`/onlineclassroom/${roomId}`);
@@ -335,7 +567,16 @@
         return;
     }
 
+    // Màn hình xem trước: kiểm tra thiết bị, chờ buổi học bắt đầu (học viên). Chỉ khi bấm vào mới mở kết nối bên dưới.
+    const joinPrefs = await runPreview();
+
     renderControls();
+
+    // Vẽ lại lưới mỗi khi khung đổi cỡ (xoay màn hình, đóng/mở khung chat...). Ảnh đại diện lỗi thì gỡ ảnh, còn chữ cái đầu.
+    document.getElementById('cr-gallery').setAttribute('aria-label', t('classroom.glGallery', 'Người tham gia trong phòng'));
+    if (window.ResizeObserver) new ResizeObserver(scheduleGallery).observe(document.getElementById('cr-gallery'));
+    else window.addEventListener('resize', scheduleGallery);
+    document.getElementById('cr-people-list').addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
 
     document.querySelectorAll('.cr-side-tabs button[data-panel]').forEach(b => b.addEventListener('click', () => {
         document.querySelectorAll('.cr-side-tabs button[data-panel]').forEach(x => x.classList.remove('active'));
@@ -346,14 +587,22 @@
     document.getElementById('cr-chat-send').addEventListener('click', sendChat);
     document.getElementById('cr-chat-text').addEventListener('keydown', e => { if (e.key === 'Enter') sendChat(); });
 
-    // Đóng/mở khung chat — thu hẹp .cr-side về 0 để nhường chỗ cho video, không ảnh hưởng kết nối/luồng bên trong.
-    // Có 2 nút bấm cùng chức năng: mũi tên ở mép ngoài (luôn thấy được để mở lại) và nút "×" ngay trong khung (dễ thấy để đóng).
-    function toggleSidePanel() {
-        document.getElementById('cr-side').classList.toggle('collapsed');
-        document.querySelector('.cr-body').classList.toggle('side-collapsed');
+    // Đóng/mở khung chat. Màn hình rộng: thu hẹp .cr-side về 0 để nhường chỗ cho video. Màn hình nhỏ: khung là tấm trượt từ
+    // dưới lên che bớt video nên MẶC ĐỊNH ĐÓNG. Nút ở thanh trên (có chấm đỏ báo tin chưa đọc) và nút "×" trong khung cùng đóng/mở.
+    function setSidePanel(open) {
+        document.getElementById('cr-side').classList.toggle('collapsed', !open);
+        document.querySelector('.cr-body').classList.toggle('side-collapsed', !open);
+        document.getElementById('cr-side-toggle').setAttribute('aria-expanded', String(open));
+        if (open) clearUnread();
+    }
+    function toggleSidePanel() { setSidePanel(document.getElementById('cr-side').classList.contains('collapsed')); }
+    function clearUnread() {
+        unreadCount = 0;
+        document.getElementById('cr-unread').hidden = true;
     }
     document.getElementById('cr-side-toggle').addEventListener('click', toggleSidePanel);
     document.getElementById('cr-side-close').addEventListener('click', toggleSidePanel);
+    if (window.matchMedia('(max-width: 860px)').matches) setSidePanel(false);
 
     // ==================== KẾT NỐI SIGNALR ====================
     const connection = new signalR.HubConnectionBuilder()
@@ -364,57 +613,73 @@
 
     connection.on('Error', msg => { document.getElementById('cr-placeholder').textContent = msg; toastErr(msg); });
 
-    connection.on('Joined', async ({ self, otherList }) => {
+    connection.on('Joined', async ({ self, otherList, recording }) => {
         myConnectionId = self.connectionId;
+        // Ghi nhận MỌI người đã có mặt (không chỉ Chủ trì) để lưới và danh sách đầy đủ ngay từ lúc vào.
+        otherList.forEach(upsertPeer);
+        joined = true;
         renderPeopleList();
+        if (recording) applyRecordingState(recording);
 
+        adoptPreviewMedia(joinPrefs);
         if (isHost) {
-            await startLocalMedia({ video: true, audio: true });
-            document.getElementById('cr-main-video').querySelector('video')?.remove();
-            const v = document.createElement('video');
-            v.autoplay = true; v.muted = true; v.playsInline = true;
-            v.classList.add('mirror'); // camera tự quay mình — soi gương cho tự nhiên, bỏ khi chia sẻ màn hình (xem toggleScreenShare)
-            v.srcObject = localStream;
-            document.getElementById('cr-placeholder')?.remove();
-            document.getElementById('cr-main-video').appendChild(v);            
+            // Báo mic/camera ban đầu của Chủ trì: người vào sau mới biết lúc nào hiện ảnh đại diện thay cho khung đen.
+            if (localStream.getAudioTracks()[0]?.enabled) connection.invoke('ToggleMic', roomId, true);
+            if (localStream.getVideoTracks()[0]?.enabled) connection.invoke('ToggleCam', roomId, true);
         } else {
-            await startLocalMedia({ video: false, audio: true });
             const host = otherList.find(p => p.isHost);
             if (host) await connectToHost(host);
+            // Học viên đã bật camera ở bước xem trước: gắn vào kênh gửi tới chủ trì (cùng cách khi bấm nút camera sau này)
+            // và báo cho chủ trì thấy. Đưa vào luồng của phòng SAU khi kết nối, để connectToHost không thêm nó thành một kênh gửi thừa.
+            if (cameraTrack && myCamSender) {
+                localStream.addTrack(cameraTrack);
+                await myCamSender.replaceTrack(cameraTrack);
+                connection.invoke('ToggleCam', roomId, true);
+            }
+            if (joinPrefs.micOn && localStream.getAudioTracks()[0]) connection.invoke('ToggleMic', roomId, true);
         }
         syncMicButton();
+        syncCamButton();
+        document.getElementById('btn-share').disabled = false;
+        if (!isHost) document.getElementById('btn-cam').disabled = false; // chủ trì: syncCamButton đã mở khóa nếu có camera
+        if (isHost) document.getElementById('btn-record').disabled = false;
+        scheduleGallery();
+
+        // Lấy lại thông tin buổi học (giờ bắt đầu thật, trạng thái Đang diễn ra) rồi chạy đồng hồ trên thanh trên.
+        startMeetingClock();
     });
 
     connection.on('ParticipantJoined', (p) => {
-        const existing = peerList[p.connectionId];
-        if (existing) {
-            existing.fullName = p.fullName;
-            existing.isHost = p.isHost;
-        } else {
-            peerList[p.connectionId] = { pc: null, connectionId: p.connectionId, fullName: p.fullName, isHost: p.isHost, micOn: false, camOn: false, videoTrack: null };
-        }
+        upsertPeer(p);
         renderPeopleList();
-        renderViewerStrip();
+        scheduleGallery();
     });
 
     connection.on('ParticipantLeft', (connectionId) => {
         const peer = peerList[connectionId];
         if (peer?.pc) peer.pc.close();
         delete peerList[connectionId];
+        document.getElementById(`audio-${connectionId}`)?.remove();
         renderPeopleList();
-        renderViewerStrip();
+        scheduleGallery();
     });
 
     connection.on('ParticipantMicToggled', (connectionId, isOn) => {
         if (peerList[connectionId]) peerList[connectionId].micOn = isOn;
         renderPeopleList();
-        renderViewerStrip();
+        scheduleGallery();
     });
 
     connection.on('ParticipantCamToggled', (connectionId, isOn) => {
         if (peerList[connectionId]) peerList[connectionId].camOn = isOn;
         renderPeopleList();
-        renderViewerStrip();
+        scheduleGallery();
+    });
+
+    connection.on('ParticipantScreenToggled', (connectionId, isOn) => {
+        if (peerList[connectionId]) peerList[connectionId].sharing = isOn;
+        if (isOn && dismissedKey === connectionId) dismissedKey = null; // lần chia sẻ mới thì phóng to lại
+        scheduleGallery();
     });
 
     connection.on('Signal', async (fromConnectionId, type, payload) => {
@@ -426,20 +691,7 @@
 
     connection.on('ChatMessage', (fullName, message, time) => appendChat(fullName, message, time));
 
-    connection.on('RecordingStatus', (isRecording) => {
-        document.getElementById('cr-rec-badge').classList.toggle('show', isRecording);
-        clearInterval(recTimerInterval);
-        if (isRecording) {
-            const displayStartAt = Date.now();
-            document.getElementById('cr-rec-time').textContent = '00:00';
-            recTimerInterval = setInterval(() => {
-                const totalSeconds = Math.floor((Date.now() - displayStartAt) / 1000);
-                const mm = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-                const ss = String(totalSeconds % 60).padStart(2, '0');
-                document.getElementById('cr-rec-time').textContent = `${mm}:${ss}`;
-            }, 1000);
-        }
-    });
+    connection.on('RecordingState', applyRecordingState);
 
     connection.on('RoomEnded', () => {
         toastOk(t('classroom.buoiHocDaKetThuc', 'Buổi học đã kết thúc.'));
@@ -456,18 +708,269 @@
         toastErr(ex.message || t('classroom.loiKetNoi', 'Lỗi kết nối.'));
     }
 
-    // ==================== MEDIA CỤC BỘ ====================
-    async function startLocalMedia(constraints) {
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia(constraints);
-            if (constraints.video) cameraTrack = localStream.getVideoTracks()[0] || null;
-            if (!isHost) localStream.getAudioTracks().forEach(t => t.enabled = false);
-        } catch {
-            toastErr(t('classroom.khongTruyCapDuocCameraMicropho', 'Không truy cập được camera/microphone. Kiểm tra quyền trình duyệt.'));
-            localStream = new MediaStream();
+    // ==================== MÀN HÌNH XEM TRƯỚC ====================
+    // Bước mọi người đi qua TRƯỚC khi mở kết nối vào phòng: xem camera, đo mic, chọn thiết bị, bật/tắt. Buổi học chỉ chính
+    // thức bắt đầu khi Chủ trì bấm nút vào (JoinRoom ở phía server mới chuyển buổi sang Đang diễn ra) — nên chủ trì chỉnh
+    // thiết bị thoải mái mà học viên chưa thấy gì. Học viên đến sớm chờ ở đây và nút Tham gia sáng lên khi buổi bắt đầu.
+    //
+    // Hàm này chạy trong lúc cả hàm khởi động còn đang tạm dừng ở `await runPreview()`, nên chỉ được dùng những biến đã
+    // khai báo TRƯỚC điểm đó (room, isHost, joinCode, roomId) — mọi trạng thái riêng của nó nằm trong hàm.
+    //
+    // Trả về lựa chọn của người dùng (luồng media, bật/tắt) để phòng dùng lại đúng luồng này — không xin quyền hai lần,
+    // không giữ camera hai lần.
+    async function runPreview() {
+        const el = (id) => document.getElementById(id);
+        const overlay = el('cr-preview');
+        const placeholder = el('cr-placeholder');
+        placeholder.hidden = true;
+        overlay.hidden = false;
+        // Phần phòng nằm phía sau màn hình xem trước (khung chat, thanh điều khiển, nút ở thanh trên) chưa dùng được:
+        // khóa lại để phím Tab và trình đọc màn hình không "rò" vào đó. Mở lại ngay khi vào phòng.
+        const behind = document.querySelectorAll('.cr-stage, .cr-side, .cr-controls, .cr-top-actions');
+        behind.forEach(node => { node.inert = true; });
+
+        const pv = {
+            stream: null, videoTrack: null, audioTrack: null,
+            // Chủ trì mặc định bật cả camera và mic; học viên mặc định tắt cả hai (như trước đây).
+            camOn: isHost, micOn: isHost,
+            cameraId: '', micId: '', camList: [], micList: [],
+            status: room.status, codeError: '', needCode: false, noMedia: '',
+            ac: null, raf: 0, pollTimer: 0,
+        };
+
+        el('pv-room').textContent = `${room.title} · ${room.hostUserName}`;
+        el('pv-sub').textContent = isHost
+            ? t('classroom.pvSubHost', 'Kiểm tra camera và micro trước khi bắt đầu buổi học.')
+            : t('classroom.pvSubViewer', 'Kiểm tra camera và micro trước khi vào phòng.');
+        el('pv-avatar').textContent = initial(Auth.profile?.fullName);
+        el('pv-join-as').textContent = t('classroom.pvJoinAs', 'Bạn sẽ vào với tư cách {name}', { name: Auth.profile?.fullName || '' });
+
+        // Liên kết mời có mã: xác minh mã ngay ở đây thay vì để người dùng bấm vào rồi mới thấy lỗi.
+        if (!isHost && !Auth.isAdmin) {
+            if (joinCode) {
+                try {
+                    const found = await API.getSilent(`/onlineclassroom/resolve-code/${encodeURIComponent(joinCode)}`);
+                    if (found.id !== roomId) pv.codeError = t('classroom.pvCodeBad', 'Mã tham gia không đúng hoặc buổi học không còn hoạt động.');
+                } catch { pv.codeError = t('classroom.pvCodeBad', 'Mã tham gia không đúng hoặc buổi học không còn hoạt động.'); }
+            } else pv.needCode = true;
         }
+
+        return new Promise((resolve) => {
+            // ---------- Thiết bị ----------
+            const stopStream = () => { pv.stream?.getTracks().forEach(track => track.stop()); pv.stream = pv.videoTrack = pv.audioTrack = null; };
+
+            async function acquire() {
+                stopStream();
+                stopMeter();
+                pv.noMedia = '';
+                if (!navigator.mediaDevices?.getUserMedia) { pv.noMedia = 'all'; await afterAcquire(); return; }
+
+                const withId = (id) => id ? { deviceId: { exact: id } } : true;
+                // Thử đủ cả hai; thiếu camera hoặc mic thì lùi về chỉ có một trong hai; vẫn không được thì vào chế độ chỉ nghe.
+                const attemptList = () => [
+                    { video: withId(pv.cameraId), audio: withId(pv.micId) },
+                    { audio: withId(pv.micId) },
+                    { video: withId(pv.cameraId) },
+                ];
+                for (const constraints of attemptList()) {
+                    try { pv.stream = await navigator.mediaDevices.getUserMedia(constraints); break; } catch { pv.stream = null; }
+                }
+                // Thiết bị đã chọn biến mất (rút camera USB...): bỏ lựa chọn cũ và thử lại một lần với thiết bị mặc định.
+                if (!pv.stream && (pv.cameraId || pv.micId)) { pv.cameraId = pv.micId = ''; await acquire(); return; }
+
+                pv.videoTrack = pv.stream?.getVideoTracks()[0] || null;
+                pv.audioTrack = pv.stream?.getAudioTracks()[0] || null;
+                if (pv.videoTrack) pv.videoTrack.enabled = pv.camOn;
+                if (pv.audioTrack) pv.audioTrack.enabled = pv.micOn;
+                pv.noMedia = !pv.stream ? 'all' : !pv.videoTrack ? 'camera' : !pv.audioTrack ? 'mic' : '';
+                await afterAcquire();
+            }
+
+            async function afterAcquire() {
+                await listDevices();
+                const video = el('pv-video');
+                video.srcObject = pv.videoTrack ? new MediaStream([pv.videoTrack]) : null;
+                startMeter();
+                render();
+            }
+
+            async function listDevices() {
+                try {
+                    const all = await navigator.mediaDevices.enumerateDevices();
+                    pv.camList = all.filter(d => d.kind === 'videoinput');
+                    pv.micList = all.filter(d => d.kind === 'audioinput');
+                } catch { pv.camList = pv.micList = []; }
+                pv.cameraId = pv.videoTrack?.getSettings().deviceId || pv.cameraId;
+                pv.micId = pv.audioTrack?.getSettings().deviceId || pv.micId;
+            }
+
+            // ---------- Thanh đo mic ----------
+            // Đo bằng AnalyserNode trên đúng luồng mic đang dùng: tắt mic thì track im lặng nên thanh đứng yên.
+            function startMeter() {
+                stopMeter();
+                const bars = [...document.querySelectorAll('#pv-meter i')];
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (!pv.audioTrack || !Ctx) { bars.forEach(b => b.classList.remove('on')); return; }
+
+                pv.ac = new Ctx();
+                pv.ac.resume?.();
+                // Trình duyệt chỉ cho AudioContext chạy sau một thao tác của người dùng: lần chạm / bấm phím đầu tiên trên màn hình
+                // này sẽ đánh thức thanh đo (không có thì thanh đứng yên dù mic đang nói).
+                const wake = () => pv.ac?.resume?.();
+                overlay.addEventListener('pointerdown', wake, { once: true });
+                overlay.addEventListener('keydown', wake, { once: true });
+                const analyser = pv.ac.createAnalyser();
+                analyser.fftSize = 512;
+                pv.ac.createMediaStreamSource(new MediaStream([pv.audioTrack])).connect(analyser);
+                const data = new Uint8Array(analyser.fftSize);
+                const frame = () => {
+                    analyser.getByteTimeDomainData(data);
+                    let sum = 0;
+                    for (const v of data) { const x = (v - 128) / 128; sum += x * x; }
+                    const level = Math.min(1, Math.sqrt(sum / data.length) * 4);
+                    const lit = Math.round(level * bars.length);
+                    bars.forEach((bar, i) => bar.classList.toggle('on', i < lit));
+                    el('pv-meter').setAttribute('aria-valuenow', String(Math.round(level * 100)));
+                    pv.raf = requestAnimationFrame(frame);
+                };
+                frame();
+            }
+
+            function stopMeter() {
+                cancelAnimationFrame(pv.raf);
+                pv.ac?.close().catch(() => { });
+                pv.ac = null;
+            }
+
+            // ---------- Vẽ trạng thái ----------
+            function canJoin() {
+                if (pv.codeError) return false;
+                if (pv.status === 'Ended' || pv.status === 'Cancelled') return false;
+                // Chủ trì vào được cả khi buổi còn "Chờ" (vào là bắt đầu); người khác chỉ vào khi buổi đã diễn ra.
+                return isHost || pv.status === 'Live';
+            }
+
+            function render() {
+                const camUsable = !!pv.videoTrack;
+                const micUsable = !!pv.audioTrack;
+
+                // Camera
+                const showVideo = camUsable && pv.camOn;
+                el('pv-video').hidden = !showVideo;
+                el('pv-off').hidden = showVideo;
+                el('pv-off-text').textContent = camUsable
+                    ? t('classroom.pvCameraOff', 'Camera đang tắt')
+                    : t('classroom.pvNoCamera', 'Không tìm thấy camera hoặc chưa được cho phép');
+
+                const camBtn = el('pv-toggle-cam'), micBtn = el('pv-toggle-mic');
+                camBtn.disabled = !camUsable;
+                micBtn.disabled = !micUsable;
+                camBtn.setAttribute('aria-pressed', String(pv.camOn && camUsable));
+                micBtn.setAttribute('aria-pressed', String(pv.micOn && micUsable));
+                camBtn.classList.toggle('off', !(pv.camOn && camUsable));
+                micBtn.classList.toggle('off', !(pv.micOn && micUsable));
+                camBtn.querySelector('i').className = `ph ph-video-camera${pv.camOn && camUsable ? '' : '-slash'}`;
+                micBtn.querySelector('i').className = `ph ph-microphone${pv.micOn && micUsable ? '' : '-slash'}`;
+                const camLabel = pv.camOn ? t('classroom.pvCamOff', 'Tắt camera') : t('classroom.pvCamOn', 'Bật camera');
+                const micLabel = pv.micOn ? t('classroom.pvMicOff', 'Tắt micro') : t('classroom.pvMicOn', 'Bật micro');
+                camBtn.title = camLabel; camBtn.setAttribute('aria-label', camLabel);
+                micBtn.title = micLabel; micBtn.setAttribute('aria-label', micLabel);
+
+                // Ô chọn thiết bị: chỉ hiện ô chọn khi máy có từ hai thiết bị trở lên; một thiết bị thì chỉ ghi tên.
+                fillDevices('pv-cam', pv.camList, pv.cameraId, t('classroom.pvNoCameraDevice', 'Không có camera'));
+                fillDevices('pv-mic', pv.micList, pv.micId, t('classroom.pvNoMicDevice', 'Không có micro'));
+
+                // Ghi chú trạng thái (đọc được bằng trình đọc màn hình)
+                const notes = [];
+                if (pv.codeError) notes.push(['bad', pv.codeError]);
+                else if (pv.needCode) notes.push(['info', t('classroom.pvNeedCode', 'Bạn cần mã tham gia (hoặc liên kết mời) do chủ trì cung cấp.')]);
+                if (pv.noMedia === 'all') notes.push(['warn', t('classroom.pvNoDevice', 'Chưa dùng được camera và micro (bị từ chối quyền hoặc không có thiết bị). Bạn vẫn có thể vào phòng để nghe.')]);
+                else if (pv.noMedia === 'camera') notes.push(['warn', t('classroom.pvNoCameraOnly', 'Không dùng được camera — bạn vẫn có thể vào phòng.')]);
+                else if (pv.noMedia === 'mic') notes.push(['warn', t('classroom.pvNoMicOnly', 'Không dùng được micro — bạn vẫn có thể vào phòng để xem.')]);
+                el('pv-notes').innerHTML = notes.map(([kind, text]) => `<div class="pv-note ${kind}">${esc(text)}</div>`).join('');
+
+                // Trạng thái buổi học + nút vào
+                const ended = pv.status === 'Ended' || pv.status === 'Cancelled';
+                const live = pv.status === 'Live';
+                el('pv-status').className = `pv-status ${ended ? 'bad' : live ? 'live' : 'wait'}`;
+                el('pv-status-text').textContent = ended ? t('classroom.pvEnded', 'Buổi học đã kết thúc hoặc bị hủy.')
+                    : isHost ? (live ? t('classroom.pvLive', 'Buổi học đang diễn ra.') : t('classroom.pvHostStarts', 'Buổi học sẽ chính thức bắt đầu khi bạn vào phòng.'))
+                    : live ? t('classroom.pvLive', 'Buổi học đang diễn ra.') : t('classroom.pvWaiting', 'Chủ trì chưa bắt đầu buổi học. Trang sẽ tự kiểm tra lại.');
+                el('pv-status').querySelector('i').className = `ph-fill ph-${ended ? 'x-circle' : live ? 'broadcast' : 'hourglass-medium'}`;
+
+                const join = el('pv-join');
+                join.disabled = !canJoin();
+                join.querySelector('span').textContent = isHost && !live ? t('classroom.pvStart', 'Bắt đầu buổi học')
+                    : isHost || live ? t('classroom.pvEnter', 'Vào phòng') : t('classroom.pvJoin', 'Tham gia');
+            }
+
+            function fillDevices(selectId, list, currentId, emptyText) {
+                const select = el(selectId);
+                const nameBox = el(`${selectId}-name`);
+                select.hidden = list.length < 2;
+                nameBox.hidden = list.length >= 2;
+                nameBox.textContent = list[0]?.label || emptyText;
+                select.innerHTML = list.map((d, i) => `<option value="${esc(d.deviceId)}"${d.deviceId === currentId ? ' selected' : ''}>${esc(d.label || `${selectId === 'pv-cam' ? 'Camera' : 'Micro'} ${i + 1}`)}</option>`).join('');
+            }
+
+            // ---------- Sự kiện ----------
+            el('pv-toggle-cam').onclick = () => {
+                if (!pv.videoTrack) return;
+                pv.camOn = !pv.camOn;
+                pv.videoTrack.enabled = pv.camOn;
+                render();
+            };
+            el('pv-toggle-mic').onclick = () => {
+                if (!pv.audioTrack) return;
+                pv.micOn = !pv.micOn;
+                pv.audioTrack.enabled = pv.micOn;
+                render();
+            };
+            el('pv-cam').onchange = async (e) => { pv.cameraId = e.target.value; await acquire(); };
+            el('pv-mic').onchange = async (e) => { pv.micId = e.target.value; await acquire(); };
+            navigator.mediaDevices?.addEventListener?.('devicechange', async () => { await listDevices(); render(); });
+
+            // Buổi học chưa bắt đầu: kiểm tra lại vài giây một lần; đổi sang Đang diễn ra thì nút Tham gia sáng lên.
+            if (pv.status === 'Scheduled' || !isHost) {
+                pv.pollTimer = setInterval(async () => {
+                    try {
+                        const latest = await API.getSilent(`/onlineclassroom/${roomId}`);
+                        if (latest.status !== pv.status) { pv.status = latest.status; render(); }
+                    } catch { /* mất kết nối thoáng qua: lần kiểm tra sau sẽ bù */ }
+                }, 5000);
+            }
+
+            el('pv-join').onclick = () => {
+                if (!canJoin()) return;
+                clearInterval(pv.pollTimer);
+                stopMeter();
+                overlay.hidden = true;
+                placeholder.hidden = false;
+                behind.forEach(node => { node.inert = false; });
+                resolve({ stream: pv.stream, videoTrack: pv.videoTrack, audioTrack: pv.audioTrack, camOn: pv.camOn, micOn: pv.micOn });
+            };
+
+            render();
+            acquire().then(() => el('pv-join').focus());
+        });
     }
 
+    /** Nhận luồng từ Màn hình xem trước làm luồng của phòng (thay cho việc xin quyền lần thứ hai).
+     *  • Chủ trì: dùng nguyên luồng (camera + mic); bật/tắt theo lựa chọn.
+     *  • Học viên: luồng của phòng chỉ có mic (kênh gửi camera là một transceiver riêng, xem connectToHost). Camera được
+     *    giữ lại chỉ khi học viên đã bật nó ở bước xem trước; tắt thì dừng hẳn để đèn camera không sáng suốt buổi học. */
+    function adoptPreviewMedia(prefs) {
+        if (isHost) {
+            localStream = prefs.stream || new MediaStream();
+            cameraTrack = prefs.videoTrack || null;
+            return;
+        }
+        localStream = new MediaStream(prefs.audioTrack ? [prefs.audioTrack] : []);
+        if (prefs.videoTrack && !prefs.camOn) { prefs.videoTrack.stop(); cameraTrack = null; }
+        else cameraTrack = prefs.videoTrack || null;
+    }
+
+    // ==================== MEDIA CỤC BỘ ====================
     function createPeerConnection(remoteConnectionId) {
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
         pc.onicecandidate = (e) => {
@@ -475,14 +978,10 @@
         };
         pc.ontrack = (e) => {
             if (isHost) return; // host tự override pc.ontrack riêng trong handleOfferAsHost, không dùng nhánh này
-            let v = document.querySelector('#cr-main-video video');
-            if (!v) {
-                document.getElementById('cr-placeholder')?.remove();
-                v = document.createElement('video');
-                v.autoplay = true; v.playsInline = true;
-                document.getElementById('cr-main-video').appendChild(v);
-            }
-            v.srcObject = e.streams[0];
+            if (e.streams[0]) hostStream = e.streams[0];
+            else { hostStream ??= new MediaStream(); hostStream.addTrack(e.track); }
+            playHostAudio();
+            scheduleGallery();
         };
         return pc;
     }
@@ -490,7 +989,7 @@
     // ---------- Phía Viewer: chủ động tạo offer gửi tới host ----------
     async function connectToHost(host) {
         const pc = createPeerConnection(host.connectionId);
-        peerList[host.connectionId] = { pc, connectionId: host.connectionId, fullName: host.fullName, isHost: true, micOn: false, camOn: false, videoTrack: null };
+        upsertPeer(host).pc = pc;
 
         localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
         pc.addTransceiver('video', { direction: 'recvonly' });
@@ -504,8 +1003,7 @@
 
     // ---------- Phía Host: nhận offer từ viewer, phát video/mic của mình cho họ ----------
     async function handleOfferAsHost(fromConnectionId, offer) {
-        let peer = peerList[fromConnectionId];
-        if (!peer) { peer = { pc: null, connectionId: fromConnectionId, fullName: 'Học viên', isHost: false, micOn: false, camOn: false, videoTrack: null }; peerList[fromConnectionId] = peer; }
+        const peer = peerList[fromConnectionId] || upsertPeer({ connectionId: fromConnectionId, fullName: 'Học viên', isHost: false });
 
         const pc = createPeerConnection(fromConnectionId);
         peer.pc = pc;
@@ -514,7 +1012,7 @@
         pc.ontrack = (e) => {
             if (e.track.kind === 'video') {
                 peer.videoTrack = e.track;
-                renderViewerStrip();
+                scheduleGallery();
                 return;
             }
             let a = document.getElementById(`audio-${fromConnectionId}`);
@@ -531,48 +1029,355 @@
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         await connection.invoke('Signal', fromConnectionId, 'answer', JSON.stringify(answer));
-        renderViewerStrip();
+        scheduleGallery();
         renderPeopleList();
     }
 
     // ==================== GIAO DIỆN ====================
+    // ---------- Ảnh đại diện ----------
+    function hueOf(name) { let h = 0; for (const ch of String(name || '')) h = (h * 31 + ch.codePointAt(0)) % 360; return h; }
+
+    /** Ảnh đại diện tròn: chữ cái đầu (nền màu theo tên) nằm dưới, ảnh thật phủ lên trên. Ảnh lỗi thì bị gỡ đi, còn lại chữ cái. */
+    function avatarMarkup(name, url) {
+        return `<div class="gl-avatar" style="--hue:${hueOf(name)}"><span>${esc(initial(name))}</span>${url ? `<img src="${esc(url)}" alt="" decoding="async">` : ''}</div>`;
+    }
+
+    function buildAvatar(name, url) {
+        const holder = document.createElement('div');
+        holder.innerHTML = avatarMarkup(name, url);
+        const avatar = holder.firstElementChild;
+        avatar.querySelector('img')?.addEventListener('error', e => e.target.remove());
+        return avatar;
+    }
+
+    // ==================== LƯỚI NGƯỜI THAM GIA ====================
+    // Mỗi người một ô, màn hình chia theo số người như cuộc họp trực tuyến: 1 người choán cả khung, 2 người chia đôi,
+    // 3 người chia ba, 4 người thành 2×2... Quá sức chứa thì ô cuối là "+N" (bấm để mở danh sách người tham gia).
+    // Có người chia sẻ màn hình, hoặc người dùng ghim một ô, thì ô đó phóng to còn những người khác xếp thành dải bên cạnh.
+    //
+    // Về hình ảnh: kênh WebRTC là hình sao quanh Chủ trì — Chủ trì thấy hình của từng học viên, còn học viên chỉ nhận được
+    // hình của Chủ trì (không thấy nhau). Học viên khác vì vậy hiện bằng ảnh đại diện cùng trạng thái mic/camera do máy
+    // chủ báo, không phải khung đen.
+    //
+    // Các hàm khai báo bằng `function` (được hoist) vì sự kiện của hub có thể chạy trước khi các `const` phía dưới được khai báo.
+
+    /** Gộp mình và mọi người khác thành một danh sách ô theo thứ tự hiển thị: Chủ trì đứng đầu; học viên thì tiếp đến là chính mình. */
+    function buildMembers() {
+        const audio = localStream?.getAudioTracks()[0];
+        // Chủ trì: hình đang phát đi (camera hoặc màn hình). Học viên: màn hình đang chia sẻ, hoặc camera nếu đã bật.
+        const ownTrack = isHost ? localStream?.getVideoTracks()[0] : (mySharing ? myScreenTrack : cameraTrack);
+        const ownLive = ownTrack && ownTrack.readyState === 'live' ? ownTrack : null;
+        const me = {
+            key: 'self', isSelf: true, isHost, name: Auth.profile?.fullName || '', avatarUrl: Auth.profile?.avatarUrl || null,
+            micOn: !!audio?.enabled, camOn: !!ownLive?.enabled, sharing: mySharing, source: ownLive,
+        };
+        const others = Object.values(peerList).map(p => ({
+            key: p.connectionId, isSelf: false, isHost: p.isHost, name: p.fullName, avatarUrl: p.avatarUrl,
+            micOn: p.micOn, camOn: p.camOn, sharing: p.sharing,
+            // Chủ trì thấy hình của mọi học viên; học viên chỉ nhận được luồng của Chủ trì.
+            source: isHost ? p.videoTrack : (p.isHost ? hostStream : null),
+        }));
+        const rest = others.filter(m => !m.isHost);
+        if (isHost) return [me, ...rest];
+        return [...others.filter(m => m.isHost), me, ...rest];
+    }
+
+    /** Tạo/cập nhật ghi nhận về một người từ dữ liệu hub gửi (ParticipantJoined, danh sách lúc vào phòng...). */
+    function upsertPeer(p) {
+        const peer = peerList[p.connectionId] || { pc: null, connectionId: p.connectionId, videoTrack: null };
+        peer.fullName = p.fullName;
+        peer.isHost = !!p.isHost;
+        peer.avatarUrl = p.avatarUrl || null;
+        peer.micOn = !!p.micOn;
+        peer.camOn = !!p.camOn;
+        peer.sharing = !!p.isSharing;
+        peerList[p.connectionId] = peer;
+        return peer;
+    }
+
+    /** Phát tiếng của Chủ trì qua thẻ <audio> riêng. Ô của Chủ trì trong lưới chỉ hiển thị hình (muted), nên tắt camera hay
+     *  ô bị đổi chỗ cũng không làm mất tiếng giảng. */
+    function playHostAudio() {
+        if (!hostStream) return;
+        let audio = document.getElementById('host-audio');
+        if (!audio) {
+            audio = document.createElement('audio');
+            audio.id = 'host-audio';
+            audio.autoplay = true;
+            document.body.appendChild(audio);
+        }
+        if (audio.srcObject !== hostStream) audio.srcObject = hostStream;
+        audio.play?.().catch(() => { /* trình duyệt chặn tự phát: sẽ phát khi người dùng chạm vào trang */ });
+    }
+
+    // ---------- Tính bố cục ----------
+    /** Cách chia lưới tốt nhất (nhiều diện tích nhất cho mỗi ô) cho `count` ô trong khung `w`×`h`. Ô được co dãn theo
+     *  ô lưới nhưng giữ tỉ lệ trong khoảng [GAL_MIN_ASPECT, GAL_MAX_ASPECT] — không dẹt như sợi chỉ, không cao như tờ giấy. */
+    function bestGrid(count, w, h) {
+        let best = null;
+        for (let cols = 1; cols <= count; cols++) {
+            const rows = Math.ceil(count / cols);
+            const cellW = (w - GAL_GAP * (cols - 1)) / cols;
+            const cellH = (h - GAL_GAP * (rows - 1)) / rows;
+            if (cellW < 1 || cellH < 1) continue;
+            let tileW = cellW, tileH = cellH;
+            if (tileW / tileH > GAL_MAX_ASPECT) tileW = tileH * GAL_MAX_ASPECT;
+            else if (tileW / tileH < GAL_MIN_ASPECT) tileH = tileW / GAL_MIN_ASPECT;
+            if (!best || tileW * tileH > best.w * best.h * 1.001) best = { cols, rows, w: Math.floor(tileW), h: Math.floor(tileH) };
+        }
+        return best || { cols: 1, rows: count, w: 1, h: 1 };
+    }
+
+    /** Toạ độ từng ô của lưới: cả khối căn giữa khung, hàng cuối (thiếu ô) cũng căn giữa. */
+    function gridRects(count, area, grid) {
+        const rects = [];
+        const blockH = grid.rows * grid.h + (grid.rows - 1) * GAL_GAP;
+        const top = area.y + Math.max(0, (area.h - blockH) / 2);
+        for (let row = 0; row < grid.rows; row++) {
+            const inRow = Math.min(grid.cols, count - row * grid.cols);
+            const rowW = inRow * grid.w + (inRow - 1) * GAL_GAP;
+            const left = area.x + Math.max(0, (area.w - rowW) / 2);
+            for (let col = 0; col < inRow; col++)
+                rects.push({ x: Math.round(left + col * (grid.w + GAL_GAP)), y: Math.round(top + row * (grid.h + GAL_GAP)), w: grid.w, h: grid.h });
+        }
+        return rects;
+    }
+
+    /** Khung chứa được tối đa bao nhiêu ô mà mỗi ô vẫn đủ lớn để nhìn (không bao giờ dưới 3, để Chủ trì và chính mình luôn hiện). */
+    function gridCapacity(total, area) {
+        let fit = 1;
+        for (let count = 2; count <= Math.min(total, GAL_MAX_TILES); count++) {
+            const grid = bestGrid(count, area.w, area.h);
+            if (grid.w < GAL_MIN_W || grid.h < GAL_MIN_H) break;
+            fit = count;
+        }
+        return Math.max(fit, 3);
+    }
+
+    /** Ô được phóng to: người được ghim, nếu không thì người đang chia sẻ màn hình mà mình xem được (và chưa bị thu về lưới). */
+    function pickSpotlight(members) {
+        if (members.length < 2) return null;
+        if (pinnedKey && members.some(m => m.key === pinnedKey)) return pinnedKey;
+        const sharer = members.find(m => m.sharing && m.source && m.key !== dismissedKey);
+        return sharer ? sharer.key : null;
+    }
+
+    /** Cắt danh sách cho vừa `slots` chỗ: thừa thì chừa chỗ cuối cho ô "+N". */
+    function fitSlots(list, slots) {
+        if (list.length <= slots) return { shown: list, more: 0 };
+        const shown = list.slice(0, Math.max(0, slots - 1));
+        return { shown, more: list.length - shown.length };
+    }
+
+    /** Kế hoạch hiển thị: danh sách { member | more, x, y, w, h } và khoá của ô đang phóng to (nếu có). */
+    function planLayout(members, area) {
+        const spotKey = pickSpotlight(members);
+        if (!spotKey) {
+            const { shown, more } = fitSlots(members, gridCapacity(members.length, area));
+            const count = shown.length + (more ? 1 : 0);
+            const rects = gridRects(count, area, bestGrid(count, area.w, area.h));
+            const items = shown.map((member, i) => ({ member, ...rects[i] }));
+            if (more) items.push({ more, ...rects[count - 1] });
+            return { items, spotKey: null };
+        }
+
+        // Phóng to một ô, những người còn lại thành dải: bên phải khi khung ngang, bên dưới khi khung dọc (điện thoại).
+        const spot = members.find(m => m.key === spotKey);
+        const rest = members.filter(m => m !== spot);
+        const landscape = area.w >= area.h;
+        let main, slots, slotW, slotH;
+        if (landscape) {
+            slotW = Math.max(150, Math.min(220, Math.round(area.w * 0.2)));
+            slotH = Math.round(slotW * 0.72);
+            main = { x: area.x, y: area.y, w: area.w - slotW - GAL_GAP, h: area.h };
+            slots = Math.max(2, Math.floor((area.h + GAL_GAP) / (slotH + GAL_GAP)));
+        } else {
+            slotH = Math.max(88, Math.min(130, Math.round(area.h * 0.2)));
+            slotW = Math.round(slotH * 1.33);
+            main = { x: area.x, y: area.y, w: area.w, h: area.h - slotH - GAL_GAP };
+            slots = Math.max(2, Math.floor((area.w + GAL_GAP) / (slotW + GAL_GAP)));
+        }
+        const { shown, more } = fitSlots(rest, slots);
+        const stripItems = [...shown.map(member => ({ member })), ...(more ? [{ more }] : [])];
+        const stripSpan = stripItems.length * (landscape ? slotH : slotW) + (stripItems.length - 1) * GAL_GAP;
+        stripItems.forEach((item, i) => {
+            if (landscape) Object.assign(item, { x: area.x + area.w - slotW, y: area.y + i * (slotH + GAL_GAP), w: slotW, h: slotH });
+            else Object.assign(item, {
+                x: Math.round(area.x + Math.max(0, (area.w - stripSpan) / 2) + i * (slotW + GAL_GAP)), y: area.y + area.h - slotH, w: slotW, h: slotH,
+            });
+        });
+        return { items: [{ member: spot, ...main }, ...stripItems], spotKey };
+    }
+
+    // ---------- Vẽ ----------
+    function createTile(key, isMore) {
+        const tile = document.createElement(isMore ? 'button' : 'div');
+        tile.className = 'gl-tile' + (isMore ? ' gl-more' : '');
+        tile._key = key;
+        if (isMore) {
+            tile.type = 'button';
+            tile.innerHTML = '<b></b><span></span>';
+            tile.addEventListener('click', openPeoplePanel);
+        } else {
+            tile.setAttribute('role', 'group');
+            tile.innerHTML = `
+                <video class="gl-video" autoplay playsinline muted hidden></video>
+                <div class="gl-face"></div>
+                <span class="gl-mic" hidden><i class="ph-fill ph-microphone-slash"></i></span>
+                <button type="button" class="gl-pin"><i class="ph ph-push-pin"></i></button>
+                <div class="gl-name"><i class="ph-fill ph-crown-simple" hidden></i><i class="ph ph-monitor-arrow-up" hidden></i><span></span></div>`;
+            tile.querySelector('.gl-pin').addEventListener('click', () => togglePin(tile._key));
+        }
+        document.getElementById('cr-gallery').appendChild(tile);
+        tileMap.set(key, tile);
+        return tile;
+    }
+
+    function paintTile(tile, m, spotKey, canPin) {
+        const hasVideo = !!m.source && (m.camOn || m.sharing);
+        const label = m.isSelf ? `${m.name} (${t('classroom.ban', 'Bạn')})` : m.name;
+
+        // Ảnh đại diện chỉ dựng lại khi đổi tên hoặc ảnh (tránh tải lại ảnh mỗi lần vẽ).
+        const faceSig = `${m.name}\u0001${m.avatarUrl || ''}`;
+        const face = tile.querySelector('.gl-face');
+        if (tile._faceSig !== faceSig) { tile._faceSig = faceSig; face.replaceChildren(buildAvatar(m.name, m.avatarUrl)); }
+        face.hidden = hasVideo;
+
+        // Hình: chỉ gắn lại khi nguồn đổi, để video không bị khựng.
+        const video = tile.querySelector('.gl-video');
+        const source = hasVideo ? m.source : null;
+        if (tile._source !== source) {
+            tile._source = source;
+            video.srcObject = !source ? null : source instanceof MediaStream ? source : new MediaStream([source]);
+            video.hidden = !source;
+            if (source) video.play?.().catch(() => { });
+        }
+        video.classList.toggle('mirror', m.isSelf && !m.sharing); // camera của chính mình soi gương cho tự nhiên; màn hình chia sẻ thì không
+        tile.classList.toggle('share', m.sharing && hasVideo);
+        tile.classList.toggle('pinned', tile._key === pinnedKey);
+
+        const nameText = tile.querySelector('.gl-name span');
+        if (nameText.textContent !== label) nameText.textContent = label;
+        tile.querySelector('.ph-crown-simple').hidden = !m.isHost;
+        tile.querySelector('.ph-crown-simple').title = t('classroom.chuTri', 'Chủ trì');
+        tile.querySelector('.gl-name .ph-monitor-arrow-up').hidden = !m.sharing;
+        const mic = tile.querySelector('.gl-mic');
+        mic.hidden = m.micOn;
+        mic.title = t('classroom.glMicOff', 'Mic tắt');
+
+        const zoomed = tile._key === spotKey;
+        const pin = tile.querySelector('.gl-pin');
+        pin.hidden = !canPin;
+        const pinText = zoomed ? t('classroom.glUnpin', 'Thu về lưới') : t('classroom.glPin', 'Ghim');
+        pin.title = pinText;
+        pin.setAttribute('aria-label', `${pinText}: ${label}`);
+        pin.setAttribute('aria-pressed', String(zoomed));
+        pin.firstElementChild.className = `ph ${zoomed ? 'ph-push-pin-slash' : 'ph-push-pin'}`;
+
+        const parts = [label];
+        if (m.isHost) parts.push(t('classroom.chuTri', 'Chủ trì'));
+        if (!m.micOn) parts.push(t('classroom.glMicOff', 'Mic tắt'));
+        if (!m.camOn && !m.sharing) parts.push(t('classroom.glCamOff', 'Camera tắt')); // theo trạng thái người đó báo, không theo việc mình có nhận được hình hay không
+        if (m.sharing) parts.push(t('classroom.glSharing', 'Đang chia sẻ màn hình'));
+        tile.setAttribute('aria-label', parts.join(', '));
+    }
+
+    function paintMoreTile(tile, count) {
+        tile.querySelector('b').textContent = `+${count}`;
+        tile.querySelector('span').textContent = t('classroom.glMore', '{n} người khác', { n: count });
+        tile.setAttribute('aria-label', t('classroom.glMoreAria', 'Xem thêm {n} người khác trong danh sách người tham gia', { n: count }));
+    }
+
+    function placeTile(tile, rect) {
+        const firstTime = !tile.classList.contains('ready');
+        tile.style.width = `${rect.w}px`;
+        tile.style.height = `${rect.h}px`;
+        tile.style.transform = `translate(${rect.x}px, ${rect.y}px)`;
+        tile.style.setProperty('--face', `${Math.round(Math.max(36, Math.min(120, Math.min(rect.w, rect.h) * 0.42)))}px`);
+        tile.classList.toggle('compact', rect.h < 130 || rect.w < 190);
+        // Ô mới đặt thẳng vào chỗ của nó; chỉ từ lần sau mới trượt mượt khi bố cục đổi.
+        if (firstTime) { void tile.offsetWidth; tile.classList.add('ready'); }
+    }
+
+    function renderGallery() {
+        galleryFrame = 0;
+        if (!joined) return;
+        const gallery = document.getElementById('cr-gallery');
+        document.getElementById('cr-placeholder').hidden = true;
+        const area = { x: GAL_PAD, y: GAL_PAD, w: gallery.clientWidth - 2 * GAL_PAD, h: gallery.clientHeight - 2 * GAL_PAD };
+        if (area.w < 40 || area.h < 40) return;
+
+        const members = buildMembers();
+        if (pinnedKey && !members.some(m => m.key === pinnedKey)) pinnedKey = null;
+        if (dismissedKey && !members.some(m => m.key === dismissedKey)) dismissedKey = null;
+        const { items, spotKey } = planLayout(members, area);
+        currentSpotKey = spotKey;
+
+        const alive = new Set();
+        for (const item of items) {
+            const key = item.more ? GAL_MORE_KEY : item.member.key;
+            alive.add(key);
+            const tile = tileMap.get(key) || createTile(key, !!item.more);
+            if (item.more) paintMoreTile(tile, item.more);
+            else paintTile(tile, item.member, spotKey, members.length > 1);
+            placeTile(tile, item);
+        }
+        for (const [key, tile] of tileMap) {
+            if (alive.has(key)) continue;
+            const video = tile.querySelector('video');
+            if (video) video.srcObject = null;
+            tile.remove();
+            tileMap.delete(key);
+        }
+    }
+
+    /** Vẽ lại lưới ở khung hình kế tiếp — gom nhiều thay đổi liên tiếp (vào phòng, bật mic, đổi cỡ khung...) thành một lần vẽ. */
+    function scheduleGallery() {
+        if (!galleryFrame) galleryFrame = requestAnimationFrame(renderGallery);
+    }
+
+    /** Ghim / thu về lưới. Ô đang phóng to (do ghim hay do chia sẻ màn hình) bấm lần nữa thì thu về lưới. */
+    function togglePin(key) {
+        if (currentSpotKey === key) { pinnedKey = null; dismissedKey = key; }
+        else { pinnedKey = key; dismissedKey = null; }
+        scheduleGallery();
+    }
+
+    function openPeoplePanel() {
+        document.querySelector('.cr-side-tabs button[data-panel="people"]')?.click();
+        setSidePanel(true);
+    }
+
     function renderPeopleList() {
         const list = Object.values(peerList);
-        document.getElementById('cr-people-count').textContent = list.length + 1;
+        const total = list.length + 1;
+        document.getElementById('cr-people-count').textContent = total;
+        document.getElementById('cr-people-chip-count').textContent = total;
+        const hostTag = ` · ${esc(t('classroom.chuTri', 'Chủ trì'))}`;
+        const row = (name, avatarUrl, text) => `<div class="cr-participant">${avatarMarkup(name, avatarUrl)}<div>${text}</div></div>`;
+        const me = Auth.profile;
         document.getElementById('cr-people-list').innerHTML = [
-            `<div class="cr-participant"><div class="avatar">${esc(initial(Auth.profile?.fullName))}</div>
-                <div>${esc(Auth.profile?.fullName)} (Bạn)${isHost ? ' · Chủ trì' : ''}</div></div>`,
-            ...list.map(p => `<div class="cr-participant"><div class="avatar">${esc(initial(p.fullName))}</div>
-                <div>${esc(p.fullName)}${p.isHost ? ' · Chủ trì' : ''} ${p.micOn ? '<span data-i18n="classroom.micBat" style="color:#34d399">· mic bật</span>' : ''} ${p.camOn ? '<span data-i18n="classroom.camBat" style="color:#34d399">· cam bật</span>' : ''}</div></div>`)
+            row(me?.fullName, me?.avatarUrl, `${esc(me?.fullName)} (${esc(t('classroom.ban', 'Bạn'))})${isHost ? hostTag : ''}`),
+            ...list.map(p => row(p.fullName, p.avatarUrl,
+                `${esc(p.fullName)}${p.isHost ? hostTag : ''}${p.micOn ? ` <span class="tags">${esc(t('classroom.micBat', '· mic bật'))}</span>` : ''}${p.camOn ? ` <span class="tags">${esc(t('classroom.camBat', '· cam bật'))}</span>` : ''}`))
         ].join('');
     }
 
-    function renderViewerStrip() {
-        if (!isHost) { document.getElementById('cr-viewer-strip').innerHTML = ''; return; }
-        const list = Object.values(peerList).filter(p => !p.isHost);
-        document.getElementById('cr-viewer-strip').innerHTML = list.map(p => `
-            <div class="cr-tile">
-                ${p.camOn && p.videoTrack
-                    ? `<video class="cr-tile-video" autoplay playsinline muted data-cid="${esc(p.connectionId)}"></video>`
-                    : `<div class="avatar">${esc(initial(p.fullName))}</div>`}
-                <div class="name">${esc(p.fullName)}</div>
-                <div class="mic ${p.micOn ? 'on' : ''}"><i class="ph ${p.micOn ? 'ph-microphone' : 'ph-microphone-slash'}"></i> ${p.micOn ? 'Đang bật mic' : t('classroom.tatMic', 'Tắt mic')}</div>
-                <div class="cam ${p.camOn ? 'on' : ''}"><i class="ph ${p.camOn ? 'ph-video-camera' : 'ph-video-camera-slash'}"></i> ${p.camOn ? 'Đang bật cam' : t('classroom.tatCam', 'Tắt cam')}</div>
-            </div>`).join('') || '<div data-i18n="classroom.chuaCoHocVienThamGia" class="small muted" style="color:#9ca3af">Chưa có học viên tham gia.</div>';
-
-        list.filter(p => p.camOn && p.videoTrack).forEach(p => {
-            const v = document.querySelector(`video[data-cid="${cssEsc(p.connectionId)}"]`);
-            if (v) v.srcObject = new MediaStream([p.videoTrack]);
-        });
-    }
-
-    function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
-
     function appendChat(fullName, message, time) {
         const log = document.getElementById('cr-chat-log');
+        document.getElementById('cr-chat-empty')?.remove();
+        const mine = fullName === Auth.profile?.fullName;
         log.insertAdjacentHTML('beforeend',
-            `<div class="cr-chat-msg"><b>${esc(fullName)}</b><span class="time">${formatDate(time, true)}</span><div>${esc(message)}</div></div>`);
+            `<div class="cr-chat-msg${mine ? ' mine' : ''}"><b>${esc(fullName)}</b><span class="time">${formatDate(time, true)}</span><div>${esc(message)}</div></div>`);
         log.scrollTop = log.scrollHeight;
+
+        // Khung chat đang đóng: báo bằng chấm đỏ trên nút ở thanh trên (tin của chính mình thì không).
+        if (!mine && document.getElementById('cr-side').classList.contains('collapsed')) {
+            unreadCount++;
+            const badge = document.getElementById('cr-unread');
+            badge.textContent = unreadCount > 9 ? '9+' : String(unreadCount);
+            badge.hidden = false;
+        }
     }
 
     function sendChat() {
@@ -583,20 +1388,71 @@
         input.value = '';
     }
 
+    /** Sau khi vào phòng: lấy lại thông tin buổi học (giờ bắt đầu THẬT, trạng thái Đang diễn ra — dữ liệu lúc mở trang có
+     *  thể đã cũ nếu học viên chờ ở Màn hình xem trước) rồi chạy đồng hồ "đã diễn ra" trên thanh trên. */
+    async function startMeetingClock() {
+        let startedAt = Date.now();
+        try {
+            const fresh = await API.getSilent(`/onlineclassroom/${roomId}`);
+            room = fresh;
+            document.getElementById('cr-status').innerHTML = statusBadge(fresh.status);
+            if (fresh.actualStartAt) startedAt = new Date(fresh.actualStartAt).getTime();
+        } catch { /* mất kết nối thoáng qua: đếm từ lúc vào phòng */ }
+
+        const box = document.getElementById('cr-elapsed');
+        const text = document.getElementById('cr-elapsed-text');
+        const paint = () => { text.textContent = formatClockMs(Date.now() - startedAt); };
+        box.hidden = false;
+        paint();
+        clearInterval(meetingTimer);
+        meetingTimer = setInterval(paint, 1000);
+    }
+
+    /** Một nút của bàn điều khiển: biểu tượng + nhãn trạng thái bên dưới; aria-label/title nói THAO TÁC khi bấm. */
+    function ctrlButton(id, { cls = '', icon, label, aria, hidden = false }) {
+        return `<button type="button" class="cr-ctrl-btn ${cls}" id="${id}"${hidden ? ' hidden' : ''} title="${esc(aria)}" aria-label="${esc(aria)}">
+            <i class="ph ${icon}"></i><span class="cr-ctrl-label">${esc(label)}</span></button>`;
+    }
+
     function renderControls() {
         const box = document.getElementById('cr-controls');
-        box.innerHTML = `
-            <button class="cr-ctrl-btn off" id="btn-mic" data-i18n-title="classroom.batTatMic" title="Bật/tắt mic"><i class="ph ph-microphone-slash"></i></button>
-            <button class="cr-ctrl-btn ${isHost ? 'active' : 'off'}" id="btn-cam" data-i18n-title="classroom.batTatCamera" title="Bật/tắt camera"><i class="ph ph-video-camera${isHost ? '' : '-slash'}"></i></button>
-            <button class="cr-ctrl-btn" id="btn-share" data-i18n-title="classroom.chiaSeManHinh" title="Chia sẻ màn hình"><i class="ph ph-monitor-arrow-up"></i></button>
-            <button class="cr-ctrl-btn" id="btn-record" data-i18n-title="classroom.ghiHinhBuoiHocYeuCauChoPhepQua" title="Ghi hình buổi học (yêu cầu cho phép quay tab này)"><i class="ph ph-record"></i></button>
-            <button class="cr-ctrl-btn cr-leave-btn" id="btn-leave" title="${isHost ? 'Kết thúc buổi học' : t('classroom.roiPhong', 'Rời phòng')}"><i class="ph ph-phone-x"></i></button>
-        `;
+        box.innerHTML = [
+            ctrlButton('btn-mic', { icon: 'ph-microphone-slash', label: t('classroom.ctlMicOff', 'Mic tắt'), aria: t('classroom.pvMicOn', 'Bật micro') }),
+            ctrlButton('btn-cam', { icon: 'ph-video-camera-slash', label: t('classroom.ctlCamOff', 'Cam tắt'), aria: t('classroom.pvCamOn', 'Bật camera') }),
+            '<span class="cr-ctrl-sep" aria-hidden="true"></span>',
+            ctrlButton('btn-share', { icon: 'ph-monitor-arrow-up', label: t('classroom.ctlShare', 'Chia sẻ'), aria: t('classroom.chiaSeManHinh', 'Chia sẻ màn hình') }),
+            isHost ? '<span class="cr-ctrl-sep" aria-hidden="true"></span>' : '',
+            isHost ? ctrlButton('btn-record', { icon: 'ph-record', label: t('classroom.ctlRecord', 'Ghi hình'), aria: t('classroom.ghiHinhBuoiHocYeuCauChoPhepQua', 'Ghi hình buổi học (yêu cầu cho phép quay tab này)') }) : '',
+            isHost ? ctrlButton('btn-rec-pause', { icon: 'ph-pause', label: t('classroom.ctlRecPause', 'Tạm dừng'), aria: t('classroom.recPause', 'Tạm dừng ghi hình'), hidden: true }) : '',
+            isHost ? ctrlButton('btn-rec-stop', { cls: 'off', icon: 'ph-stop', label: t('classroom.ctlRecStop', 'Dừng ghi'), aria: t('classroom.recStop', 'Dừng ghi hình'), hidden: true }) : '',
+            '<span class="cr-ctrl-sep" aria-hidden="true"></span>',
+            ctrlButton('btn-leave', { cls: 'cr-leave-btn', icon: 'ph-phone-x',
+                label: isHost ? t('classroom.ctlEnd', 'Kết thúc') : t('classroom.roiPhong', 'Rời phòng'),
+                aria: isHost ? t('classroom.ctlEndAria', 'Kết thúc buổi học') : t('classroom.roiPhong', 'Rời phòng') }),
+        ].join('');
+
+        // Trạng thái ban đầu: mic tắt; camera theo vai trò (chủ trì bật). syncMicButton/syncCamButton chỉnh lại theo thiết bị thật sau khi vào phòng.
+        paintMic(false);
+        paintCam(isHost);
+        paintShare(false);
+        // Ghi hình cần buổi học đã "Đang diễn ra" (server từ chối nếu chưa): khóa nút tới khi vào phòng xong (xem 'Joined').
+        if (isHost) document.getElementById('btn-record').disabled = true;
+        // Mic, camera, chia sẻ màn hình cũng vậy: bấm trước khi vào phòng thì lệnh báo trạng thái tới hub khi mình chưa có mặt
+        // nên bị bỏ qua, và mọi người trong phòng thấy sai (mic bật mà ô vẫn báo tắt).
+        ['btn-mic', 'btn-cam', 'btn-share'].forEach(id => { document.getElementById(id).disabled = true; });
 
         document.getElementById('btn-mic').addEventListener('click', toggleMic);
         document.getElementById('btn-cam').addEventListener('click', toggleCamera);
         document.getElementById('btn-share').addEventListener('click', toggleScreenShare);
-        document.getElementById('btn-record').addEventListener('click', startRecording);
+        if (isHost) {
+            document.getElementById('btn-record').addEventListener('click', startRecording);
+            document.getElementById('btn-rec-pause').addEventListener('click', toggleRecordingPause);
+            document.getElementById('btn-rec-stop').addEventListener('click', async () => {
+                toastOk(t('classroom.dangLuuBanGhiBuoiHoc', 'Đang lưu bản ghi buổi học...'));
+                await stopAndUploadRecording();
+            });
+            syncRecordButtons();
+        }
         document.getElementById('btn-leave').addEventListener('click', async () => {
             const ok = await confirmDialog(isHost ? 'Kết thúc buổi học cho tất cả mọi người?' : t('classroom.roiKhoiPhongHoc', 'Rời khỏi phòng học?'),
                 { danger: true, okText: isHost ? 'Kết thúc' : t('classroom.roiPhong', 'Rời phòng') });
@@ -612,6 +1468,51 @@
         });
     }
 
+    // ---- Vẽ trạng thái của từng nút (khai báo bằng `function` để dùng được ngay từ renderControls) ----
+    function paintToggle(id, on, { iconOn, iconOff, labelOn, labelOff, ariaOn, ariaOff }) {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.classList.toggle('off', !on);
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-pressed', String(on));
+        btn.querySelector('i').className = `ph ${on ? iconOn : iconOff}`;
+        btn.querySelector('.cr-ctrl-label').textContent = on ? labelOn : labelOff;
+        btn.title = on ? ariaOn : ariaOff;
+        btn.setAttribute('aria-label', on ? ariaOn : ariaOff);
+        scheduleGallery(); // ô của mình hiện/ẩn hình + biểu tượng mic theo đúng trạng thái này
+    }
+
+    function paintMic(on) {
+        paintToggle('btn-mic', on, {
+            iconOn: 'ph-microphone', iconOff: 'ph-microphone-slash',
+            labelOn: t('classroom.ctlMicOn', 'Mic bật'), labelOff: t('classroom.ctlMicOff', 'Mic tắt'),
+            ariaOn: t('classroom.pvMicOff', 'Tắt micro'), ariaOff: t('classroom.pvMicOn', 'Bật micro'),
+        });
+    }
+
+    function paintCam(on) {
+        paintToggle('btn-cam', on, {
+            iconOn: 'ph-video-camera', iconOff: 'ph-video-camera-slash',
+            labelOn: t('classroom.ctlCamOn', 'Cam bật'), labelOff: t('classroom.ctlCamOff', 'Cam tắt'),
+            ariaOn: t('classroom.pvCamOff', 'Tắt camera'), ariaOff: t('classroom.pvCamOn', 'Bật camera'),
+        });
+    }
+
+    /** Chia sẻ màn hình không có trạng thái "tắt đỏ" — chỉ sáng lên khi đang chia sẻ. toggleScreenShare đọc class `active` để biết đang chia sẻ hay không. */
+    function paintShare(on) {
+        mySharing = on;
+        if (on && dismissedKey === 'self') dismissedKey = null;
+        scheduleGallery();
+        const btn = document.getElementById('btn-share');
+        if (!btn) return;
+        btn.classList.toggle('active', on);
+        btn.setAttribute('aria-pressed', String(on));
+        btn.querySelector('.cr-ctrl-label').textContent = on ? t('classroom.ctlSharing', 'Đang chia sẻ') : t('classroom.ctlShare', 'Chia sẻ');
+        const aria = on ? t('classroom.ctlStopShare', 'Dừng chia sẻ màn hình') : t('classroom.chiaSeManHinh', 'Chia sẻ màn hình');
+        btn.title = aria;
+        btn.setAttribute('aria-label', aria);
+    }
+
     function toggleMic() {
         const track = localStream?.getAudioTracks()[0];
         if (!track) return;
@@ -620,17 +1521,25 @@
         connection.invoke('ToggleMic', roomId, track.enabled);
     }
 
+    /** Đồng bộ nút camera với trạng thái thật: chủ trì theo track video của luồng; học viên theo camera đã xin quyền.
+     *  Chủ trì không có camera (bị từ chối quyền / không có thiết bị) thì khóa nút. */
+    function syncCamButton() {
+        const btn = document.getElementById('btn-cam');
+        if (!btn) return;
+        const on = isHost ? !!localStream?.getVideoTracks()[0]?.enabled : !!cameraTrack?.enabled;
+        paintCam(on);
+        if (isHost) btn.disabled = !localStream?.getVideoTracks()[0];
+    }
+
     function syncMicButton() {
         const track = localStream?.getAudioTracks()[0];
         const btn = document.getElementById('btn-mic');
-        if (!track || !btn) return;
-        btn.classList.toggle('off', !track.enabled);
-        btn.classList.toggle('active', track.enabled);
-        btn.querySelector('i').className = `ph ph-microphone${track.enabled ? '' : '-slash'}`;
+        if (!btn) return;
+        paintMic(!!track?.enabled);
+        btn.disabled = !track;   // không có mic (bị từ chối quyền / không có thiết bị) thì khóa nút
     }
 
     async function toggleCamera() {
-        const btn = document.getElementById('btn-cam');
         let camOn;
 
         if (isHost) {
@@ -638,6 +1547,7 @@
             if (!track) return;
             track.enabled = !track.enabled;
             camOn = track.enabled;
+            connection.invoke('ToggleCam', roomId, camOn); // học viên khác cần biết để hiện ảnh đại diện thay cho khung đen
         } else {
             if (!cameraTrack) {
                 try {
@@ -656,9 +1566,7 @@
             connection.invoke('ToggleCam', roomId, camOn);
         }
 
-        btn.classList.toggle('off', !camOn);
-        btn.classList.toggle('active', camOn);
-        btn.querySelector('i').className = `ph ph-video-camera${camOn ? '' : '-slash'}`;
+        paintCam(camOn);
     }
 
     async function toggleScreenShare() {
@@ -670,17 +1578,17 @@
                     const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
                     const screenTrack = screenStream.getVideoTracks()[0];
                     replaceOutgoingVideoTrack(screenTrack);
-                    document.querySelector('#cr-main-video video')?.classList.remove('mirror'); // màn hình chia sẻ không soi gương
                     screenTrack.onended = () => {
                         replaceOutgoingVideoTrack(cameraTrack);
-                        document.querySelector('#cr-main-video video')?.classList.add('mirror');
-                        btn.classList.remove('active');
+                        paintShare(false);
+                        connection.invoke('ToggleScreenShare', roomId, false);
                     };
-                    btn.classList.add('active');
+                    paintShare(true);
+                    connection.invoke('ToggleScreenShare', roomId, true);
                 } else {
                     replaceOutgoingVideoTrack(cameraTrack);
-                    document.querySelector('#cr-main-video video')?.classList.add('mirror');
-                    btn.classList.remove('active');
+                    paintShare(false);
+                    connection.invoke('ToggleScreenShare', roomId, false);
                 }
             } else {
                 await toggleScreenShareViewer(btn, sharing);
@@ -688,16 +1596,15 @@
         } catch { /* người dùng hủy hộp thoại chọn màn hình */ }
     }
 
-    let myScreenTrack = null;
-
     async function toggleScreenShareViewer(btn, sharing) {
         if (!sharing) {
             const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             myScreenTrack = screenStream.getVideoTracks()[0];
             if (myCamSender) await myCamSender.replaceTrack(myScreenTrack);
             myScreenTrack.onended = () => stopViewerScreenShare();
-            btn.classList.add('active');
+            paintShare(true);
             connection.invoke('ToggleCam', roomId, true);
+            connection.invoke('ToggleScreenShare', roomId, true);
         } else {
             stopViewerScreenShare();
         }
@@ -706,18 +1613,13 @@
     function stopViewerScreenShare() {
         myScreenTrack?.stop();
         myScreenTrack = null;
-        document.getElementById('btn-share')?.classList.remove('active');
+        paintShare(false);
 
         const camOn = !!cameraTrack?.enabled;
         if (myCamSender) myCamSender.replaceTrack(camOn ? cameraTrack : null);
         connection.invoke('ToggleCam', roomId, camOn);
-
-        const camBtn = document.getElementById('btn-cam');
-        if (camBtn) {
-            camBtn.classList.toggle('off', !camOn);
-            camBtn.classList.toggle('active', camOn);
-            camBtn.querySelector('i').className = `ph ph-video-camera${camOn ? '' : '-slash'}`;
-        }
+        connection.invoke('ToggleScreenShare', roomId, false);
+        paintCam(camOn);
     }
 
     function replaceOutgoingVideoTrack(newTrack) {
@@ -733,20 +1635,74 @@
             if (oldTrack !== cameraTrack) oldTrack.stop(); // dừng track màn hình chia sẻ cũ; giữ track camera để dùng lại
         }
         if (!localStream.getVideoTracks().includes(newTrack)) localStream.addTrack(newTrack);
-
-        const localVideoEl = document.querySelector('#cr-main-video video');
-        if (localVideoEl) localVideoEl.srcObject = localStream;
+        scheduleGallery();
     }
 
-    // ==================== GHI HÌNH BUỔI HỌC (chủ trì lẫn người tham gia đều bấm được) ====================
+    // ==================== GHI HÌNH BUỔI HỌC (chỉ Chủ trì điều khiển) ====================
+    // Trình duyệt của Chủ trì thật sự quay (MediaRecorder); máy chủ giữ đồng hồ ghi hình chuẩn và phát trạng thái
+    // cho cả phòng. Bản ghi: Ghi → (Tạm dừng ⇄ Tiếp tục)* → Dừng ghi. Tạm dừng giữ MỘT tệp, đoạn tạm dừng bị cắt khỏi
+    // video. Dừng ghi chốt tệp; bấm Ghi lần nữa tạo Bản ghi mới.
     function pickRecorderMimeType() {
         if (typeof MediaRecorder === 'undefined') return null;
         const candidateList = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
         return candidateList.find(t => MediaRecorder.isTypeSupported?.(t)) || null;
     }
 
+    /** Trạng thái ghi hình mới từ server (hoặc lúc vừa vào phòng): cập nhật huy hiệu, đồng hồ và các nút của Chủ trì. */
+    function applyRecordingState({ state, elapsedMs }) {
+        const changed = state !== recState;
+        recState = state;
+        recBaseMs = elapsedMs || 0;
+        recBaseAt = performance.now();
+
+        const badge = document.getElementById('cr-rec-badge');
+        badge.classList.toggle('show', state !== 'Idle');
+        badge.classList.toggle('paused', state === 'Paused');
+        // Viền khung hình đổi màu theo trạng thái ghi (đỏ đang ghi, hổ phách tạm dừng) — ai trong phòng cũng thấy.
+        const wrap = document.querySelector('.cr-wrap');
+        wrap.classList.toggle('is-recording', state === 'Recording');
+        wrap.classList.toggle('is-paused', state === 'Paused');
+        const label = state === 'Paused' ? t('classroom.recBadgePaused', 'Tạm dừng ghi') : t('classroom.recBadgeRecording', 'Đang ghi');
+        document.getElementById('cr-rec-label').textContent = label;
+        if (changed) {
+            document.getElementById('cr-rec-announce').textContent =
+                state === 'Idle' ? t('classroom.recAnnounceStopped', 'Đã dừng ghi hình') : label;
+        }
+
+        clearInterval(recTimerInterval);
+        recTimerInterval = null;
+        paintRecordingTime();
+        if (state === 'Recording') recTimerInterval = setInterval(paintRecordingTime, 500);
+        syncRecordButtons();
+    }
+
+    function paintRecordingTime() {
+        const ms = recBaseMs + (recState === 'Recording' ? performance.now() - recBaseAt : 0);
+        document.getElementById('cr-rec-time').textContent = formatClockMs(ms);
+    }
+
+    /** Nút của Chủ trì theo trạng thái: chưa ghi → "Ghi"; đang ghi → "Tạm dừng" + "Dừng ghi"; tạm dừng → "Tiếp tục" + "Dừng ghi". */
+    function syncRecordButtons() {
+        if (!isHost) return;
+        const start = document.getElementById('btn-record');
+        const pause = document.getElementById('btn-rec-pause');
+        const stop = document.getElementById('btn-rec-stop');
+        if (!start || !pause || !stop) return;
+
+        start.hidden = recState !== 'Idle';
+        pause.hidden = stop.hidden = recState === 'Idle';
+
+        const paused = recState === 'Paused';
+        pause.classList.toggle('active', paused);
+        pause.querySelector('i').className = `ph ph-${paused ? 'play' : 'pause'}`;
+        pause.querySelector('.cr-ctrl-label').textContent = paused ? t('classroom.ctlRecResume', 'Tiếp tục') : t('classroom.ctlRecPause', 'Tạm dừng');
+        const pauseLabel = paused ? t('classroom.recResume', 'Tiếp tục ghi hình') : t('classroom.recPause', 'Tạm dừng ghi hình');
+        pause.title = pauseLabel;
+        pause.setAttribute('aria-label', pauseLabel);
+    }
+
     async function startRecording() {
-        if (!localStream) return;
+        if (!isHost || !localStream) return;
         if (mediaRecorder && mediaRecorder.state !== 'inactive') return; // đang ghi rồi, bỏ qua lần bấm thêm
 
         const mimeType = pickRecorderMimeType();
@@ -772,7 +1728,7 @@
         }
 
         try {
-            const started = await API.post(`/onlineclassroom/${roomId}/recording/start`);
+            const started = await API.postSilent(`/onlineclassroom/${roomId}/recording/start`);
             recordingId = started.id;
         } catch (ex) {
             toastErr(t('classroom.khongTaoDuocBanGhiTrenServer', 'Không tạo được bản ghi trên server: ') + ex.message);
@@ -805,49 +1761,68 @@
         mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) queueChunkUpload(e.data); };
         mediaRecorder.onerror = () => toastErr(t('classroom.ghiHinhBuoiHocBiGianDoan', 'Ghi hình buổi học bị gián đoạn.'));
         recordingStartAt = Date.now();
+        recActiveMs = 0;
+        recResumedAt = Date.now();
         mediaRecorder.start(5000); // cắt theo từng đoạn 5 giây, mỗi đoạn gửi lên server ngay
-        connection.invoke('NotifyRecordingStatus', roomId, true); // kích hoạt đồng hồ hiển thị (xem connection.on('RecordingStatus', ...))
+        // Máy chủ chạy đồng hồ ghi hình và phát trạng thái cho cả phòng (xem connection.on('RecordingState', ...)).
+        connection.invoke('StartRecording', roomId, recordingId);
+    }
 
-        const btn = document.getElementById('btn-record');
-        if (btn) { btn.classList.add('off'); btn.disabled = true; btn.title = t('classroom.dangGhiHinh', 'Đang ghi hình'); }
+    /** Tạm dừng khi đang ghi, tiếp tục khi đang tạm dừng — cùng một nút. Đoạn tạm dừng không vào video. */
+    function toggleRecordingPause() {
+        if (!mediaRecorder) return;
+        if (mediaRecorder.state === 'recording') {
+            mediaRecorder.pause();
+            recActiveMs += Date.now() - recResumedAt; // chốt đoạn vừa quay xong
+            connection.invoke('PauseRecording', roomId);
+        } else if (mediaRecorder.state === 'paused') {
+            mediaRecorder.resume();
+            recResumedAt = Date.now();
+            connection.invoke('ResumeRecording', roomId);
+        }
     }
 
     function queueChunkUpload(blob) {
         uploadQueue = uploadQueue.then(async () => {
             const file = new File([blob], 'chunk.webm', { type: blob.type });
             try {
-                await API.postFile(`/onlineclassroom/${roomId}/recording/${recordingId}/chunk`, file);
+                await API.postFileSilent(`/onlineclassroom/${roomId}/recording/${recordingId}/chunk`, file);
             } catch (ex) {
                 console.error(t('classroom.loiGuiDoanGhiHinh', 'Lỗi gửi đoạn ghi hình:'), ex.message);
             }
         });
     }
 
+    /** Dừng ghi: chốt tệp (gửi nốt các đoạn, báo thời lượng thật không tính đoạn tạm dừng), rồi báo máy chủ dừng đồng hồ. */
     function stopAndUploadRecording() {
         return new Promise((resolve) => {
-            clearInterval(recTimerInterval);
-            recTimerInterval = null;
-            document.getElementById('cr-rec-badge')?.classList.remove('show');
-
             if (!mediaRecorder || mediaRecorder.state === 'inactive') { resolve(); return; }
-            mediaRecorder.onstop = async () => {
-                connection.invoke('NotifyRecordingStatus', roomId, false);
+
+            // Đang quay dở một đoạn thì cộng nốt đoạn đó; đang tạm dừng thì đoạn cuối đã được cộng lúc bấm Tạm dừng.
+            if (mediaRecorder.state === 'recording') recActiveMs += Date.now() - recResumedAt;
+            const finishedRecordingId = recordingId;
+            const durationMs = recActiveMs;
+            const recorder = mediaRecorder;
+
+            recorder.onstop = async () => {
                 displayStream?.getTracks().forEach(t => t.stop());
                 displayStream = null;
-                await uploadQueue; 
+                await uploadQueue;
 
-                if (recordingId && recordingStartAt) {
-                    try { await API.post(`/onlineclassroom/${roomId}/recording/${recordingId}/finish`, { durationMs: Date.now() - recordingStartAt }); }
+                if (finishedRecordingId) {
+                    try { await API.postSilent(`/onlineclassroom/${roomId}/recording/${finishedRecordingId}/finish`, { durationMs }); }
                     catch (ex) { console.error(t('classroom.loiVaThoiLuongBanGhi', 'Lỗi vá thời lượng bản ghi:'), ex.message); }
                 }
+                // Báo máy chủ SAU khi tệp đã chốt: Diễn biến ghi "dừng ghi", huy hiệu của cả phòng tắt.
+                try { await connection.invoke('StopRecording', roomId); } catch { /* mất kết nối: máy chủ tự chốt khi buổi học kết thúc */ }
 
-                const btn = document.getElementById('btn-record');
-                if (btn) { btn.classList.remove('off'); btn.disabled = false; btn.title = t('classroom.ghiHinhBuoiHocYeuCauChoPhepQua', 'Ghi hình buổi học (yêu cầu cho phép quay tab này)'); }
-
+                mediaRecorder = null;
+                recordingId = null;
+                recordingStartAt = null;
                 toastOk(t('classroom.daLuuBanGhiBuoiHoc', 'Đã lưu bản ghi buổi học.'));
                 resolve();
             };
-            mediaRecorder.stop();
+            recorder.stop();
         });
     }
 
@@ -856,6 +1831,8 @@
         localStream?.getTracks().forEach(t => t.stop());
         displayStream?.getTracks().forEach(t => t.stop());
         clearInterval(recTimerInterval);
+        clearInterval(meetingTimer);
+        cancelAnimationFrame(galleryFrame);
         try { connection.stop(); } catch { }
     }
 

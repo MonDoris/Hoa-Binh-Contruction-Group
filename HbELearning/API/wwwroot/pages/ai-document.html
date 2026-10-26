@@ -173,7 +173,7 @@
             </div>
             <div class="card-body">
                 <div class="hint mb" data-i18n="aidoc.hintKienThuc">
-                    Pico B tự đọc mô tả khóa học và nội dung từng bài học của các khóa đã xuất bản hoặc đang có người học,
+                    HB Minerva tự đọc mô tả khóa học và nội dung từng bài học của các khóa đã xuất bản hoặc đang có người học,
                     rồi cập nhật lại sau mỗi vài giờ khi bài học được sửa. Học viên chỉ tra được nội dung của khóa mình
                     được phân công. Nội dung bài kiểm tra không được nạp để không lộ đáp án. Bài học quá ngắn (dưới 60 ký tự) không được nạp nên có thể vẫn hiện là học một phần.
                 </div>
@@ -194,7 +194,7 @@
             </div>
             <div class="card-body">
                 <div class="hint mb" data-i18n="aiqr.huongDan">
-                    Gặp đúng những câu này, Pico B trả lời ngay bằng câu chữ bạn soạn — không hỏi model, không tra tài liệu.
+                    Gặp đúng những câu này, HB Minerva trả lời ngay bằng câu chữ bạn soạn — không hỏi model, không tra tài liệu.
                     Chỗ giữ chỗ dùng được: {ten} họ tên người hỏi, {ten_ngan} tên gọi, {vai_tro} vai trò.
                     So khớp bỏ qua hoa thường và bỏ qua dấu tiếng Việt, nên gõ "chào" là bắt được cả người gõ "chao".
                 </div>
@@ -491,7 +491,7 @@
         const box = document.getElementById('knowledge-box');
         box.innerHTML = `<div class="flex-center" style="gap:8px; padding:14px">
                 <span class="spinner-inline"></span>
-                <span>${esc(t('aidoc.dangHoc', 'Pico B đang đọc nội dung khóa học...'))}</span>
+                <span>${esc(t('aidoc.dangHoc', 'HB Minerva đang đọc nội dung khóa học...'))}</span>
             </div>`;
 
         try {
@@ -770,9 +770,9 @@
 
         function renderAnswer(pending) {
             // Số trích dẫn [1], [2] do model chèn — tô lên cho dễ đối chiếu với danh sách nguồn bên dưới.
-            const html = esc(answer)
-                .replace(/\[(\d{1,2})\]/g, '<span class="badge" style="background:#a855f7; color:#fff; padding:0 6px; border-radius: 4px; font-size: 12px; vertical-align: super;">$1</span>')
-                .replace(/\n/g, '<br>');
+            // Bảng, chữ đậm, gạch đầu dòng: aiAnswerHtml trong app.js, dùng chung với trang HB Minerva.
+            const html = aiAnswerHtml(esc(answer)
+                .replace(/\[(\d{1,2})\]/g, '<span class="badge" style="background:#a855f7; color:#fff; padding:0 6px; border-radius: 4px; font-size: 12px; vertical-align: super;">$1</span>'));
             
             // Dùng class ai-answer thay vì chunk-item để UI đẹp hơn
             answerBox.innerHTML = `<div class="ai-answer">${html}${pending ? '<span class="spinner-inline" style="margin-left:6px; color:#a855f7"></span>' : ''}</div>`;

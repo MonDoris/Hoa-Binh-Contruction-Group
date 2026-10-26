@@ -17,7 +17,7 @@ namespace HbELearning.Application.Services;
 ///
 /// HÀNG RÀO QUYỀN: mỗi đoạn sinh ra ở đây LUÔN mang CourseId của khóa học nó thuộc về, nên nó tự nằm trong
 /// đúng phạm vi mà AiTutorService đã dựng sẵn — người học chỉ đọc được khóa mình được phân công. Đây là
-/// lý do KHÔNG nạp nội dung bài kiểm tra: câu hỏi kèm đáp án mà lọt vào câu trả lời thì học viên hỏi Pico B
+/// lý do KHÔNG nạp nội dung bài kiểm tra: câu hỏi kèm đáp án mà lọt vào câu trả lời thì học viên hỏi HB Minerva
 /// là biết trước đáp án bài thi.</summary>
 public class CourseKnowledgeService : ICourseKnowledgeService
 {
@@ -31,7 +31,7 @@ public class CourseKnowledgeService : ICourseKnowledgeService
     /// không mang thông tin gì, nạp vào chỉ làm loãng kết quả tìm kiếm.</summary>
     private const int MinTextLength = 60;
 
-    /// <summary>Định dạng file đính kèm bài học mà Pico B đọc được — khớp với <see cref="IDocumentTextExtractor"/>.
+    /// <summary>Định dạng file đính kèm bài học mà HB Minerva đọc được — khớp với <see cref="IDocumentTextExtractor"/>.
     /// Video/hình ảnh không có chữ để học nên bỏ qua.</summary>
     private static readonly string[] ReadableFileExtensionList = [".pdf", ".docx", ".txt", ".md"];
 
@@ -314,7 +314,7 @@ public class CourseKnowledgeService : ICourseKnowledgeService
     /// <summary>File tài liệu đính kèm bài học trên ổ đĩa, hoặc null nếu bài không có file đọc được chữ.
     ///
     /// Chỉ nhận đường dẫn NẰM TRONG thư mục web: ResourceUrl là dữ liệu người soạn gửi lên, không kiểm tra thì
-    /// một chuỗi kiểu "../../appsettings.json" là đủ để đem cấu hình máy chủ vào câu trả lời của Pico B.</summary>
+    /// một chuỗi kiểu "../../appsettings.json" là đủ để đem cấu hình máy chủ vào câu trả lời của HB Minerva.</summary>
     private FileInfo? ResolveLessonFile(Lesson lesson)
     {
         var url = lesson.ResourceUrl?.Trim();

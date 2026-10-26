@@ -3,7 +3,7 @@ namespace HbELearning.Infrastructure.BackgroundJobs;
 
 /// <summary>Dịch vụ nền để AI TỰ HỌC nội dung khóa học. Chạy song song hai việc:
 ///   1. HỌC NGAY: khóa học vừa xuất bản / vừa sửa bài học được báo qua <see cref="ICourseKnowledgeSyncQueue"/>
-///      và được học trong vòng vài chục giây — Pico B trả lời được nội dung khóa học ngay sau khi xuất bản.
+///      và được học trong vòng vài chục giây — HB Minerva trả lời được nội dung khóa học ngay sau khi xuất bản.
 ///   2. QUÉT ĐỊNH KỲ: cứ mỗi <see cref="IntervalHour"/> giờ quét lại toàn bộ, làm lưới an toàn cho những gì
 ///      hàng đợi bỏ lỡ (máy chủ AI đang tắt lúc xuất bản, máy chủ khởi động lại, sửa thẳng trong database).
 ///

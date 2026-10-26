@@ -203,7 +203,7 @@ public class AiDocumentService : IAiDocumentService
 
             if (contextList.Count == 0)
             {
-                await events.SendAsync("token", new { t = "Tài liệu nội bộ hiện chưa có thông tin về nội dung này." }, cancellationToken);
+                await events.SendAsync("token", new { t = IAiChatService.NoInformationAnswer }, cancellationToken);
                 await events.SendAsync("done", new { }, cancellationToken);
                 return;
             }

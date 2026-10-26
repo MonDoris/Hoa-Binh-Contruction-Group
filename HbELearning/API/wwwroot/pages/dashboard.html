@@ -46,7 +46,7 @@
         // Trưởng Nhóm vừa soạn nội dung vừa là người được giao khóa để học, nên đi nhánh riêng: giữ
         // nguyên bố cục của học viên rồi kẹp thêm phần quản lý. Admin và Tổng Giám Đốc không có lộ trình
         // học của riêng mình nên vẫn chỉ thấy số liệu.
-        content.innerHTML = Auth.isTrainer
+        content.innerHTML = Auth.isContentAuthor
             ? await renderTrainer()
             : (Auth.isAdmin || Auth.isManagingDirector)
                 ? await renderManager()
@@ -112,7 +112,7 @@
      *  đoán theo vai trò là kê ra những khóa mở vào không bấm được gì. */
     async function loadPendingApprovalList() {
         // Người soạn nội dung và Admin không nằm trong chuỗi duyệt — khỏi gọi API cho một khối chắc chắn rỗng.
-        if (Auth.isAdmin || Auth.isTrainer) return { courseList: [], hrDepartmentId: null };
+        if (Auth.isAdmin || Auth.isContentAuthor) return { courseList: [], hrDepartmentId: null };
 
         try {
             const [result, departmentList] = await Promise.all([
@@ -250,6 +250,8 @@
             percent: Math.round(Number(x.progressPercent) || 0),
             isOverdue: x.isOverdue,
             hasCertificate: x.hasCertificate,
+            averageRating: x.courseAverageRating,
+            reviewCount: x.courseReviewCount,
         }));
 
         const suggestList = availableList.map(x => ({
@@ -264,6 +266,8 @@
             enrollmentCount: x.enrollmentCount,
             teacher: x.createdByName,
             suggestReason: x.suggestReason,
+            averageRating: x.averageRating,
+            reviewCount: x.reviewCount,
         }));
 
         cardDataList = [...assignedList, ...suggestList];
@@ -317,9 +321,10 @@
                    <i class="ph-bold ph-arrow-right"></i></a>`;
 
         return `<article class="dash-card" data-kind="${item.kind}">
-            <div class="dash-thumb${item.thumbnailUrl ? ' has-cover' : ''}" style="--cover-fallback:${courseThumbBackground(item.title)}">
-                <i class="ph ph-book-bookmark"></i>
-                ${item.thumbnailUrl ? courseCoverHtml(item.thumbnailUrl) : ''}
+            <div class="dash-thumb${item.thumbnailUrl ? ' has-cover' : ' is-brand'}" style="--cover-fallback:${courseThumbBackground(item.title)}">
+                ${item.thumbnailUrl
+                    ? `<i class="ph ph-book-bookmark"></i>${courseCoverHtml(item.thumbnailUrl)}`
+                    : '<img class="brand-logo" src="/img/HoaBinh.png" alt="" loading="lazy">'}
                 <span class="dash-thumb-tag">${esc(tagText)}</span>
                 ${stateHtml}
                 ${metaHtml}
@@ -339,6 +344,7 @@
                         <div class="meta"><span>${esc(t('account.tienDo', 'Tiến độ'))}</span><span>${item.percent}%</span></div>
                         <div class="track"><span style="width:${item.percent}%"></span></div>
                     </div>`}
+                ${courseRatingHtml(item.averageRating, item.reviewCount)}
             </div>
             <div class="dash-card-foot">${footHtml}</div>
         </article>`;
@@ -464,7 +470,7 @@
 
         if (!managerData) return learnerHtml;
 
-        return `<div class="ops">${kpiStripHtml(managerData.overview)}</div>`
+        return `<div class="ops">${kpiStripHtml(managerData.overview, { authorView: true })}</div>`
             + learnerHtml
             + `<div class="ops mt">${trendPanelHtml(managerData.trend)}</div>`;
     }
@@ -491,29 +497,61 @@
     /** Bốn chỉ số toàn cảnh, mỗi ô dẫn tới trang xử lý đúng việc đó. Chỉ gắn liên kết khi người xem mở được
      *  trang đích (cùng danh sách vai trò với menu trong app.js) — ô bấm vào mà bị đá về trang chủ thì tệ hơn
      *  một ô không bấm được. Số nào API chưa trả về (server bản cũ) thì hiện 0 chứ không hiện "undefined". */
-    function kpiStripHtml(overview) {
+    function kpiStripHtml(overview, { authorView = false } = {}) {
         const pendingGift = overview.pendingGift ?? 0;
-        const pendingGiftUser = overview.pendingGiftUser ?? 0;
 
-        const cellList = [
-            {
-                tone: '#00a1e6', icon: 'ph-users', href: Auth.isAdmin ? '/pages/user.html' : null,
-                label: t('dashboard.activeUser', 'Người dùng hoạt động'), value: overview.activeUser,
-            },
-            {
-                tone: '#8b5cf6', icon: 'ph-books', href: Auth.isAdmin || Auth.isTrainer ? '/pages/course.html' : null,
-                label: t('dashboard.publishedCourse', 'Khóa học đang hiện hành'), value: overview.publishedCourse,                
-            },
-            {
+        // Người soạn khóa (Trưởng Nhóm / Giảng Viên) không phải người trao quà — ô thứ ba của họ là điểm sao trung
+        // bình mà học viên chấm cho các khóa CHÍNH HỌ tạo. Admin và Tổng Giám Đốc vẫn thấy hàng chờ trao quà.
+        const reviewCount = overview.myReviewCount ?? 0;
+        const hasRating = overview.myAverageRating != null && reviewCount > 0;
+        const thirdCell = authorView
+            ? {
+                tone: '#f59e0b', icon: 'ph-star', href: '/pages/course.html',
+                label: t('dashboard.myCourseRating', 'Đánh giá khóa học của bạn'),
+                value: overview.myAverageRating,
+                valueText: hasRating ? Number(overview.myAverageRating).toFixed(1) : '—',
+                foot: hasRating ? t('dashboard.reviewCount', '{count} lượt đánh giá', { count: fmtNumber(reviewCount) })
+                                : t('dashboard.noReview', 'Chưa có đánh giá nào'),
+            }
+            : {
                 // Tab "order" là hàng chờ trao quà của người quản lý cửa hàng; ai không có quyền quản lý thì
                 // shop.html tự đưa về tab cửa hàng nên liên kết này an toàn với mọi vai trò.
                 tone: '#f59e0b', icon: 'ph-gift', href: '/pages/shop.html?tab=order',
                 label: t('dashboard.pendingGift', 'Số quà chờ trao'), value: pendingGift,
-            },
+            };
+
+        // Giảng Viên là người ngoài được mời tới dạy: không cho thấy quy mô nhân sự hay tổng chứng chỉ của công ty,
+        // chỉ số liên quan tới các khóa của chính họ. Server cũng đã cắt số liệu theo cùng phạm vi (xem
+        // ReportService.GetOverview) — đây chỉ là phần nhãn. Ô chứng chỉ không gắn liên kết vì trang Chứng nhận
+        // liệt kê chứng nhận của toàn công ty.
+        const instructorView = authorView && Auth.isInstructor;
+
+        const cellList = [
+            instructorView
+                ? {
+                    tone: '#00a1e6', icon: 'ph-users', href: null,
+                    label: t('dashboard.myLearner', 'Học viên của tôi'), value: overview.learnerCount,
+                }
+                : {
+                    tone: '#00a1e6', icon: 'ph-users', href: Auth.isAdmin ? '/pages/user.html' : null,
+                    label: t('dashboard.activeUser', 'Người dùng hoạt động'), value: overview.activeUser,
+                },
             {
-                tone: '#10b981', icon: 'ph-certificate', href: '/pages/certificate.html',
-                label: t('dashboard.issuedCertificate', 'Tất cả chứng chỉ đã được cấp'), value: overview.totalCertificate,                
+                tone: '#8b5cf6', icon: 'ph-books', href: Auth.isAdmin || Auth.isContentAuthor ? '/pages/course.html' : null,
+                label: instructorView ? t('dashboard.myPublishedCourse', 'Khóa học của tôi đang hiện hành')
+                                      : t('dashboard.publishedCourse', 'Khóa học đang hiện hành'),
+                value: overview.publishedCourse,
             },
+            thirdCell,
+            instructorView
+                ? {
+                    tone: '#10b981', icon: 'ph-certificate', href: null,
+                    label: t('dashboard.myCertificate', 'Chứng chỉ cấp cho khóa của tôi'), value: overview.totalCertificate,
+                }
+                : {
+                    tone: '#10b981', icon: 'ph-certificate', href: '/pages/certificate.html',
+                    label: t('dashboard.issuedCertificate', 'Tất cả chứng chỉ đã được cấp'), value: overview.totalCertificate,
+                },
         ];
 
         return `<div class="ops-kpi">${cellList.map((c, i) => {
@@ -523,7 +561,7 @@
                     <span class="ops-kpi-label">${esc(c.label)}</span>
                     <span class="ops-kpi-icon"><i class="ph-fill ${c.icon}"></i></span>
                 </div>
-                <div class="ops-kpi-value">${esc(fmtNumber(c.value))}</div>
+                <div class="ops-kpi-value">${esc(c.valueText ?? fmtNumber(c.value))}</div>
                 <div class="ops-kpi-foot">${esc(c.foot)}${c.href ? '<i class="ph-bold ph-arrow-right go"></i>' : ''}</div>
             </${tag}>`;
         }).join('')}</div>`;

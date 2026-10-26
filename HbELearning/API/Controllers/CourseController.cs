@@ -8,8 +8,13 @@ namespace HbELearning.API.Controllers;
 public class CourseController : BaseApiController
 {
     private readonly ICourseService _service;
+    private readonly ICurrentUser _currentUser;
 
-    public CourseController(ICourseService service) => _service = service;
+    public CourseController(ICourseService service, ICurrentUser currentUser)
+    {
+        _service = service;
+        _currentUser = currentUser;
+    }
 
     [HttpGet]
     public async Task<ActionResult<PagedResult<CourseListDto>>> GetList([FromQuery] string? keyword, [FromQuery] CourseStatus? status, [FromQuery] int? departmentId, [FromQuery] int? positionId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
@@ -71,9 +76,9 @@ public class CourseController : BaseApiController
         => ToActionResult(await _service.ReassignApprover(id, request));
 
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = RoleName.Admin)]
+    [Authorize(Roles = RoleName.ContentAuthor)]
     public async Task<ActionResult<MessageResponse>> Delete(int id)
-        => ToActionResult(await _service.Delete(id));
+        => ToActionResult(await _service.Delete(id, _currentUser.UserId, _currentUser.IsAdmin));
 
     [HttpPost("{id:int}/target")]
     [Authorize(Roles = RoleName.ContentAuthor)]

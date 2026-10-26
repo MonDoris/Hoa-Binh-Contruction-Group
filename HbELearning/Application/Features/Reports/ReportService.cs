@@ -16,10 +16,13 @@ public class ReportService : IReportService
 
     public async Task<Result> GetPublicStat()
     {
+        // Trang chủ công khai chỉ khoe nội dung ĐANG HIỆN HÀNH: bài học / bài kiểm tra của khóa còn là bản nháp, chờ
+        // duyệt, bị từ chối hay đã lưu trữ chưa ai học được, đếm vào là con số trên trang chủ lệch với thứ khóa học
+        // thật sự cung cấp (và lộ cả việc công ty đang soạn gì).
         return Result.Success(new PublicStatDto(
             await _db.Course.CountAsync(x => x.Status == CourseStatus.Published),
-            await _db.Lesson.CountAsync(x => x.IsActive),
-            await _db.Quiz.CountAsync(x => x.IsActive),
+            await _db.Lesson.CountAsync(x => x.IsActive && x.Course.Status == CourseStatus.Published),
+            await _db.Quiz.CountAsync(x => x.IsActive && x.Course.Status == CourseStatus.Published),
             await _db.Enrollment.CountAsync(x => x.Status == EnrollmentStatus.Completed),
             await _db.Certificate.CountAsync(x => !x.IsRevoked),
             await _db.User.CountAsync(x => x.IsActive)));
@@ -29,30 +32,60 @@ public class ReportService : IReportService
     {
         var now = DateTime.Now;
 
-        var totalUser = await _db.User.CountAsync();
-        var activeUser = await _db.User.CountAsync(x => x.IsActive);
-        var totalCourse = await _db.Course.CountAsync();
-        var publishedCourse = await _db.Course.CountAsync(x => x.Status == CourseStatus.Published);
+        // Giảng Viên là người được mời tới dạy chứ không phải nhân sự công ty: chỉ được thấy số liệu của các khóa
+        // CHÍNH họ tạo. Quy mô nhân sự, tổng chứng chỉ và hàng chờ trao quà là thông tin nội bộ nên không trả về —
+        // cắt ở đây chứ không chỉ giấu ô trên giao diện, vì API này gọi thẳng được.
+        var ownOnly = _currentUser.IsInstructor;
+        var ownerId = _currentUser.UserId;
 
-        var totalEnrollment = await _db.Enrollment.CountAsync(x => x.Status != EnrollmentStatus.Cancelled);
-        var completed = await _db.Enrollment.CountAsync(x => x.Status == EnrollmentStatus.Completed);
-        var inProgress = await _db.Enrollment.CountAsync(x => x.Status == EnrollmentStatus.InProgress);
-        var notStarted = await _db.Enrollment.CountAsync(x => x.Status == EnrollmentStatus.Assigned);
-        var overdue = await _db.Enrollment.CountAsync(x =>
+        var courseQuery = _db.Course.AsQueryable();
+        var enrollmentQuery = _db.Enrollment.AsQueryable();
+        var certificateQuery = _db.Certificate.Where(x => !x.IsRevoked);
+        if (ownOnly)
+        {
+            courseQuery = courseQuery.Where(x => x.CreatedById == ownerId);
+            enrollmentQuery = enrollmentQuery.Where(x => x.Course.CreatedById == ownerId);
+            certificateQuery = certificateQuery.Where(x => x.Enrollment.Course.CreatedById == ownerId);
+        }
+
+        var totalUser = ownOnly ? 0 : await _db.User.CountAsync();
+        var activeUser = ownOnly ? 0 : await _db.User.CountAsync(x => x.IsActive);
+        var totalCourse = await courseQuery.CountAsync();
+        var publishedCourse = await courseQuery.CountAsync(x => x.Status == CourseStatus.Published);
+
+        var totalEnrollment = await enrollmentQuery.CountAsync(x => x.Status != EnrollmentStatus.Cancelled);
+        var completed = await enrollmentQuery.CountAsync(x => x.Status == EnrollmentStatus.Completed);
+        var inProgress = await enrollmentQuery.CountAsync(x => x.Status == EnrollmentStatus.InProgress);
+        var notStarted = await enrollmentQuery.CountAsync(x => x.Status == EnrollmentStatus.Assigned);
+        var overdue = await enrollmentQuery.CountAsync(x =>
             x.DueDate != null && x.DueDate < now && x.Status != EnrollmentStatus.Completed
             && x.Status != EnrollmentStatus.Cancelled);
 
-        var totalCertificate = await _db.Certificate.CountAsync(x => !x.IsRevoked);
+        // Số người học thật sự (đếm người, không đếm lượt) trong phạm vi đang xem — với Giảng Viên là học viên của
+        // các khóa họ dạy.
+        var learnerCount = await enrollmentQuery.Where(x => x.Status != EnrollmentStatus.Cancelled)
+            .Select(x => x.UserId).Distinct().CountAsync();
+
+        var totalCertificate = await certificateQuery.CountAsync();
         var monthStart = new DateTime(now.Year, now.Month, 1);
-        var certificateThisMonth = await _db.Certificate.CountAsync(x => !x.IsRevoked && x.IssuedAt >= monthStart);
+        var certificateThisMonth = await certificateQuery.CountAsync(x => x.IssuedAt >= monthStart);
 
         // Quà chờ trao đếm theo LƯỢT ĐỔI chứ không cộng Quantity, cho khớp con số "Chờ trao N lượt" ở trang Cửa hàng.
         var pendingGiftQuery = _db.ShopRedemption.Where(x => x.Status == ShopRedemptionStatus.Pending);
-        var pendingGift = await pendingGiftQuery.CountAsync();
-        var pendingGiftUser = await pendingGiftQuery.Select(x => x.UserId).Distinct().CountAsync();
+        var pendingGift = ownOnly ? 0 : await pendingGiftQuery.CountAsync();
+        var pendingGiftUser = ownOnly ? 0 : await pendingGiftQuery.Select(x => x.UserId).Distinct().CountAsync();
+
+        // Sao trung bình của MỌI đánh giá trên các khóa học do CHÍNH người xem tạo (gộp chung, không trung bình
+        // theo từng khóa: khóa nhiều đánh giá phải có sức nặng hơn khóa chỉ có một). Người chưa soạn khóa nào, hoặc
+        // khóa chưa ai đánh giá, thì không có điểm — trả null để giao diện hiện "chưa có" thay vì số 0 sai nghĩa.
+        var myRatingList = await _db.CourseFeedback.AsNoTracking()
+            .Where(x => x.Kind == FeedbackKind.Review && x.Rating != null && x.Course.CreatedById == _currentUser.UserId)
+            .Select(x => x.Rating!.Value)
+            .ToListAsync();
+        decimal? myAverageRating = myRatingList.Count == 0 ? null : Math.Round((decimal)myRatingList.Average(), 1);
 
         var averageProgress = totalEnrollment == 0 ? 0m
-            : await _db.Enrollment.Where(x => x.Status != EnrollmentStatus.Cancelled)
+            : await enrollmentQuery.Where(x => x.Status != EnrollmentStatus.Cancelled)
                 .AverageAsync(x => x.ProgressPercent);
 
         var completionRate = totalEnrollment == 0 ? 0m
@@ -60,7 +93,8 @@ public class ReportService : IReportService
 
         return Result.Success(new OverviewReportDto(totalUser, activeUser, totalCourse, publishedCourse,
             totalEnrollment, completed, inProgress, notStarted, overdue, totalCertificate,
-            completionRate, Math.Round(averageProgress, 2), certificateThisMonth, pendingGift, pendingGiftUser));
+            completionRate, Math.Round(averageProgress, 2), certificateThisMonth, pendingGift, pendingGiftUser,
+            myAverageRating, myRatingList.Count, learnerCount));
     }
 
     public async Task<Result> GetCompletionTrend(int? year)
@@ -128,13 +162,23 @@ public class ReportService : IReportService
             })
             .ToListAsync();
 
+        // Đánh giá sao gom riêng theo khóa rồi ghép trong bộ nhớ — tránh thêm navigation vào Course chỉ cho báo cáo.
+        var ratingByCourse = (await _db.CourseFeedback.AsNoTracking()
+                .Where(f => f.Kind == FeedbackKind.Review && f.Rating != null)
+                .Select(f => new { f.CourseId, Rating = f.Rating!.Value })
+                .ToListAsync())
+            .GroupBy(f => f.CourseId)
+            .ToDictionary(g => g.Key, g => (Average: Math.Round((decimal)g.Average(f => f.Rating), 1), Count: g.Count()));
+
         var list = raw.Select(x => new CourseReportDto(
             x.Id, x.Code, x.Title, x.Status.ToString(),
             x.AssignedCount, x.CompletedCount, x.InProgressCount, x.OverdueCount,
             x.AssignedCount == 0 ? 0m : Math.Round(x.CompletedCount * 100m / x.AssignedCount, 2),
             x.AssignedCount == 0 ? 0m : Math.Round(x.SumProgress / x.AssignedCount, 2),
             x.AverageScore.HasValue ? Math.Round(x.AverageScore.Value, 2) : null,
-            x.CertificateCount))
+            x.CertificateCount,
+            ratingByCourse.TryGetValue(x.Id, out var rating) ? rating.Average : null,
+            ratingByCourse.TryGetValue(x.Id, out var rating2) ? rating2.Count : 0))
             .OrderByDescending(x => x.AssignedCount)
             .ToList();
 

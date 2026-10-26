@@ -1,6 +1,7 @@
 ﻿// File: Infrastructure/Persistence/AppDbContext.cs
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace HbELearning.Infrastructure.Persistence;
 
@@ -80,11 +81,11 @@ public class AppDbContext : DbContext, IAppDbContext
     /// <summary>Kho tri thức: các đoạn văn bản tách từ tài liệu PDF/Word kèm vector nhúng (Ollama).</summary>
     public DbSet<DocumentChunk> DocumentChunk => Set<DocumentChunk>();
 
-    /// <summary>Lịch sử hỏi đáp với Pico B — mỗi người một danh sách hội thoại riêng.</summary>
+    /// <summary>Lịch sử hỏi đáp với HB Minerva — mỗi người một danh sách hội thoại riêng.</summary>
     public DbSet<AiChatSession> AiChatSession => Set<AiChatSession>();
     public DbSet<AiChatMessage> AiChatMessage => Set<AiChatMessage>();
 
-    /// <summary>Câu trả lời cài sẵn của Pico B (chào hỏi, cảm ơn...) — trả lời thẳng, không qua model.</summary>
+    /// <summary>Câu trả lời cài sẵn của HB Minerva (chào hỏi, cảm ơn...) — trả lời thẳng, không qua model.</summary>
     public DbSet<AiQuickReply> AiQuickReply => Set<AiQuickReply>();
 
     /// <summary>Thư viện bối cảnh 3D dùng chung (model .glb, ảnh/video 360°, ảnh phẳng) cho mô phỏng.</summary>
@@ -105,6 +106,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Conversation> Conversation => Set<Conversation>();
     public DbSet<ConversationMember> ConversationMember => Set<ConversationMember>();
     public DbSet<ChatMessage> ChatMessage => Set<ChatMessage>();
+    public DbSet<CourseFeedback> CourseFeedback => Set<CourseFeedback>();
 
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -200,6 +202,11 @@ public class AppDbContext : DbContext, IAppDbContext
         // Ghi chú theo mốc thời gian: KHÔNG duy nhất — một học viên hoàn toàn có thể ghi nhiều ghi chú ở
         // cùng một giây (xem lại đoạn khó, nghĩ ra thêm ý). Chỉ đánh chỉ mục để lấy nhanh theo bài học.
         b.Entity<LessonNote>().HasIndex(x => new { x.EnrollmentId, x.LessonId, x.AtSecond });
+        // Feedback: lấy theo khóa (tab Feedback / báo cáo) và theo người viết (tìm đánh giá của chính mình).
+        // Không đặt duy nhất cho đánh giá: SqlServer/Sqlite/Oracle không chung cú pháp chỉ mục có điều kiện,
+        // nên "mỗi người một đánh giá mỗi khóa" do FeedbackService.SaveReview giữ.
+        b.Entity<CourseFeedback>().HasIndex(x => new { x.CourseId, x.Kind });
+        b.Entity<CourseFeedback>().HasIndex(x => new { x.UserId, x.CourseId });
         // Mỗi mốc thời gian trong một video chỉ có 1 câu hỏi — tránh 2 hộp thoại bật lên cùng lúc
         b.Entity<VideoQuestion>().HasIndex(x => new { x.LessonId, x.AtSecond }).IsUnique();
         // Mỗi học viên chỉ giữ 1 bản ghi trả lời cho mỗi câu hỏi trong video (làm lại thì ghi đè)
@@ -445,6 +452,18 @@ public class AppDbContext : DbContext, IAppDbContext
             .HasForeignKey(x => x.EnrollmentId).OnDelete(DeleteBehavior.Cascade);
         b.Entity<LessonNote>().HasOne(x => x.Lesson).WithMany()
             .HasForeignKey(x => x.LessonId).OnDelete(DeleteBehavior.NoAction);
+        // Feedback: chỉ Enrollment được lan truyền xóa (hủy phân công thì bình luận/đánh giá của người đó đi theo).
+        // Course, User và Parent phải NoAction: xóa khóa/người dùng tới bảng này bằng nhiều đường (trực tiếp và
+        // vòng qua Enrollment), còn Parent là tự tham chiếu — cả hai đều là thứ SqlServer từ chối tạo. Xóa khóa học
+        // do CourseService.Delete dọn feedback trước; trả lời của bình luận bị xóa do FeedbackService.Delete lo.
+        b.Entity<CourseFeedback>().HasOne(x => x.Enrollment).WithMany()
+            .HasForeignKey(x => x.EnrollmentId).OnDelete(DeleteBehavior.Cascade);
+        b.Entity<CourseFeedback>().HasOne(x => x.Course).WithMany()
+            .HasForeignKey(x => x.CourseId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<CourseFeedback>().HasOne(x => x.User).WithMany()
+            .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<CourseFeedback>().HasOne(x => x.Parent).WithMany()
+            .HasForeignKey(x => x.ParentId).OnDelete(DeleteBehavior.NoAction);
         b.Entity<UserRankAward>().HasOne(x => x.RankTier).WithMany(x => x.AwardList)
             .HasForeignKey(x => x.RankTierId).OnDelete(DeleteBehavior.Restrict);
         // Xóa người dùng tới được UserRankAward bằng hai đường: thẳng, và vòng qua RankVoucherCode
@@ -600,7 +619,9 @@ public class AppDbContext : DbContext, IAppDbContext
         b.Entity<ScormRuntime>().Property(x => x.ScoreMax).HasPrecision(18, 6);
 
         // Ba cột JSON có thể rất dài (cây hoạt động cả nghìn mục, suspend_data 64.000 ký tự, interactions...).
-        foreach (var longText in new[]
+        // Khai báo rõ kiểu cha PropertyBuilder: ba cột có kiểu string / string? khác nhau nên C# không tự suy ra được
+        // một kiểu phần tử chung (PropertyBuilder<string> ≠ PropertyBuilder<string?>), và HasColumnType có sẵn ở kiểu cha.
+        foreach (var longText in new PropertyBuilder[]
                  {
                      b.Entity<ScormPackage>().Property(x => x.ActivityTreeJson),
                      b.Entity<ScormRegistration>().Property(x => x.StateJson),
@@ -611,7 +632,7 @@ public class AppDbContext : DbContext, IAppDbContext
             else if (Database.ProviderName == "Microsoft.EntityFrameworkCore.SqlServer") longText.HasColumnType("nvarchar(max)");
         }
 
-        // ================= LỊCH SỬ HỎI ĐÁP VỚI PICO B =================
+        // ================= LỊCH SỬ HỎI ĐÁP VỚI HB MINERVA =================
         // Xóa tài khoản thì xóa luôn lịch sử hỏi đáp của người đó: dữ liệu này chỉ có nghĩa với chính chủ,
         // giữ lại chỉ còn là một đống câu hỏi vô chủ.
         b.Entity<AiChatSession>().HasOne(x => x.User).WithMany()

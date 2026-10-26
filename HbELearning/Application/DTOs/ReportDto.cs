@@ -6,7 +6,8 @@ public record OverviewReportDto(
     int TotalEnrollment, int CompletedEnrollment, int InProgressEnrollment,
     int NotStartedEnrollment, int OverdueEnrollment,
     int TotalCertificate, decimal CompletionRate, decimal AverageProgress,
-    int CertificateThisMonth, int PendingGift, int PendingGiftUser);
+    int CertificateThisMonth, int PendingGift, int PendingGiftUser,
+    decimal? MyAverageRating, int MyReviewCount, int LearnerCount);
 
 /// <summary>Số lượt đào tạo hoàn thành / chưa hoàn thành của một mốc thời gian.</summary>
 /// <param name="Period">Tháng (1–12) ở chuỗi theo tháng, hoặc năm (VD 2026) ở chuỗi theo năm.</param>
@@ -19,7 +20,8 @@ public record CompletionTrendDto(int Year,
 public record CourseReportDto(
     int CourseId, string CourseCode, string CourseTitle, string Status,
     int AssignedCount, int CompletedCount, int InProgressCount, int OverdueCount,
-    decimal CompletionRate, decimal AverageProgress, decimal? AverageScore, int CertificateCount);
+    decimal CompletionRate, decimal AverageProgress, decimal? AverageScore, int CertificateCount,
+    decimal? AverageRating, int ReviewCount);
 
 public record DepartmentReportDto(
     int DepartmentId, string DepartmentCode, string DepartmentName,

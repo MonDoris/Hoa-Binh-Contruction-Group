@@ -7,7 +7,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace HbELearning.Application.Features.AiTutor;
 
-/// <summary>Pico B của học viên: một khung chat hỏi đáp dựa trên kho tri thức đã có sẵn.
+/// <summary>HB Minerva của học viên: một khung chat hỏi đáp dựa trên kho tri thức đã có sẵn.
 ///
 /// Đây là bản DÀNH CHO NGƯỜI HỌC của <see cref="AiDocumentService"/>, tách riêng chứ không nới quyền
 /// controller kia, vì hai màn hình khác nhau ở đúng ba điểm không thể trộn chung:
@@ -34,9 +34,11 @@ public class AiTutorService : IAiTutorService
     private readonly IMemoryCache _cache;
     private readonly ILogger<AiTutorService> _logger;
     private readonly ICurrentUser _currentUser;
+    private readonly IDocumentTextExtractor _textExtractor;
 
-    public AiTutorService(IAppDbContext db, IDocumentProcessingService documentProcessing, IEmbeddingService embedding, IAiChatService chat, IMemoryCache cache, ILogger<AiTutorService> logger, ICurrentUser currentUser)
+    public AiTutorService(IAppDbContext db, IDocumentProcessingService documentProcessing, IEmbeddingService embedding, IAiChatService chat, IMemoryCache cache, ILogger<AiTutorService> logger, ICurrentUser currentUser, IDocumentTextExtractor textExtractor)
     {
+        _textExtractor = textExtractor;
         _db = db;
         _documentProcessing = documentProcessing;
         _embedding = embedding;
@@ -57,13 +59,18 @@ public class AiTutorService : IAiTutorService
         return Result.Success(new AiTutorStatusDto(
             isReady,
             isReady
-                ? "Pico B đã sẵn sàng."
-                : "Pico B đang tạm nghỉ. Vui lòng liên hệ quản trị hệ thống."));
+                ? "HB Minerva đã sẵn sàng."
+                : "HB Minerva đang tạm nghỉ. Vui lòng liên hệ quản trị hệ thống."));
     }
 
     public async Task Ask(AiTutorAskRequest request, IEventStream events, CancellationToken cancellationToken)
     {
         var question = request.Question?.Trim() ?? string.Empty;
+        var attachmentList = request.AttachmentList ?? [];
+
+        // Gửi tệp mà không gõ gì là chuyện bình thường ("đây, xem giúp tôi") — coi như xin tóm tắt.
+        if (question.Length == 0 && attachmentList.Count > 0) question = DefaultAttachmentQuestion;
+
         if (question.Length == 0)
         {
             await events.SendAsync("error", new MessageResponse("Vui lòng nhập câu hỏi."), cancellationToken);
@@ -77,6 +84,13 @@ public class AiTutorService : IAiTutorService
             return;
         }
 
+        var attachmentError = ValidateAttachmentList(attachmentList);
+        if (attachmentError is not null)
+        {
+            await events.SendAsync("error", new MessageResponse(attachmentError), cancellationToken);
+            return;
+        }
+
         // Mỗi người chỉ được một câu trả lời đang chạy. Không chặn thì một người bấm gửi liên tục là chiếm
         // hết CPU của máy chủ AI, và cả công ty cùng ngồi chờ — trang này mở cho MỌI nhân viên, khác hẳn
         // màn hình quản trị vốn chỉ vài tài khoản dùng.
@@ -87,12 +101,22 @@ public class AiTutorService : IAiTutorService
             return;
         }
 
+        // Vector câu hỏi (vài trăm ms trên CPU) chạy SONG SONG với các lượt đọc/ghi database bên dưới thay vì nối
+        // đuôi sau chúng. Chỉ làm khi chữ đem đi tìm chắc chắn chính là câu hỏi: câu ngắn nối tiếp mới được ghép
+        // thêm câu trước (xem BuildSearchQuery), mà lịch sử chưa biết ở đây. Tệp đính kèm không tra kho tri thức.
+        var prefetchTask = attachmentList.Count == 0 && (request.SessionId is null || question.Length > ShortQuestionLength)
+            ? _documentProcessing.PrefetchQueryVectorAsync(question, cancellationToken)
+            : Task.CompletedTask;
+
         try
         {
             // Hội thoại đang mở, hoặc một hội thoại mới nếu đây là câu đầu tiên. Tra theo CẢ UserId chứ không
             // chỉ theo Id: thiếu điều kiện đó thì chỉ cần sửa một con số trong yêu cầu là ghi được câu hỏi vào
             // hội thoại của người khác, và đọc luôn được vài lượt hỏi đáp cũ của họ qua phần ngữ cảnh bên dưới.
-            var session = await GetOrCreateSessionAsync(request.SessionId, question, cancellationToken);
+            var session = await GetOrCreateSessionAsync(
+                request.SessionId,
+                attachmentList.Count > 0 && question == DefaultAttachmentQuestion ? $"Phân tích {attachmentList[0].FileName}" : question,
+                cancellationToken);
             var historyList = await GetRecentTurnListAsync(session.Id, cancellationToken);
 
             // Báo mã hội thoại NGAY, trước khi model chạy: người học bấm Dừng hoặc đóng trang giữa chừng thì
@@ -104,10 +128,21 @@ public class AiTutorService : IAiTutorService
             {
                 AiChatSessionId = session.Id,
                 Role = AiChatRole.User,
-                Content = question
+                // Lịch sử chỉ nhớ TÊN tệp (dòng đầu, giao diện tự dựng lại thành thẻ tệp), không giữ nội dung tệp.
+                Content = attachmentList.Count > 0
+                    ? $"{AttachmentMarkerPrefix}{string.Join("; ", attachmentList.Select(x => x.FileName.Replace(';', ',').Replace(']', ')')))}]\n{question}"
+                    : question
             });
             session.UpdatedAt = DateTime.Now;
             await _db.SaveChangesAsync(cancellationToken);
+
+            // Có tệp đính kèm thì trả lời dựa trên chính tệp đó, không tra kho tri thức và không dùng câu cài sẵn:
+            // người dùng đang hỏi về thứ họ vừa gửi, không phải về tài liệu nội bộ.
+            if (attachmentList.Count > 0)
+            {
+                await AnswerAboutAttachmentAsync(session, question, attachmentList, historyList, events, cancellationToken);
+                return;
+            }
 
             // Câu trả lời CÀI SẴN được xét TRƯỚC khi tra tài liệu. Những câu xã giao ("hi", "cảm ơn") không
             // nằm trong tài liệu nội bộ nào, mà chúng lại quá ngắn nên vector của chúng gần như nhau với mọi
@@ -123,6 +158,9 @@ public class AiTutorService : IAiTutorService
             }
 
             var readableCourseIdList = await GetReadableCourseIdListAsync(cancellationToken);
+
+            // Chờ vector xong để tìm kiếm đọc thẳng từ bộ đệm, không gọi Ollama lần hai.
+            await prefetchTask;
 
             var foundList = await _documentProcessing.GetAnswerContextAsync(
                 BuildSearchQuery(question, historyList), topCount: 4, courseId: null,
@@ -196,13 +234,175 @@ public class AiTutorService : IAiTutorService
         {
             _logger.LogError(ex, "Gia su AI tra loi that bai cho nguoi dung {UserId}.", _currentUser.UserId);
             await events.SendAsync("error", new MessageResponse(
-                "Pico B chưa trả lời được. Vui lòng thử lại hoặc liên hệ quản trị hệ thống."), CancellationToken.None);
+                "HB Minerva chưa trả lời được. Vui lòng thử lại hoặc liên hệ quản trị hệ thống."), CancellationToken.None);
         }
         finally
         {
             AnsweringUserIdList.TryRemove(_currentUser.UserId, out _);
         }
     }
+
+    // ==================== TỆP ĐÍNH KÈM ====================
+
+    /// <summary>Phân tích tệp đính kèm rồi stream câu trả lời. Chữ bóc từ PDF/Word/văn bản được ghép vào câu lệnh,
+    /// ảnh gửi thẳng cho model đọc ảnh. Tệp nào không đọc được thì nói rõ ở đầu câu trả lời thay vì lặng lẽ bỏ qua —
+    /// người dùng cần biết model KHÔNG hề thấy tệp đó để khỏi tin vào một câu trả lời thiếu căn cứ.</summary>
+    private async Task AnswerAboutAttachmentAsync(
+        AiChatSession session, string question, IReadOnlyList<AiTutorAttachment> attachmentList,
+        List<AiChatTurnDto> historyList, IEventStream events, CancellationToken cancellationToken)
+    {
+        var textBuilder = new StringBuilder();
+        var imageList = new List<byte[]>();
+        var skippedList = new List<string>();
+        var truncated = false;
+
+        foreach (var attachment in attachmentList)
+        {
+            var extension = ExtensionOf(attachment.FileName);
+            if (ImageExtensionSet.Contains(extension))
+            {
+                imageList.Add(attachment.Content);
+                continue;
+            }
+
+            var text = await ExtractAttachmentTextAsync(attachment, extension, cancellationToken);
+            if (text.Length == 0) { skippedList.Add(attachment.FileName); continue; }
+
+            var room = MaxAttachmentTextCharacter - textBuilder.Length;
+            if (room <= 0) { skippedList.Add(attachment.FileName); continue; }
+
+            var allowed = Math.Min(room, MaxAttachmentTextPerFile);
+            if (text.Length > allowed) { text = text[..allowed]; truncated = true; }
+            textBuilder.AppendLine($"--- {attachment.FileName} ---").AppendLine(text).AppendLine();
+        }
+
+        var notice = new StringBuilder();
+        if (skippedList.Count > 0)
+            notice.Append($"Mình không đọc được nội dung của: {string.Join(", ", skippedList)} (PDF dạng ảnh quét, tệp rỗng hoặc quá dài so với giới hạn — hãy gửi ảnh chụp thay thế).\n\n");
+        if (truncated)
+            notice.Append("Tệp khá dài nên mình chỉ đọc phần đầu.\n\n");
+
+        if (textBuilder.Length == 0 && imageList.Count == 0)
+        {
+            var failed = notice.ToString().TrimEnd();
+            await events.SendAsync("token", new { t = failed }, cancellationToken);
+            await SaveAnswerAsync(session, failed, []);
+            await events.SendAsync("done", new { }, cancellationToken);
+            return;
+        }
+
+        var answerBuilder = new StringBuilder();
+        if (notice.Length > 0)
+        {
+            answerBuilder.Append(notice);
+            await events.SendAsync("token", new { t = notice.ToString() }, cancellationToken);
+        }
+
+        try
+        {
+            await foreach (var piece in _chat.StreamAttachmentAnswerAsync(
+                question, textBuilder.ToString().Trim(), imageList, historyList, cancellationToken))
+            {
+                answerBuilder.Append(piece);
+                await events.SendAsync("token", new { t = piece }, cancellationToken);
+            }
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            _logger.LogError(ex, "Chua cai model doc anh {Model} cho HB Minerva.", _chat.VisionModel);
+            await events.SendAsync("error", new MessageResponse(
+                "Hệ thống chưa cài model đọc ảnh nên chưa phân tích được tệp. Vui lòng liên hệ quản trị hệ thống."), CancellationToken.None);
+            return;
+        }
+        finally
+        {
+            // Ghi cả phần dở dang khi người dùng bấm Dừng — cùng lý do với nhánh hỏi đáp tài liệu.
+            if (answerBuilder.Length > 0) await SaveAnswerAsync(session, answerBuilder.ToString(), []);
+        }
+
+        await events.SendAsync("done", new { }, cancellationToken);
+    }
+
+    /// <summary>Chữ trong một tệp văn bản đính kèm. <see cref="IDocumentTextExtractor"/> đọc từ đường dẫn trên đĩa nên
+    /// tệp được ghi tạm rồi xóa ngay — nội dung người dùng gửi không nằm lại trên máy chủ.</summary>
+    private async Task<string> ExtractAttachmentTextAsync(AiTutorAttachment attachment, string extension, CancellationToken cancellationToken)
+    {
+        var tempPath = Path.Combine(Path.GetTempPath(), $"hbe-ai-{Guid.NewGuid():N}.{extension}");
+        try
+        {
+            await File.WriteAllBytesAsync(tempPath, attachment.Content, cancellationToken);
+            var raw = await _textExtractor.ExtractTextAsync(tempPath, extension, cancellationToken);
+            return System.Text.RegularExpressions.Regex.Replace(raw, @"[ \t]+", " ").Trim();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Khong doc duoc tep dinh kem {FileName}.", attachment.FileName);
+            return string.Empty;
+        }
+        finally
+        {
+            try { File.Delete(tempPath); } catch { /* thư mục tạm sẽ được hệ điều hành dọn */ }
+        }
+    }
+
+    /// <summary>Kiểm tra tệp đính kèm: số lượng, dung lượng, đuôi tệp, và với ảnh thì cả chữ ký đầu tệp (đổi đuôi một
+    /// tệp lạ thành .png không qua được). Trả về câu báo lỗi cho người dùng, null nếu hợp lệ.</summary>
+    private static string? ValidateAttachmentList(IReadOnlyList<AiTutorAttachment> attachmentList)
+    {
+        if (attachmentList.Count == 0) return null;
+        if (attachmentList.Count > MaxAttachmentCount)
+            return $"Mỗi câu hỏi chỉ đính kèm tối đa {MaxAttachmentCount} tệp.";
+
+        foreach (var attachment in attachmentList)
+        {
+            var extension = ExtensionOf(attachment.FileName);
+            var isImage = ImageExtensionSet.Contains(extension);
+            if (!isImage && !DocumentExtensionSet.Contains(extension))
+                return $"Chưa hỗ trợ tệp \"{attachment.FileName}\". Hãy gửi ảnh (PNG, JPG, WEBP) hoặc tệp PDF, DOCX, TXT.";
+            if (attachment.Content.Length == 0)
+                return $"Tệp \"{attachment.FileName}\" trống.";
+            if (attachment.Content.Length > MaxAttachmentByte)
+                return $"Tệp \"{attachment.FileName}\" lớn hơn {MaxAttachmentByte / 1024 / 1024} MB.";
+            if (isImage && !LooksLikeImage(attachment.Content))
+                return $"Tệp \"{attachment.FileName}\" không phải ảnh hợp lệ.";
+        }
+
+        return null;
+    }
+
+    private static bool LooksLikeImage(byte[] content)
+    {
+        if (content.Length < 12) return false;
+        var isPng = content[0] == 0x89 && content[1] == 0x50 && content[2] == 0x4E && content[3] == 0x47;
+        var isJpeg = content[0] == 0xFF && content[1] == 0xD8 && content[2] == 0xFF;
+        var isWebp = content[0] == 0x52 && content[1] == 0x49 && content[2] == 0x46 && content[3] == 0x46
+                     && content[8] == 0x57 && content[9] == 0x45 && content[10] == 0x42 && content[11] == 0x50;
+        return isPng || isJpeg || isWebp;
+    }
+
+    private static string ExtensionOf(string fileName)
+        => Path.GetExtension(fileName).TrimStart('.').ToLowerInvariant();
+
+    /// <summary>Dòng đầu của tin nhắn người dùng khi có tệp: "[Đính kèm: a.pdf; b.png]". Trang chat nhận ra dòng này
+    /// để vẽ thẻ tệp — đổi chuỗi ở đây phải đổi cả ai-tutor.html.</summary>
+    private const string AttachmentMarkerPrefix = "[Đính kèm: ";
+
+    private const string DefaultAttachmentQuestion = "Hãy phân tích tệp đính kèm và tóm tắt nội dung chính.";
+
+    private const int MaxAttachmentCount = 3;
+    private const int MaxAttachmentByte = 10 * 1024 * 1024;
+
+    /// <summary>Trần chữ đưa cho model: mỗi 1000 chữ tốn chừng 30 giây ĐỌC trên máy chạy CPU (xem appsettings.json),
+    /// nên không nhét cả cuốn sách vào một câu hỏi.</summary>
+    private const int MaxAttachmentTextCharacter = 6000;
+    private const int MaxAttachmentTextPerFile = 4000;
+
+    private static readonly HashSet<string> ImageExtensionSet = ["png", "jpg", "jpeg", "webp"];
+    private static readonly HashSet<string> DocumentExtensionSet = ["pdf", "docx", "txt", "md"];
 
     public async Task<Result> GetSessionList(CancellationToken cancellationToken)
         => Result.Success(await _db.AiChatSession.AsNoTracking()
@@ -427,7 +627,7 @@ public class AiTutorService : IAiTutorService
     ///
     /// Còn lại (học viên, và các vai trò chỉ học chứ không quản nội dung) đọc được:
     ///   - MỌI khóa học ĐÃ XUẤT BẢN — ai cũng mở được những khóa này ở danh mục khóa học (xem CourseService),
-    ///     nên Pico B giấu chúng đi chỉ khiến người học hỏi đúng nội dung bài mà nhận về "chưa có thông tin";
+    ///     nên HB Minerva giấu chúng đi chỉ khiến người học hỏi đúng nội dung bài mà nhận về "chưa có thông tin";
     ///   - khóa học mình đã được phân công dù hiện không còn ở trạng thái xuất bản (đã lưu trữ nhưng còn học dở).
     /// Bản nháp / đang chờ duyệt thì không bao giờ lọt qua — cũng vì vậy mà chúng không được nạp ngay từ đầu.
     /// Tài liệu dùng chung toàn công ty không nằm trong danh sách này vì nó không thuộc khóa nào — phần lọc ở
@@ -444,10 +644,10 @@ public class AiTutorService : IAiTutorService
             .ToListAsync(cancellationToken);
     }
 
-    /// <summary>Câu trả lời khi không tìm được đoạn tài liệu nào liên quan. Viết đúng giọng của câu lệnh hệ
-    /// thống trong OllamaChatService để học viên không thấy hai kiểu từ chối khác nhau cho cùng một tình huống.</summary>
+    /// <summary>Câu trả lời khi không tìm được đoạn tài liệu nào liên quan. Mở đầu đúng câu từ chối của câu lệnh
+    /// hệ thống để học viên không thấy hai kiểu từ chối khác nhau cho cùng một tình huống.</summary>
     private const string NoContextAnswer =
-        "Tài liệu nội bộ hiện chưa có thông tin về nội dung này. " +
+        IAiChatService.NoInformationAnswer + " " +
         "Bạn thử hỏi lại bằng từ ngữ trong bài học, hoặc hỏi trực tiếp người phụ trách đào tạo nhé.";
 
     /// <summary>Trần độ dài câu hỏi. Khớp maxlength của ô nhập bên trang chat — đặt lại ở đây vì trình duyệt

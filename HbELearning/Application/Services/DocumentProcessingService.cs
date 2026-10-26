@@ -1,6 +1,7 @@
 // File: Application/Services/DocumentProcessingService.cs
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace HbELearning.Application.Services;
 
@@ -19,10 +20,14 @@ public class DocumentProcessingService : IDocumentProcessingService
     private readonly IDocumentTextExtractor _textExtractor;
     private readonly IEmbeddingService _embedding;
     private readonly ILogger<DocumentProcessingService> _logger;
+    private readonly ChunkVectorIndex _index;
+    private readonly IMemoryCache _cache;
 
     public DocumentProcessingService(IAppDbContext db, IDocumentTextExtractor textExtractor, IEmbeddingService embedding,
-        ILogger<DocumentProcessingService> logger)
+        ILogger<DocumentProcessingService> logger, ChunkVectorIndex index, IMemoryCache cache)
     {
+        _index = index;
+        _cache = cache;
         _db = db;
         _textExtractor = textExtractor;
         _embedding = embedding;
@@ -93,41 +98,54 @@ public class DocumentProcessingService : IDocumentProcessingService
     {
         if (string.IsNullOrWhiteSpace(query)) return [];
 
-        var queryVector = await _embedding.GetEmbeddingAsync(query.Trim(), cancellationToken);
+        // Vector câu hỏi: cùng một câu hỏi (cả phòng cùng hỏi, hoặc người dùng bấm hỏi lại) không phải đi Ollama
+        // lần nữa. Khóa gồm tên model nên đổi model nhúng là tự bỏ bản cũ.
+        var queryVector = await GetQueryVectorAsync(query, cancellationToken);
         if (queryVector.Length == 0) return [];
 
-        // Database quan hệ không có kiểu vector nên phải tải các đoạn ứng viên lên bộ nhớ rồi tính cosine tại đây.
-        // Vì vậy LUÔN lọc trước theo model/số chiều và theo khóa học để không quét toàn bộ bảng.
-        var candidateQuery = _db.DocumentChunk
-            .AsNoTracking()
-            .Where(x => x.EmbeddingModel == _embedding.Model && x.VectorDimension == queryVector.Length)
-            .Where(x => courseId == null || x.CourseId == courseId || x.CourseId == null);
+        // Database quan hệ không có kiểu vector nên cosine tính ở bộ nhớ. Kho vector được giữ sẵn trong
+        // ChunkVectorIndex (làm tươi bằng vân tay) thay vì kéo cả bảng lên ở mỗi câu hỏi.
+        var entryList = await _index.GetAsync(_db, _embedding.Model, cancellationToken);
+        var queryNorm = ChunkVectorIndex.Norm(queryVector);
 
         // Hàng rào quyền đọc: tài liệu dùng chung toàn công ty (CourseId = null) thì ai cũng đọc được,
         // còn tài liệu gắn với một khóa học chỉ mở cho người được phân công khóa đó.
-        //
-        // Gắn thành MỘT LỆNH Where RIÊNG thay vì nhét "allowedCourseIdList == null || ..." vào biểu thức
-        // chung: viết cách kia là bắt EF dịch một phép so null trên chính cái danh sách được truyền vào,
-        // thứ nó không dịch được thành SQL một cách chắc chắn. Tách ra thì lúc không rào, câu SQL sinh ra
-        // giống hệt như trước khi có tham số này.
-        if (allowedCourseIdList is not null)
-            candidateQuery = candidateQuery.Where(
-                x => x.CourseId == null || allowedCourseIdList.Contains(x.CourseId.Value));
-
-        var candidateList = await candidateQuery
-            .Select(x => new { x.Id, x.SourceFileName, x.ChunkIndex, x.TextContent, x.VectorData, x.CourseId, x.LessonId })
-            .ToListAsync(cancellationToken);
-
+        var allowedSet = allowedCourseIdList is null ? null : new HashSet<int>(allowedCourseIdList);
         var queryPhraseList = GetWordPairList(query);
 
-        return [.. candidateList
+        return [.. entryList
+            .Where(x => x.Vector.Length == queryVector.Length)
+            .Where(x => courseId == null || x.CourseId == courseId || x.CourseId == null)
+            .Where(x => allowedSet is null || x.CourseId == null || allowedSet.Contains(x.CourseId.Value))
             .Select(x => new DocumentChunkMatchDto(
                 x.Id, x.SourceFileName, x.ChunkIndex, x.TextContent,
-                VectorHelper.CosineSimilarity(queryVector, VectorHelper.ToFloatArray(x.VectorData))
-                    + LexicalWeight * GetPhraseCoverage(queryPhraseList, x.TextContent),
+                ChunkVectorIndex.Cosine(queryVector, queryNorm, x)
+                    + LexicalWeight * GetPhraseCoverage(queryPhraseList, x.NormalizedText),
                 x.CourseId, x.LessonId))
             .OrderByDescending(x => x.Score)
             .Take(Math.Clamp(topCount, 1, 50))];
+    }
+
+    private static readonly TimeSpan QueryVectorCacheDuration = TimeSpan.FromHours(1);
+
+    private async Task<float[]> GetQueryVectorAsync(string query, CancellationToken cancellationToken)
+    {
+        var queryText = query.Trim();
+        var queryKey = $"qemb|{_embedding.Model}|{queryText.ToLowerInvariant()}";
+        if (_cache.TryGetValue<float[]>(queryKey, out var cached) && cached is not null) return cached;
+
+        var vector = await _embedding.GetEmbeddingAsync(queryText, cancellationToken);
+        if (vector.Length > 0) _cache.Set(queryKey, vector, QueryVectorCacheDuration);
+        return vector;
+    }
+
+    /// <summary>Sinh sẵn vector câu hỏi vào bộ đệm để chạy SONG SONG với các lượt đọc database của người gọi
+    /// (không đụng tới _db nên an toàn). Lỗi nuốt hết: tìm kiếm thật sẽ tự gọi lại và báo lỗi đúng chỗ.</summary>
+    public async Task PrefetchQueryVectorAsync(string query, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return;
+        try { await GetQueryVectorAsync(query, cancellationToken); }
+        catch { /* xem summary */ }
     }
 
     /// <summary>Trọng số phần "khớp từ ngữ" cộng vào điểm vector.
@@ -149,17 +167,14 @@ public class DocumentProcessingService : IDocumentProcessingService
     }
 
     /// <summary>Tỉ lệ cặp âm tiết của câu hỏi có mặt trong đoạn (0 → 1).</summary>
-    private static double GetPhraseCoverage(List<string> phraseList, string content)
+    private static double GetPhraseCoverage(List<string> phraseList, string normalizedContent)
     {
         if (phraseList.Count == 0) return 0;
 
-        var normalized = $" {string.Join(' ', SplitWordList(content))} ";
-        return phraseList.Count(x => normalized.Contains($" {x} ", StringComparison.Ordinal)) / (double)phraseList.Count;
+        return phraseList.Count(x => normalizedContent.Contains($" {x} ", StringComparison.Ordinal)) / (double)phraseList.Count;
     }
 
-    private static List<string> SplitWordList(string text)
-        => [.. Regex.Matches(text.Normalize(System.Text.NormalizationForm.FormC).ToLowerInvariant(), @"[\p{L}\p{N}]+")
-            .Select(x => x.Value)];
+    private static List<string> SplitWordList(string text) => ChunkVectorIndex.SplitWordList(text);
 
     /// <summary>Đoạn có điểm thấp hơn đoạn tốt nhất quá mức này thì gần như không liên quan tới câu hỏi —
     /// nhét vào câu lệnh chỉ làm model đọc lâu hơn và dễ trả lời lạc đề.</summary>

@@ -16,4 +16,10 @@
     sw.src = '/js/pwa.js';
     sw.defer = true;
     document.head.appendChild(sw);
+
+    // Emoji thay icon trang trí (điều hướng và nút bấm vẫn giữ icon) — xem js/emoji.js.
+    const emoji = document.createElement('script');
+    emoji.src = '/js/emoji.js';
+    emoji.defer = true;
+    document.head.appendChild(emoji);
 })();

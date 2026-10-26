@@ -347,7 +347,7 @@ public static class DbSeeder
         await db.SaveChangesAsync();
     }
 
-    /// <summary>Bộ câu trả lời cài sẵn mặc định của Pico B — chỉ nạp khi bảng còn TRỐNG.
+    /// <summary>Bộ câu trả lời cài sẵn mặc định của HB Minerva — chỉ nạp khi bảng còn TRỐNG.
     ///
     /// Chỉ khi trống là điều kiện bắt buộc: Admin xóa bớt dòng nào là có ý xóa, mà nạp bù ở mỗi lần khởi
     /// động thì dòng họ vừa xóa lại mọc lên sau khi khởi động lại máy chủ và không ai hiểu vì sao.
@@ -363,7 +363,7 @@ public static class DbSeeder
                 OrderIndex = 1,
                 MatchType = QuickReplyMatchType.Exact,
                 Keyword = "hi|hello|hey|alo|chào|chào bạn|xin chào|chào pico|hi pico",
-                Answer = "Chào {ten_ngan}! Mình là Pico B, trợ lý đào tạo nội bộ.\n"
+                Answer = "Chào {ten_ngan}! Mình là HB Minerva, trợ lý đào tạo nội bộ.\n"
                        + "Bạn cần mình giúp gì? Bạn có thể hỏi mình về nội dung các khóa học bạn đang học "
                        + "hoặc về quy định, quy trình trong tài liệu nội bộ của công ty."
             },
@@ -385,8 +385,8 @@ public static class DbSeeder
             {
                 OrderIndex = 4,
                 MatchType = QuickReplyMatchType.Exact,
-                Keyword = "bạn là ai|bạn tên gì|pico b là ai|pico b là gì|who are you|bạn là gì",
-                Answer = "Mình là Pico B — trợ lý đào tạo nội bộ của công ty.\n"
+                Keyword = "bạn là ai|bạn tên gì|hb minerva là ai|hb minerva là gì|who are you|bạn là gì",
+                Answer = "Mình là HB Minerva — trợ lý đào tạo nội bộ của công ty.\n"
                        + "Mình trả lời dựa trên tài liệu nội bộ và nội dung các khóa học bạn được phân công. "
                        + "Chỗ nào tài liệu không nói thì mình nói thẳng là chưa có, không tự đoán."
             },

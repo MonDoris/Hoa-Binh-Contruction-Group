@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace HbELearning.Infrastructure.Persistence;
 
-/// <summary>Bắt mọi lần lưu có đụng tới khóa học / bài học và báo cho Pico B học lại khóa đó.
+/// <summary>Bắt mọi lần lưu có đụng tới khóa học / bài học và báo cho HB Minerva học lại khóa đó.
 ///
 /// Đặt ở tầng lưu dữ liệu chứ không gọi tay ở từng nút: một khóa học trở thành "Đã xuất bản" qua nhiều đường
 /// (Giám Đốc Nhân sự duyệt bước cuối, luồng cấp duyệt tùy biến, ...) và bài học thì được thêm/sửa/ẩn/xóa ở
-/// nhiều chỗ. Gọi tay thì sớm muộn có đường bị quên — đúng lỗi "xuất bản rồi mà Pico B không biết gì".
+/// nhiều chỗ. Gọi tay thì sớm muộn có đường bị quên — đúng lỗi "xuất bản rồi mà HB Minerva không biết gì".
 ///
 /// Báo thừa là vô hại: khóa chưa xuất bản thì lượt học bỏ qua, bài không đổi chữ nào thì trùng vân tay và
 /// không gọi Ollama (xem <see cref="CourseKnowledgeService"/>).</summary>
@@ -61,7 +61,7 @@ public sealed class CourseKnowledgeChangeInterceptor : SaveChangesInterceptor
     }
 
     /// <summary>Khóa học mới tạo luôn là bản nháp nên bỏ qua. Khóa đã có thì chỉ quan tâm những cột làm đổi
-    /// nội dung Pico B học: trạng thái (xuất bản / lưu trữ / trả về nháp) và phần giới thiệu.</summary>
+    /// nội dung HB Minerva học: trạng thái (xuất bản / lưu trữ / trả về nháp) và phần giới thiệu.</summary>
     private static bool IsKnowledgeRelevant(EntityEntry entry)
         => entry.State == EntityState.Deleted
            || IsModified(entry, nameof(Course.Status))

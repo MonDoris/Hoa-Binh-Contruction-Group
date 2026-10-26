@@ -8,8 +8,9 @@ namespace HbELearning.Application.Features.OnlineClassRooms;
 /// lúc một kết nối vừa rớt (OnDisconnectedAsync) — lúc đó không có yêu cầu HTTP nào đáng tin để hỏi.</summary>
 public sealed record ClassRoomAttendee(int UserId, string FullName, bool IsAdmin);
 
-/// <summary>Kết quả xin vào phòng: <see cref="Error"/> khác null nghĩa là bị từ chối, kèm câu báo cho người dùng.</summary>
-public sealed record JoinRoomDecision(string? Error, bool IsHost);
+/// <summary>Kết quả xin vào phòng: <see cref="Error"/> khác null nghĩa là bị từ chối, kèm câu báo cho người dùng.
+/// <see cref="AvatarUrl"/> là ảnh đại diện của người vào (null nếu chưa có) — Hub gửi kèm cho cả phòng để hiện ảnh trên ô của họ.</summary>
+public sealed record JoinRoomDecision(string? Error, bool IsHost, string? AvatarUrl = null);
 
 /// <summary>
 /// Nghiệp vụ của một buổi học online đang diễn ra: ai được vào, khi nào buổi học bắt đầu/kết thúc, và biên bản
@@ -36,6 +37,26 @@ public interface IClassRoomSessionService
     /// học đang Live để không treo mãi ở trạng thái Đang diễn ra.</summary>
     Task EndAfterHostDisconnectedAsync(int roomId, ClassRoomAttendee attendee);
 
-    /// <summary>Ghi một dòng vào nhật ký diễn biến (biên bản) của phòng học — xem lại được sau buổi học.</summary>
-    Task LogEventAsync(int roomId, OnlineClassRoomEventType type, ClassRoomAttendee attendee, string? message = null);
+    /// <summary>Ghi một dòng vào Diễn biến của phòng học — xem lại được sau buổi học. <paramref name="recordingId"/>
+    /// chỉ dùng cho các sự kiện ghi hình: Bản ghi mà sự kiện nói tới.</summary>
+    Task LogEventAsync(int roomId, OnlineClassRoomEventType type, ClassRoomAttendee attendee,
+        string? message = null, int? recordingId = null);
+
+    // ==================== GHI HÌNH ====================
+    // Chỉ Chủ trì của Buổi học đang diễn ra điều khiển được; mọi người khác (kể cả Admin) bị từ chối. Lệnh không hợp
+    // lệ ở trạng thái hiện tại bị bỏ qua. Mỗi lệnh trả trạng thái SAU lệnh để Hub phát cho cả phòng.
+
+    /// <summary>Bắt đầu ghi: gắn Bản ghi <paramref name="recordingId"/> (do OnlineClassRoomService.StartRecording tạo
+    /// ra) vào đồng hồ ghi hình của phòng. Chạy đồng hồ từ 0.</summary>
+    Task<RecordingCommandResult> StartRecordingAsync(int roomId, int recordingId, ClassRoomAttendee attendee);
+
+    Task<RecordingCommandResult> PauseRecordingAsync(int roomId, ClassRoomAttendee attendee);
+
+    Task<RecordingCommandResult> ResumeRecordingAsync(int roomId, ClassRoomAttendee attendee);
+
+    /// <summary>Dừng ghi: chốt Bản ghi. Ghi lại sau đó tạo một Bản ghi mới.</summary>
+    Task<RecordingCommandResult> StopRecordingAsync(int roomId, ClassRoomAttendee attendee);
+
+    /// <summary>Trạng thái ghi hình hiện tại của phòng — cho người vừa vào phòng, để họ thấy đúng số thay vì 00:00.</summary>
+    RecordingSnapshot GetRecordingSnapshot(int roomId);
 }

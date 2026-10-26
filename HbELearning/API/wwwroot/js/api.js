@@ -30,6 +30,7 @@ const Auth = {
     get isLoggedIn() { return !!this.token; },
     get isAdmin() { return this.hasRole('Admin'); },
     get isTrainer() { return this.hasRole('Trưởng Nhóm'); },
+    get isContentAuthor() { return this.isTrainer || this.isInstructor; },
     get isInstructor() { return this.hasRole('Giảng Viên'); },
     get isManagingDirector() { return this.hasRole('Tổng Giám Đốc'); },
     get isManager() { return this.isAdmin || this.isTrainer || this.isInstructor; },
@@ -354,6 +355,14 @@ const API = {
         const form = new FormData();
         form.append('file', file);
         return request('POST', path, form, true);
+    },
+
+    /** Như postFile nhưng KHÔNG che màn hình — dùng cho việc chạy nền lặp lại (phòng học online gửi một đoạn ghi hình mỗi 5 giây;
+     *  để nguyên lớp che thì màn hình "Đang xử lý..." chớp mãi suốt buổi học, và còn bị quay luôn vào bản ghi). */
+    postFileSilent: (path, file) => {
+        const form = new FormData();
+        form.append('file', file);
+        return request('POST', path, form, true, true);
     },
 
     /**

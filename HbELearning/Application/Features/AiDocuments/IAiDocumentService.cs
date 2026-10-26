@@ -33,7 +33,7 @@ public interface IAiDocumentService
     Task<Result> GetCourseKnowledge(CancellationToken cancellationToken);
 
     /// <summary>Bắt AI học lại nội dung khóa học ngay, không chờ lượt đồng bộ định kỳ. Dùng khi vừa xuất bản
-    /// một khóa học và muốn Pico B trả lời được về nó trong vài phút tới thay vì chờ tới lượt quét sau.
+    /// một khóa học và muốn HB Minerva trả lời được về nó trong vài phút tới thay vì chờ tới lượt quét sau.
     ///
     /// <paramref name="isForced"/> = true thì nạp lại TẤT CẢ, kể cả bài học không đổi chữ nào — chỉ dùng sau
     /// khi đổi model nhúng hoặc khi nghi kho tri thức đã hỏng, vì nó bắt Ollama chạy lại từ đầu.</summary>

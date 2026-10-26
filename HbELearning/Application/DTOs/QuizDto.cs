@@ -51,6 +51,10 @@ public class QuestionRequest
 
 public class AnswerRequest
 {
+    /// <summary>Id đáp án đang có (chỉ dùng khi SỬA câu hỏi). Có Id → cập nhật đúng đáp án đó tại chỗ; null → đáp án mới.
+    /// Giữ nguyên Id là bắt buộc vì bài đã làm lưu "đáp án đã chọn" bằng Id (xem AttemptDetail.SelectedAnswerId).</summary>
+    public int? Id { get; set; }
+
     [Required, MaxLength(1000)] public string Content { get; set; } = null!;
     public bool IsCorrect { get; set; }
     public int OrderIndex { get; set; }
@@ -59,7 +63,7 @@ public class AnswerRequest
 // ---------- Làm bài (Learner) — không lộ đáp án đúng ----------
 public record QuizStartDto(int AttemptId, int QuizId, string QuizTitle, int AttemptNo,
     int MaxAttempt, int TimeLimitMinutes, DateTime StartedAt, DateTime DeadlineAt,
-    decimal PassScore, IReadOnlyList<QuestionTakeDto> QuestionList);
+    decimal PassScore, IReadOnlyList<QuestionTakeDto> QuestionList, bool IsFinalExam = false);
 
 public record QuestionTakeDto(int Id, string Content, string QuestionType, decimal Score,
     IReadOnlyList<AnswerTakeDto> AnswerList);

@@ -11,31 +11,92 @@
     <title data-i18n="classroom-recap.xemLaiBuoiHocHbELearning">Xem lại buổi học · HB E-Learning</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .recap-video { width: 100%; max-height: 480px; background: #000; border-radius: 10px; display: block; }
-        .recap-timeline { list-style: none; margin: 0; padding: 0; }
-        .recap-timeline li { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-        .recap-timeline li:last-child { border-bottom: none; }
-        .recap-timeline .time { color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-        .recap-timeline .msg b { color: var(--primary); }
+        /* Trang xem lại dùng chung ngôn ngữ thiết kế với Tổng quan và Báo cáo (dải số `.ops-kpi`); phần riêng của trang
+           là khung phát lại và dòng thời gian Diễn biến. Mọi màu đi qua biến CSS nên theme sáng và tối đều đúng. */
+        .rc-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr); gap: 18px; align-items: start; }
+        .rc-main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+        .rc-layout .card { margin-bottom: 0; }
+
+        /* ---- Khung phát lại ---- */
+        .rc-stage { background: #05070c; aspect-ratio: 16 / 9; display: grid; place-items: center; }
+        .rc-stage video { width: 100%; height: 100%; display: block; background: #05070c; }
+        .rc-player-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; padding: 14px 20px; }
+        .rc-part-title { display: block; font-size: 14px; font-weight: 800; letter-spacing: -.2px; }
+        .rc-part-info { display: block; margin-top: 2px; font-size: 12.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+        .rc-parts { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 18px; }
+        .rc-part {
+            display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 999px; cursor: pointer;
+            font: 600 12.5px/1.2 var(--font-sans); color: var(--text-muted); background: var(--bg); border: 1px solid var(--border);
+            transition: background .15s, color .15s, border-color .15s;
+        }
+        .rc-part:hover { color: var(--text); }
+        .rc-part[aria-pressed="true"] { background: var(--primary-light); color: var(--primary-dark); border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); }
+        .rc-part:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .rc-part small { font-weight: 600; opacity: .8; font-variant-numeric: tabular-nums; }
+        .rc-none { display: grid; place-items: center; gap: 4px; padding: 56px 20px; text-align: center; color: var(--text-muted); }
+        .rc-none i { font-size: 34px; opacity: .55; }
+        .rc-none b { color: var(--text); font-size: 14px; }
+
+        /* ---- Dòng thời gian Diễn biến ---- */
+        .rc-aside { position: sticky; top: 16px; min-width: 0; }
+        .rc-aside .card { display: flex; flex-direction: column; max-height: calc(100vh - 32px); }
+        .rc-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        .rc-chip {
+            display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+            font: 700 12px/1.2 var(--font-sans); color: var(--text-muted); background: var(--bg); border: 1px solid var(--border);
+        }
+        .rc-chip b { font-weight: 700; font-variant-numeric: tabular-nums; opacity: .75; }
+        .rc-chip[aria-pressed="true"] { background: var(--text); color: var(--surface); border-color: var(--text); }
+        .rc-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .rc-timeline { list-style: none; margin: 0; padding: 6px 8px 10px; overflow-y: auto; flex: 1; }
+        .rc-ev { position: relative; }
+        .rc-ev[hidden] { display: none; }
+        /* Cả dòng là một nút khi sự kiện nằm trong video (bấm để nhảy tới); dòng không nằm trong video thì chỉ để đọc. */
+        .rc-ev-hit {
+            display: flex; gap: 11px; width: 100%; padding: 9px 8px; border: 0; border-radius: 10px; text-align: left;
+            background: none; font: inherit; color: inherit;
+        }
+        button.rc-ev-hit { cursor: pointer; }
+        button.rc-ev-hit:hover { background: var(--bg); }
+        button.rc-ev-hit:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+        .rc-ev.is-now .rc-ev-hit { background: var(--primary-light); box-shadow: inset 3px 0 0 var(--primary); }
+        /* Đường dọc nối các chấm như một dải phim; chấm cuối không có đường nối xuống. */
+        .rc-ev::before { content: ""; position: absolute; left: 21px; top: 36px; bottom: -9px; width: 1px; background: var(--border); }
+        .rc-ev:last-child::before { display: none; }
+        .rc-ev-dot {
+            flex: none; z-index: 1; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; font-size: 15px;
+            color: var(--tone, var(--text-muted)); background: color-mix(in srgb, var(--tone, var(--text-muted)) 13%, var(--surface));
+        }
+        .rc-ev-body { min-width: 0; flex: 1; font-size: 13px; line-height: 1.45; }
+        .rc-ev-text { overflow-wrap: anywhere; }
+        .rc-ev-text .who { font-weight: 700; }
+        .rc-ev-time { margin-top: 2px; font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+        /* Vị trí trong video — chỉ có ở dòng nhảy được; chữ "▶" đi kèm số nên không dựa vào màu. */
+        .rc-ev-seek { margin-left: 6px; font-weight: 700; color: var(--primary-dark); }
+        .rc-ev-nov { margin-left: 6px; font-style: italic; }
+        .rc-ev-chat .rc-ev-text { padding: 7px 11px; border-radius: 4px 12px 12px 12px; background: var(--bg); }
+        .rc-ev[data-kind="chat"] { --tone: var(--primary); }
+        .rc-ev[data-kind="presence"] { --tone: var(--success); }
+        .rc-ev[data-kind="media"] { --tone: #8b5cf6; }
+        .rc-ev[data-kind="recording"] { --tone: var(--danger); }
+        .rc-ev[data-kind="session"] { --tone: var(--text); }
+        .rc-ev-empty { padding: 28px 14px; text-align: center; font-size: 13px; color: var(--text-muted); }
+
+        .rc-denied { max-width: 460px; margin: 48px auto; text-align: center; }
+        .rc-denied .btn { margin-top: 14px; }
+
+        @media (max-width: 1000px) {
+            .rc-layout { grid-template-columns: minmax(0, 1fr); }
+            .rc-aside { position: static; }
+            .rc-aside .card { max-height: none; }
+            .rc-timeline { max-height: 460px; }
+        }
     </style>
     <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
 </head>
 <body>
 <div class="main">
-    <div class="content">
-        <div class="card" style="margin-bottom:16px">
-            <div class="card-head"><h3 data-i18n="classroom-recap.banGhiBuoiHoc" id="rc-title">Bản ghi buổi học</h3></div>
-            <div class="card-body">
-                <div id="rc-recording-area"></div>
-            </div>
-        </div>
-        <div class="card">
-            <div class="card-head"><h3 data-i18n="classroom-recap.dienBienBuoiHoc">Diễn biến buổi học</h3></div>
-            <div class="card-body">
-                <ul class="recap-timeline" id="rc-timeline"></ul>
-            </div>
-        </div>
-    </div>
+    <div class="content" id="rc-root"></div>
 </div>
 
 <script src="/js/api.js"></script>
@@ -48,84 +109,267 @@
     // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
     await Lang.ready;
 
-    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'online-class.view')) return;
+    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'online-class.view')) return;
     mountLayout('online-class', t('classroom.dangTai', 'Đang tải...'), '');
 
+    // Khai báo hết hằng và trạng thái TRƯỚC lời gọi nạp dữ liệu ở cuối hàm — một "const" nằm sau một "await" sớm sẽ còn
+    // trong Temporal Dead Zone khi phần vẽ chạy.
+    const root = document.getElementById('rc-root');
     const roomId = parseInt(qs('id') || '0', 10);
     if (!roomId) { location.href = '/pages/online-class.html'; return; }
 
+    /** Loại Diễn biến → nhóm lọc, biểu tượng. Nhóm "session" (bắt đầu/kết thúc) chỉ hiện ở "Tất cả". */
+    const EVENT_META = {
+        Started: ['session', 'ph-play-circle'], Ended: ['session', 'ph-flag-checkered'],
+        Joined: ['presence', 'ph-sign-in'], Left: ['presence', 'ph-sign-out'],
+        ChatMessage: ['chat', 'ph-chat-circle-text'],
+        MicOn: ['media', 'ph-microphone'], MicOff: ['media', 'ph-microphone-slash'],
+        CamOn: ['media', 'ph-video-camera'], CamOff: ['media', 'ph-video-camera-slash'],
+        RecordingStarted: ['recording', 'ph-record'], RecordingPaused: ['recording', 'ph-pause-circle'],
+        RecordingResumed: ['recording', 'ph-play-circle'], RecordingStopped: ['recording', 'ph-stop-circle'],
+    };
+    let review = null;
+    let activePart = 0;
+    let activeFilter = 'all';
+
+    root.innerHTML = skeletonHtml('stats', { count: 4 }) + skeletonHtml('block', { height: '380px' });
     try {
-        const room = await API.get(`/onlineclassroom/${roomId}`);
-        document.querySelector('.topbar h1').textContent = room.title;
-        document.querySelector('.topbar .sub')?.remove();
-        document.querySelector('.topbar h1').insertAdjacentHTML('afterend',
-            `<div class="sub">${esc(formatDate(room.actualStartAt || room.scheduledStart, true))} · Chủ trì: ${esc(room.hostUserName)}</div>`);
+        review = await API.get(`/onlineclassroom/${roomId}/review`);
     } catch (ex) {
-        document.getElementById('rc-title').textContent = ex.message;
+        // 403: có buổi học nhưng người này chưa từng vào — nói rõ thay vì một trang hỏng.
+        document.querySelector('.topbar h1').textContent = t('classroom-recap.xemLaiBuoiHoc', 'Xem lại buổi học');
+        root.innerHTML = `<div class="card rc-denied"><div class="card-body">
+            ${emptyHtml(ex.status === 403
+                ? t('classroom-recap.khongCoQuyen', 'Bạn không có quyền xem buổi học này. Chỉ chủ trì, Admin và những người đã tham gia mới xem lại được.')
+                : ex.message, `<i class="ph ${ex.status === 403 ? 'ph-lock-key' : 'ph-warning'}"></i>`)}
+            <a class="btn ghost" href="/pages/online-class.html?tab=history"><i class="ph ph-arrow-left"></i> ${esc(t('classroom-recap.veLichSu', 'Về Lịch sử'))}</a>
+        </div></div>`;
         return;
     }
 
-    await loadRecording();
-    await loadTimeline();
+    document.querySelector('.topbar h1').textContent = review.title;
+    document.querySelector('.topbar .sub')?.remove();
+    document.querySelector('.topbar h1').insertAdjacentHTML('afterend',
+        `<div class="sub">${esc(formatDate(review.startedAt, true))} · ${esc(t('classroom-recap.chuTri', 'Chủ trì'))}: ${esc(review.hostUserName)}</div>`);
 
-    async function loadRecording() {
-        const area = document.getElementById('rc-recording-area');
-        area.innerHTML = skeletonHtml('block', { height: '260px' });
-        try {
-            const list = await API.get(`/onlineclassroom/${roomId}/recordings`);
-            if (!list.length) {
-                area.innerHTML = emptyHtml(t('classroom-recap.buoiHocNayChuaCoBanGhiVideo', 'Buổi học này chưa có bản ghi video.'), '<i class="ph ph-video-camera-slash"></i>');
-                return;
-            }
-            area.innerHTML = list.map(r => `
-                <div style="margin-bottom:16px">
-                    <video class="recap-video" controls preload="metadata" src="${esc(r.fileUrl)}"></video>
-                    <div class="small muted" style="margin-top:6px">
-                        Ghi bởi ${esc(r.recordedByUserName)} · ${formatDate(r.createdAt, true)} · ${formatFileSize(r.fileSizeBytes)}
-                    </div>
-                </div>`).join('');
-        } catch (ex) {
-            area.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
-        }
+    render();
+
+    // ==================== VẼ TRANG ====================
+    function render() {
+        root.innerHTML = `
+            <div class="ops">${kpiHtml()}</div>
+            <div class="rc-layout">
+                <div class="rc-main">${playerHtml()}</div>
+                <aside class="rc-aside">${timelineHtml()}</aside>
+            </div>`;
+        bindPlayer();
+        bindTimeline();
+        if (review.recordingList.length) selectPart(0);
     }
 
-    async function loadTimeline() {
-        const list = document.getElementById('rc-timeline');
-        list.innerHTML = `<li>${skeletonHtml('list', { count: 4, avatar: false })}</li>`;
-        try {
-            const events = await API.get(`/onlineclassroom/${roomId}/events`);
-            list.innerHTML = events.length
-                ? events.map(eventHtml).join('')
-                : `<li>${emptyHtml(t('classroom-recap.chuaCoDienBienNaoDuocGhiLai', 'Chưa có diễn biến nào được ghi lại.'))}</li>`;
-        } catch (ex) {
-            list.innerHTML = `<li>${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</li>`;
+    function kpiHtml() {
+        const totalSize = review.recordingList.reduce((sum, r) => sum + r.fileSizeBytes, 0);
+        const cellList = [
+            { tone: 'var(--primary)', icon: 'ph-timer', label: t('classroom-recap.thoiLuong', 'Thời lượng buổi học'), value: formatSpanMs(review.durationMs), foot: '' },
+            { tone: 'var(--success)', icon: 'ph-users', label: t('classroom-recap.nguoiThamGia', 'Người tham gia'), value: review.participantCount.toLocaleString(Lang.locale), foot: '' },
+            { tone: '#8b5cf6', icon: 'ph-chat-circle-text', label: t('classroom-recap.tinNhan', 'Tin nhắn chat'), value: review.chatMessageCount.toLocaleString(Lang.locale), foot: '' },
+            { tone: 'var(--danger)', icon: 'ph-video', label: t('classroom-recap.banGhi', 'Bản ghi'), value: review.recordingList.length.toLocaleString(Lang.locale),
+              foot: review.recordingList.length ? formatFileSize(totalSize) : t('classroom-recap.khongCoBanGhi', 'Không có bản ghi') },
+        ];
+        return `<div class="ops-kpi">${cellList.map((c, i) => `
+            <div class="ops-kpi-cell" style="--tone:${c.tone};--i:${i}">
+                <div class="ops-kpi-top">
+                    <span class="ops-kpi-label">${esc(c.label)}</span>
+                    <span class="ops-kpi-icon"><i class="ph-fill ${c.icon}"></i></span>
+                </div>
+                <div class="ops-kpi-value">${esc(c.value)}</div>
+                <div class="ops-kpi-foot">${esc(c.foot)}</div>
+            </div>`).join('')}</div>`;
+    }
+
+    function playerHtml() {
+        if (!review.recordingList.length) {
+            return `<section class="card"><div class="rc-none"><i class="ph ph-video-camera-slash"></i>
+                <b>${esc(t('classroom-recap.buoiHocNayChuaCoBanGhiVideo', 'Buổi học này chưa có bản ghi video.'))}</b>
+                <span>${esc(t('classroom-recap.chiCoDienBien', 'Diễn biến của buổi học vẫn xem được ở bên cạnh.'))}</span></div></section>`;
         }
+        const partList = review.recordingList.length > 1 ? `<div class="rc-parts" role="group" aria-label="${esc(t('classroom-recap.cacPhan', 'Các bản ghi'))}">${
+            review.recordingList.map((r, i) => `<button type="button" class="rc-part" data-part="${i}" aria-pressed="false">
+                <i class="ph ph-play-circle"></i>${esc(t('classroom-recap.phanSo', 'Phần {n}', { n: i + 1 }))}
+                <small data-part-duration="${i}">${esc(r.durationMs != null ? formatClockMs(r.durationMs) : '')}</small></button>`).join('')}</div>` : '';
+        return `<section class="card">
+            <div class="rc-stage"><video id="rc-video" controls preload="metadata" playsinline></video></div>
+            <div class="rc-player-meta">
+                <div><span class="rc-part-title" id="rc-part-title"></span><span class="rc-part-info" id="rc-part-info"></span></div>
+                ${review.canDownload ? `<a class="btn ghost sm" id="rc-download" href="#" download><i class="ph ph-download-simple"></i> ${esc(t('classroom-recap.taiXuong', 'Tải xuống'))}</a>` : ''}
+            </div>
+            ${partList}
+        </section>`;
+    }
+
+    function timelineHtml() {
+        const countOf = (kind) => review.eventList.filter(e => (EVENT_META[e.eventType]?.[0] || 'session') === kind).length;
+        const filterList = [
+            ['all', t('classroom-recap.locTatCa', 'Tất cả'), review.eventList.length],
+            ['chat', t('classroom-recap.locChat', 'Chat'), countOf('chat')],
+            ['presence', t('classroom-recap.locRaVao', 'Ra vào'), countOf('presence')],
+            ['media', t('classroom-recap.locMicCam', 'Mic & camera'), countOf('media')],
+            ['recording', t('classroom-recap.locGhiHinh', 'Ghi hình'), countOf('recording')],
+        ];
+        return `<section class="card">
+            <div class="card-head"><h3>${esc(t('classroom-recap.dienBienBuoiHoc', 'Diễn biến buổi học'))}</h3></div>
+            <div class="rc-filters" role="group" aria-label="${esc(t('classroom-recap.locTheoLoai', 'Lọc theo loại'))}">${
+                filterList.map(([key, label, count]) => `<button type="button" class="rc-chip" data-filter="${key}" aria-pressed="${key === 'all'}">${esc(label)} <b>${count}</b></button>`).join('')}</div>
+            <ol class="rc-timeline" id="rc-timeline">${review.eventList.length
+                ? review.eventList.map(eventHtml).join('')
+                : `<li class="rc-ev-empty">${esc(t('classroom-recap.chuaCoDienBienNaoDuocGhiLai', 'Chưa có diễn biến nào được ghi lại.'))}</li>`}</ol>
+            <div class="rc-ev-empty" id="rc-filter-empty" hidden>${esc(t('classroom-recap.khongCoDienBienLoaiNay', 'Không có diễn biến nào thuộc loại này.'))}</div>
+        </section>`;
     }
 
     function eventHtml(e) {
-        const labelMap = {
-            Started: t('classroom-recap.buoiHocBatDau', 'Buổi học bắt đầu'),
-            Ended: t('classroom-recap.buoiHocKetThuc', 'Buổi học kết thúc'),
-            Joined: `${esc(e.userName)} đã vào phòng`,
-            Left: `${esc(e.userName)} đã rời phòng`,
-            ChatMessage: `<b>${esc(e.userName)}</b>: ${esc(e.message)}`,
-            MicOn: `${esc(e.userName)} bật mic`,
-            MicOff: `${esc(e.userName)} tắt mic`,
-            CamOn: `${esc(e.userName)} bật camera`,
-            CamOff: `${esc(e.userName)} tắt camera`
-        };
-        return `<li>
-            <span class="time">${formatDate(e.createdAt, true)}</span>
-            <span class="msg">${labelMap[e.eventType] || esc(e.eventType)}</span>
-        </li>`;
+        const [kind, icon] = EVENT_META[e.eventType] || ['session', 'ph-circle'];
+        const name = `<span class="who">${esc(e.userName || '')}</span>`;
+        const text = {
+            Started: esc(t('classroom-recap.buoiHocBatDau', 'Buổi học bắt đầu')),
+            Ended: esc(t('classroom-recap.buoiHocKetThuc', 'Buổi học kết thúc')),
+            Joined: t('classroom-recap.evJoined', '{name} đã vào phòng', { name }),
+            Left: t('classroom-recap.evLeft', '{name} đã rời phòng', { name }),
+            ChatMessage: `${name}<br>${esc(e.message || '')}`,
+            MicOn: t('classroom-recap.evMicOn', '{name} bật mic', { name }),
+            MicOff: t('classroom-recap.evMicOff', '{name} tắt mic', { name }),
+            CamOn: t('classroom-recap.evCamOn', '{name} bật camera', { name }),
+            CamOff: t('classroom-recap.evCamOff', '{name} tắt camera', { name }),
+            RecordingStarted: esc(t('classroom-recap.ghiHinhBatDau', 'Chủ trì bắt đầu ghi hình')),
+            RecordingPaused: esc(t('classroom-recap.ghiHinhTamDung', 'Chủ trì tạm dừng ghi hình')),
+            RecordingResumed: esc(t('classroom-recap.ghiHinhTiepTuc', 'Chủ trì tiếp tục ghi hình')),
+            RecordingStopped: esc(t('classroom-recap.ghiHinhDung', 'Chủ trì dừng ghi hình')),
+        }[e.eventType] || esc(e.eventType);
+
+        const seekable = e.seekRecordingId != null && e.seekOffsetMs != null;
+        const videoTime = seekable ? formatClockMs(e.seekOffsetMs) : '';
+        const inner = `
+            <span class="rc-ev-dot" aria-hidden="true"><i class="ph ${icon}"></i></span>
+            <div class="rc-ev-body">
+                <div class="rc-ev-text">${text}</div>
+                <div class="rc-ev-time">${esc(relativeTime(e.createdAt))} · ${esc(new Date(e.createdAt).toLocaleTimeString(Lang.locale))}${
+                    seekable ? `<span class="rc-ev-seek"><i class="ph-fill ph-play"></i> ${esc(videoTime)}</span>`
+                             : (review.recordingList.length ? `<span class="rc-ev-nov">${esc(t('classroom-recap.ngoaiVideo', 'ngoài video'))}</span>` : '')}</div>
+            </div>`;
+
+        return `<li class="rc-ev${kind === 'chat' ? ' rc-ev-chat' : ''}" data-kind="${kind}" data-event-id="${e.id}">${seekable
+            ? `<button type="button" class="rc-ev-hit" data-seek-recording="${e.seekRecordingId}" data-seek-ms="${e.seekOffsetMs}"
+                       aria-label="${esc(t('classroom-recap.nhayToi', 'Nhảy tới {time} trong bản ghi', { time: videoTime }))}">${inner}</button>`
+            : `<div class="rc-ev-hit" title="${esc(review.recordingList.length ? t('classroom-recap.khongCoTrongVideo', 'Khoảnh khắc này không nằm trong bản ghi nào') : '')}">${inner}</div>`}</li>`;
     }
 
-    function formatFileSize(bytes) {
-        if (!bytes) return '0 KB';
-        const units = ['B', 'KB', 'MB', 'GB'];
-        let value = bytes, i = 0;
-        while (value >= 1024 && i < units.length - 1) { value /= 1024; i++; }
-        return `${value.toFixed(1)} ${units[i]}`;
+    // ==================== TƯƠNG TÁC ====================
+    function bindPlayer() {
+        document.querySelectorAll('.rc-part').forEach(button => button.addEventListener('click', () => selectPart(+button.dataset.part)));
+        const video = document.getElementById('rc-video');
+        video?.addEventListener('timeupdate', highlightCurrentEvent);
+        video?.addEventListener('seeked', highlightCurrentEvent);
+        // Bản ghi cũ chưa lưu thời lượng: lấy từ chính video khi nó nạp xong (nếu tệp có thời lượng hữu hạn).
+        video?.addEventListener('loadedmetadata', () => {
+            const recording = review.recordingList[activePart];
+            if (recording.durationMs == null && isFinite(video.duration)) {
+                recording.durationMs = video.duration * 1000;
+                updatePartInfo();
+                const chip = document.querySelector(`[data-part-duration="${activePart}"]`);
+                if (chip) chip.textContent = formatClockMs(recording.durationMs);
+            }
+        });
+    }
+
+    function selectPart(index) {
+        const recording = review.recordingList[index];
+        if (!recording) return;
+        activePart = index;
+        const video = document.getElementById('rc-video');
+        if (video.getAttribute('src') !== recording.fileUrl) video.src = recording.fileUrl;
+        document.querySelectorAll('.rc-part').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.part === index)));
+        const download = document.getElementById('rc-download');
+        if (download) { download.href = recording.fileUrl; download.setAttribute('download', `${review.title} - ${index + 1}.webm`); }
+        updatePartInfo();
+    }
+
+    /** Nhảy video tới <paramref name="ms"/> của Bản ghi <paramref name="recordingId"/> rồi phát. Khác phần thì đổi video
+     *  trước và chờ nạp xong thông tin (metadata) — đặt vị trí khi video chưa nạp là bị bỏ qua. */
+    function seekTo(recordingId, ms) {
+        const index = review.recordingList.findIndex(r => r.id === recordingId);
+        const video = document.getElementById('rc-video');
+        if (index < 0 || !video) return;
+
+        const apply = () => { video.currentTime = ms / 1000; video.play().catch(() => { /* trình duyệt chặn tự phát: để người dùng bấm */ }); };
+        if (index === activePart && video.readyState >= 1) apply();
+        else {
+            video.addEventListener('loadedmetadata', apply, { once: true });
+            selectPart(index);
+        }
+        // Trên màn hình hẹp video nằm trên dòng thời gian: đưa nó vào tầm mắt để thấy ngay kết quả của cú bấm.
+        if (window.matchMedia('(max-width: 1000px)').matches)
+            video.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }
+
+    /** Làm nổi dòng Diễn biến ứng với vị trí video đang phát: dòng cuối cùng (của phần này) có vị trí <= giờ phát. */
+    function highlightCurrentEvent() {
+        const video = document.getElementById('rc-video');
+        const recording = review.recordingList[activePart];
+        if (!video || !recording) return;
+
+        const now = video.currentTime * 1000 + 250; // dung sai nhỏ: tua tới đúng dòng thì dòng đó sáng ngay
+        let current = null;
+        for (const e of review.eventList) {
+            if (e.seekRecordingId === recording.id && e.seekOffsetMs <= now) current = e;
+        }
+        const timeline = document.getElementById('rc-timeline');
+        const previous = timeline.querySelector('.rc-ev.is-now');
+        const next = current ? timeline.querySelector(`.rc-ev[data-event-id="${current.id}"]`) : null;
+        if (previous === next) return;
+
+        previous?.classList.remove('is-now');
+        if (!next) return;
+        next.classList.add('is-now');
+        // Giữ dòng đang sáng trong khung cuộn của dòng thời gian — chỉ cuộn khung đó, không cuộn cả trang.
+        if (next.offsetTop < timeline.scrollTop || next.offsetTop + next.offsetHeight > timeline.scrollTop + timeline.clientHeight)
+            timeline.scrollTop = next.offsetTop - timeline.clientHeight / 3;
+    }
+
+    function updatePartInfo() {
+        const recording = review.recordingList[activePart];
+        const total = review.recordingList.length;
+        document.getElementById('rc-part-title').textContent = total > 1
+            ? t('classroom-recap.phanSoTrenTong', 'Phần {n}/{total}', { n: activePart + 1, total })
+            : t('classroom-recap.banGhiBuoiHoc', 'Bản ghi buổi học');
+        document.getElementById('rc-part-info').textContent = [
+            recording.durationMs != null ? formatClockMs(recording.durationMs) : null,
+            formatFileSize(recording.fileSizeBytes),
+            `${t('classroom-recap.ghiBoi', 'Ghi bởi')} ${recording.recordedByUserName}`,
+        ].filter(Boolean).join(' · ');
+    }
+
+    function bindTimeline() {
+        document.getElementById('rc-timeline').addEventListener('click', (e) => {
+            const row = e.target.closest('[data-seek-ms]');
+            if (row) seekTo(+row.dataset.seekRecording, +row.dataset.seekMs);
+        });
+        document.querySelectorAll('.rc-chip').forEach(chip => chip.addEventListener('click', () => {
+            activeFilter = chip.dataset.filter;
+            document.querySelectorAll('.rc-chip').forEach(c => c.setAttribute('aria-pressed', String(c === chip)));
+            let visible = 0;
+            document.querySelectorAll('#rc-timeline .rc-ev').forEach(item => {
+                const show = activeFilter === 'all' || item.dataset.kind === activeFilter;
+                item.hidden = !show;
+                if (show) visible++;
+            });
+            document.getElementById('rc-filter-empty').hidden = visible > 0 || !review.eventList.length;
+        }));
+    }
+
+    // ==================== TIỆN ÍCH ====================
+    /** Thời gian trôi qua kể từ lúc buổi học bắt đầu: "+12:40" (hoặc "+1:02:03"). Không bao giờ âm. */
+    function relativeTime(iso) {
+        return `+${formatClockMs(new Date(iso) - new Date(review.startedAt))}`;
     }
 })();
 </script>

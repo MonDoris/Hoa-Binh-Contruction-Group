@@ -21,7 +21,10 @@ public class ClassRoomHub : Hub
     private readonly IClassRoomSessionService _session;
     public ClassRoomHub(IClassRoomSessionService session) => _session = session;
 
-    private record Participant(string ConnectionId, int UserId, string FullName, bool IsHost);
+    /// <summary>Một người đang ở trong phòng. AvatarUrl và các cờ mic/camera/chia sẻ được giữ ở đây để người vào SAU
+    /// nhận đúng trạng thái hiện tại của mọi người ngay trong danh sách <c>otherList</c>, không phải đợi họ bấm nút lần nữa.</summary>
+    private record Participant(string ConnectionId, int UserId, string FullName, bool IsHost, string? AvatarUrl,
+        bool MicOn = false, bool CamOn = false, bool IsSharing = false);
 
     /// <summary>roomId -> (connectionId -> thông tin người tham gia). Lưu tạm trong bộ nhớ, đủ dùng cho 1 tiến trình web.</summary>
     private static readonly ConcurrentDictionary<int, ConcurrentDictionary<string, Participant>> _roomList = new();
@@ -44,7 +47,7 @@ public class ClassRoomHub : Hub
         }
 
         var participantList = _roomList.GetOrAdd(roomId, _ => new ConcurrentDictionary<string, Participant>());
-        var me = new Participant(Context.ConnectionId, CurrentUserId, CurrentFullName, decision.IsHost);
+        var me = new Participant(Context.ConnectionId, CurrentUserId, CurrentFullName, decision.IsHost, decision.AvatarUrl);
         participantList[Context.ConnectionId] = me;
 
         await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(roomId));
@@ -53,7 +56,9 @@ public class ClassRoomHub : Hub
         await Clients.Caller.SendAsync("Joined", new
         {
             self = me,
-            otherList = participantList.Values.Where(p => p.ConnectionId != Context.ConnectionId)
+            otherList = participantList.Values.Where(p => p.ConnectionId != Context.ConnectionId),
+            // Người vào muộn thấy ngay đúng trạng thái và thời gian ghi hình, không phải đợi lệnh kế tiếp của Chủ trì.
+            recording = RecordingPayload(_session.GetRecordingSnapshot(roomId))
         });
         await Clients.OthersInGroup(GroupName(roomId)).SendAsync("ParticipantJoined", me);
     }
@@ -64,12 +69,18 @@ public class ClassRoomHub : Hub
     /// JoinRoom đã kiểm tra quyền vào phòng, nhưng các lệnh phía dưới thì KHÔNG: chúng chỉ nhận một con số
     /// roomId từ trình duyệt. Thiếu bước này thì bất kỳ ai đăng nhập được cũng gọi thẳng
     /// SendChatMessage(roomId bất kỳ) để chèn tin nhắn vào buổi học của phòng khác, hoặc gọi
-    /// NotifyRecordingStatus(roomId, false) để tắt chỉ báo "đang ghi hình" trên màn hình mọi người trong khi
+    /// StopRecording(roomId) để tắt chỉ báo "đang ghi hình" trên màn hình mọi người trong khi
     /// buổi học vẫn đang được ghi.
     /// </summary>
     private bool IsInRoom(int roomId) =>
         _roomList.TryGetValue(roomId, out var participantList)
         && participantList.ContainsKey(Context.ConnectionId);
+
+    /// <summary>Người gọi là Chủ trì đang có mặt trong phòng này (lớp chặn đầu tiên; dịch vụ phiên học còn kiểm lại
+    /// với database nên không thể giả mạo bằng cách tự xưng là Chủ trì).</summary>
+    private bool IsHostInRoom(int roomId) =>
+        _roomList.TryGetValue(roomId, out var participantList)
+        && participantList.TryGetValue(Context.ConnectionId, out var me) && me.IsHost;
 
     /// <summary>Chuyển tiếp gói tin báo hiệu WebRTC (SDP offer/answer, ICE candidate) tới đúng người nhận.
     /// Chỉ chuyển trong phạm vi MỘT phòng: hai bên phải cùng có mặt trong cùng một phòng.</summary>
@@ -91,18 +102,41 @@ public class ClassRoomHub : Hub
         await _session.LogEventAsync(roomId, OnlineClassRoomEventType.ChatMessage, Attendee, trimmed);
     }
 
-    /// <summary>Người chủ trì báo hiệu trình duyệt của mình đã bắt đầu/dừng ghi hình thành công — hiển thị chỉ báo
-    /// thật (không phải chỉ báo tĩnh) cho mọi người trong phòng biết buổi học có đang thực sự được ghi lại hay không.</summary>
-    public async Task NotifyRecordingStatus(int roomId, bool isRecording)
+    // ==================== GHI HÌNH ====================
+    // Chỉ Chủ trì điều khiển. Trình duyệt của Chủ trì thật sự quay (MediaRecorder); các lệnh dưới đây báo cho máy
+    // chủ biết, máy chủ giữ đồng hồ ghi hình chuẩn (không tính đoạn tạm dừng) và phát trạng thái cho cả phòng — nên
+    // chỉ báo "Đang ghi / Tạm dừng ghi" là thật, và người vào muộn thấy đúng số. Người không phải Chủ trì bị bỏ qua.
+
+    /// <summary>Chủ trì báo đã bắt đầu quay Bản ghi <paramref name="recordingId"/> (tạo qua API trước đó).</summary>
+    public Task StartRecording(int roomId, int recordingId)
+        => RunRecordingCommand(roomId, () => _session.StartRecordingAsync(roomId, recordingId, Attendee));
+
+    public Task PauseRecording(int roomId)
+        => RunRecordingCommand(roomId, () => _session.PauseRecordingAsync(roomId, Attendee));
+
+    public Task ResumeRecording(int roomId)
+        => RunRecordingCommand(roomId, () => _session.ResumeRecordingAsync(roomId, Attendee));
+
+    public Task StopRecording(int roomId)
+        => RunRecordingCommand(roomId, () => _session.StopRecordingAsync(roomId, Attendee));
+
+    private async Task RunRecordingCommand(int roomId, Func<Task<RecordingCommandResult>> command)
     {
-        if (!IsInRoom(roomId)) return;
-        await Clients.Group(GroupName(roomId)).SendAsync("RecordingStatus", isRecording);
+        if (!IsHostInRoom(roomId)) return;
+
+        var result = await command();
+        if (result.Accepted)
+            await Clients.Group(GroupName(roomId)).SendAsync("RecordingState", RecordingPayload(result.Snapshot));
     }
+
+    private static object RecordingPayload(RecordingSnapshot snapshot)
+        => new { state = snapshot.State.ToString(), elapsedMs = snapshot.ElapsedMs, recordingId = snapshot.RecordingId };
 
     /// <summary>Chỉ để hiển thị chỉ báo đang nói/tắt mic trên giao diện người khác — không ảnh hưởng luồng audio thật.</summary>
     public async Task ToggleMic(int roomId, bool isOn)
     {
         if (!IsInRoom(roomId)) return;
+        Remember(roomId, p => p with { MicOn = isOn });
         await Clients.OthersInGroup(GroupName(roomId)).SendAsync("ParticipantMicToggled", Context.ConnectionId, isOn);
         await _session.LogEventAsync(roomId, isOn ? OnlineClassRoomEventType.MicOn : OnlineClassRoomEventType.MicOff, Attendee);
     }
@@ -111,8 +145,25 @@ public class ClassRoomHub : Hub
     public async Task ToggleCam(int roomId, bool isOn)
     {
         if (!IsInRoom(roomId)) return;
+        Remember(roomId, p => p with { CamOn = isOn });
         await Clients.OthersInGroup(GroupName(roomId)).SendAsync("ParticipantCamToggled", Context.ConnectionId, isOn);
         await _session.LogEventAsync(roomId, isOn ? OnlineClassRoomEventType.CamOn : OnlineClassRoomEventType.CamOff, Attendee);
+    }
+
+    /// <summary>Báo mình bắt đầu / dừng chia sẻ màn hình — để giao diện người khác biết ô nào là màn hình (không soi gương,
+    /// phóng to lên sân khấu). Luồng hình thật vẫn đi qua WebRTC; không ghi vào Diễn biến.</summary>
+    public async Task ToggleScreenShare(int roomId, bool isOn)
+    {
+        if (!IsInRoom(roomId)) return;
+        Remember(roomId, p => p with { IsSharing = isOn });
+        await Clients.OthersInGroup(GroupName(roomId)).SendAsync("ParticipantScreenToggled", Context.ConnectionId, isOn);
+    }
+
+    /// <summary>Cập nhật bản ghi của chính người gọi trong danh sách phòng.</summary>
+    private void Remember(int roomId, Func<Participant, Participant> change)
+    {
+        if (_roomList.TryGetValue(roomId, out var participantList) && participantList.TryGetValue(Context.ConnectionId, out var me))
+            participantList[Context.ConnectionId] = change(me);
     }
 
     /// <summary>Người chủ trì kết thúc buổi học — mọi người bị ngắt kết nối, trạng thái chuyển Ended.</summary>

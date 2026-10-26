@@ -93,6 +93,10 @@
             font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif;
             line-height: 1; font-style: normal;
         }
+        /* Linh vật HB (ảnh PNG trong /emoji, lưu dạng "img:mascot/vang") đứng ở chỗ của emoji: cùng bề cao dòng chữ,
+           hơi lớn hơn vì ảnh nhân vật cần nhiều điểm ảnh hơn một ký tự emoji mới đọc được chi tiết mũ, áo. */
+        .tier-emoji-img { width: 1.25em; height: 1.25em; object-fit: contain; vertical-align: -0.28em; }
+        .tier-icon-cell .tier-emoji-img { width: 1.9em; height: 1.9em; vertical-align: middle; }
 
         /* Hàng công cụ của tab "Top 5 phòng ban": ô chọn phòng ban và ô lọc tháng đứng cạnh nhau nên phải
            cùng bề ngang và cùng bề cao. Bỏ mặc thì ô chọn (.ss-wrap rộng 100%) kéo dài hết hàng còn ô tháng
@@ -305,7 +309,19 @@
         return value;
     }
 
-    const tierIcon = (icon) => `<span class="tier-emoji">${esc(tierEmoji(icon))}</span>`;
+    // Biểu tượng dạng "img:<đường dẫn trong /emoji>" là ảnh linh vật HB (xem nhóm "Linh vật HB" của bộ chọn);
+    // mọi giá trị khác là emoji ký tự như cũ.
+    function tierImageSrc(icon) {
+        const value = (icon || '').trim();
+        return /^img:[a-z0-9\/-]+$/.test(value) ? `/emoji/${value.slice(4)}.png` : null;
+    }
+
+    const tierIcon = (icon) => {
+        const src = tierImageSrc(icon);
+        return src
+            ? `<img class="tier-emoji tier-emoji-img" src="${esc(src)}" alt="" draggable="false">`
+            : `<span class="tier-emoji">${esc(tierEmoji(icon))}</span>`;
+    };
 
     // Admin không tham gia xếp hạng: server không cộng điểm cho họ và lọc họ khỏi mọi bảng (xem
     // RankingService.RankableUserQuery). Ẩn luôn tab "Của tôi" — với họ nó chỉ còn là một thanh tiến độ đứng
@@ -337,13 +353,10 @@
     document.getElementById('mission-form').addEventListener('submit', saveMission);
     document.getElementById('btn-add-code').addEventListener('click', addCode);
 
-    tierList = await API.get('/ranking/tier');
-    // Mở lại thẻ ghi trên địa chỉ trang (?tab=): tải lại trang, kể cả khi đổi ngôn ngữ, vẫn đứng nguyên thẻ đang xem.
-    // Thẻ quản lý chỉ hiện theo vai trò — tabFromUrl bỏ qua thẻ đang ẩn, gõ ?tab=manage vào địa chỉ cũng không mở được.
-    currentTab = tabFromUrl(defaultTab);
-    showTab(currentTab, defaultTab);
-    await loadTab(currentTab);
-
+    // Lần nạp thẻ đầu tiên nằm ở CUỐI hàm này (xem "KHỞI TẠO TRANG"), không đặt ở đây: các thẻ vẽ bằng hằng/biến
+    // khai báo ở những dòng phía dưới (rankIcon, streakMode, LEGACY_PHOSPHOR_EMOJI...). `await` ở đây tạm dừng cả hàm
+    // nên các khai báo đó chưa chạy, và thẻ vừa nạp xong sẽ đọc chúng trong Temporal Dead Zone —
+    // "Cannot access 'rankIcon' before initialization" ngay thẻ mặc định của Admin.
     async function loadTab(tab) {
         if (tab === 'mine') await renderMine();
         else if (tab === 'board') await renderBoard();
@@ -443,7 +456,7 @@
                 <div class="leaderboard-name-col">
                     <div class="name">${esc(e.fullName)}${e.isMe ? ' <span data-i18n="ranking.ban" class="badge blue">Bạn</span>' : ''}</div>
                     <div class="dept">${esc(e.departmentName || '—')}</div>
-                    ${e.tierName ? `<span class="rank-tier-chip" style="background:${e.tierColorHex}">${tierIcon(e.tierIcon)} ${esc(e.tierName)}</span>` : ''}
+                    ${e.tierName ? `<span class="rank-tier-chip" style="background:${e.tierColorHex};color:${readableTextColor(e.tierColorHex)}">${tierIcon(e.tierIcon)} ${esc(e.tierName)}</span>` : ''}
                 </div>
                 <div class="leaderboard-stat-col">${e.lessonCompletedCount}</div>
                 <div class="leaderboard-stat-col">${e.quizPassedCount}</div>
@@ -766,6 +779,22 @@
     // trong keyword chứ không dò trong ký tự emoji, vì gõ emoji trên bàn phím máy tính là chuyện khó.
     const TIER_ICON_GROUP_LIST = [
         {
+            // Linh vật HB theo từng hạng: ảnh PNG trong wwwroot/emoji/mascot (giá trị lưu: "img:mascot/<tên tệp>").
+            key: 'mascot', label: 'Linh vật HB', iconList: [
+                ['img:hb-mascot', 'linh vật hb hòa bình mascot chim bồ câu'],
+                ['img:mascot/dong', 'linh vật đồng bronze mascot hạng đồng'],
+                ['img:mascot/bac', 'linh vật bạc silver mascot hạng bạc'],
+                ['img:mascot/vang', 'linh vật vàng gold mascot hạng vàng'],
+                ['img:mascot/bachkim', 'linh vật bạch kim platinum mascot hạng bạch kim'],
+                ['img:mascot/diamond', 'linh vật kim cương diamond mascot hạng kim cương'],
+                ['img:mascot/hongngoc', 'linh vật hồng ngọc ruby mascot hạng hồng ngọc'],
+                ['img:mascot/ngoclucbao', 'linh vật ngọc lục bảo emerald mascot hạng ngọc lục bảo'],
+                ['img:mascot/tinhtu', 'linh vật tinh tú star mascot hạng tinh tú'],
+                ['img:mascot/daikientuong', 'linh vật đại kiện tướng grandmaster mascot hạng đại kiện tướng'],
+                ['img:mascot/legend', 'linh vật huyền thoại legend mascot hạng huyền thoại'],
+            ],
+        },
+        {
             key: 'award', label: 'Huy chương & Cúp', iconList: [
                 ['🏆', 'cup trophy cúp vô địch giải'], ['🥇', 'vàng gold huy chương nhất'],
                 ['🥈', 'bạc silver huy chương nhì'], ['🥉', 'đồng bronze huy chương ba'],
@@ -1013,7 +1042,7 @@
         grid.innerHTML = iconList.length
             ? iconList.map(x => `
                 <button type="button" class="tier-icon-cell ${x.char === selected ? 'active' : ''}"
-                        data-icon="${esc(x.char)}" title="${esc(x.keyword)}">${esc(x.char)}</button>`).join('')
+                        data-icon="${esc(x.char)}" title="${esc(x.keyword)}">${tierIcon(x.char)}</button>`).join('')
             : `<div class="tier-icon-empty">${esc(t('ranking.khongTimThayBieuTuong',
                     'Không tìm thấy biểu tượng nào khớp "{keyword}".', { keyword }))}</div>`;
 
@@ -1032,13 +1061,13 @@
 
         const badge = document.getElementById('t-preview-badge');
         badge.style.background = color;
-        badge.innerHTML = icon ? `<span class="tier-emoji">${esc(icon)}</span>` : '<span class="tier-emoji">❔</span>';
+        badge.innerHTML = icon ? tierIcon(icon) : '<span class="tier-emoji">❔</span>';
 
         document.getElementById('t-preview-name').textContent = name || '—';
         document.getElementById('t-preview-point').textContent = point
             ? t('ranking.tuDiem', 'từ {point} điểm', { point: Number(point).toLocaleString(Lang.locale) }) : '';
         document.getElementById('t-icon-name').innerHTML = icon
-            ? `${esc(t('ranking.dangChon', 'Đang chọn'))}: <b class="tier-emoji">${esc(icon)}</b>` : '';
+            ? `${esc(t('ranking.dangChon', 'Đang chọn'))}: <b>${tierIcon(icon)}</b>` : '';
 
         document.querySelectorAll('[data-color]').forEach(btn =>
             btn.classList.toggle('active', btn.dataset.color.toLowerCase() === color.toLowerCase()));
@@ -1339,6 +1368,15 @@
             renderMissionManage();
         } catch (ex) { toastErr(ex.message); }
     }
+
+    // ==================== KHỞI TẠO TRANG ====================
+    // Phải nằm sau MỌI khai báo const/let ở trên.
+    tierList = await API.get('/ranking/tier');
+    // Mở lại thẻ ghi trên địa chỉ trang (?tab=): tải lại trang, kể cả khi đổi ngôn ngữ, vẫn đứng nguyên thẻ đang xem.
+    // Thẻ quản lý chỉ hiện theo vai trò — tabFromUrl bỏ qua thẻ đang ẩn, gõ ?tab=manage vào địa chỉ cũng không mở được.
+    currentTab = tabFromUrl(defaultTab);
+    showTab(currentTab, defaultTab);
+    await loadTab(currentTab);
 })();
 </script>
 </body>

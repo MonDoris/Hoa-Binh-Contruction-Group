@@ -57,7 +57,7 @@
         .mc-group-head i { font-size: 15px; }
         .mc-group-head .n { padding: 0 8px; border-radius: 999px; background: var(--border); font-size: 11px; letter-spacing: 0; }
         .mc-group-head.overdue { color: var(--danger); }
-        .mc-group-head.progress i { color: var(--primary); }
+        .mc-group-head.learning i { color: var(--primary); }
         .mc-group-head.done i { color: var(--success); }
         .mc-group-list { display: flex; flex-direction: column; gap: 10px; }
 
@@ -217,6 +217,9 @@
             .mc-main { padding: 12px 12px 12px 14px; }
             .mc-actions { grid-column: 1 / -1; padding: 10px 12px; border-top: 1px solid var(--border); }
             .mc-actions .btn:last-child { flex: 1; }
+            /* Hàng nút đã tràn hết bề ngang thẻ — sao không còn chỗ trống để nổi lên nên xuống thành một hàng riêng,
+               vẫn nằm ở góc dưới bên phải của thẻ. */
+            .mc-item > .course-rating { position: static; grid-column: 1 / -1; justify-self: end; margin: 0 14px 10px; }
             .mc-day { grid-template-columns: 50px minmax(0, 1fr); gap: 10px; padding: 10px; }
             .mc-day-date b { font-size: 18px; }
         }
@@ -327,6 +330,20 @@
     </div>
 </div>
 
+<!-- Phản hồi khóa học -->
+<div class="modal-mask" id="modal-feedback">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="feedback-title" data-i18n="feedback.tieuDe">Phản hồi khóa học</h3>
+            <button class="close-x" onclick="closeModal('modal-feedback')">×</button>
+        </div>
+        <div class="modal-body" id="feedback-body"></div>
+        <div class="modal-foot">
+            <button data-i18n="common.close" class="btn ghost" onclick="closeModal('modal-feedback')">Đóng</button>
+        </div>
+    </div>
+</div>
+
 <!-- Đặt nhắc nhở học tập -->
 <div class="modal-mask" id="modal-reminder">
     <div class="modal">
@@ -379,6 +396,7 @@
 <script src="/js/theme.js"></script>
 <script src="/js/password.js"></script>
 <script src="/js/app.js"></script>
+<script src="/js/feedback.js"></script>
 <script>
 (async function () {
     await Lang.ready;
@@ -394,10 +412,13 @@
     const SOON_DAYS = 7;
     const DEFAULT_FILTER = 'todo';
 
-    /** Nhóm khóa học theo mức gấp, theo đúng thứ tự hiện trên trang. */
+    /** Nhóm khóa học theo mức gấp, theo đúng thứ tự hiện trên trang.
+     *  Khóa nhóm cũng là TÊN CLASS của thẻ (mc-item / mc-group-head) nên không được trùng class toàn cục: nhóm này từng
+     *  tên 'progress', trùng .progress của thanh tiến độ — .progress > span tô mọi thẻ span con (dòng "Chưa có đánh giá",
+     *  số đếm ở tiêu đề nhóm) thành một thanh xanh cao 100%. */
     const GROUP_LIST = [
         { key: 'overdue',   icon: 'ph-fill ph-warning-circle',          label: t('my-course.nhomQuaHan', 'Quá hạn') },
-        { key: 'progress',  icon: 'ph-fill ph-play-circle',             label: t('dashboard.inProgress', 'Đang học') },
+        { key: 'learning',  icon: 'ph-fill ph-play-circle',             label: t('dashboard.inProgress', 'Đang học') },
         { key: 'new',       icon: 'ph-fill ph-circle-dashed',           label: t('dashboard.notStarted', 'Chưa bắt đầu') },
         { key: 'failed',    icon: 'ph-fill ph-arrow-counter-clockwise', label: t('my-course.nhomChuaDat', 'Chưa đạt — cần học lại') },
         { key: 'done',      icon: 'ph-fill ph-seal-check',              label: t('index.stat-enroll', 'Hoàn thành') },
@@ -405,7 +426,7 @@
     ];
     /** Bộ lọc → các nhóm nó gồm. "Cần học" là mọi thứ còn phải làm, đó là câu hỏi người học mang tới trang này. */
     const FILTER_LIST = [
-        { key: 'todo', icon: 'ph-book-open',   label: t('my-course.locCanHoc', 'Cần học'),   groupList: ['overdue', 'progress', 'new', 'failed'] },
+        { key: 'todo', icon: 'ph-book-open',   label: t('my-course.locCanHoc', 'Cần học'),   groupList: ['overdue', 'learning', 'new', 'failed'] },
         { key: 'done', icon: 'ph-seal-check',  label: t('dashboard.completed', 'Đã hoàn thành'), groupList: ['done'] },
         { key: 'all',  icon: 'ph-squares-four', label: t('dashboard.tatCa', 'Tất cả'),       groupList: GROUP_LIST.map(g => g.key) },
     ];
@@ -464,6 +485,11 @@
     await Promise.all([loadEnrollment(), loadReminderList(), loadAvailable()]);
     if (startTab === 'schedule') renderCalendar();
 
+    // Thông báo "có trả lời / bình luận mới" dẫn về đây kèm ?feedback=<courseId> — mở thẳng hộp phản hồi của khóa đó.
+    const feedbackCourseId = +(qs('feedback') || 0);
+    if (feedbackCourseId)
+        openFeedback(feedbackCourseId, enrollmentList.find(x => x.courseId === feedbackCourseId)?.courseTitle || '');
+
     function openTab(tab) {
         showTab(tab, 'course');
         if (tab === 'schedule') renderCalendar();
@@ -505,7 +531,7 @@
         if (x.status === 'Cancelled') return 'cancelled';
         if (isOverdue(x)) return 'overdue';
         if (x.status === 'Failed') return 'failed';
-        if (x.status === 'InProgress' || (Number(x.progressPercent) || 0) > 0) return 'progress';
+        if (x.status === 'InProgress' || (Number(x.progressPercent) || 0) > 0) return 'learning';
         return 'new';
     }
 
@@ -572,6 +598,15 @@
             const enrollment = enrollmentList.find(x => x.id === +b.dataset.scoreboard);
             openScoreboard(b.dataset.scoreboard, enrollment?.courseTitle || '');
         }));
+        listBox.querySelectorAll('[data-feedback]').forEach(b => b.addEventListener('click', () =>
+            openFeedback(+b.dataset.feedback, b.dataset.title || '')));
+    }
+
+    function openFeedback(courseId, courseTitle) {
+        document.getElementById('feedback-title').textContent = courseTitle
+            ? `${t('feedback.tieuDe', 'Phản hồi khóa học')} — ${courseTitle}` : t('feedback.tieuDe', 'Phản hồi khóa học');
+        openModal('modal-feedback');
+        mountCourseFeedback({ container: document.getElementById('feedback-body'), courseId });
     }
 
     function emptyListHtml() {
@@ -602,6 +637,9 @@
                 ? [t('my-course.hocTiep', 'Học tiếp'), 'ph-play', '']
                 : [t('my-course.batDau', 'Bắt đầu'), 'ph-play', ''];
         const scoreLabel = t('my-course.bangDiem', 'Bảng điểm');
+        const feedbackLabel = x.status === 'Completed'
+            ? t('feedback.danhGiaVaBinhLuan', 'Đánh giá & bình luận')
+            : t('feedback.binhLuan', 'Bình luận');
         const certLabel = t('my-course.xemChungNhan', 'Xem chứng nhận');
 
         return `<article class="mc-item ${group}">
@@ -616,12 +654,15 @@
                 ${x.status === 'Cancelled' ? '' : `<div class="mc-prog">${progressBar(percent)}</div>`}
             </div>
             <div class="mc-actions">
+                ${x.status === 'Cancelled' ? '' : `<button type="button" class="btn ghost sm icon" data-feedback="${x.courseId}" data-title="${esc(x.courseTitle)}"
+                    title="${esc(feedbackLabel)}" aria-label="${esc(feedbackLabel)}"><i class="ph ph-chat-circle-text"></i></button>`}
                 <button type="button" class="btn ghost sm icon" data-scoreboard="${x.id}" title="${esc(scoreLabel)}" aria-label="${esc(scoreLabel)}">
                     <i class="ph ph-chart-bar"></i></button>
                 ${x.hasCertificate ? `<a class="btn ghost sm icon" href="/pages/certificate.html" title="${esc(certLabel)}" aria-label="${esc(certLabel)}">
                     <i class="ph ph-seal-check"></i></a>` : ''}
                 ${x.status === 'Cancelled' ? '' : `<a class="btn sm ${ctaClass}" href="${href}"><i class="ph-bold ${ctaIcon}"></i> ${esc(ctaLabel)}</a>`}
             </div>
+            ${courseRatingHtml(x.courseAverageRating, x.courseReviewCount)}
         </article>`;
     }
 
@@ -646,7 +687,7 @@
     function renderOverview() {
         const activeList = enrollmentList.filter(x => x.status !== 'Cancelled');
         const doneCount = activeList.filter(x => x.status === 'Completed').length;
-        const progressCount = activeList.filter(x => ['progress', 'overdue', 'failed'].includes(groupOf(x))).length;
+        const progressCount = activeList.filter(x => ['learning', 'overdue', 'failed'].includes(groupOf(x))).length;
         const newCount = activeList.filter(x => groupOf(x) === 'new').length;
         const certificateCount = activeList.filter(x => x.hasCertificate).length;
         const percent = activeList.length ? Math.round(doneCount * 100 / activeList.length) : 0;
@@ -774,14 +815,22 @@
             eventByDay.get(date.getDate()).push(event);
         };
 
-        scheduleList.forEach(x => push(new Date(x.scheduledAt), {
+        const firstLessonByCourse = new Map();
+        scheduleList.forEach(x => {
+            const cur = firstLessonByCourse.get(x.enrollmentId);
+            if (!cur || new Date(x.scheduledAt) < new Date(cur.scheduledAt)) firstLessonByCourse.set(x.enrollmentId, x);
+        });
+
+        firstLessonByCourse.forEach(x => push(new Date(x.scheduledAt), {
             kind: 'lesson',
-            icon: x.status === 'Completed' ? 'ph-check-circle' : contentTypeMeta(x.contentType).iconClass,
-            title: x.lessonTitle,
-            subtitle: x.durationMinutes ? `${x.courseTitle} · ${formatDuration(x.durationMinutes)}` : x.courseTitle,
+            icon: 'ph-play-circle',
+            title: t('my-course.baiHocDauTien', 'Bài học đầu tiên: {title}', { title: x.lessonTitle }),
+            subtitle: t('my-course.khoaHoc', 'Khóa học: {title}', { title: x.courseTitle }),
             done: x.status === 'Completed',
             enrollmentId: x.enrollmentId,
         }));
+
+
         enrollmentList.filter(x => x.dueDate && x.status !== 'Cancelled').forEach(x => push(new Date(x.dueDate), {
             kind: 'due',
             icon: 'ph-flag-checkered',
@@ -792,7 +841,7 @@
         }));
 
         if (!eventByDay.size) {
-            box.innerHTML = emptyHtml(t('my-course.thangNayTrong', 'Tháng này chưa có buổi học hay hạn chót nào.'), '<i class="ph ph-calendar-blank"></i>');
+            box.innerHTML = emptyHtml(t('my-course.thangNayTrong', 'Tháng này chưa có khoá học hay hạn chót nào.'), '<i class="ph ph-calendar-blank"></i>');
             return;
         }
 
@@ -1074,6 +1123,7 @@
                         <span><i class="ph ph-list-dashes"></i> ${esc(t('my-course.soBaiHoc', '{n} bài học', { n: c.lessonCount }))}</span>
                     </div>
                     ${c.suggestReason ? `<div class="mc-reason"><i class="ph-fill ph-sparkle"></i><span>${esc(suggestReasonText(c.suggestReason))}</span></div>` : ''}
+                    ${courseRatingHtml(c.averageRating, c.reviewCount)}
                     <button type="button" class="btn sm block" data-enroll="${c.id}">
                         <i class="ph-bold ph-plus-circle"></i> ${esc(t('suggest.enroll', 'Đăng ký học'))}</button>
                 </div>

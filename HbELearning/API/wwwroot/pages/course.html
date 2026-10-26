@@ -108,6 +108,8 @@
                 grid-column: 1 / -1; justify-content: flex-start; max-width: none;
                 padding: 10px 12px; border-top: 1px solid var(--border);
             }
+            /* Hàng nút có thể dài tới sát mép phải (nhiều nút Duyệt / Từ chối) — sao xuống hàng riêng, vẫn ở góc dưới phải. */
+            .cm-item > .course-rating { position: static; grid-column: 1 / -1; justify-self: end; margin: 0 14px 10px; }
         }
     </style>
 </head>
@@ -264,7 +266,7 @@
     // Người được ủy quyền duyệt bước cuối (nhân viên phòng Nhân sự) cần vào được trang này để duyệt,
     // dù vai trò của họ không nằm trong danh sách quản lý khóa học thông thường.
     if (!Auth.isApprovalDelegate && !Auth.isWorkflowApprover && Auth.can('course.view') !== true
-        && !(Auth.can('course.view') === null && ['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc'].some(x => Auth.hasRole(x)))) {
+        && !(Auth.can('course.view') === null && ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc'].some(x => Auth.hasRole(x)))) {
         alert(t('course-detail.banKhongCoQuyenTruyCapChucNang', 'Bạn không có quyền truy cập chức năng này.'));
         location.href = '/pages/dashboard.html';
         return;
@@ -272,7 +274,7 @@
     mountLayout('course', t('menu.course', 'Quản lý khóa học'), t('course.xayDungNoiDungDaoTaoChoDoanhNg', 'Xây dựng nội dung đào tạo cho doanh nghiệp'));
 
     // Admin không soạn nội dung — trên khóa học chỉ xem, lưu trữ và xóa (xem RoleName.ContentAuthor ở server).
-    const canCreate = Auth.can('course.create') ?? Auth.isTrainer;
+    const canCreate = Auth.can('course.create') ?? Auth.isContentAuthor;
 
     // ----- Trạng thái của danh sách — khai báo TRƯỚC mọi lệnh await bên dưới: bấm thẻ trong lúc trang còn đang
     // tải mà biến còn nằm trong Temporal Dead Zone thì handler chết lặng, không báo gì. -----
@@ -312,7 +314,7 @@
     // Chỉ người được tạo/sửa khóa học mới gọi được API này; vai trò khác (Trưởng phòng, Giám Đốc...) vào trang
     // này chỉ để duyệt nên nhận 403 — nuốt lỗi và để danh sách rỗng, không chặn cả trang vì một ô chọn họ không dùng tới.
     let workflowOptionList = [];
-    if (canCreate || Auth.isTrainer) {
+    if ((canCreate || Auth.isContentAuthor) && !Auth.isInstructor) {
         try { workflowOptionList = await API.get('/approvalworkflow/option'); }
         catch { workflowOptionList = []; }
     }
@@ -410,7 +412,7 @@
      *  sự có việc — một thẻ luôn trống là một thẻ dạy người dùng bỏ qua nó. Thẻ vừa bị ẩn mà đang được chọn thì
      *  lùi về "Tất cả", không để người dùng đứng trên một thẻ không còn nhìn thấy. */
     function syncActionTab(hasAction) {
-        const visible = canCreate || Auth.isTrainer || isApproverRole || hasAction;
+        const visible = canCreate || Auth.isContentAuthor || isApproverRole || hasAction;
         tabBox.querySelector('[data-tab="action"]').style.display = visible ? '' : 'none';
         if (!visible && currentTab === 'action') { currentTab = 'all'; markTab(); }
     }
@@ -428,7 +430,7 @@
         const select = document.getElementById('cm-scope');
         const optionList = [
             { key: 'all', label: t('course.phamViTatCa', 'Mọi khóa học bạn được xem') },
-            ...((canCreate || Auth.isTrainer) ? [{ key: 'mine', label: t('course.phamViCuaToi', 'Do tôi soạn') }] : []),
+            ...((canCreate || Auth.isContentAuthor) ? [{ key: 'mine', label: t('course.phamViCuaToi', 'Do tôi soạn') }] : []),
             ...(Auth.profile?.departmentId != null ? [{ key: 'dept', label: t('course.phamViPhongBan', 'Phòng ban của tôi') }] : []),
         ];
         if (!optionList.some(x => x.key === currentScope)) currentScope = 'all';
@@ -504,7 +506,9 @@
         const partList = [
             ['approve', 'ph-fill ph-stamp', t('course.demChoBanDuyet', '{n} khóa học chờ bạn duyệt')],
             ['fix', 'ph-fill ph-arrow-u-up-left', t('course.demBiTuChoi', '{n} khóa học bị trả về cần sửa')],
-            ['submit', 'ph-fill ph-paper-plane-tilt', t('course.demChuaGui', '{n} bản nháp chưa gửi duyệt')],
+            ['submit', 'ph-fill ph-paper-plane-tilt', Auth.isInstructor
+                ? t('course.demChuaXuatBan', '{n} bản nháp chưa xuất bản')
+                : t('course.demChuaGui', '{n} bản nháp chưa gửi duyệt')],
         ].filter(([kind]) => count(kind) > 0);
 
         box.classList.toggle('hidden', !partList.length);
@@ -540,7 +544,7 @@
         const flagHtml = {
             approve: `<span class="cm-flag"><i class="ph-fill ph-stamp"></i> ${esc(t('course.choBanDuyet', 'Chờ bạn duyệt'))}</span>`,
             fix: `<span class="cm-flag fix"><i class="ph-fill ph-arrow-u-up-left"></i> ${esc(t('course.canSuaLai', 'Cần sửa lại'))}</span>`,
-            submit: `<span class="cm-flag"><i class="ph-fill ph-paper-plane-tilt"></i> ${esc(t('course.chuaGuiDuyet', 'Chưa gửi duyệt'))}</span>`,
+            submit: `<span class="cm-flag"><i class="ph-fill ph-paper-plane-tilt"></i> ${esc(Auth.isInstructor ? t('course.chuaXuatBan', 'Chưa xuất bản') : t('course.chuaGuiDuyet', 'Chưa gửi duyệt'))}</span>`,
         }[action] || '';
 
         // Thanh lộ trình duyệt chỉ có nghĩa khi khóa học còn đang trên đường đi duyệt. Đã xuất bản thì mọi bước
@@ -552,13 +556,17 @@
                         ${esc(c.rejectionReason)}</div></div>`
             : '';
 
-        const contentLabel = isOwnTrainerCourse(c) && bucketOf(c) === 'draft'
+        // Khóa của người khác (người soạn không phải chủ khóa, không đang chờ mình duyệt): "Xem nội dung" mở thẳng
+        // trình học như học viên, không vào trang quản lý. Admin và người duyệt vẫn vào trang chi tiết để quản lý / duyệt.
+        const viewAsLearner = !isMine && !Auth.isAdmin && Auth.isContentAuthor && action !== 'approve';
+        const contentHref = viewAsLearner ? `/pages/scorm-player.html?courseId=${c.id}` : href;
+        const contentLabel = canAuthorEdit(c)
             ? [t('course.soanNoiDung', 'Soạn nội dung'), 'ph-pencil-simple']
             : [t('course.xemNoiDung', 'Xem nội dung'), 'ph-eye'];
         const hasMenu = isOwnTrainerCourse(c) || Auth.isAdmin;
 
         return `<article class="cm-item ${action ? 'act-' + action : ''}">
-            <a class="cm-thumb-link" href="${href}" tabindex="-1" aria-hidden="true">${courseThumbHtml(c.title, c.thumbnailUrl)}</a>
+            <a class="cm-thumb-link" href="${href}" tabindex="-1" aria-hidden="true">${courseThumbHtml(c.title, c.thumbnailUrl, 'course-mini-thumb', 'ph-book-open-text', true)}</a>
             <div class="cm-main">
                 <div class="cm-title-line">
                     <a class="cm-title" href="${href}">${esc(c.title)}</a>
@@ -580,9 +588,10 @@
                 ${rejectHtml}
                 ${trackHtml ? `<div class="cm-track">${trackHtml}</div>` : ''}
             </div>
+            ${['Published', 'Archived'].includes(c.status) ? courseRatingHtml(c.averageRating, c.reviewCount) : ''}
             <div class="cm-actions">
                 ${courseWorkflowActionsHtml(c, hrDepartmentId)}
-                <a class="btn ghost sm" href="${href}"><i class="ph ${contentLabel[1]}"></i> ${esc(contentLabel[0])}</a>
+                <a class="btn ghost sm" href="${contentHref}"><i class="ph ${contentLabel[1]}"></i> ${esc(contentLabel[0])}</a>
                 ${hasMenu ? `<button type="button" class="btn ghost sm icon" data-menu="${c.id}"
                     aria-label="${esc(t('org.thaoTacKhac', 'Thao tác khác'))}"><i class="ph-bold ph-dots-three"></i></button>` : ''}
             </div>
@@ -592,18 +601,27 @@
     /** Trưởng Nhóm (không phải Admin) đang xem đúng khóa học do chính mình tạo — điều kiện chung để quyết
      * định hiện nút "Sửa" (còn ở trạng thái Nháp/Từ chối) hay "Xem" (đã gửi duyệt, không sửa được nữa). */
     function isOwnTrainerCourse(c) {
-        return !Auth.isAdmin && Auth.isTrainer && c.createdById === Auth.profile?.id;
+        return !Auth.isAdmin && Auth.isContentAuthor && c.createdById === Auth.profile?.id;
+    }
+
+    /** Còn sửa được nội dung/thông tin không: ai cũng sửa được bản nháp của mình; riêng Giảng Viên không qua
+     * duyệt nên sửa cả khóa đã xuất bản (trừ khóa đã lưu trữ). */
+    function canAuthorEdit(c) {
+        return isOwnTrainerCourse(c) && (bucketOf(c) === 'draft' || (Auth.isInstructor && c.status !== 'Archived'));
     }
 
     /** Thao tác phụ gom vào menu "⋯": sửa / xem thông tin, xóa. Hàng nút chỉ còn việc chính của dòng đó. */
     function menuOf(c) {
         const menu = [];
         if (isOwnTrainerCourse(c)) {
-            menu.push(bucketOf(c) === 'draft'
+            menu.push(canAuthorEdit(c)
                 ? { icon: 'ph ph-pencil-simple', label: t('course.suaThongTin', 'Sửa thông tin khóa học'), onClick: () => openForm(c) }
-                : { icon: 'ph ph-info', label: t('course.xemThongTin', 'Xem thông tin khóa học'), onClick: () => openForm(c, true) });
+                : { icon: 'ph ph-info', label: t('course.xemThongTin', 'Xem thông tin khóa học'), onClick: () => openForm(c, true) }
+            );
         }
         if (Auth.isAdmin)
+            menu.push({ icon: 'ph ph-trash', label: t('course.xoaKhoaHoc', 'Xóa khóa học'), danger: true, onClick: () => deleteCourse(c) });
+        if (isOwnTrainerCourse(c) && c.status === 'Draft')
             menu.push({ icon: 'ph ph-trash', label: t('course.xoaKhoaHoc', 'Xóa khóa học'), danger: true, onClick: () => deleteCourse(c) });
         return menu;
     }
@@ -706,7 +724,11 @@
         // Cố ý KHÔNG dùng thuộc tính required ở đây: thẻ <select> gốc đã được ẩn đi (xem
         // enhanceSearchableSelect), mà trình duyệt từ chối gửi form khi ô không hợp lệ lại là ô không nhìn thấy được —
         // bấm Lưu sẽ không có gì xảy ra và cũng không báo gì. Kiểm tra tay trong save() thay thế.
-        document.getElementById('f-department').value = '';
+        // Khóa mới: chọn sẵn phòng ban của chính người soạn — đó cũng là đối tượng đào tạo mặc định mà server tạo ra
+        // (khi xuất bản, khóa tự gửi tới phòng này). Muốn khóa dùng chung thì chọn "Tất cả phòng ban".
+        const ownDepartmentId = Auth.profile?.departmentId;
+        document.getElementById('f-department').value =
+            (!isEdit && ownDepartmentId && departmentList.some(d => d.id === ownDepartmentId)) ? String(ownDepartmentId) : '';
         enhanceSearchableSelect(document.getElementById('f-department'));
         document.getElementById('f-code-row').style.display = isEdit ? '' : 'none';
         document.getElementById('f-code').value = course?.code || '';
@@ -745,6 +767,9 @@
     function renderWorkflowField(course, readOnly) {
         const select = document.getElementById('f-workflow');
         const hint = document.getElementById('f-workflow-hint');
+        // Giảng Viên xuất bản thẳng, không qua chuỗi duyệt nên không có luồng cấp duyệt để chọn.
+        select.closest('.field')?.classList.toggle('hidden', Auth.isInstructor);
+        if (Auth.isInstructor) { select.value = ''; return; }
         const isEdit = !!course;
         const locked = readOnly || (isEdit && course.status !== 'Draft' && course.status !== 'Rejected');
 
@@ -807,7 +832,7 @@
             startDate,
             endDate,
             isMandatory: document.getElementById('f-mandatory').checked,
-            approvalWorkflowId: +document.getElementById('f-workflow').value || null
+            approvalWorkflowId: Auth.isInstructor ? null : (+document.getElementById('f-workflow').value || null)
         };
         // Chỉ gửi phòng ban khi TẠO MỚI — mã khóa học đã sinh ra rồi thì không đổi được nữa.
         if (!id) {

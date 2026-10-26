@@ -5,6 +5,12 @@ namespace HbELearning.API.Extensions;
 /// <summary>Đường ống middleware — thứ tự các dòng trong hàm này là thứ tự mỗi yêu cầu HTTP đi qua.</summary>
 public static class WebApplicationExtensions
 {
+    private static readonly HashSet<string> HeavyAssetExtensionSet = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".woff", ".woff2", ".ttf",
+        ".glb", ".gltf", ".fbx", ".mp4", ".webm", ".mp3", ".ogg", ".wav", ".m4a"
+    };
+
     /// <summary>Lắp đường ống xử lý yêu cầu và gắn các điểm cuối (Controller, SignalR Hub).</summary>
     public static WebApplication UseApiPipeline(this WebApplication app)
     {
@@ -30,6 +36,10 @@ public static class WebApplicationExtensions
         app.UseSecurityHeaders();
 
         app.UseHttpsRedirection();
+
+        // Nén Brotli/Gzip cho HTML, CSS, JS, JSON — đứng TRƯỚC tệp tĩnh và controller để cả hai được nén.
+        // text/event-stream không nằm trong danh sách mặc định nên luồng trả lời của AI không bị gom bộ đệm.
+        app.UseResponseCompression();
 
         // Frontend tĩnh trong wwwroot
         app.UseDefaultFiles();
@@ -68,6 +78,14 @@ public static class WebApplicationExtensions
                 else if (context.Context.Request.Path.Equals("/sw.js", StringComparison.OrdinalIgnoreCase))
                 {
                     context.Context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+                }
+
+                // Tệp nhị phân nặng (ảnh, font, mô hình 3D, video, âm thanh) gần như không đổi nội dung tại chỗ —
+                // tệp tải lên mang tên GUID, mô hình/ảnh nền đổi là đổi tên. Cho trình duyệt giữ 7 ngày để mở
+                // lại trang không phải tải lại từ đầu. HTML/CSS/JS giữ nguyên cách cũ vì chúng sửa tại chỗ.
+                else if (HeavyAssetExtensionSet.Contains(Path.GetExtension(context.File.Name)))
+                {
+                    context.Context.Response.Headers.CacheControl = "public, max-age=604800";
                 }
             }
         });

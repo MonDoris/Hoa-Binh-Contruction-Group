@@ -80,7 +80,7 @@
         'classroom-recap': ['translation.grpTongKetBuoiHoc', 'Tổng kết buổi học'],
         classroom:         ['translation.grpLopHoc', 'Lớp học'],
         aidoc:             ['menu.ai-document', 'Tài liệu AI'],
-        aitutor:           ['menu.ai-tutor', 'Pico B'],
+        aitutor:           ['menu.ai-tutor', 'HB Minerva'],
         account:           ['translation.grpTaiKhoan', 'Tài khoản'],
         index:             ['translation.grpTrangChu', 'Trang chủ'],
         login:             ['translation.grpDangNhap', 'Đăng nhập'],

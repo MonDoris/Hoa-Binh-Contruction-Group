@@ -11,23 +11,91 @@
     <title data-i18n="online-class.phongHocOnlineHbELearning">Phòng học online · HB E-Learning</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .otp-hint { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
-        .otp-boxes { display: flex; gap: 8px; justify-content: center; margin-bottom: 6px; }
+        /* Trang này dùng bộ màu và chữ của hệ thống (css/style.css); không còn màu ghi cứng ở nút. Phần riêng của trang:
+           các thẻ buổi học (Đang diễn ra / Sắp diễn ra / Đã hủy / Lịch sử), hộp nhập mã 6 ô và hộp tạo buổi học. */
+
+        /* ---- Khối và lưới thẻ ---- */
+        .oc-section { margin-bottom: 26px; }
+        .oc-head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 16px; font-weight: 800; letter-spacing: -.3px; }
+        .oc-head .badge { font-size: 11.5px; }
+        .oc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; }
+        .oc-note { font-size: 13px; color: var(--text-muted); margin: 0 2px; }
+
+        /* ---- Thẻ buổi học ---- */
+        .oc-card {
+            position: relative; display: flex; flex-direction: column; gap: 10px; padding: 18px 20px 16px;
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
+            transition: box-shadow .2s, transform .2s;
+        }
+        .oc-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+        /* Vạch màu nhận diện trạng thái trên đỉnh thẻ — giống ô số của Tổng quan. */
+        .oc-card::before { content: ""; position: absolute; left: 20px; right: 20px; top: 0; height: 3px; border-radius: 0 0 3px 3px; background: var(--tone); }
+        .oc-live { --tone: var(--danger); background: linear-gradient(180deg, color-mix(in srgb, var(--danger) 6%, var(--surface)), var(--surface) 70%); }
+        .oc-soon { --tone: var(--primary); }
+        .oc-off { --tone: var(--text-muted); }
+        .oc-off h4, .oc-off .oc-meta { color: var(--text-muted); }
+        .oc-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .oc-state { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; color: var(--tone); }
+        .oc-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); }
+        .oc-live .oc-dot { animation: oc-pulse 1.4s ease-in-out infinite; }
+        @keyframes oc-pulse { 50% { opacity: .3; transform: scale(.8); } }
+        .oc-count { font-size: 12.5px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+        .oc-card h4 { margin: 0; font-size: 15.5px; font-weight: 800; letter-spacing: -.2px; line-height: 1.35; overflow-wrap: anywhere; }
+        .oc-meta { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); min-width: 0; }
+        .oc-meta i { font-size: 15px; flex: none; }
+        .oc-meta span { min-width: 0; overflow-wrap: anywhere; }
+        .oc-code { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; }
+        .oc-code b {
+            font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; letter-spacing: 2px; font-size: 13px;
+            background: var(--primary-light); color: var(--primary-dark); padding: 4px 10px; border-radius: 8px;
+        }
+        .oc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border); }
+        .oc-wait { font-size: 12.5px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; }
+        .oc-fold > summary { cursor: pointer; font-size: 14px; font-weight: 700; color: var(--text-muted); padding: 6px 2px; list-style: none; }
+        .oc-fold > summary::-webkit-details-marker { display: none; }
+        .oc-fold > summary::before { content: "▸"; display: inline-block; width: 18px; transition: transform .15s; }
+        .oc-fold[open] > summary::before { transform: rotate(90deg); }
+        .oc-fold > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
+        .oc-fold .oc-grid { margin-top: 10px; }
+        .oc-empty { padding: 28px 12px; }
+
+        /* ---- Tab Lịch sử ---- */
+        .hist-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 14px; padding: 16px 20px; margin-bottom: 16px; }
+        .hist-filters .field { margin: 0; }
+        .hist-filters .lbl { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+        .hist-search { position: relative; flex: 1 1 280px; min-width: 220px; }
+        .hist-search i { position: absolute; left: 11px; bottom: 11px; color: var(--text-muted); pointer-events: none; }
+        .hist-search input { padding-left: 34px; }
+        .hist-check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; padding-bottom: 9px; }
+        .hist-check input { width: 16px; height: 16px; accent-color: var(--primary); }
+        .hist-count { font-size: 12.5px; color: var(--text-muted); margin: 0 2px 12px; }
+        .hist-card { --tone: var(--success); }
+        .hist-stats { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12.5px; }
+        .hist-stats span { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .hist-stats i { font-size: 15px; color: var(--primary); }
+
+        /* ---- Hộp nhập mã ---- */
+        .join-head { display: flex; align-items: center; gap: 14px; }
+        .join-icon {
+            width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; font-size: 19px; display: grid; place-items: center;
+            background: var(--primary-light); color: var(--primary-dark);
+        }
+        .join-head h3 { margin: 0 0 2px; }
+        .join-head p { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+        .otp-boxes { display: flex; gap: 10px; justify-content: center; margin: 8px 0 6px; }
         .otp-box {
-            width: 44px; height: 54px; text-align: center; font-size: 22px; font-weight: 700;
+            width: 46px; height: 56px; text-align: center; font-size: 22px; font-weight: 800; padding: 0;
             font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
-            text-transform: uppercase; border: 1.5px solid var(--border); border-radius: 10px;
-            background: var(--bg); color: var(--text); transition: border-color .15s, box-shadow .15s, transform .1s;
+            text-transform: uppercase; border: 1.5px solid var(--border); border-radius: 12px;
+            background: var(--bg); color: var(--text); transition: border-color .15s, box-shadow .15s, background .15s;
         }
-        .otp-box:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+        .otp-box:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); background: var(--surface); }
         .otp-box.filled { border-color: var(--primary); background: var(--primary-light); }
-        .otp-error { font-size: 12px; color: var(--danger); text-align: center; min-height: 16px; margin-top: 8px; }
-        .join-code-cell { display: inline-flex; align-items: center; gap: 6px; }
-        .join-code-cell b {
-            font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; letter-spacing: 1px;
-            background: var(--primary-light); color: var(--primary-dark); padding: 3px 8px; border-radius: 6px; font-size: 12.5px;
-        }
-        .join-code-cell button { padding: 3px 7px; }
+        .otp-boxes.is-error .otp-box { border-color: var(--danger); background: var(--danger-light); }
+        .otp-error { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; color: var(--danger); min-height: 18px; margin-top: 10px; }
+        .otp-hint { font-size: 13px; color: var(--text-muted); text-align: center; margin: 0 0 10px; }
+
+        /* ---- Hộp tạo / sửa buổi học ---- */
         .room-modal-head { display: flex; align-items: center; gap: 14px; }
         .room-modal-icon {
             width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; font-size: 19px;
@@ -37,31 +105,57 @@
         .room-modal-head h3 { margin: 0 0 2px; }
         .room-modal-head p { margin: 0; font-size: 12.5px; color: var(--text-muted); }
         #f-title { font-size: 15px; }
+
+        @media (max-width: 480px) {
+            .oc-grid { grid-template-columns: minmax(0, 1fr); }
+            .otp-box { width: 40px; height: 52px; }
+            .otp-boxes { gap: 7px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .oc-card, .hist-card { transition: none; }
+            .oc-card:hover, .hist-card:hover { transform: none; }
+            .oc-live .oc-dot { animation: none; }
+        }
     </style>
     <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
 </head>
 <body>
 <div class="main">
     <div class="content">
-        <div class="card">
-            <div class="card-head">
-                <div class="flex">
-                    <select id="filter-status" aria-label="Lọc theo trạng thái" style="width:180px">
-                        <option data-i18n="course.tatCaTrangThai" value="">Tất cả trạng thái</option>
-                        <option data-i18n="online-class.daLenLich" value="0">Đã lên lịch</option>
-                        <option data-i18n="online-class.dangDienRa" value="1">Đang diễn ra</option>
-                        <option data-i18n="online-class.daKetThuc" value="2">Đã kết thúc</option>
-                        <option data-i18n="online-class.daHuy" value="3">Đã hủy</option>
-                    </select>
-                </div>
+        <div class="tabs" id="oc-tabs">
+            <button type="button" class="active" data-tab="list"><i class="ph ph-video-camera"></i> <span data-i18n="online-class.tabBuoiHoc">Buổi học</span></button>
+            <button type="button" data-tab="history"><i class="ph ph-clock-counter-clockwise"></i> <span data-i18n="online-class.tabLichSu">Lịch sử</span></button>
+        </div>
+
+        <div class="tab-panel active" id="tab-list">
+            <section class="oc-section" id="oc-live-section" hidden>
+                <h3 class="oc-head"><i class="ph-fill ph-broadcast" style="color:var(--danger)"></i> <span data-i18n="online-class.secDangDienRa">Đang diễn ra</span> <span class="badge red" id="oc-live-count"></span></h3>
+                <div class="oc-grid" id="oc-live-grid"></div>
+            </section>
+
+            <section class="oc-section" id="oc-upcoming-section">
+                <h3 class="oc-head"><i class="ph-fill ph-calendar-dots" style="color:var(--primary)"></i> <span data-i18n="online-class.secSapDienRa">Sắp diễn ra</span> <span class="badge blue" id="oc-upcoming-count"></span></h3>
+                <div class="oc-grid" id="oc-upcoming-grid"></div>
+            </section>
+
+            <details class="oc-section oc-fold" id="oc-cancelled-section" hidden>
+                <summary><span data-i18n="online-class.secDaHuy">Đã hủy</span> <span class="badge gray" id="oc-cancelled-count"></span></summary>
+                <div class="oc-grid" id="oc-cancelled-grid"></div>
+            </details>
+        </div>
+
+        <div class="tab-panel" id="tab-history">
+            <div class="card hist-filters" role="search">
+                <label class="hist-search"><span class="lbl" data-i18n="online-class.histTimKiem">Tìm kiếm</span>
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="search" id="hist-keyword" data-i18n-ph="online-class.histSearch" placeholder="Tìm theo tên buổi học hoặc người chủ trì..."></label>
+                <div class="field"><label class="lbl" for="hist-from" data-i18n="online-class.histFrom">Từ ngày</label><input type="date" id="hist-from"></div>
+                <div class="field"><label class="lbl" for="hist-to" data-i18n="online-class.histTo">Đến ngày</label><input type="date" id="hist-to"></div>
+                <label class="hist-check"><input type="checkbox" id="hist-mine"> <span data-i18n="online-class.histOnlyMine">Chỉ buổi của tôi</span></label>
+                <button type="button" class="btn ghost sm" id="hist-reset" style="margin-bottom:6px"><i class="ph ph-x"></i> <span data-i18n="online-class.histReset">Xóa bộ lọc</span></button>
             </div>
-            <div class="table-wrap"><table>
-                <thead><tr>
-                    <th data-i18n="online-class.buoiHoc">Buổi học</th><th data-i18n="dashboard.colStatus">Trạng thái</th><th data-i18n="classroom.maPhong">Mã phòng</th>
-                    <th data-i18n="course-detail.thoiGian">Thời gian</th><th data-i18n="online-class.nguoiChuTri">Người chủ trì</th><th data-i18n="course.thaoTac" class="text-right">Thao tác</th>
-                </tr></thead>
-                <tbody id="tbody"></tbody>
-            </table></div>
+            <div class="hist-count" id="hist-count" role="status" aria-live="polite"></div>
+            <div class="oc-grid" id="hist-grid"></div>
         </div>
     </div>
 </div>
@@ -76,7 +170,7 @@
                     <p data-i18n="online-class.aiCungTaoDuocDungDeHopNhomHoac">Ai cũng tạo được — dùng để họp nhóm hoặc trò chuyện nhanh.</p>
                 </div>
             </div>
-            <button class="close-x" onclick="closeModal('modal-room')">×</button>
+            <button class="close-x" type="button" onclick="closeModal('modal-room')" aria-label="Đóng">×</button>
         </div>
         <form id="room-form">
             <div class="modal-body">
@@ -97,26 +191,32 @@
 </div>
 
 <div class="modal-mask" id="modal-join-code">
-    <div class="modal" style="max-width:400px">
+    <div class="modal" style="max-width:420px">
         <div class="modal-head">
-            <h3 data-i18n="online-class.nhapMaPhong">Nhập mã phòng</h3>
-            <button class="close-x" type="button" onclick="closeModal('modal-join-code')">×</button>
+            <div class="join-head">
+                <div class="join-icon"><i class="ph ph-keyhole"></i></div>
+                <div>
+                    <h3 data-i18n="online-class.nhapMaPhong">Nhập mã phòng</h3>
+                    <p data-i18n="online-class.nhapMaPhongDoNguoiChuTriCungCa">Nhập mã phòng do người chủ trì cung cấp:</p>
+                </div>
+            </div>
+            <button class="close-x" type="button" onclick="closeModal('modal-join-code')" aria-label="Đóng">×</button>
         </div>
         <div class="modal-body">
-            <div data-i18n="online-class.nhapMaPhongDoNguoiChuTriCungCa" class="otp-hint">Nhập mã phòng do người chủ trì cung cấp:</div>
-            <div class="otp-boxes" id="otp-boxes">
-                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
-                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
-                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
-                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
-                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
-                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Một ký tự của mã phòng">
+            <div class="otp-hint" data-i18n="online-class.maGom6ChuSo">Mã gồm 6 chữ số. Nhập xong sẽ tự vào phòng.</div>
+            <div class="otp-boxes" id="otp-boxes" role="group" aria-label="Mã phòng 6 chữ số" data-i18n-aria-label="online-class.maPhong6ChuSo">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 1 của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 2 của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 3 của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 4 của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 5 của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 6 của mã phòng">
             </div>
-            <div class="otp-error" id="otp-error"></div>
+            <div class="otp-error" id="otp-error" role="alert"></div>
         </div>
         <div class="modal-foot">
             <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-join-code')">Hủy</button>
-            <button data-i18n="online-class.vaoPhong" type="button" class="btn" id="btn-join-code-submit">Vào phòng</button>
+            <button type="button" class="btn" id="btn-join-code-submit"><i class="ph ph-sign-in"></i> <span data-i18n="online-class.vaoPhong">Vào phòng</span></button>
         </div>
     </div>
 </div>
@@ -131,111 +231,252 @@
     // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
     await Lang.ready;
 
-    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'online-class.view')) return;
+    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'online-class.view')) return;
     mountLayout('online-class', t('menu.online-class', 'Phòng học online'), t('online-class.lichCacBuoiDaoTaoTrucTuyen', 'Lịch các buổi đào tạo trực tuyến'));
 
+    // Khai báo hết hằng và trạng thái TRƯỚC lời gọi nạp dữ liệu ở cuối hàm — các hàm vẽ đọc chúng ngay khi dữ liệu về.
     // Mọi vai trò trừ Admin đều tạo được phòng học online — Admin chỉ quản trị hệ thống, không trực tiếp tổ chức buổi học.
     const canManage = !Auth.isAdmin;
+    const $ = (id) => document.getElementById(id);
+    let roomList = [];
+    let tickTimer = null;
+
     setTopbarAction(
         (canManage ? '<button data-i18n="online-class.taoBuoiHoc" class="btn" id="btn-new">+ Tạo buổi học</button>' : '') +
         '<button class="btn ghost" id="btn-join-code" style="margin-left:8px"><i class="ph ph-keyhole"></i> <span data-i18n="online-class.nhapMaPhong">Nhập mã phòng</span></button>');
-    document.getElementById('btn-join-code').addEventListener('click', openJoinCodeModal);
-    document.getElementById('btn-join-code-submit').addEventListener('click', submitJoinCode);
+    $('btn-join-code').addEventListener('click', openJoinCodeModal);
+    $('btn-join-code-submit').addEventListener('click', submitJoinCode);
+    $('otp-boxes').setAttribute('aria-label', t('online-class.maPhong6ChuSo', 'Mã phòng 6 chữ số'));
     setupOtpBoxes();
 
-    const tbody = document.getElementById('tbody');
+    if (canManage) $('btn-new').addEventListener('click', () => openForm());
+    $('room-form').addEventListener('submit', save);
+    $('btn-start-now').addEventListener('click', startNow);
 
-    if (canManage) document.getElementById('btn-new').addEventListener('click', () => openForm());
-    document.getElementById('filter-status').addEventListener('change', load);
-    document.getElementById('room-form').addEventListener('submit', save);
-    document.getElementById('btn-start-now').addEventListener('click', startNow);
+    // Hai thẻ: Buổi học (mặc định) và Lịch sử. Nhớ thẻ đang xem trên địa chỉ trang như các trang khác.
+    document.querySelectorAll('#oc-tabs button').forEach(button => button.addEventListener('click', () => {
+        showTab(button.dataset.tab, 'list');
+        if (button.dataset.tab === 'history') loadHistory();
+    }));
+    const startTab = tabFromUrl('list');
+    showTab(startTab, 'list');
+    setupHistoryFilters();
+    bindCardActions();
 
     await load();
+    if (startTab === 'history') await loadHistory();
 
+    // ==================== DANH SÁCH BUỔI HỌC ====================
     async function load() {
-        tbody.innerHTML = skeletonHtml('table', { rows: 5, cols: 6 });
-        const status = document.getElementById('filter-status').value;
-        const query = status !== '' ? `?status=${status}` : '';
-
+        ['oc-live-grid', 'oc-upcoming-grid'].forEach(id => { $(id).innerHTML = skeletonHtml('cards', { count: 2 }); });
+        $('oc-upcoming-section').hidden = false;
         try {
-            const list = await API.get(`/onlineclassroom${query}`);
-            tbody.innerHTML = list.length ? list.map(rowHtml).join('')
-                : `<tr><td colspan="6">${emptyHtml(t('online-class.chuaCoBuoiHocOnlineNao', 'Chưa có buổi học online nào.'), '<i class="ph ph-video-camera"></i>')}</td></tr>`;
-            bindRow(list);
+            roomList = await API.get('/onlineclassroom');
+            renderRooms();
         } catch (ex) {
-            tbody.innerHTML = `<tr><td colspan="6">${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</td></tr>`;
+            $('oc-live-section').hidden = true;
+            $('oc-upcoming-grid').innerHTML = `<div style="grid-column:1/-1">${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</div>`;
         }
     }
 
-    function rowHtml(r) {
-        const isHost = r.hostUserId === Auth.profile?.id;
-        const canEdit = r.status === 'Scheduled' && (Auth.isAdmin || isHost);
-        // Chỉ chủ trì/Admin vào thẳng được không cần mã — người khác dù thấy buổi học trong danh sách này
-        // cũng phải có mã phòng (hoặc liên kết mời kèm mã) do chủ trì chia sẻ mới vào được (ClassRoomHub.JoinRoom).
-        const canJoinDirect = Auth.isAdmin || isHost;
+    /** Chia danh sách theo trạng thái. Buổi đã kết thúc không nằm ở đây — chúng thuộc tab Lịch sử. */
+    function renderRooms() {
+        const live = roomList.filter(r => r.status === 'Live');
+        const upcoming = roomList.filter(r => r.status === 'Scheduled').sort((a, b) => new Date(a.scheduledStart) - new Date(b.scheduledStart));
+        const cancelled = roomList.filter(r => r.status === 'Cancelled');
 
-        let joinBtn = '';
-        if (r.status === 'Live' && canJoinDirect)
-            joinBtn = `<a data-i18n="online-class.vaoPhong" class="btn sm" href="/pages/classroom.html?id=${r.id}">Vào phòng</a>`;
-        else if (r.status === 'Scheduled' && isHost)
-            joinBtn = `<a data-i18n="my-course.batDau" class="btn sm" href="/pages/classroom.html?id=${r.id}">Bắt đầu</a>`;
-        else if (r.status === 'Ended')
-            joinBtn = `<a data-i18n="online-class.xemLai" class="btn ghost sm" href="/pages/classroom-recap.html?id=${r.id}">Xem lại</a>`;
+        $('oc-live-section').hidden = !live.length;
+        $('oc-live-count').textContent = live.length || '';
+        $('oc-live-grid').innerHTML = live.map(roomCardHtml).join('');
 
-        // r.joinCode chỉ khác null với chủ trì/Admin (backend không lộ mã cho người khác) — hiện kèm nút sao
-        // chép liên kết mời để họ gửi cho người tham gia.
-        const codeHtml = r.joinCode && (r.status === 'Scheduled' || r.status === 'Live')
-            ? `<div class="join-code-cell"><b>${esc(r.joinCode)}</b>
-                <button type="button" class="btn ghost sm" data-copy-link="${r.id}" data-code="${esc(r.joinCode)}" data-i18n-title="classroom.saoChepLienKetMoi" title="Sao chép liên kết mời"><i class="ph ph-copy"></i></button></div>`
-            : '<span class="small muted">—</span>';
+        $('oc-upcoming-count').textContent = upcoming.length || '';
+        $('oc-upcoming-grid').innerHTML = upcoming.length ? upcoming.map(roomCardHtml).join('')
+            : `<div class="card oc-empty" style="grid-column:1/-1">${emptyHtml(
+                t(live.length ? 'online-class.chuaCoBuoiSapToi' : 'online-class.chuaCoBuoiHocOnlineNao', live.length ? 'Chưa có buổi học nào được lên lịch.' : 'Chưa có buổi học online nào.'),
+                '<i class="ph ph-video-camera"></i>')}
+                ${canManage ? `<div style="text-align:center;margin-top:12px"><button type="button" class="btn sm" data-new-room><i class="ph ph-plus"></i> ${esc(t('online-class.taoBuoiHoc', '+ Tạo buổi học').replace(/^\+\s*/, ''))}</button></div>` : ''}</div>`;
 
-        return `<tr>
-            <td><b>${esc(r.title)}</b></td>
-            <td>${statusBadge(r.status)}</td>
-            <td class="small">${codeHtml}</td>
-            <td class="small nowrap">${formatDate(r.scheduledStart, true)}${r.scheduledEnd ? ' — ' + formatDate(r.scheduledEnd, true) : ''}</td>
-            <td class="small">${esc(r.hostUserName)}</td>
-            <td class="text-right nowrap">
-                ${joinBtn}
-                ${canEdit ? `<button data-i18n="common.edit" class="btn ghost sm" data-edit="${r.id}" style="background-color: yellow">Sửa</button>` : ''}
-                ${canEdit ? `<button data-i18n="common.cancel" class="btn ghost sm" data-cancel="${r.id}" style="background-color: orange; color: white">Hủy</button>` : ''}
-                ${Auth.isAdmin && r.status !== 'Live' ? `<button data-i18n="common.delete" class="btn ghost sm" data-del="${r.id}" style="background-color: red; color: white">Xóa</button>` : ''}
-            </td>
-        </tr>`;
+        $('oc-cancelled-section').hidden = !cancelled.length;
+        $('oc-cancelled-count').textContent = cancelled.length || '';
+        $('oc-cancelled-grid').innerHTML = cancelled.map(roomCardHtml).join('');
+
+        tick();
+        clearInterval(tickTimer);
+        tickTimer = setInterval(tick, 15000);
     }
 
-    function bindRow(list) {
-        tbody.querySelectorAll('[data-edit]').forEach(b =>
-            b.addEventListener('click', () => openForm(list.find(x => x.id == b.dataset.edit))));
+    function roomCardHtml(r) {
+        const isHost = r.hostUserId === Auth.profile?.id;
+        const isLive = r.status === 'Live', isScheduled = r.status === 'Scheduled';
+        const canEdit = isScheduled && (Auth.isAdmin || isHost);
+        // Chỉ chủ trì/Admin vào thẳng được không cần mã — người khác dù thấy buổi học trong danh sách này cũng phải có mã
+        // phòng (hoặc liên kết mời kèm mã) do chủ trì chia sẻ mới vào được (ClassRoomHub.JoinRoom).
+        const canJoinDirect = Auth.isAdmin || isHost;
+        const tone = isLive ? 'oc-live' : isScheduled ? 'oc-soon' : 'oc-off';
+        const stateText = isLive ? t('online-class.dangDienRa', 'Đang diễn ra') : isScheduled ? t('online-class.daLenLich', 'Đã lên lịch') : t('online-class.daHuy', 'Đã hủy');
 
-        tbody.querySelectorAll('[data-cancel]').forEach(b =>
-            b.addEventListener('click', async () => {
+        // r.joinCode chỉ khác null với chủ trì/Admin (backend không lộ mã cho người khác) — hiện kèm nút sao chép liên kết mời.
+        const codeHtml = r.joinCode && (isLive || isScheduled)
+            ? `<div class="oc-code"><b aria-label="${esc(t('classroom.maPhong', 'Mã phòng'))} ${esc(r.joinCode)}">${esc(r.joinCode)}</b>
+                <button type="button" class="btn ghost sm icon" data-copy-link="${r.id}" data-code="${esc(r.joinCode)}"
+                        title="${esc(t('classroom.saoChepLienKetMoi', 'Sao chép liên kết mời'))}" aria-label="${esc(t('classroom.saoChepLienKetMoi', 'Sao chép liên kết mời'))}"><i class="ph ph-copy"></i></button></div>`
+            : '';
+
+        const actions = [];
+        if (isLive && canJoinDirect) actions.push(`<a class="btn sm" href="/pages/classroom.html?id=${r.id}"><i class="ph ph-sign-in"></i> ${esc(t('online-class.vaoPhong', 'Vào phòng'))}</a>`);
+        else if (isLive) actions.push(`<button type="button" class="btn sm" data-enter-code><i class="ph ph-keyhole"></i> ${esc(t('online-class.nhapMaDeVao', 'Nhập mã để vào'))}</button>`);
+        if (isScheduled && isHost) actions.push(`<a class="btn sm" href="/pages/classroom.html?id=${r.id}"><i class="ph ph-play"></i> ${esc(t('my-course.batDau', 'Bắt đầu'))}</a>`);
+        if (isScheduled && !isHost) actions.push(`<span class="oc-wait"><i class="ph ph-hourglass-medium"></i> ${esc(t('online-class.choChuTriBatDau', 'Chờ chủ trì bắt đầu'))}</span>`);
+        if (canEdit) actions.push(`<button type="button" class="btn ghost sm" data-edit="${r.id}"><i class="ph ph-pencil-simple"></i> ${esc(t('common.edit', 'Sửa'))}</button>`);
+        if (canEdit) actions.push(`<button type="button" class="btn ghost danger sm" data-cancel="${r.id}"><i class="ph ph-prohibit"></i> ${esc(t('common.cancel', 'Hủy'))}</button>`);
+        if (Auth.isAdmin && !isLive) actions.push(`<button type="button" class="btn ghost danger sm" data-del="${r.id}"><i class="ph ph-trash"></i> ${esc(t('common.delete', 'Xóa'))}</button>`);
+
+        const timeCell = isLive && r.actualStartAt ? `data-elapsed="${esc(r.actualStartAt)}"` : isScheduled ? `data-countdown="${esc(r.scheduledStart)}"` : '';
+        return `<article class="oc-card ${tone}">
+            <div class="oc-top">
+                <span class="oc-state"><i class="oc-dot"></i>${esc(stateText)}</span>
+                <span class="oc-count" ${timeCell}></span>
+            </div>
+            <h4>${esc(r.title)}</h4>
+            <div class="oc-meta"><i class="ph ph-calendar-blank"></i><span>${esc(formatDate(r.scheduledStart, true))}${r.scheduledEnd ? ' — ' + esc(formatDate(r.scheduledEnd, true)) : ''}</span></div>
+            <div class="oc-meta"><i class="ph ph-user-circle"></i><span>${esc(r.hostUserName)}${isHost ? ` <span class="badge blue">${esc(t('online-class.histYouHost', 'Bạn chủ trì'))}</span>` : ''}</span></div>
+            ${codeHtml}
+            ${actions.length ? `<div class="oc-actions">${actions.join('')}</div>` : ''}
+        </article>`;
+    }
+
+    /** Đếm ngược tới giờ bắt đầu (buổi sắp diễn ra) và thời gian đã diễn ra (buổi đang diễn ra). Cập nhật mỗi 15 giây. */
+    function tick() {
+        if (document.hidden) return;
+        const now = Date.now();
+        document.querySelectorAll('[data-countdown]').forEach(el => {
+            el.textContent = countdownText(new Date(el.dataset.countdown).getTime() - now);
+        });
+        document.querySelectorAll('[data-elapsed]').forEach(el => {
+            el.textContent = t('online-class.daDienRa', 'Đã diễn ra {time}', { time: formatSpanMs(now - new Date(el.dataset.elapsed).getTime()) });
+        });
+    }
+
+    function countdownText(ms) {
+        if (ms <= 0) return t('online-class.daQuaGio', 'Đã quá giờ bắt đầu {time}', { time: formatSpanMs(-ms) });
+        const minutes = Math.ceil(ms / 60000);
+        if (minutes <= 1) return t('online-class.sapBatDau', 'Sắp bắt đầu');
+        if (minutes < 60) return t('online-class.conPhut', 'Còn {m} phút', { m: minutes });
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return t('online-class.conGio', 'Còn {h} giờ {m} phút', { h: hours, m: minutes % 60 });
+        return t('online-class.conNgay', 'Còn {d} ngày {h} giờ', { d: Math.floor(hours / 24), h: hours % 24 });
+    }
+
+    /** Một chỗ nghe cho mọi nút trên thẻ (ủy quyền sự kiện) — thẻ được dựng lại bằng innerHTML mỗi lần tải. */
+    function bindCardActions() {
+        const onClick = async (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+
+            if (button.dataset.edit) openForm(roomList.find(x => x.id == button.dataset.edit));
+            else if (button.hasAttribute('data-new-room')) openForm();
+            else if (button.hasAttribute('data-enter-code')) openJoinCodeModal();
+            else if (button.dataset.cancel) {
                 if (!await confirmDialog(t('online-class.huyBuoiHocNay', 'Hủy buổi học này?'), { danger: true, okText: t('online-class.huyBuoiHoc', 'Hủy buổi học') })) return;
-                try { const r = await API.post(`/onlineclassroom/${b.dataset.cancel}/cancel`); toastOk(r.message); load(); }
+                try { const r = await API.post(`/onlineclassroom/${button.dataset.cancel}/cancel`); toastOk(r.message); load(); }
                 catch (ex) { toastErr(ex.message); }
-            }));
-
-        tbody.querySelectorAll('[data-del]').forEach(b =>
-            b.addEventListener('click', async () => {
+            } else if (button.dataset.del) {
                 if (!await confirmDialog(t('online-class.xoaBuoiHocNay', 'Xóa buổi học này?'), { danger: true, okText: t('common.delete', 'Xóa') })) return;
-                try { const r = await API.del(`/onlineclassroom/${b.dataset.del}`); toastOk(r.message); load(); }
+                try { const r = await API.del(`/onlineclassroom/${button.dataset.del}`); toastOk(r.message); load(); loadHistoryIfShown(); }
                 catch (ex) { toastErr(ex.message); }
-            }));
-
-        tbody.querySelectorAll('[data-copy-link]').forEach(b =>
-            b.addEventListener('click', async () => {
-                const link = `${location.origin}/pages/classroom.html?id=${b.dataset.copyLink}&code=${encodeURIComponent(b.dataset.code)}`;
+            } else if (button.dataset.copyLink) {
+                const link = `${location.origin}/pages/classroom.html?id=${button.dataset.copyLink}&code=${encodeURIComponent(button.dataset.code)}`;
                 try { await navigator.clipboard.writeText(link); toastOk(t('classroom.daSaoChepLienKetMoiVaoPhong', 'Đã sao chép liên kết mời vào phòng.')); }
                 catch { toastErr(t('classroom.khongSaoChepDuocTrinhDuyetChan', 'Không sao chép được — trình duyệt chặn quyền truy cập clipboard.')); }
-            }));
+            }
+        };
+        $('tab-list').addEventListener('click', onClick);
+        $('tab-history').addEventListener('click', onClick);
     }
 
+    function loadHistoryIfShown() {
+        if ($('tab-history').classList.contains('active')) loadHistory();
+    }
+
+    // ==================== LỊCH SỬ ====================
+    // Các Buổi học ĐÃ KẾT THÚC mà người xem được phép xem (Chủ trì, Admin, người từng vào). Quyền do server quyết
+    // định; trang chỉ hiển thị những gì server trả về.
+    function setupHistoryFilters() {
+        let timer = null;
+        const reload = () => loadHistory();
+        $('hist-keyword').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(reload, 300); });
+        ['hist-from', 'hist-to', 'hist-mine'].forEach(id => $(id).addEventListener('change', reload));
+        $('hist-reset').addEventListener('click', () => {
+            $('hist-keyword').value = '';
+            $('hist-from').value = '';
+            $('hist-to').value = '';
+            $('hist-mine').checked = false;
+            reload();
+        });
+    }
+
+    function historyFiltered() {
+        return !!($('hist-keyword').value.trim() || $('hist-from').value || $('hist-to').value || $('hist-mine').checked);
+    }
+
+    async function loadHistory() {
+        const grid = $('hist-grid');
+        const count = $('hist-count');
+        const params = new URLSearchParams();
+        const keyword = $('hist-keyword').value.trim();
+        if (keyword) params.set('keyword', keyword);
+        if ($('hist-from').value) params.set('from', $('hist-from').value);
+        if ($('hist-to').value) params.set('to', $('hist-to').value);
+        if ($('hist-mine').checked) params.set('onlyMine', 'true');
+
+        // Đổi bộ lọc thì giữ nguyên danh sách cũ ở độ mờ thấp thay vì chớp khung xương — không nhảy bố cục.
+        if (grid.children.length) grid.style.opacity = '.5'; else grid.innerHTML = skeletonHtml('cards', { count: 3 });
+        try {
+            const list = await API.get(`/onlineclassroom/history${params.size ? `?${params}` : ''}`);
+            count.textContent = list.length ? t('online-class.histCount', '{count} buổi học', { count: list.length }) : '';
+            grid.innerHTML = list.length ? list.map(historyCardHtml).join('')
+                : `<div style="grid-column:1/-1">${emptyHtml(historyFiltered()
+                    ? t('online-class.histNoMatch', 'Không có buổi học nào khớp bộ lọc.')
+                    : t('online-class.histEmpty', 'Chưa có buổi học nào trong Lịch sử.'), '<i class="ph ph-clock-counter-clockwise"></i>')}</div>`;
+        } catch (ex) {
+            count.textContent = '';
+            grid.innerHTML = `<div style="grid-column:1/-1">${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</div>`;
+        } finally {
+            grid.style.opacity = '';
+        }
+    }
+
+    function historyCardHtml(r) {
+        const recordingText = r.recordingCount
+            ? `${t('online-class.histRecordings', '{count} bản ghi', { count: r.recordingCount })} · ${formatFileSize(r.recordingSizeBytes)}`
+            : t('online-class.histNoRecording', 'Không có bản ghi');
+        return `<article class="oc-card hist-card">
+            <div class="oc-top">
+                <span class="oc-state"><i class="oc-dot"></i>${esc(t('online-class.daKetThuc', 'Đã kết thúc'))}</span>
+                ${r.isHost ? `<span class="badge blue nowrap">${esc(t('online-class.histYouHost', 'Bạn chủ trì'))}</span>` : ''}
+            </div>
+            <h4>${esc(r.title)}</h4>
+            <div class="oc-meta"><i class="ph ph-calendar-blank"></i><span>${esc(formatDate(r.startedAt, true))}</span></div>
+            <div class="oc-meta"><i class="ph ph-user-circle"></i><span>${esc(r.hostUserName)}</span></div>
+            <div class="hist-stats">
+                <span title="${esc(t('online-class.histDuration', 'Thời lượng'))}"><i class="ph ph-timer"></i>${esc(formatSpanMs(r.durationMs))}</span>
+                <span><i class="ph ph-users"></i>${esc(t('online-class.histPeople', '{count} người', { count: r.participantCount }))}</span>
+                <span><i class="ph ph-video"></i>${esc(recordingText)}</span>
+            </div>
+            <div class="oc-actions" style="border-top:0;padding-top:2px">
+                <a class="btn ghost sm" href="/pages/classroom-recap.html?id=${r.id}"><i class="ph ph-play-circle"></i> ${esc(t('online-class.xemLai', 'Xem lại'))}</a>
+                ${Auth.isAdmin ? `<button type="button" class="btn ghost danger sm" data-del="${r.id}"><i class="ph ph-trash"></i> ${esc(t('common.delete', 'Xóa'))}</button>` : ''}
+            </div>
+        </article>`;
+    }
+
+    // ==================== TẠO / SỬA BUỔI HỌC ====================
     function openForm(room) {
-        document.getElementById('modal-title').textContent = room ? 'Sửa buổi học' : t('online-class.taoBuoiHocOnline', 'Tạo buổi học online');
-        document.getElementById('f-id').value = room?.id || '';
-        document.getElementById('f-title').value = room?.title || '';
-        document.getElementById('f-start').value = room?.scheduledStart ? toLocalInput(room.scheduledStart) : '';
-        document.getElementById('f-end').value = room?.scheduledEnd ? toLocalInput(room.scheduledEnd) : '';
+        $('modal-title').textContent = room ? t('online-class.suaBuoiHoc', 'Sửa buổi học') : t('online-class.taoBuoiHocOnline', 'Tạo buổi học online');
+        $('f-id').value = room?.id || '';
+        $('f-title').value = room?.title || '';
+        $('f-start').value = room?.scheduledStart ? toLocalInput(room.scheduledStart) : '';
+        $('f-end').value = room?.scheduledEnd ? toLocalInput(room.scheduledEnd) : '';
         openModal('modal-room');
     }
 
@@ -248,12 +489,12 @@
 
     async function save(e) {
         e.preventDefault();
-        const id = document.getElementById('f-id').value;
-        const end = document.getElementById('f-end').value;
+        const id = $('f-id').value;
+        const end = $('f-end').value;
 
         const body = {
-            title: document.getElementById('f-title').value.trim(),
-            scheduledStart: document.getElementById('f-start').value,
+            title: $('f-title').value.trim(),
+            scheduledStart: $('f-start').value,
             scheduledEnd: end || null
         };
 
@@ -268,16 +509,16 @@
 
     /** Tạo/lưu buổi học với thời gian bắt đầu = ngay bây giờ rồi vào thẳng phòng học với vai trò chủ trì. */
     async function startNow() {
-        const titleInput = document.getElementById('f-title');
+        const titleInput = $('f-title');
         if (!titleInput.value.trim()) { toastErr(t('online-class.vuiLongNhapTieuDe', 'Vui lòng nhập tiêu đề.')); titleInput.focus(); return; }
 
-        document.getElementById('f-start').value = toLocalInput(new Date().toISOString());
+        $('f-start').value = toLocalInput(new Date().toISOString());
 
-        const id = document.getElementById('f-id').value;
+        const id = $('f-id').value;
         const body = {
             title: titleInput.value.trim(),
-            scheduledStart: document.getElementById('f-start').value,
-            scheduledEnd: document.getElementById('f-end').value || null
+            scheduledStart: $('f-start').value,
+            scheduledEnd: $('f-end').value || null
         };
 
         try {
@@ -290,21 +531,28 @@
         } catch (ex) { toastErr(ex.message); }
     }
 
+    // ==================== NHẬP MÃ PHÒNG ====================
     /** Vào phòng bằng mã tham gia (do chủ trì chia sẻ riêng) — không cần buổi học đó nằm trong danh sách này.
      * Mã phòng luôn đúng 6 ký tự (xem GenerateUniqueJoinCodeAsync ở backend) nên dùng 6 ô nhập kiểu OTP,
      * gõ tới đâu tự nhảy ô kế tiếp tới đó, gõ xong ô cuối tự vào phòng luôn cho nhanh. */
     function openJoinCodeModal() {
         const boxes = document.querySelectorAll('#otp-boxes .otp-box');
         boxes.forEach(b => { b.value = ''; b.classList.remove('filled'); });
-        document.getElementById('otp-error').textContent = '';
+        showOtpError('');
         openModal('modal-join-code');
         boxes[0]?.focus();
+    }
+
+    function showOtpError(message) {
+        $('otp-boxes').classList.toggle('is-error', !!message);
+        $('otp-error').innerHTML = message ? `<i class="ph ph-warning-circle"></i> ${esc(message)}` : '';
     }
 
     function setupOtpBoxes() {
         const boxes = [...document.querySelectorAll('#otp-boxes .otp-box')];
         boxes.forEach((box, i) => {
             box.addEventListener('input', () => {
+                showOtpError('');
                 box.value = box.value.replace(/[^0-9]/g, '').slice(-1);
                 box.classList.toggle('filled', !!box.value);
                 if (box.value && i < boxes.length - 1) boxes[i + 1].focus();
@@ -323,6 +571,7 @@
                 e.preventDefault();
                 const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
                 if (!text) return;
+                showOtpError('');
                 [...text].slice(0, boxes.length).forEach((ch, idx) => { boxes[idx].value = ch; boxes[idx].classList.add('filled'); });
                 const filledCount = Math.min(text.length, boxes.length);
                 if (filledCount >= boxes.length) submitJoinCode();
@@ -335,7 +584,7 @@
         const boxes = [...document.querySelectorAll('#otp-boxes .otp-box')];
         const code = boxes.map(b => b.value).join('');
         if (code.length < boxes.length) {
-            document.getElementById('otp-error').textContent = t('online-class.vuiLongNhapDu6KyTuMaPhong', 'Vui lòng nhập đủ 6 ký tự mã phòng.');
+            showOtpError(t('online-class.vuiLongNhapDu6KyTuMaPhong', 'Vui lòng nhập đủ 6 ký tự mã phòng.'));
             return;
         }
         closeModal('modal-join-code');

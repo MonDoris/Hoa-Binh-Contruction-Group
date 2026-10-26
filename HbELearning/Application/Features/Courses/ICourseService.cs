@@ -64,7 +64,7 @@ public interface ICourseService
     /// Chỉ đổi được bước đang chờ và các bước phía sau: bước đã duyệt xong mà đổi người là viết lại lịch sử.</summary>
     Task<Result> ReassignApprover(int id, CourseReassignApproverRequest request);
 
-    Task<Result> Delete(int id);
+    Task<Result> Delete(int id, int userId, bool isAdmin);
 
     Task<Result> AddTarget(int id, CourseTargetRequest request);
 

@@ -97,6 +97,7 @@ public class ScenarioService : IScenarioService
         var sceneError = ValidateScene(request);
         if (sceneError is not null) return Result.Invalid(new MessageResponse(sceneError));
 
+        var lessonChanged = scene.LessonId != request.LessonId;
         scene.LessonId = request.LessonId;
         scene.Title = request.Title.Trim();
         scene.Description = request.Description;
@@ -108,6 +109,8 @@ public class ScenarioService : IScenarioService
         scene.CharacterScale = request.CharacterScale;
 
         await _db.SaveChangesAsync();
+        // Đổi "Bài học gắn kèm" thì mục của mô phỏng trong cấu trúc khóa học phải đi theo bài học đó.
+        await _learningPathService.AlignAttachedResourceAsync(scene.CourseId, PathItemType.Simulation, scene.Id, lessonChanged);
         return Result.Success(new MessageResponse("Cập nhật thành công."));
     }
 

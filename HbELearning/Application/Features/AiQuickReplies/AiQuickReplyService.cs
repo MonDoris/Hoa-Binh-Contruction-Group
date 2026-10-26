@@ -4,7 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace HbELearning.Application.Features.AiQuickReplies;
 
-/// <summary>Quản trị các câu trả lời CÀI SẴN của Pico B — chào hỏi, cảm ơn, "bạn là ai"... Chỉ Admin dùng:
+/// <summary>Quản trị các câu trả lời CÀI SẴN của HB Minerva — chào hỏi, cảm ơn, "bạn là ai"... Chỉ Admin dùng:
 /// đây là lời của hệ thống nói với toàn công ty, không phải nội dung đào tạo của một khóa học.
 ///
 /// Xem <see cref="AiQuickReply"/> để biết vì sao những câu này không nên đi qua model.</summary>

@@ -1,6 +1,6 @@
 # HbELearning — Clean Architecture
 
-Giải pháp gồm **4 project**, xếp từ trong ra ngoài. Mũi tên là chiều được phép phụ thuộc:
+Giải pháp gồm **4 project** chạy thật, xếp từ trong ra ngoài (cộng một project kiểm thử, xem cuối mục này). Mũi tên là chiều được phép phụ thuộc:
 
 ```
 Domain  <--  Application  <--  Infrastructure
@@ -15,10 +15,13 @@ Domain  <--  Application  <--  Infrastructure
 | `HbELearning.Application` | Domain | EF Core (phần trừu tượng) + `Microsoft.Extensions.*.Abstractions` — **không có ASP.NET Core** |
 | `HbELearning.Infrastructure` | Application | EF Core + provider, ClosedXML, OpenXml, PdfPig, QRCoder, BCrypt, JWT |
 | `HbELearning.API` | Application, Infrastructure | JwtBearer, Swashbuckle, OpenApi |
+| `HbELearning.Tests` | Application, Infrastructure | xUnit — chỉ để kiểm thử, **không** được tham chiếu từ project nào |
 
 Các quy tắc trên **do trình biên dịch cưỡng chế**, không chỉ là quy ước:
 - `Application.csproj` không tham chiếu Infrastructure lẫn framework ASP.NET → gõ `AppDbContext`, `IFormFile`, `HttpContext` trong Application sẽ không biên dịch được.
 - `API/GlobalUsings.cs` không mở namespace nào của Infrastructure; chỉ `Program.cs` tự `using` → gõ `AppDbContext` trong một Controller sẽ không biên dịch được.
+
+**Kiểm thử (`Tests/`).** Kiểm thử ở **tầng Application**: gọi các dịch vụ qua đúng cổng mà API dùng (`IOnlineClassRoomService`, `IClassRoomSessionService`…), chạy trên SQLite trong bộ nhớ với DI thật của `AddApplication()`; chỉ những cổng nhìn ra ngoài (người dùng hiện tại, thư mục, xử lý media, thời gian) là bản giả. Không kiểm thử Controller/Hub (chỉ là lớp truyền tải) và không mock DbContext. Chạy: `dotnet test Tests/HbELearning.Tests.csproj`. Hiện mới phủ phòng học online.
 
 ## Luồng một yêu cầu
 

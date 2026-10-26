@@ -5,6 +5,11 @@ namespace HbELearning.Application.Common.Interfaces;
 
 public interface IAiChatService
 {
+    /// <summary>Câu trả lời khi tài liệu nội bộ không có thông tin. Câu lệnh hệ thống dặn model viết đúng câu này,
+    /// và mọi chỗ tự trả lời thay model (không tìm được đoạn tài liệu nào) cũng dùng đúng câu này — người hỏi
+    /// không thấy hai kiểu từ chối khác nhau cho cùng một tình huống.</summary>
+    const string NoInformationAnswer = "Tài liệu nội bộ hiện tại chưa có thông tin về phần này.";
+
     /// <summary>Tên model sinh câu trả lời đang dùng (VD "qwen2.5:7b").</summary>
     string Model { get; }
 
@@ -21,6 +26,18 @@ public interface IAiChatService
         string question, IReadOnlyList<DocumentChunkMatchDto> contextList,
         IReadOnlyList<AiChatTurnDto>? historyList = null, bool isCitationEnabled = true,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Tên model đọc được ảnh dùng để phân tích tệp đính kèm (VD "qwen3-vl:4b-instruct").</summary>
+    string VisionModel { get; }
+
+    /// <summary>Phân tích TỆP NGƯỜI DÙNG ĐÍNH KÈM rồi trả lời câu hỏi, từng mẩu chữ một như
+    /// <see cref="StreamAnswerAsync"/>. Khác nhánh hỏi đáp tài liệu: ở đây không tra kho tri thức mà chỉ dựa vào
+    /// chính những gì người dùng gửi — <paramref name="attachmentText"/> là chữ đã bóc từ PDF/Word/văn bản,
+    /// <paramref name="imageList"/> là byte các ảnh (model đọc ảnh nhìn trực tiếp). Luôn dùng model đọc ảnh, kể cả
+    /// khi chỉ có chữ, để không phải đổi model (và nạp lại) giữa hai kiểu câu hỏi.</summary>
+    IAsyncEnumerable<string> StreamAttachmentAnswerAsync(
+        string question, string attachmentText, IReadOnlyList<byte[]> imageList,
+        IReadOnlyList<AiChatTurnDto>? historyList = null, CancellationToken cancellationToken = default);
 
     /// <summary>Bỏ bớt các đoạn tài liệu vượt quá trần chữ mà model đọc kịp trong thời gian chấp nhận được.
     ///

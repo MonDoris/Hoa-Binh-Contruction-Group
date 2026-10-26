@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Kiểm thử ở TẦNG APPLICATION: gọi các dịch vụ (IOnlineClassRoomService, IClassRoomSessionService...) qua đúng
+       cổng mà API dùng, chạy trên SQLite trong bộ nhớ. Không kiểm thử Controller/Hub (chỉ là lớp truyền tải) và
+       không mock DbContext — dữ liệu thật trong SQLite mới chứng minh được truy vấn và quyền hoạt động đúng. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>HbELearning.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Application\HbELearning.Application.csproj" />
+    <!-- Chỉ để dựng AppDbContext thật trên SQLite; nghiệp vụ vẫn chỉ nhìn thấy IAppDbContext. -->
+    <ProjectReference Include="..\Infrastructure\HbELearning.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

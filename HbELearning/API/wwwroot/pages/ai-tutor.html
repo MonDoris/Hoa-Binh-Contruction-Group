@@ -1,43 +1,31 @@
-<!-- File: wwwroot/pages/Ai-Tutors.html -->
+<!-- File: wwwroot/pages/ai-tutor.html -->
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <script src="/js/head.js"></script>
-    <title data-i18n="aitutor.pageTitle">Pico B · Chat</title>
+    <title data-i18n="aitutor.pageTitle">HB Minerva · Chat</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        /* ================= BIẾN CSS GEMINI / CLAUDE STYLE ================= */
+        /* ================= HB MINERVA — GIAO DIỆN "HỒ SƠ HỎI–ĐÁP" =================
+           Không theo khuôn bong bóng chat của Gemini / ChatGPT. Mỗi lượt là một CẶP thẻ:
+             - thẻ CÂU HỎI có thanh dọc màu thương hiệu bên trái và nhãn "Câu hỏi" (như phiếu yêu cầu),
+             - thẻ TRẢ LỜI có đầu thẻ ghi tên HB Minerva và chân thẻ chứa thao tác (sao chép).
+           Ô nhập là một "bàn làm việc" ba tầng: khay tệp đính kèm / vùng gõ / thanh công cụ, có dải tín hiệu
+           chạy phía trên khi HB Minerva đang đọc và soạn câu trả lời. Màu lấy hết từ biến của hệ thống nên
+           chế độ tối tự đúng. */
         :root {
-            --ai-sidebar-bg: #f9f9f9;
-            --ai-sidebar-hover: #ececec;
-            --ai-main-bg: #ffffff;
-            --ai-text-main: #0f0f0f;
-            --ai-text-muted: #606060;
-            --ai-border: #e5e5e5;
-            
-            --ai-user-bubble: #f0f4f9; /* Giống màu bubble user của Gemini */
-            --ai-primary: #1a73e8;
-            --ai-composer-bg: #f0f4f9;
-            --ai-shadow: 0 4px 24px rgba(0,0,0,0.06);
-            --ai-radius: 24px;
+            --ai-sidebar-bg: var(--bg);
+            --ai-sidebar-hover: var(--primary-soft);
+            --ai-main-bg: var(--surface);
+            --ai-text-main: var(--text);
+            --ai-text-muted: var(--text-muted);
+            --ai-border: var(--border);
+            --ai-primary: var(--primary);
+            --ai-rail: linear-gradient(180deg, var(--primary), var(--primary-dark));
         }
 
-        :root[data-theme="dark"] { 
-            --ai-sidebar-bg: #1e1f22;
-            --ai-sidebar-hover: #2b2d31;
-            --ai-main-bg: #131314;
-            --ai-text-main: #e3e3e3;
-            --ai-text-muted: #a0a0a0;
-            --ai-border: #333538;
-            
-            --ai-user-bubble: #333538; 
-            --ai-primary: #a8c7fa;
-            --ai-composer-bg: #1e1f22;
-            --ai-shadow: 0 -10px 40px rgba(0,0,0,0.4);
-        }
-        
         .main { height: 100vh; }
         .content {
             padding: 0 !important;          /* chat chạm sát mép, không có lề như các trang dạng bảng biểu */
@@ -47,86 +35,77 @@
 
         [hidden] { display: none !important; }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes signal { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+        @keyframes dots { 0%, 80%, 100% { opacity: .25; transform: scale(.8); } 40% { opacity: 1; transform: scale(1); } }
 
-        /* ================= BỐ CỤC APP CHAT ================= */
-        .ai-app {
-            display: flex; height: 100%; width: 100%; background: var(--ai-main-bg);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
+        /* ================= BỐ CỤC ================= */
+        .ai-app { display: flex; height: 100%; width: 100%; background: var(--ai-main-bg); }
 
-        /* === SIDEBAR (LỊCH SỬ) === */
+        /* --- Cột lịch sử --- */
         .ai-sidebar {
-            width: 280px; flex-shrink: 0; background: var(--ai-sidebar-bg);
+            width: 272px; flex-shrink: 0; background: var(--ai-sidebar-bg);
             display: flex; flex-direction: column;
             border-right: 1px solid var(--ai-border);
-            transition: transform 0.3s ease;
+            transition: transform .3s ease;
         }
+        .ai-sidebar-header { padding: 14px; }
 
-        .ai-sidebar-header { padding: 16px; }
-        
         .btn-new-chat {
-            width: 100%; display: flex; align-items: center; gap: 12px;
-            padding: 12px 16px; border-radius: 99px; cursor: pointer;
-            background: transparent; border: 1px solid transparent;
-            color: var(--ai-text-main); font-weight: 500; font-size: 14.5px;
-            transition: all 0.2s;
+            width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 11px 14px; border-radius: 12px; cursor: pointer;
+            background: var(--surface); border: 1px dashed var(--primary);
+            color: var(--primary-dark); font-weight: 700; font-size: 13.5px; font-family: inherit;
+            transition: background .2s, box-shadow .2s;
         }
-        .btn-new-chat:hover { background: var(--ai-sidebar-hover); }
-        .btn-new-chat i { font-size: 18px; color: var(--ai-text-muted); }
+        .btn-new-chat:hover { background: var(--primary-light); box-shadow: var(--shadow-xs); }
+        .btn-new-chat i { font-size: 17px; }
 
-        .ai-history-list {
-            flex: 1; overflow-y: auto; padding: 0 12px 12px 12px;
-            display: flex; flex-direction: column; gap: 4px;
-        }
+        .ai-history-list { flex: 1; overflow-y: auto; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 3px; }
         .ai-history-group {
-            font-size: 11px; font-weight: 600; color: var(--ai-text-muted);
-            padding: 16px 12px 8px; text-transform: uppercase; letter-spacing: 0.5px;
+            font-size: 11px; font-weight: 700; color: var(--ai-text-muted);
+            padding: 14px 10px 6px; text-transform: uppercase; letter-spacing: .6px;
         }
-        
+
         .history-item {
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 10px 12px; border-radius: 8px; cursor: pointer;
-            color: var(--ai-text-main); font-size: 13.5px;
-            transition: background 0.2s;
+            display: flex; align-items: center; justify-content: space-between; gap: 6px;
+            padding: 9px 10px 9px 12px; border-radius: 10px; cursor: pointer; position: relative;
+            color: var(--ai-text-main); font-size: 13.5px; transition: background .15s;
         }
-        .history-item:hover, .history-item.active { background: var(--ai-sidebar-hover); }
-        .history-item.active { font-weight: 600; }
-        .history-item .h-title {
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
+        .history-item:hover, .history-item.active { background: var(--primary-light); }
+        .history-item.active { font-weight: 700; color: var(--primary-dark); }
+        .history-item.active::before {
+            content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--ai-rail);
         }
-        .history-item .h-act { display: none; gap: 4px; }
+        .history-item .h-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .history-item .h-act { display: none; gap: 2px; }
         .history-item:hover .h-act, .history-item.active .h-act { display: flex; }
         .history-item .h-act button {
             background: transparent; border: none; color: var(--ai-text-muted);
-            cursor: pointer; padding: 4px; border-radius: 4px;
+            cursor: pointer; padding: 4px; border-radius: 6px;
         }
-        .history-item .h-act button:hover { background: var(--ai-border); color: var(--ai-text-main); }
+        .history-item .h-act button:hover { background: var(--surface); color: var(--ai-text-main); }
 
-        /* === KHUNG CHAT CHÍNH === */
+        /* --- Khung chính --- */
         .ai-main {
             flex: 1; display: flex; flex-direction: column; position: relative;
             background: var(--ai-main-bg); min-width: 0;
         }
-        
+
+        /* Đầu trang là một thanh THẬT trong luồng bố cục (không còn nằm đè lên vùng chat) nên chữ tin nhắn cuộn lên
+           không bao giờ chồng vào tên HB Minerva như trước. */
         .ai-header {
-            padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
-            color: var(--ai-text-muted); font-size: 18px; position: absolute; top: 0; width: 100%; z-index: 10;
+            display: flex; align-items: center; gap: 12px; flex: none;
+            padding: 12px 22px; border-bottom: 1px solid var(--ai-border); background: var(--surface);
         }
-        #model-name { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--ai-text-main); }
-        .pico-logo { width: 28px; height: 28px; }
-
-        .ai-chat-area {
-            flex: 1; overflow-y: auto; scroll-behavior: smooth;
-            display: flex; flex-direction: column; align-items: center;
-            padding: 60px 20px 180px;
+        #model-name { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; color: var(--ai-text-main); }
+        .pico-logo { width: 30px; height: 30px; }
+        .ai-header .badge-private {
+            display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700;
+            color: var(--primary-dark); background: var(--primary-light); padding: 4px 10px; border-radius: 999px;
         }
-
-        .ai-messages-container {
-            width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 32px;
-            padding-bottom: 40px;
-        }
+        #status-card { margin-left: auto; font-size: 13px; color: var(--warning); }
 
         .pico-face {
             background-image: url('/img/ai-tutor.svg');
@@ -139,110 +118,175 @@
             flex: none;
         }
 
-        /* === KIỂU DÁNG TIN NHẮN (MESSAGE) === */
-        .msg { display: flex; gap: 16px; max-width: 100%; animation: fadeIn 0.4s ease; }
-        
-        /* User: Giống Gemini (Nằm phải, có bubble nền xám nhạt, không có avatar) */
+        .ai-chat-area {
+            flex: 1; min-height: 0; overflow-y: auto; scroll-behavior: smooth;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 26px 20px 12px;
+        }
+        .ai-messages-container { width: 100%; max-width: 820px; display: flex; flex-direction: column; gap: 14px; padding-bottom: 12px; }
+
+        /* ================= HỘI THOẠI HAI NGƯỜI =================
+           Người dùng bên PHẢI (bong bóng màu thương hiệu), HB Minerva bên TRÁI (có ảnh đại diện + tên), mỗi tin có
+           giờ gửi — đọc như hai người nhắn tin cho nhau. */
+        .msg { display: flex; gap: 10px; animation: fadeIn .3s ease; max-width: 100%; align-items: flex-end; }
+        .msg + .msg.me, .msg + .msg.ai { margin-top: 6px; }
+        .msg.me + .msg.ai, .msg.ai + .msg.me { margin-top: 14px; }
+
+        .msg-col { display: flex; flex-direction: column; min-width: 0; max-width: min(78%, 640px); }
+        .msg-time { font-size: 11px; color: var(--ai-text-muted); margin-top: 4px; padding: 0 6px; }
+
+        /* Người dùng: bên phải */
         .msg.me { justify-content: flex-end; }
+        .msg.me .msg-col { align-items: flex-end; }
         .msg.me .msg-bubble {
-            background: var(--ai-user-bubble); color: var(--ai-text-main);
-            padding: 14px 20px; border-radius: 24px 24px 4px 24px;
-            font-size: 15px; line-height: 1.6; max-width: 85%;
-            word-break: break-word;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff;
+            padding: 10px 16px; border-radius: 20px 20px 5px 20px;
+            font-size: 15px; line-height: 1.55; word-break: break-word; box-shadow: var(--shadow-primary);
         }
-        .msg.me .msg-avatar { display: none; } /* Ẩn avatar người dùng */
+        .q-files { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
+        .q-file {
+            display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+            padding: 5px 11px 5px 6px; border-radius: 12px; background: var(--primary-light); color: var(--primary-dark);
+            font-size: 12px; font-weight: 700;
+        }
+        .q-file b { font-size: 9.5px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: #fff; background: var(--primary); border-radius: 6px; padding: 3px 6px; }
+        .q-file span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* AI: Giống Claude/Gemini (Nằm trái, nền trong suốt, avatar to rõ) */
-        .msg.ai { align-items: flex-start; }
-        /* Kích thước và vị trí thôi — phần hình do .pico-face lo (xem trên). */
-        .msg.ai .msg-avatar {
-            flex: 0 0 32px; width: 32px; height: 32px;
-            margin-top: 2px;
-        }
+        /* HB Minerva: bên trái, có ảnh đại diện */
+        .msg.ai { justify-content: flex-start; }
+        .msg.ai .msg-avatar { width: 36px; height: 36px; flex: 0 0 36px; box-shadow: var(--shadow-xs); }
+        .a-name { display: flex; align-items: baseline; gap: 8px; font-size: 12px; font-weight: 800; color: var(--ai-text-main); margin: 0 0 4px 4px; }
+        .a-state { font-weight: 600; color: var(--ai-text-muted); }
         .msg.ai .msg-bubble {
-            flex: 1; min-width: 0;
-            color: var(--ai-text-main); background: transparent;
-            font-size: 15.5px; line-height: 1.7;
-            padding-top: 4px;
+            background: var(--bg); border: 1px solid var(--ai-border); color: var(--ai-text-main);
+            padding: 10px 16px; border-radius: 20px 20px 20px 5px;
+            font-size: 15px; line-height: 1.65; word-break: break-word;
         }
+        .msg.ai .msg-bubble code { background: var(--surface); border: 1px solid var(--ai-border); border-radius: 5px; padding: 1px 5px; font-size: 13.5px; }
+        .a-foot { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+        .a-foot button {
+            display: inline-flex; align-items: center; gap: 5px; border: none; background: transparent; cursor: pointer;
+            font: 600 12px var(--font-sans, inherit); color: var(--ai-text-muted); padding: 4px 6px; border-radius: 7px;
+        }
+        .a-foot button:hover { background: var(--bg); color: var(--ai-text-main); }
 
-        /* Typing & Animation */
-        .ai-cursor { display: inline-block; width: 6px; height: 18px; background: var(--ai-primary); vertical-align: middle; animation: blink 1s step-end infinite; margin-left: 4px; }
-        .typing-indicator { display: flex; gap: 4px; padding: 10px 0; }
-        .typing-indicator i { width: 6px; height: 6px; border-radius: 50%; background: var(--ai-text-muted); animation: fadeIn 1s infinite alternate; }
-        .typing-indicator i:nth-child(2) { animation-delay: 0.2s; }
-        .typing-indicator i:nth-child(3) { animation-delay: 0.4s; }
+        .ai-cursor { display: inline-block; width: 6px; height: 17px; background: var(--ai-primary); vertical-align: middle; animation: blink 1s step-end infinite; margin-left: 3px; border-radius: 1px; }
+        .typing-indicator { display: flex; gap: 5px; padding: 6px 2px; }
+        .typing-indicator i { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); animation: dots 1.2s infinite; }
+        .typing-indicator i:nth-child(2) { animation-delay: .15s; }
+        .typing-indicator i:nth-child(3) { animation-delay: .3s; }
 
-        /* === COMPOSER (Ô NHẬP LIỆU CỐ ĐỊNH Ở ĐÁY) === */
-        .ai-composer-wrapper {
-            position: absolute; bottom: 0; left: 0; width: 100%;
-            background: linear-gradient(to top, var(--ai-main-bg) 70%, transparent);
-            padding: 0 20px 24px; display: flex; flex-direction: column; align-items: center;
-        }
+        /* ================= BÀN LÀM VIỆC (Ô NHẬP) ================= */
+        .composer-dock { flex: none; padding: 8px 20px 14px; display: flex; flex-direction: column; align-items: center; background: var(--ai-main-bg); }
 
-        .ai-composer {
-            width: 100%; max-width: 800px;
-            background: var(--ai-composer-bg);
-            border-radius: 28px;
-            padding: 12px 12px 12px 24px;
-            display: flex; align-items: flex-end; gap: 12px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-            transition: box-shadow 0.2s, background 0.2s;
+        .desk {
+            position: relative; width: 100%; max-width: 820px; overflow: hidden;
+            background: var(--surface); border: 1px solid var(--ai-border); border-radius: 18px;
+            box-shadow: var(--shadow); transition: border-color .2s, box-shadow .2s;
         }
-        .ai-composer:focus-within { background: var(--ai-main-bg); box-shadow: var(--ai-shadow); border-color: transparent; }
-        
-        .ai-composer textarea {
-            flex: 1; border: none; outline: none; background: transparent;
-            color: var(--ai-text-main); font-family: inherit; font-size: 15.5px; line-height: 1.5;
-            resize: none; max-height: 200px; padding: 10px 0; margin-bottom: 2px;
-        }
-        .ai-composer textarea::placeholder { color: var(--ai-text-muted); }
+        .desk:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light), var(--shadow); }
+        .desk.is-drag { border-color: var(--primary); border-style: dashed; background: var(--primary-soft); }
 
-        .btn-composer-action {
-            width: 40px; height: 40px; border-radius: 50%; border: none;
-            display: grid; place-items: center; font-size: 20px; cursor: pointer; transition: 0.2s;
-            flex-shrink: 0;
-        }
-        .btn-send { background: var(--ai-text-main); color: var(--ai-main-bg); }
-        .btn-send:hover:not(:disabled) { opacity: 0.8; transform: scale(1.05); }
-        .btn-send:disabled { background: var(--ai-border); color: var(--ai-text-muted); cursor: not-allowed; }
-        
-        .btn-stop { background: var(--ai-main-bg); color: #ef4444; border: 1px solid var(--ai-border); }
-        .btn-stop:hover { background: #fee2e2; }
+        /* Dải tín hiệu: đứng yên khi rảnh, một vệt sáng chạy ngang khi HB Minerva đang làm việc */
+        .desk-signal { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--primary-light); }
+        .desk-signal::after { content: ''; position: absolute; top: 0; bottom: 0; width: 30%; background: var(--ai-rail); border-radius: 3px; opacity: 0; }
+        .desk.is-busy .desk-signal::after { opacity: 1; animation: signal 1.3s ease-in-out infinite; }
 
-        .composer-footer {
-            margin-top: 12px; font-size: 11.5px; color: var(--ai-text-muted);
-            text-align: center;
+        .desk-tray { display: flex; gap: 8px; padding: 14px 14px 0; overflow-x: auto; }
+        .tile {
+            display: flex; align-items: center; gap: 9px; flex: none; max-width: 230px;
+            padding: 6px 6px 6px 6px; border: 1px solid var(--ai-border); border-radius: 12px; background: var(--bg);
+            animation: fadeIn .2s ease;
         }
+        .tile-thumb {
+            width: 40px; height: 40px; border-radius: 8px; flex: none; overflow: hidden;
+            display: grid; place-items: center; background: var(--primary-light); color: var(--primary-dark);
+            font-size: 11px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase;
+        }
+        .tile-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .tile-meta { min-width: 0; }
+        .tile-meta b { display: block; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tile-meta span { font-size: 11px; color: var(--ai-text-muted); }
+        .tile-x { border: none; background: transparent; color: var(--ai-text-muted); cursor: pointer; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; }
+        .tile-x:hover { background: var(--danger-light); color: var(--danger); }
 
-        /* === MÀN HÌNH CHÀO (WELCOME) === */
-        .ai-welcome {
-            margin: auto; text-align: center; width: 100%; max-width: 700px;
-            animation: fadeIn 0.5s ease; padding-bottom: 100px;
+        .desk textarea {
+            display: block; width: 100%; border: none; outline: none; background: transparent; resize: none;
+            color: var(--ai-text-main); font-family: inherit; font-size: 15.5px; line-height: 1.55;
+            padding: 14px 16px 6px; min-height: 52px; max-height: 190px; box-sizing: border-box;
         }
-        .ai-welcome h1 { font-size: 32px; font-weight: 500; color: var(--ai-text-main); margin-bottom: 32px; background: conic-gradient(from 180deg at 50% 50%, #4285F4 0deg, #9b72cb 180deg, #d96570 360deg); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        
-        .ai-suggest-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .desk textarea::placeholder { color: var(--ai-text-muted); }
+
+        .desk-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px 10px 12px; }
+        .tool-btn {
+            display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 10px;
+            border: 1px solid var(--ai-border); background: transparent; cursor: pointer;
+            font: 700 12.5px var(--font-sans, inherit); color: var(--ai-text-muted); transition: .15s;
+        }
+        .tool-btn i { font-size: 16px; }
+        .tool-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary-dark); background: var(--primary-soft); }
+        .tool-btn:disabled { opacity: .5; cursor: not-allowed; }
+        .desk-hint { flex: 1; min-width: 0; text-align: right; font-size: 11.5px; color: var(--ai-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .desk-count { font-size: 11.5px; color: var(--ai-text-muted); font-variant-numeric: tabular-nums; }
+        .desk-count.is-over { color: var(--danger); font-weight: 700; }
+
+        .btn-send, .btn-stop {
+            position: absolute;
+            right: 12px;
+            display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 16px; border-radius: 11px;
+            border: none; cursor: pointer; font: 800 13.5px var(--font-sans, inherit); transition: .15s; flex: none;
+        }
+        .btn-send { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; box-shadow: var(--shadow-primary); }
+        .btn-send:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.05); }
+        .btn-send:disabled { background: var(--border); color: var(--text-muted); box-shadow: none; cursor: not-allowed; }
+        .btn-stop { background: var(--danger-light); color: var(--danger); }
+        .btn-stop:hover { filter: brightness(.97); }
+
+        .composer-footer { margin-top: 8px; font-size: 11.5px; color: var(--ai-text-muted); text-align: center; }
+
+        /* Lớp phủ kéo-thả: hiện khi kéo tệp vào khu trò chuyện */
+        .drop-veil {
+            position: absolute; inset: 12px; z-index: 20; border: 2px dashed var(--primary); border-radius: 18px;
+            background: color-mix(in srgb, var(--surface) 88%, var(--primary)); display: grid; place-items: center; text-align: center;
+            font-weight: 800; color: var(--primary-dark); pointer-events: none;
+        }
+        .drop-veil small { display: block; font-weight: 600; color: var(--ai-text-muted); margin-top: 4px; }
+
+        /* ================= MÀN HÌNH CHÀO ================= */
+        .ai-welcome { margin: auto; text-align: center; width: 100%; max-width: 720px; animation: fadeIn .5s ease; padding-bottom: 30px; }
+        .ai-welcome .hello-mark { width: 72px; height: 72px; margin: 0 auto 14px; box-shadow: var(--shadow-primary); }
+        .ai-welcome h1 {
+            font-size: 28px; font-weight: 800; margin-bottom: 6px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .ai-welcome p { color: var(--ai-text-muted); margin-bottom: 26px; font-size: 14.5px; }
+        .ai-suggest-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .ai-suggest-card {
-            background: var(--ai-main-bg); border: 1px solid var(--ai-border);
-            border-radius: 16px; padding: 16px; text-align: left;
-            font-size: 14px; color: var(--ai-text-muted); cursor: pointer;
-            transition: all 0.2s;
+            background: var(--surface); border: 1px solid var(--ai-border); border-radius: 14px; padding: 14px 16px;
+            text-align: left; font-size: 13.5px; font-weight: 600; color: var(--ai-text-main); cursor: pointer; transition: .18s;
+            display: flex; align-items: center; gap: 12px;
         }
-        .ai-suggest-card:hover { background: var(--ai-user-bubble); color: var(--ai-text-main); }
-        .ai-suggest-card i { display: block; font-size: 20px; margin-bottom: 8px; color: var(--ai-text-main); }
+        .ai-suggest-card i { font-size: 20px; color: var(--primary); flex: none; }
+        .ai-suggest-card:hover { border-color: var(--primary); background: var(--primary-soft); transform: translateY(-1px); }
+        .ai-suggest-card.is-attach { border-style: dashed; grid-column: 1 / -1; justify-content: center; color: var(--primary-dark); }
 
-        /* === RESPONSIVE === */
-        @media (max-width: 768px) {
-            .ai-sidebar { position: fixed; left: -100%; z-index: 100; }
-            .ai-sidebar.open { left: 0; box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
-            .ai-header .menu-toggle { display: block; }
-            .ai-suggest-grid { grid-template-columns: 1fr; }
-            .ai-messages-container { padding: 16px; }
-            .msg.me .msg-bubble { max-width: 95%; border-radius: 20px; }
-            .ai-composer-wrapper { padding: 0 12px 16px; }
-        }
+        /* ================= DI ĐỘNG ================= */
         .menu-toggle { display: none; background: transparent; border: none; font-size: 24px; color: var(--ai-text-muted); cursor: pointer; }
+        @media (max-width: 768px) {
+            .ai-sidebar { position: fixed; left: -100%; top: 0; bottom: 0; z-index: 100; }
+            .ai-sidebar.open { left: 0; box-shadow: 10px 0 30px rgba(0,0,0,.35); }
+            .menu-toggle { display: block; }
+            .ai-header { padding: 10px 14px; }
+            .ai-header .badge-private { display: none; }
+            .ai-suggest-grid { grid-template-columns: 1fr; }
+            .ai-chat-area { padding: 16px 12px 8px; }
+            .msg-col { max-width: 86%; }
+            .composer-dock { padding: 6px 12px 10px; }
+            .desk-hint { display: none; }
+            .desk-count { margin-left: auto; }
+            .tool-btn span { display: none; }
+            .tool-btn { padding: 8px 10px; }
+        }
     </style>
 </head>
 <body>
@@ -256,24 +300,24 @@
                 <span data-i18n="aitutor.hoiThoaiMoi">Cuộc trò chuyện mới</span>
             </button>
         </div>
-        
+
         <div class="ai-history-list" id="history-list">
             <!-- Lịch sử sẽ render vào đây -->
         </div>
-        
+
         <div class="ai-sidebar-header" style="border-top: 1px solid var(--ai-border); text-align: center;">
-            <button type="button" id="btn-clear-all" class="btn-new-chat" style="justify-content: center; color: #ef4444" hidden>
-                <i class="ph ph-trash" style="color: inherit"></i> Xóa tất cả
+            <button type="button" id="btn-clear-all" class="btn-new-chat" style="border-color: var(--danger); color: var(--danger); background: transparent;" hidden>
+                <i class="ph ph-trash"></i> <span data-i18n="aitutor.xoaTatCa">Xóa tất cả</span>
             </button>
         </div>
     </aside>
 
-    <!-- MAIN CHAT -->
-    <main class="ai-main">
+    <!-- KHUNG CHÍNH -->
+    <main class="ai-main" id="ai-main">
         <header class="ai-header">
-            <button class="menu-toggle" id="btn-toggle-menu"><i class="ph ph-list"></i></button>
-            <div id="model-name"><span class="pico-logo pico-face" aria-hidden="true"></span> Pico B</div>
-            <div id="status-card" style="font-size: 13px; color: #d97706;" hidden></div>
+            <button class="menu-toggle" id="btn-toggle-menu" aria-label="Lịch sử"><i class="ph ph-list"></i></button>
+            <div id="model-name"><span class="pico-logo pico-face" aria-hidden="true"></span> HB Minerva</div>            
+            <div id="status-card" hidden></div>
         </header>
 
         <div class="ai-chat-area" id="scroll-area">
@@ -282,22 +326,44 @@
             </div>
         </div>
 
-        <div class="ai-composer-wrapper">
-            <div class="ai-composer">
-                <textarea id="f-question" rows="1" maxlength="2000"
-                          placeholder="Hỏi Pico B về tài liệu nội bộ..."
-                          aria-label="Câu hỏi gửi cho Pico B"></textarea>
-                
-                <button type="button" class="btn-composer-action btn-stop" id="btn-stop" hidden title="Dừng">
-                    <i class="ph ph-stop-circle"></i>
-                </button>
-                
-                <button type="button" class="btn-composer-action btn-send" id="btn-send" disabled title="Gửi">
-                    <i class="ph ph-arrow-up"></i>
-                </button>
+        <div class="drop-veil" id="drop-veil" hidden>
+            <div><i class="ph ph-upload-simple" style="font-size:34px"></i><br>Thả tệp vào đây để gửi cho HB Minerva<small>Ảnh PNG, JPG, WEBP hoặc tệp PDF, DOCX, TXT</small></div>
+        </div>
+
+        <div class="composer-dock">
+            <div class="desk" id="desk">
+                <div class="desk-signal" aria-hidden="true"></div>
+
+                <!-- Tầng 1: khay tệp đính kèm -->
+                <div class="desk-tray" id="tray" hidden></div>
+
+                <!-- Tầng 2: vùng gõ -->
+                <textarea id="f-question" rows="1" maxlength="500"
+                          placeholder="Hỏi HB Minerva, hoặc gửi ảnh / tệp để được phân tích..."
+                          aria-label="Câu hỏi gửi cho HB Minerva"></textarea>
+
+                <!-- Tầng 3: thanh công cụ -->
+                <div class="desk-bar">
+                    <button type="button" class="tool-btn" id="btn-pick-image" title="Gửi ảnh (hoặc dán bằng Ctrl+V)">
+                        <i class="ph ph-image"></i><span>Ảnh</span>
+                    </button>
+                    <button type="button" class="tool-btn" id="btn-pick-file" title="Gửi tệp PDF, DOCX, TXT">
+                        <i class="ph ph-paperclip"></i><span>Tệp</span>
+                    </button>
+                    <span class="desk-count" id="q-count">0/500</span>
+                    <button type="button" class="btn-stop" id="btn-stop" hidden title="Dừng">
+                        <i class="ph ph-stop-circle"></i> Dừng
+                    </button>
+                    <button type="button" class="btn-send" id="btn-send" disabled title="Gửi">
+                        Gửi <i class="ph ph-paper-plane-tilt"></i>
+                    </button>
+                </div>
             </div>
+            <input type="file" id="in-image" accept="image/png,image/jpeg,image/webp" multiple hidden>
+            <input type="file" id="in-file" accept=".pdf,.docx,.txt,.md" multiple hidden>
+
             <div class="composer-footer">
-                Pico B là một AI có thể mắc sai sót nên cần bạn kiểm chứng lại 
+                HB Minerva là một AI có thể mắc sai sót nên cần bạn kiểm chứng lại
                 <span id="ask-timer" style="margin-left: 8px; color: var(--ai-primary)"></span>
             </div>
         </div>
@@ -317,16 +383,26 @@
 (async function () {
     await Lang.ready;
 
-    if (!Auth.require(['Học viên', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'ai-tutor.view')) return;
+    if (!Auth.require(['Học viên', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'ai-tutor.view')) return;
 
     // Dựng khung hệ thống: cột chức năng bên trái, thanh trên, chuông thông báo, điểm/streak. Thiếu dòng này
-    // thì trang chat trở thành một ốc đảo — mở Pico B xong không còn đường nào quay lại phần khác của hệ
+    // thì trang chat trở thành một ốc đảo — mở HB Minerva xong không còn đường nào quay lại phần khác của hệ
     // thống ngoài nút Back của trình duyệt.
     mountLayout('ai-tutor',
-        t('aitutor.title', 'Pico B'),
-        t('aitutor.subtitle', 'Hỏi bất cứ điều gì về bài học — Pico B trả lời dựa trên tài liệu nội bộ của công ty'));
+        t('aitutor.title', 'HB Minerva'),
+        t('aitutor.subtitle', 'Mình là trợ lý AI dễ thương nhất công ty'));
 
     const LAST_SESSION_KEY = 'hbe_aitutor_session';
+
+    // Giới hạn tệp đính kèm — khớp AiTutorService (đổi bên đó phải đổi cả ở đây). Máy chủ vẫn kiểm tra lại.
+    const MAX_FILES = 3;
+    const MAX_FILE_BYTE = 10 * 1024 * 1024;
+    const MAX_QUESTION = 500;
+    const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'webp'];
+    const DOC_EXT = ['pdf', 'docx', 'txt', 'md'];
+    // Dòng đầu tin nhắn người dùng khi có tệp, do AiTutorService ghi: "[Đính kèm: a.pdf; b.png]".
+    const ATTACH_MARKER = /^\[Đính kèm: ([^\]]*)\]\n/;
+
     const logBox     = document.getElementById('chat-log');
     const scrollArea = document.getElementById('scroll-area');
     const inputBox   = document.getElementById('f-question');
@@ -336,12 +412,21 @@
     const btnClearAll = document.getElementById('btn-clear-all');
     const historyBox = document.getElementById('history-list');
     const timerBox   = document.getElementById('ask-timer');
+    const desk       = document.getElementById('desk');
+    const tray       = document.getElementById('tray');
+    const qCount     = document.getElementById('q-count');
+    const dropVeil   = document.getElementById('drop-veil');
+    const inImage    = document.getElementById('in-image');
+    const inFile     = document.getElementById('in-file');
+    const btnPickImage = document.getElementById('btn-pick-image');
+    const btnPickFile  = document.getElementById('btn-pick-file');
 
     let askController = null;
     let isReady = false;
     let turnCount = 0;
     let sessionId = null;
     let sessionList = [];
+    let pendingFileList = [];   // [{ file, url }] — url là ảnh xem trước, thu hồi khi gỡ / gửi
 
     renderWelcome();
     bindEvent();
@@ -369,19 +454,115 @@
             ask();
         });
 
+        // Dán ảnh (chụp màn hình rồi Ctrl+V) thẳng vào ô gõ
+        inputBox.addEventListener('paste', (e) => {
+            const pasted = [...(e.clipboardData?.files ?? [])];
+            if (pasted.length === 0) return;
+            e.preventDefault();
+            addFiles(pasted);
+        });
+
+        btnPickImage.addEventListener('click', () => inImage.click());
+        btnPickFile.addEventListener('click', () => inFile.click());
+        for (const input of [inImage, inFile]) {
+            input.addEventListener('change', () => { addFiles([...input.files]); input.value = ''; });
+        }
+
+        // Kéo-thả tệp vào cả khung chính. dragCount đếm vào/ra để lớp phủ không nhấp nháy khi chuột đi qua phần tử con.
+        const main = document.getElementById('ai-main');
+        let dragCount = 0;
+        const hasFiles = (e) => [...(e.dataTransfer?.types ?? [])].includes('Files');
+        main.addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragCount++; showDrop(true); });
+        main.addEventListener('dragover',  (e) => { if (hasFiles(e)) e.preventDefault(); });
+        main.addEventListener('dragleave', (e) => { if (!hasFiles(e)) return; dragCount = Math.max(0, dragCount - 1); if (dragCount === 0) showDrop(false); });
+        main.addEventListener('drop', (e) => {
+            if (!hasFiles(e)) return;
+            e.preventDefault();
+            dragCount = 0;
+            showDrop(false);
+            addFiles([...e.dataTransfer.files]);
+        });
+
         // Mobile Sidebar Toggle
         document.getElementById('btn-toggle-menu').addEventListener('click', () => {
             document.getElementById('ai-history').classList.toggle('open');
         });
     }
 
+    function showDrop(on) {
+        dropVeil.hidden = !on;
+        desk.classList.toggle('is-drag', on);
+    }
+
     function autoGrow() {
         inputBox.style.height = 'auto';
-        inputBox.style.height = `${Math.min(inputBox.scrollHeight, 200)}px`;
+        inputBox.style.height = `${Math.min(inputBox.scrollHeight, 190)}px`;
     }
 
     function refreshSendButton() {
-        btnSend.disabled = !isReady || !!askController || !inputBox.value.trim();
+        const length = inputBox.value.length;
+        qCount.textContent = `${length}/${MAX_QUESTION}`;
+        qCount.classList.toggle('is-over', length >= MAX_QUESTION);
+
+        const canAttach = isReady && !askController;
+        btnPickImage.disabled = btnPickFile.disabled = !canAttach;
+        btnSend.disabled = !isReady || !!askController || (!inputBox.value.trim() && pendingFileList.length === 0);
+    }
+
+    // ==================== TỆP ĐÍNH KÈM ====================
+    function extOf(name) { return (name.split('.').pop() || '').toLowerCase(); }
+    function isImageFile(file) { return IMAGE_EXT.includes(extOf(file.name)); }
+
+    function sizeText(byte) {
+        if (byte >= 1024 * 1024) return `${(byte / 1024 / 1024).toFixed(1)} MB`;
+        return `${Math.max(1, Math.round(byte / 1024))} KB`;
+    }
+
+    function addFiles(fileList) {
+        if (!isReady || askController) return;
+
+        for (const file of fileList) {
+            if (pendingFileList.length >= MAX_FILES) { toastErr(`Mỗi câu hỏi chỉ đính kèm tối đa ${MAX_FILES} tệp.`); break; }
+
+            const ext = extOf(file.name) || (file.type === 'image/png' ? 'png' : '');
+            if (!IMAGE_EXT.includes(ext) && !DOC_EXT.includes(ext)) {
+                toastErr(`Chưa hỗ trợ tệp "${file.name}". Hãy gửi ảnh PNG, JPG, WEBP hoặc tệp PDF, DOCX, TXT.`);
+                continue;
+            }
+            if (file.size > MAX_FILE_BYTE) { toastErr(`Tệp "${file.name}" lớn hơn ${MAX_FILE_BYTE / 1024 / 1024} MB.`); continue; }
+            if (pendingFileList.some(x => x.file.name === file.name && x.file.size === file.size)) continue;
+
+            // Ảnh dán từ clipboard thường tên "image.png" — giữ nguyên, trùng tên thì khác dung lượng vẫn qua được.
+            pendingFileList.push({ file, url: IMAGE_EXT.includes(ext) ? URL.createObjectURL(file) : null });
+        }
+
+        renderTray();
+        refreshSendButton();
+        inputBox.focus();
+    }
+
+    function removeFile(index) {
+        const [removed] = pendingFileList.splice(index, 1);
+        if (removed?.url) URL.revokeObjectURL(removed.url);
+        renderTray();
+        refreshSendButton();
+    }
+
+    function clearFiles() {
+        pendingFileList.forEach(x => x.url && URL.revokeObjectURL(x.url));
+        pendingFileList = [];
+        renderTray();
+    }
+
+    function renderTray() {
+        tray.hidden = pendingFileList.length === 0;
+        tray.innerHTML = pendingFileList.map((x, i) => `
+            <div class="tile">
+                <div class="tile-thumb">${x.url ? `<img src="${x.url}" alt="">` : esc(extOf(x.file.name))}</div>
+                <div class="tile-meta"><b title="${esc(x.file.name)}">${esc(x.file.name)}</b><span>${sizeText(x.file.size)}</span></div>
+                <button type="button" class="tile-x" data-remove="${i}" aria-label="Bỏ tệp"><i class="ph ph-x"></i></button>
+            </div>`).join('');
+        tray.querySelectorAll('[data-remove]').forEach(el => el.addEventListener('click', () => removeFile(Number(el.dataset.remove))));
     }
 
     // ==================== TRẠNG THÁI AI ====================
@@ -434,7 +615,7 @@
 
     async function openSession(id) {
         if (askController) { toastErr('Đang xử lý. Vui lòng đợi.'); return; }
-        
+
         // Đóng sidebar trên mobile nếu đang mở
         document.getElementById('ai-history').classList.remove('open');
 
@@ -445,9 +626,16 @@
             localStorage.setItem(LAST_SESSION_KEY, String(detail.id));
             logBox.innerHTML = '';
             turnCount = 0;
-            
+
             for (const message of detail.messageList) {
-                appendMessage(message.role === 'user' ? 'me' : 'ai', answerHtml(message.content));
+                if (message.role === 'user') {
+                    // Tin có tệp: tách dòng "[Đính kèm: ...]" ra thành thẻ tệp; nội dung tệp không được lưu lại.
+                    const match = message.content.match(ATTACH_MARKER);
+                    appendMessage('me', answerHtml(match ? message.content.slice(match[0].length) : message.content),
+                        match ? match[1].split(';').map(x => x.trim()).filter(Boolean) : [], false, message.createdAt);
+                } else {
+                    appendMessage('ai', answerHtml(message.content), [], true, message.createdAt);
+                }
             }
             if (turnCount === 0) renderWelcome();
             renderHistory();
@@ -466,8 +654,10 @@
         localStorage.removeItem(LAST_SESSION_KEY);
         turnCount = 0;
         timerBox.textContent = '';
+        clearFiles();
         renderWelcome();
         renderHistory();
+        refreshSendButton();
         inputBox.focus();
     }
 
@@ -475,7 +665,7 @@
         const current = sessionList.find(x => x.id === id);
         const title = await promptDialog('Đổi tên hội thoại', { value: current?.title ?? '', okText: 'Lưu' });
         if (title === null) return;
-        try { await API.put(`/aitutor/session/${id}`, { title }); await loadSessionList(); } 
+        try { await API.put(`/aitutor/session/${id}`, { title }); await loadSessionList(); }
         catch (ex) { toastErr(ex.message); }
     }
 
@@ -501,46 +691,102 @@
     function renderWelcome() {
         const suggestList = [
             { icon: 'pencil-line', text: 'Tóm tắt nội dung chính khóa học' },
-            { icon: 'code', text: 'Giải thích quy trình nghiệp vụ' },
+            { icon: 'gear-six', text: 'Giải thích quy trình nghiệp vụ' },
             { icon: 'compass', text: 'Quy định giờ làm việc công ty' },
             { icon: 'lightbulb', text: 'Quy tắc an toàn lao động' }
         ];
 
         logBox.innerHTML = `
             <div class="ai-welcome">
-                <h1>Xin chào</h1>
+                <div class="hello-mark pico-face" aria-hidden="true"></div>
+                <h1>${esc(Hi())}, ${esc(Auth.profile.fullName)}</h1>
+                <p>Hỏi về tài liệu và bài học nội bộ — hoặc gửi một ảnh, tệp PDF / Word để mình đọc và phân tích giúp bạn.</p>
                 <div class="ai-suggest-grid">
                     ${suggestList.map(x => `
-                        <div class="ai-suggest-card">
+                        <div class="ai-suggest-card" data-text="${esc(x.text)}">
                             <i class="ph ph-${x.icon}"></i>
-                            ${esc(x.text)}
+                            <span>${esc(x.text)}</span>
                         </div>
                     `).join('')}
+                    <div class="ai-suggest-card is-attach" data-attach="1">
+                        <i class="ph ph-paperclip"></i>
+                        <span>Gửi ảnh hoặc tệp để HB Minerva phân tích</span>
+                    </div>
                 </div>
             </div>`;
 
-        logBox.querySelectorAll('.ai-suggest-card').forEach(btn => btn.addEventListener('click', () => {
-            inputBox.value = btn.innerText.trim();
+        logBox.querySelectorAll('.ai-suggest-card[data-text]').forEach(btn => btn.addEventListener('click', () => {
+            inputBox.value = btn.dataset.text;
             autoGrow();
             refreshSendButton();
             ask();
         }));
+        logBox.querySelector('[data-attach]')?.addEventListener('click', () => inFile.click());
     }
 
-    function appendMessage(side, html) {
+    function Hi() {
+        const hour = new Date().getHours();
+        if (hour >= 6 && hour < 12) return t('greeting.morning', 'Chào buổi sáng');
+        if (hour >= 12 && hour < 14) return t('greeting.noon', 'Chào buổi trưa');
+        if (hour >= 14 && hour < 18) return t('greeting.afternoon', 'Chào buổi chiều');
+        if (hour >= 18 && hour < 24) return t('greeting.evening', 'Chào buổi tối');
+        return t('greeting.night', 'Chúc bạn ngủ ngon');
+    }
+
+    /** Giờ gửi của một tin: hôm nay chỉ hiện "14:05", ngày khác thì thêm ngày/tháng. */
+    function timeText(value) {
+        const date = value ? new Date(value) : new Date();
+        const hm = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        return date.toDateString() === new Date().toDateString()
+            ? hm
+            : `${hm} · ${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    /** Thêm một tin vào cuộc trò chuyện: side 'me' = tin của người dùng (bên phải; fileNameList là tên các tệp
+     *  đã gửi kèm), side 'ai' = tin của HB Minerva (bên trái; withActions = hiện ngay nút Sao chép, không thì chỉ
+     *  hiện sau khi trả lời xong). createdAt là giờ lưu trong lịch sử, bỏ trống = bây giờ.
+     *  Trả về phần bong bóng để nơi gọi ghi nội dung vào. */
+    function appendMessage(side, html, fileNameList = [], withActions = false, createdAt = null) {
         if (turnCount === 0) logBox.innerHTML = '';
         turnCount++;
 
         const row = document.createElement('div');
         row.className = `msg ${side}`;
-        row.innerHTML = `
-            ${side === 'ai' ? `<div class="msg-avatar pico-face"></div>` : `<div class="msg-avatar"></div>`}
-            <div class="msg-bubble"></div>
-        `;
-        row.querySelector('.msg-bubble').innerHTML = html;
+
+        if (side === 'me') {
+            row.innerHTML = `
+                <div class="msg-col">
+                    ${fileNameList.length ? `<div class="q-files">${fileNameList.map(name => `
+                        <span class="q-file" title="${esc(name)}"><b>${esc(extOf(name) || 'tệp')}</b><span>${esc(name)}</span></span>`).join('')}</div>` : ''}
+                    <div class="msg-bubble"></div>
+                    <span class="msg-time">${timeText(createdAt)}</span>
+                </div>`;
+        } else {
+            row.innerHTML = `
+                <div class="msg-avatar pico-face" aria-hidden="true"></div>
+                <div class="msg-col">
+                    <div class="a-name">HB Minerva <span class="a-state"></span></div>
+                    <div class="msg-bubble"></div>
+                    <div class="a-foot" ${withActions ? '' : 'hidden'}>
+                        <span class="msg-time" style="margin:0">${timeText(createdAt)}</span>
+                        <button type="button" data-copy><i class="ph ph-copy"></i> Sao chép</button>
+                    </div>
+                </div>`;
+            row.querySelector('[data-copy]').addEventListener('click', async (e) => {
+                const button = e.currentTarget;
+                try {
+                    await navigator.clipboard.writeText(row.querySelector('.msg-bubble').innerText);
+                    button.innerHTML = '<i class="ph ph-check"></i> Đã chép';
+                    setTimeout(() => { button.innerHTML = '<i class="ph ph-copy"></i> Sao chép'; }, 1500);
+                } catch { toastErr('Trình duyệt không cho phép sao chép.'); }
+            });
+        }
+
+        const body = row.querySelector('.msg-bubble');
+        body.innerHTML = html;
         logBox.appendChild(row);
         scrollToEnd();
-        return row.querySelector('.msg-bubble');
+        return body;
     }
 
     function scrollToEnd() {
@@ -552,27 +798,34 @@
      *  XÓA luôn các số trích dẫn [1] [2] thay vì tô chúng lên: người học không còn xem bảng nguồn nữa, nên
      *  mấy con số đó chỉ là những cái móc trỏ vào hư không — đọc tới là khựng lại tự hỏi nó nghĩa là gì.
      *  Cắt ở ĐÂY chứ không chỉ sửa câu lệnh cho model, để những câu trả lời ĐÃ LƯU trong lịch sử (vốn còn
-     *  đầy [1] [2]) mở lại cũng sạch. */
+     *  đầy [1] [2]) mở lại cũng sạch.
+     *  Phần định dạng (bảng, **đậm**, `mã`, gạch đầu dòng) do aiAnswerHtml trong app.js lo. Escape TRƯỚC rồi mới
+     *  thay, nên chữ model sinh ra không bao giờ chèn được thẻ HTML. */
     function answerHtml(text) {
-        return esc(text)
-            .replace(/ ?\[\d{1,2}\]/g, "")
-            .replace(/\n/g, "<br>");
+        return aiAnswerHtml(esc(text).replace(/ ?\[\d{1,2}\]/g, ""));
     }
 
     // ==================== HỎI ĐÁP ====================
     async function ask() {
         const question = inputBox.value.trim();
-        if (!question) return;
+        const sendFileList = pendingFileList.map(x => x.file);
+        if (!question && sendFileList.length === 0) return;
         if (askController) return;
 
-        appendMessage('me', answerHtml(question));
+        appendMessage('me', question ? answerHtml(question) : '<em>Phân tích tệp đính kèm</em>', sendFileList.map(f => f.name));
         inputBox.value = '';
         autoGrow();
+        clearFiles();
 
         const bubble = appendMessage('ai', '<div class="typing-indicator"><i></i><i></i><i></i></div>');
+        const card = bubble.closest('.msg-col');
+        const stateBox = card.querySelector('.a-state');
+        stateBox.textContent = sendFileList.length ? 'Đang đọc tệp đính kèm — có thể mất 1–2 phút' : 'Đang tra tài liệu...';
 
         askController = new AbortController();
         btnStop.hidden = false;
+        btnSend.hidden = true;
+        desk.classList.add('is-busy');
         refreshSendButton();
 
         const startedAt = Date.now();
@@ -586,10 +839,16 @@
         }
 
         try {
+            // multipart/form-data (không tự đặt Content-Type: trình duyệt phải tự thêm boundary)
+            const form = new FormData();
+            form.append('question', question);
+            if (sessionId) form.append('sessionId', String(sessionId));
+            sendFileList.forEach(file => form.append('files', file, file.name));
+
             const response = await fetch('/api/aitutor/ask', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${Auth.token}` },
-                body: JSON.stringify({ question, sessionId }),
+                headers: { 'Authorization': `Bearer ${Auth.token}` },
+                body: form,
                 signal: askController.signal
             });
 
@@ -619,7 +878,7 @@
 
                     // Sự kiện "sources" của máy chủ bị bỏ qua có chủ đích: người học chỉ xem câu trả lời,
                     // không xem danh sách tài liệu đã tra.
-                    if (name === 'token') { answer += data.t; renderAnswer(true); }
+                    if (name === 'token') { answer += data.t; stateBox.textContent = 'Đang soạn câu trả lời...'; renderAnswer(true); }
                     else if (name === 'session') {
                         sessionId = data.id;
                         localStorage.setItem(LAST_SESSION_KEY, String(data.id));
@@ -635,14 +894,18 @@
             if (ex.name === 'AbortError') {
                 renderAnswer(false);
             } else {
-                bubble.innerHTML = `<span style="color:#ef4444;"><i class="ph ph-warning"></i> ${esc(ex.message)}</span>`;
+                bubble.innerHTML = `<span style="color:var(--danger);"><i class="ph ph-warning"></i> ${esc(ex.message)}</span>`;
                 toastErr(ex.message);
             }
         } finally {
             clearInterval(timer);
             timerBox.textContent = '';
+            stateBox.textContent = '';
+            if (answer.trim()) card.querySelector('.a-foot').hidden = false;
             askController = null;
             btnStop.hidden = true;
+            btnSend.hidden = false;
+            desk.classList.remove('is-busy');
             refreshSendButton();
             inputBox.focus();
             await loadSessionList();

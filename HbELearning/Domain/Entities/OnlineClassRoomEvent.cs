@@ -26,5 +26,10 @@ public class OnlineClassRoomEvent
     [MaxLength(500)]
     public string? Message { get; set; }
 
+    /// <summary>Bản ghi mà sự kiện ghi hình này nói tới (RecordingStarted/Paused/Resumed/Stopped); null với mọi sự
+    /// kiện khác. Cố ý KHÔNG khai báo khóa ngoại: cột này được thêm vào bảng đã có dữ liệu, và Diễn biến vốn là nhật ký
+    /// chỉ ghi thêm — trang xem lại dùng nó để đặt sự kiện đúng vào Bản ghi của nó.</summary>
+    public int? RecordingId { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 }

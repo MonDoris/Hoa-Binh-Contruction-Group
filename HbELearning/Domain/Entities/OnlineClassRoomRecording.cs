@@ -18,6 +18,13 @@ public class OnlineClassRoomRecording
 
     public long FileSizeBytes { get; set; }
 
+    /// <summary>Thời lượng thật của Bản ghi (mili giây), KHÔNG tính các đoạn tạm dừng — chính là độ dài của video.
+    /// Null khi Bản ghi chưa được chốt, và với mọi Bản ghi tạo trước khi có tính năng tạm dừng.</summary>
+    public long? DurationMs { get; set; }
+
+    /// <summary>Lúc Bản ghi được chốt (Dừng ghi, kết thúc buổi học, hoặc Chủ trì mất kết nối). Null = chưa chốt.</summary>
+    public DateTime? StoppedAt { get; set; }
+
     public int RecordedByUserId { get; set; }
     public User RecordedByUser { get; set; } = null!;
 

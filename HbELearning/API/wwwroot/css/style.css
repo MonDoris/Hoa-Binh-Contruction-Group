@@ -22,6 +22,11 @@
        bạch được cả với người mù màu đỏ–lục. Bản tối là bước khác của cùng hai sắc, không phải đảo màu. */
     --viz-done: #2a78d6;
     --viz-open: #eb6834;
+    /* Hai bậc nhạt hơn của --viz-done cho thang thứ tự "Hoàn thành → Đang học → Chưa bắt đầu" ở trang Báo cáo:
+       cùng một sắc, đậm dần theo mức hoàn tất. Ba bậc đã qua validate_palette --ordinal (bậc nhạt nhất 2.09:1 so với
+       nền trắng); bản tối là bậc khác của cùng sắc, mờ dần về phía nền chứ không đảo màu. */
+    --viz-mid: #5b9be0;
+    --viz-low: #8cb7e8;
 
     --sidebar-bg: #ffffff;
     --sidebar-hover: #f1f5f9;
@@ -439,6 +444,11 @@ a:hover { text-decoration: underline; }
 .topbar-pill i { font-size: 16px; }
 .topbar-pill.streak i { color: #f97316; }
 .topbar-pill.point i { color: var(--primary); }
+/* Emoji trong viên chỉ số: to hơn icon cũ và có bóng đổ nhẹ cho nổi khỏi nền viên — kim cương xanh nhạt đặt trên
+   nền xanh nhạt rất dễ chìm. */
+.topbar-pill .hbe-emoji-host { width: 22px; height: 22px; filter: drop-shadow(0 1px 2px rgba(15, 76, 129, .45)); }
+.topbar-pill.point .hbe-emoji-host { width: 26px; height: 26px; margin: -2px 0; filter: drop-shadow(0 1px 3px rgba(15, 76, 129, .4)); }
+.topbar-pill.clickable:hover .hbe-emoji-host { transform: translateY(-1px) scale(1.08); transition: transform .15s ease; }
 /* Viên điểm bấm được (dẫn vào cửa hàng) thì phải TRÔNG như bấm được — nhấc nhẹ khi rê chuột, giống hệt các nút
    trong khối tiện ích bên cạnh. */
 .topbar-pill.clickable { cursor: pointer; transition: background-color .15s ease, box-shadow .15s ease; }
@@ -775,6 +785,9 @@ a:hover { text-decoration: underline; }
     background: var(--cover-fallback, linear-gradient(135deg, var(--primary), var(--primary-dark)));
 }
 .course-mini-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* Khóa chưa có ảnh bìa (courseThumbHtml với brand = true): logo Hòa Bình nằm giữa nền trắng. */
+.course-mini-thumb.is-brand { background: #fff; }
+.course-mini-thumb.is-brand img.brand-logo { inset: 8% auto auto 50%; width: auto; height: 84%; transform: translateX(-50%); object-fit: contain; }
 
 /* Ảnh bìa hiện trọn vẹn (xem courseCoverHtml trong js/app.js): ảnh thật nằm gọn trong khung, phần thừa phủ bằng
    bản phóng to + làm mờ của chính nó. Có ảnh thì giấu biểu tượng dự phòng và bỏ mảng màu nền. Viết kèm tên khung
@@ -1843,9 +1856,12 @@ body.sco-mode .content { padding: 14px 16px; }
 }
 .rank-progress-label { font-size: 12px; margin-top: 8px; opacity: .95; font-weight: 600; }
 
+/* Màu chữ do JS đặt theo màu nền (readableTextColor) — #fff ở đây chỉ là mặc định. Viền mờ để chip nền trắng / rất nhạt
+   vẫn hiện thành một viên thuốc trên nền thẻ trắng thay vì hòa vào nó. */
 .rank-tier-chip {
     display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px;
     font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, .14);
 }
 
 .rank-tier-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
@@ -2981,6 +2997,9 @@ body.sco-mode .content { padding: 14px 16px; }
 /* Ảnh bìa phải nằm TUYỆT ĐỐI trong khung. Để nó làm ô lưới bình thường thì hàng lưới bị giãn theo kích
    thước gốc của ảnh (min-content thắng height: 128px), ảnh tràn xuống che mất tiêu đề khóa học. */
 .dash-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* Khóa chưa có ảnh bìa: logo Hòa Bình nằm giữa nền sáng thay cho mảng màu + biểu tượng. */
+.dash-thumb.is-brand { background: #fff; border-bottom: 1px solid var(--border); }
+.dash-thumb.is-brand img.brand-logo { inset: 14px auto auto 50%; width: auto; height: calc(100% - 28px); transform: translateX(-50%); object-fit: contain; }
 .dash-thumb-tag {
     position: absolute; left: 10px; top: 10px;
     background: rgba(15, 23, 42, .35); color: #fff;
@@ -3003,6 +3022,7 @@ body.sco-mode .content { padding: 14px 16px; }
 .dash-card-body h4 {
     font-size: 14px; font-weight: 700; line-height: 1.45; letter-spacing: -.2px;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    min-height: 2.9em; /* luôn chừa đủ 2 dòng: tiêu đề ngắn hay dài thì mã khóa, tiến độ, nút vẫn đứng đúng một chỗ */
 }
 .dash-teacher { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-muted); }
 .dash-teacher .avatar { width: 22px; height: 22px; font-size: 10px; }
@@ -3283,6 +3303,8 @@ button.trend-col { cursor: pointer; }
 
     --viz-done: #3987e5;
     --viz-open: #d95926;
+    --viz-mid: #2f6db8;
+    --viz-low: #27578f;
 
     --sidebar-bg: #0f172a;
     --sidebar-hover: #1e293b;
@@ -3323,6 +3345,8 @@ button.trend-col { cursor: pointer; }
 
         --viz-done: #3987e5;
         --viz-open: #d95926;
+        --viz-mid: #2f6db8;
+        --viz-low: #27578f;
 
         --sidebar-bg: #0f172a;
         --sidebar-hover: #1e293b;
@@ -4214,3 +4238,70 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
     .chat-col { max-width: 82%; }
     #chat-sticker-panel { height: 148px; }
 }
+
+/* ===== Feedback khóa học (js/feedback.js) ===== */
+.fb { display: flex; flex-direction: column; gap: 16px; }
+.fb textarea { min-height: 64px; width: 100%; }
+.fb h4 { margin: 0 0 8px; font-size: 14px; }
+.fb-block { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; background: var(--surface); }
+.fb-hint { margin: 0; color: var(--text-muted); font-size: 13px; }
+.fb-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+.fb-stars { display: inline-flex; gap: 2px; color: var(--border); font-size: 14px; }
+.fb-stars.lg { font-size: 20px; }
+.fb-stars .on, .fb-star-btn .on { color: var(--warning); }
+.fb-star-picker { display: flex; gap: 4px; margin-bottom: 8px; }
+.fb-star-btn { background: none; border: 0; padding: 2px; cursor: pointer; font-size: 28px; line-height: 1; color: var(--border); }
+.fb-star-btn:hover i { color: var(--warning); }
+.fb-star-btn:focus-visible { outline: 2px solid var(--primary); border-radius: 6px; }
+
+.fb-summary { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px; background: var(--surface); }
+.fb-summary.empty { color: var(--text-muted); gap: 8px; font-size: 13px; }
+.fb-avg { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 110px; }
+.fb-avg b { font-size: 34px; line-height: 1; }
+.fb-avg small { color: var(--text-muted); font-size: 12px; }
+.fb-bars { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px; }
+.fb-bar-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.fb-bar-row .ph-star { color: var(--warning); }
+.fb-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.fb-bar > span { display: block; height: 100%; background: var(--warning); }
+.fb-bar-n { width: 24px; text-align: right; }
+
+.fb-thread { border-top: 1px solid var(--border); padding: 10px 0; }
+.fb-thread:first-of-type { border-top: 0; }
+.fb-item.reply { margin: 10px 0 0 22px; padding-left: 12px; border-left: 2px solid var(--primary-light); }
+.fb-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
+.fb-author { font-weight: 600; }
+.fb-time { color: var(--text-muted); font-size: 12px; }
+.fb-content { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fb-tools { display: flex; gap: 12px; }
+.fb-link { background: none; border: 0; padding: 0; color: var(--primary-dark); font-size: 12px; cursor: pointer; }
+.fb-link:hover { text-decoration: underline; }
+.fb-link.danger { color: var(--danger); }
+.fb-composer { margin-top: 8px; }
+
+/* ===== Điểm sao ở góc thẻ khóa học (courseRatingHtml trong js/app.js) ===== */
+.course-rating { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; line-height: 1; }
+.course-rating i { color: var(--warning); font-size: 14px; }
+.course-rating small { font-weight: 500; font-size: 11.5px; color: var(--text-muted); }
+.course-rating.none { font-weight: 500; color: var(--text-muted); }
+.course-rating.none i { color: var(--text-muted); opacity: .55; }
+/* Thẻ dạng hàng: góc dưới bên phải của chính thẻ. */
+.cm-item, .mc-item { position: relative; }
+.cm-item > .course-rating, .mc-item > .course-rating { position: absolute; right: 16px; bottom: 10px; }
+/* Thẻ dạng lưới: cuối phần thân, dồn sang phải — góc dưới phải thật của thẻ đã là nút hành động. */
+.dash-card-body > .course-rating, .mc-suggest-body > .course-rating { align-self: flex-end; margin-top: auto; }
+
+/* ===== Bảng trong câu trả lời AI (aiAnswerHtml trong app.js) — HB Minerva và Kho tri thức AI =====
+   Câu lệnh hệ thống dặn model kẻ bảng khi so sánh từ 3 thứ trở lên. Bảng rộng hơn bong bóng chat (điện thoại)
+   thì cuộn ngang trong khung riêng chứ không đẩy cả trang. */
+.ai-table-wrap { overflow-x: auto; margin: 8px 0; max-width: 100%; }
+.ai-table { border-collapse: collapse; min-width: 100%; font-size: 14px; line-height: 1.5; }
+.ai-table th, .ai-table td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; vertical-align: top; }
+.ai-table th { background: var(--surface); font-weight: 700; white-space: nowrap; }
+
+/* Khung "Phân tích" (thẻ <phan_tich>) đứng trước bản kế hoạch khi hỏi lập kế hoạch / xử lý sự cố — aiAnswerHtml. */
+.ai-analysis { margin: 4px 0 10px; border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: 8px; background: var(--surface); }
+.ai-analysis > summary { cursor: pointer; padding: 6px 10px; font-size: 13px; font-weight: 700; color: var(--text-muted); }
+.ai-analysis-body { padding: 0 12px 10px; font-size: 14px; line-height: 1.55; }

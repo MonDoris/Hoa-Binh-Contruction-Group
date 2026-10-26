@@ -247,7 +247,7 @@ public class EnrollmentService : IEnrollmentService
     }
 
     // ---------- Helper ----------
-    private static async Task<List<EnrollmentListDto>> ProjectAsync(IQueryable<Enrollment> query)
+    private async Task<List<EnrollmentListDto>> ProjectAsync(IQueryable<Enrollment> query)
     {
         var now = DateTime.Now;
 
@@ -258,7 +258,11 @@ public class EnrollmentService : IEnrollmentService
             DepartmentName = x.User.Department != null ? x.User.Department.Name : null,
             x.Status, x.ProgressPercent, x.FinalScore,
             x.AssignedAt, x.DueDate, x.StartedAt, x.CompletedAt,
-            HasCertificate = x.Certificate != null
+            HasCertificate = x.Certificate != null,
+            ReviewCount = _db.CourseFeedback.Count(f => f.CourseId == x.CourseId && f.Kind == FeedbackKind.Review && f.Rating != null),
+            AverageRating = _db.CourseFeedback
+                .Where(f => f.CourseId == x.CourseId && f.Kind == FeedbackKind.Review && f.Rating != null)
+                .Average(f => (double?)f.Rating)
         }).ToListAsync();
 
         return raw.Select(x => new EnrollmentListDto(
@@ -267,6 +271,7 @@ public class EnrollmentService : IEnrollmentService
             x.Status.ToString(), x.ProgressPercent, x.FinalScore,
             x.AssignedAt, x.DueDate, x.StartedAt, x.CompletedAt,
             x.DueDate.HasValue && x.DueDate < now && x.Status != EnrollmentStatus.Completed,
-            x.HasCertificate)).ToList();
+            x.HasCertificate,
+            CourseRating.Round(x.AverageRating), x.ReviewCount)).ToList();
     }
 }

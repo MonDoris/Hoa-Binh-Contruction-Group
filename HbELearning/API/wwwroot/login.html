@@ -108,7 +108,7 @@
                 </div>
 
                 <!-- Nút này chỉ chứa CHỮ: kịch bản đổi trạng thái bằng btn.textContent, thêm icon vào đây
-                     là lần bấm đầu tiên sẽ xóa mất icon. Hiệu ứng sọc lúc chờ do CSS lo (.btn-glow:disabled). -->
+                     là lần bấm đầu tiên sẽ xóa mất icon. Hiệu ứng lúc chờ (vòng quay + dải sáng) do CSS lo (.btn-glow:disabled). -->
                 <button type="submit" class="btn-glow" id="submitBtn" data-i18n="login.loginBtn">Đăng Nhập</button>
             </form>
 
@@ -234,8 +234,8 @@
     // không xóa câu thông báo khi người dùng gõ lại, và nút Đăng nhập ở nguyên trạng thái mờ.
     let isLockedOut = false;
 
-    const MIN_DECODE_MS  = 1600;   // giữ hiệu ứng giải mã tối thiểu cho đủ "đã mắt"
-    const REDIRECT_AFTER = 2900;   // thời gian xem hoạt cảnh mở cửa trước khi chuyển trang
+    const MIN_DECODE_MS  = 500;    // giữ hiệu ứng giải mã tối thiểu cho đủ "đã mắt"
+    const REDIRECT_AFTER = 1100;   // thời gian xem hoạt cảnh mở cửa trước khi chuyển trang
 
     // ==================== BĂNG CHUYỀN ẢNH ====================
     // Chỉ là trang trí cho nửa trái, không dính gì tới đăng nhập — nên nó đứng đầu và không có nhánh nào
@@ -322,7 +322,7 @@
         setRemainingAttempt(0);
         [emailInput, passwordInput].forEach(el => el.disabled = true);
         btn.disabled = true;
-        // .locked để CSS biết nút mờ đi vì đã khóa hẳn chứ không phải đang chờ máy chủ — sọc chạy trên nút
+        // .locked để CSS biết nút mờ đi vì đã khóa hẳn chứ không phải đang chờ máy chủ — lúc chờ nút sáng và quay
         // lúc này sẽ nói rằng còn thứ gì đó đang xử lý, trong khi không còn gì cả.
         btn.classList.add('locked');
         btn.textContent = t('login.lockedBtn', 'Tài khoản đã bị khóa');

@@ -10,6 +10,10 @@ public interface INotificationDispatcher
     /// <summary>Tạo thông báo "khóa học mới được giao" cho một bản ghi phân công.</summary>
     Task NotifyCourseAssignedAsync(int enrollmentId);
 
+    /// <summary>Như <see cref="NotifyCourseAssignedAsync(int)"/> nhưng cho cả loạt bản ghi trong MỘT lần lưu —
+    /// dùng khi xuất bản khóa học tự phân công cho hàng trăm người, gọi từng cái sẽ là hàng nghìn lượt truy vấn.</summary>
+    Task NotifyCourseAssignedAsync(IReadOnlyCollection<int> enrollmentIdList);
+
     /// <summary>Thông báo một bước trong chuỗi duyệt nội dung (gửi duyệt / duyệt lên cấp kế tiếp / xuất bản) cho danh sách người nhận — kèm Email.</summary>
     Task NotifyCourseWorkflowAsync(int courseId, IReadOnlyCollection<int> recipientUserIdList, NotificationType type, string title, string message);
 

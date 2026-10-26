@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace HbELearning.Domain.Entities;
 
-/// <summary>Một câu trả lời CÀI SẴN của Pico B: gặp đúng câu hỏi này thì trả lời ngay bằng câu chữ đã soạn,
+/// <summary>Một câu trả lời CÀI SẴN của HB Minerva: gặp đúng câu hỏi này thì trả lời ngay bằng câu chữ đã soạn,
 /// không hỏi model và không tra kho tài liệu.
 ///
 /// Vì sao cần: những câu xã giao ("hi", "cảm ơn", "bạn là ai") không có trong tài liệu nội bộ nào cả. Đưa

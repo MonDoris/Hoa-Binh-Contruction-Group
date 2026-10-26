@@ -223,7 +223,7 @@ public class LessonService : ILessonService
         foreach (var scenario in scenarioList) scenario.LessonId = null;
 
         // Đoạn do MÁY nạp từ chính nội dung bài học này thì XÓA hẳn, không tách ra: bài học không còn thì
-        // nội dung của nó cũng hết hiệu lực, mà để lại là Pico B tiếp tục trả lời bằng một bài đã bị gỡ —
+        // nội dung của nó cũng hết hiệu lực, mà để lại là HB Minerva tiếp tục trả lời bằng một bài đã bị gỡ —
         // hỏng hơn hẳn việc thiếu thông tin, vì người hỏi không có cách nào biết. Lượt đồng bộ kế tiếp cũng
         // dọn được chúng (xem CourseKnowledgeService), nhưng chờ tới đó là chờ hàng giờ.
         var syncedChunkList = await _db.DocumentChunk

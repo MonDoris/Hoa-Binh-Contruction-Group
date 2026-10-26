@@ -1029,7 +1029,7 @@
 									"height": 48,
 									"autoResize": false,
 									"underline": false,
-									"text": "SF19 – Trợ lý AI Pico B",
+									"text": "SF19 – Trợ lý AI HB Minerva",
 									"horizontalAlignment": 2,
 									"verticalAlignment": 5
 								}
@@ -3022,7 +3022,7 @@
 					"_parent": {
 						"$ref": "SEJFU0YAAAAAAAAC"
 					},
-					"name": "SF19 – Trợ lý AI Pico B",
+					"name": "SF19 – Trợ lý AI HB Minerva",
 					"ownedElements": []
 				},
 				{
@@ -66438,7 +66438,7 @@
 			"_parent": {
 				"$ref": "SEJFU0YAAAAAAAAB"
 			},
-			"name": "SF19 - Luồng Hỏi đáp với trợ lý AI Pico B",
+			"name": "SF19 - Luồng Hỏi đáp với trợ lý AI HB Minerva",
 			"documentation": "AiTutorService.Ask – RAG trên kho tri thức, truyền SSE",
 			"ownedElements": [
 				{
@@ -66447,7 +66447,7 @@
 					"_parent": {
 						"$ref": "SEJFU0YAAAAAAA5L"
 					},
-					"name": "SF19 - Luồng Hỏi đáp với trợ lý AI Pico B",
+					"name": "SF19 - Luồng Hỏi đáp với trợ lý AI HB Minerva",
 					"visible": true,
 					"defaultDiagram": false,
 					"ownedViews": [
@@ -66471,7 +66471,7 @@
 							"width": 437,
 							"height": 30,
 							"autoResize": false,
-							"text": "SF19. Luồng Hỏi đáp với trợ lý AI Pico B",
+							"text": "SF19. Luồng Hỏi đáp với trợ lý AI HB Minerva",
 							"wordWrap": true
 						},
 						{

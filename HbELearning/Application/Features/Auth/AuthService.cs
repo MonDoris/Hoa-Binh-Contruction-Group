@@ -33,9 +33,11 @@ public class AuthService : IAuthService
     private readonly IRankingEngine _rankingService;
     private readonly ICurrentUser _currentUser;
     private readonly ILogger<AuthService> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public AuthService(IAppDbContext db, ITokenService tokenService, IZaloZnsService zaloZns, IEsmsService esms, IEmailService email, IRankingEngine rankingService, ICurrentUser currentUser, IPasswordHasher passwordHasher, ILogger<AuthService> logger)
+    public AuthService(IAppDbContext db, ITokenService tokenService, IZaloZnsService zaloZns, IEsmsService esms, IEmailService email, IRankingEngine rankingService, ICurrentUser currentUser, IPasswordHasher passwordHasher, ILogger<AuthService> logger, IServiceScopeFactory scopeFactory)
     {
+        _scopeFactory = scopeFactory;
         _logger = logger;
         _passwordHasher = passwordHasher;
         _db = db;
@@ -98,10 +100,21 @@ public class AuthService : IAuthService
         // Điểm "mở hệ thống trong ngày". Đặt SAU khi đã chắc chắn đăng nhập thành công và tài khoản còn hiệu
         // lực — cộng trước thì mọi cú gõ sai mật khẩu cũng thành một lần ghi nhận.
         //
-        // Nuốt lỗi có chủ đích: đây là phần thưởng phụ, hỏng nó cũng không được phép chặn người dùng vào hệ
-        // thống. Cả tính năng xếp hạng có thể tắt/lỗi mà đăng nhập vẫn phải chạy.
-        try { await _rankingService.AwardDailyPointsAsync(user.Id, PointReason.DailyLogin, DateTime.Today); }
-        catch { /* bỏ qua: không để phần thưởng làm hỏng việc đăng nhập */ }
+        // Chạy NỀN trong phạm vi (scope) riêng: lần đăng nhập đầu tiên mỗi ngày kéo theo cả chuỗi kiểm tra nhiệm
+        // vụ / bậc hạng / chuỗi ngày học với nhiều lượt đọc-ghi database, mà người dùng đang ngồi chờ màn hình
+        // đăng nhập. Phần thưởng phụ không đáng để họ chờ. Nuốt lỗi có chủ đích: hỏng nó cũng không được phép
+        // ảnh hưởng đăng nhập.
+        var userId = user.Id;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var ranking = scope.ServiceProvider.GetRequiredService<IRankingEngine>();
+                await ranking.AwardDailyPointsAsync(userId, PointReason.DailyLogin, DateTime.Today);
+            }
+            catch (Exception ex) { _logger.LogWarning(ex, "Khong cong duoc diem dang nhap trong ngay cho nguoi dung {UserId}.", userId); }
+        });
 
         var (token, expiresAt) = _tokenService.CreateToken(user);
         var isApprovalDelegate = await _db.ApprovalDelegate.AsNoTracking().AnyAsync(x => x.UserId == user.Id);

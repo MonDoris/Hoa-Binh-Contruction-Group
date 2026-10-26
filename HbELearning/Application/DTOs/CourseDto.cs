@@ -17,7 +17,9 @@ public record CourseListDto(
     // "DepartmentPosition" | "Department" | "Position" | "All".
     string? SuggestReason = null,
     // Số gói SCORM của khóa học — khóa học nhập nguyên từ gói SCORM có 0 bài học, 0 bài kiểm tra.
-    int ScormPackageCount = 0);
+    int ScormPackageCount = 0,
+    // Điểm sao trung bình học viên chấm (null = chưa ai đánh giá) và số lượt đánh giá — hiện ở góc thẻ khóa học.
+    decimal? AverageRating = null, int ReviewCount = 0);
 
 public record CourseDetailDto(
     int Id, string Code, string Title, string? Description, string? ThumbnailUrl,

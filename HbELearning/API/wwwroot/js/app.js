@@ -23,6 +23,83 @@ const esc = (value) => String(value ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
+// Thẻ <phan_tich> trong câu trả lời AI (đã escape). Model 3B có lúc viết lệch (<phân_tích>, <phan tich>) — khớp rộng tay.
+const AI_ANALYSIS_OPEN = /&lt;\s*ph[aâ]n[_ ]?t[ií]ch\s*&gt;/i;
+const AI_ANALYSIS_CLOSE = /&lt;\s*\/\s*ph[aâ]n[_ ]?t[ií]ch\s*&gt;/i;
+
+/** Câu trả lời của AI (chữ ĐÃ qua esc) -> HTML: bảng Markdown, **đậm**, `mã`, tiêu đề #, gạch đầu dòng, xuống dòng.
+ *  Câu lệnh hệ thống dặn model kẻ bảng khi so sánh từ 3 thứ trở lên, nên bảng phải hiện thành bảng chứ không
+ *  phải mấy dòng gạch đứng. Nhận chữ đã escape để model không bao giờ chèn được thẻ HTML; số nguồn [1] [2]
+ *  thì mỗi trang tự xử lý TRƯỚC khi gọi (trang học viên xóa đi, trang quản trị tô lên).
+ *  Đang stream thì dòng tiêu đề bảng hiện như chữ thường cho tới khi dòng |---| tới, rồi mới thành bảng.
+ *
+ *  Câu hỏi lập kế hoạch / xử lý sự cố được dặn viết phần <phan_tich> trước bản kế hoạch (ReasoningAnswerFormat
+ *  trong OllamaChatService) — phần đó vào một khung "Phân tích" gập được. Chữ đã escape nên thẻ có dạng &lt;...&gt;.
+ *  Đang stream thì thẻ đóng chưa tới: từ thẻ mở tới hết chữ vẫn nằm trong khung. */
+function aiAnswerHtml(escapedText) {
+    const open = escapedText.match(AI_ANALYSIS_OPEN);
+    if (!open) return aiAnswerBodyHtml(escapedText);
+
+    const rest = escapedText.slice(open.index + open[0].length);
+    const close = rest.match(AI_ANALYSIS_CLOSE);
+    const before = escapedText.slice(0, open.index).trim();
+    const inner = (close ? rest.slice(0, close.index) : rest).trim();
+    const after = close ? rest.slice(close.index + close[0].length).trim() : '';
+
+    return (before ? aiAnswerBodyHtml(before) : '')
+        + `<details class="ai-analysis" open><summary>Phân tích</summary><div class="ai-analysis-body">${aiAnswerBodyHtml(inner)}</div></details>`
+        + (after ? aiAnswerHtml(after) : '');
+}
+
+function aiAnswerBodyHtml(escapedText) {
+    escapedText = escapedText
+        // Thẻ đóng lẻ (model quên thẻ mở) không được hiện thành chữ.
+        .replace(/&lt;\s*\/?\s*ph[aâ]n[_ ]?t[ií]ch\s*&gt;/gi, '')
+        // Đang stream: thẻ mới tới nửa chừng ("<phan_") ở cuối thì giấu đi, token sau tới là thành khung.
+        .replace(/&lt;\/?[a-zâí_]*$/i, '');
+
+    const isRow = (line) => /^\s*\|/.test(line);
+    const isDivider = (line) => /^\s*\|?(\s*:?-+:?\s*\|)+\s*(:?-+:?\s*)?$/.test(line);
+    const cellsOf = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(x => x.trim());
+
+    const html = escapedText
+        .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>');
+
+    const lineList = html.split('\n');
+    const partList = [];   // { html, block } — block = bảng, không chèn <br> quanh nó
+    for (let i = 0; i < lineList.length; i++) {
+        if (isRow(lineList[i]) && isDivider(lineList[i + 1] ?? '')) {
+            const head = cellsOf(lineList[i]);
+            const rowList = [];
+            for (i += 2; i < lineList.length && isRow(lineList[i]); i++) rowList.push(cellsOf(lineList[i]));
+            i--;
+            // Dòng trống ngay trước bảng: bỏ, bảng đã có lề riêng.
+            if (partList.length && !partList.at(-1).block && partList.at(-1).html.trim() === '') partList.pop();
+            partList.push({
+                block: true,
+                html: '<div class="ai-table-wrap"><table class="ai-table"><thead><tr>'
+                    + head.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>'
+                    + rowList.map(r => '<tr>' + head.map((_, k) => `<td>${r[k] ?? ''}</td>`).join('') + '</tr>').join('')
+                    + '</tbody></table></div>'
+            });
+            continue;
+        }
+        const line = lineList[i];
+        // Dòng trống ngay sau bảng: bỏ, cùng lý do.
+        if (line.trim() === '' && partList.at(-1)?.block) continue;
+        partList.push({
+            block: false,
+            html: line
+                .replace(/^[ \t]*#{1,4}[ \t]+(.+)$/, '<strong>$1</strong>')
+                .replace(/^[ \t]*[-*] /, '• ')
+        });
+    }
+
+    return partList.map((part, i) =>
+        (i > 0 && !part.block && !partList[i - 1].block ? '<br>' : '') + part.html).join('');
+}
+
 const qs = (name) => new URLSearchParams(location.search).get(name);
 
 // ----- Thẻ (tab) đang mở nằm trên địa chỉ trang -----
@@ -64,6 +141,26 @@ function showTab(tab, defaultTab) {
  *  vẫn giữ nguyên bảng màu của nền cũ, còn đổi màu thương hiệu thì biểu đồ là chỗ duy nhất không đổi theo. */
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
+/** Màu chữ ĐỌC ĐƯỢC trên một nền cho trước (#rgb hoặc #rrggbb): chữ trắng nếu nền đủ đậm, chữ tối nếu nền sáng.
+ *  Dùng cho mọi nhãn/chip có màu nền do người dùng tự chọn (VD màu bậc hạng ở màn Xếp hạng) — ghi cứng chữ trắng thì
+ *  khi Admin chọn nền trắng hay vàng nhạt, chữ biến mất. Khai báo function (được hoisting) chứ không phải const: trang
+ *  nào cũng có thể gọi nó từ lúc dựng HTML đầu tiên, trước khi engine chạy tới dòng này.
+ *  Ngưỡng 3:1 (độ tương phản WCAG cho chữ đậm) — dưới ngưỡng đó chữ trắng khó đọc nên chuyển sang chữ tối. Màu không
+ *  nhận ra được thì giữ chữ trắng như trước. */
+function readableTextColor(hex) {
+    const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(hex ?? '').trim());
+    if (!match) return '#fff';
+
+    const full = match[1].length === 3 ? [...match[1]].map(c => c + c).join('') : match[1];
+    const [r, g, b] = [0, 2, 4]
+        .map(i => parseInt(full.slice(i, i + 2), 16) / 255)
+        .map(c => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+    const contrastWithWhite = 1.05 / (luminance + 0.05);
+    return contrastWithWhite >= 3 ? '#fff' : '#1e293b';
+}
+
 function formatDate(value, withTime = false) {
     if (!value) return '—';
     const d = new Date(value);
@@ -87,6 +184,32 @@ function timeAgo(value) {
     if (second < 86400) return t('time.hourAgo', '{n} giờ trước', { n: Math.floor(second / 3600) });
     if (second < 7 * 86400) return t('time.dayAgo', '{n} ngày trước', { n: Math.floor(second / 86400) });
     return formatDate(value);
+}
+
+/** Thời lượng từ MILI GIÂY dạng "1h 12m" — viết tắt giống nhau ở mọi ngôn ngữ; dưới một phút là "<1m"; thiếu giá trị là "—". */
+function formatSpanMs(ms) {
+    if (ms == null) return '—';
+    const minutes = Math.floor(ms / 60000);
+    if (minutes < 1) return '<1m';
+    return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m` : `${minutes}m`;
+}
+
+/** Đồng hồ từ MILI GIÂY: "mm:ss", hoặc "h:mm:ss" từ một giờ. Làm tròn XUỐNG giây (khớp với đồng hồ của trình phát video). */
+function formatClockMs(ms) {
+    const total = Math.max(0, Math.floor((ms || 0) / 1000));
+    const h = Math.floor(total / 3600);
+    const mm = String(Math.floor(total / 60) % 60).padStart(2, '0');
+    const ss = String(total % 60).padStart(2, '0');
+    return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/** Dung lượng tệp dễ đọc: "12,3 MB". */
+function formatFileSize(bytes) {
+    if (!bytes) return '0 KB';
+    const unitList = ['B', 'KB', 'MB', 'GB'];
+    let value = bytes, i = 0;
+    while (value >= 1024 && i < unitList.length - 1) { value /= 1024; i++; }
+    return `${value.toLocaleString(Lang.locale, { maximumFractionDigits: 1 })} ${unitList[i]}`;
 }
 
 function formatDuration(minutes) {
@@ -295,7 +418,11 @@ function courseThumbBackground(title) {
 }
 
 /** Ảnh bìa nhỏ của một khóa học: ảnh thật nếu có, không thì mảng màu theo tên + biểu tượng. */
-function courseThumbHtml(title, thumbnailUrl, className = 'course-mini-thumb', icon = 'ph-book-open-text') {
+function courseThumbHtml(title, thumbnailUrl, className = 'course-mini-thumb', icon = 'ph-book-open-text', brand = false) {
+    // brand = true: khóa chưa có ảnh bìa hiện logo Hòa Bình trên nền trắng thay cho mảng màu + biểu tượng.
+    if (brand && !thumbnailUrl) {
+        return `<div class="${className} is-brand" aria-hidden="true"><img class="brand-logo" src="/img/HoaBinh.png" alt="" loading="lazy"></div>`;
+    }
     return `<div class="${className}${thumbnailUrl ? ' has-cover' : ''}" style="--cover-fallback:${courseThumbBackground(title)}" aria-hidden="true">
         <i class="ph-duotone ${icon}"></i>
         ${thumbnailUrl ? courseCoverHtml(thumbnailUrl) : ''}
@@ -314,6 +441,19 @@ function courseCoverHtml(url) {
     return `<img class="cover-backdrop" src="${esc(url)}" alt="" aria-hidden="true" loading="lazy">
         <img class="cover-image" src="${esc(url)}" alt="" loading="lazy"
              onerror="const box = this.parentNode; box.classList.remove('has-cover'); box.querySelectorAll('.cover-backdrop, .cover-image').forEach(x => x.remove())">`;
+}
+
+/**
+ * Điểm sao trung bình ở góc thẻ khóa học. Chưa ai đánh giá thì hiện chữ mờ "Chưa có đánh giá" chứ không hiện
+ * "0 sao": thấp nhất một đánh giá là 1 sao, số 0 sẽ đọc thành "khóa này bị chấm tệ".
+ * Chỗ đặt (góc dưới phải thẻ hàng, hay cuối phần thân thẻ lưới) do CSS .course-rating quyết định — xem css/style.css.
+ */
+function courseRatingHtml(average, count) {
+    if (average == null || !count)
+        return `<span class="course-rating none"><i class="ph ph-star"></i> ${esc(t('feedback.chuaCoDanhGiaNgan', 'Chưa có đánh giá'))}</span>`;
+    const label = t('feedback.soSao', '{n} trên 5 sao', { n: Number(average).toFixed(1) });
+    return `<span class="course-rating" title="${esc(label)} · ${esc(t('feedback.luotDanhGia', '{n} lượt đánh giá', { n: count }))}" aria-label="${esc(label)}">
+        <i class="ph-fill ph-star"></i> ${Number(average).toFixed(1)} <small>(${esc(Number(count).toLocaleString(Lang.locale))})</small></span>`;
 }
 
 /** Các bước trong chuỗi duyệt nội dung.
@@ -1006,7 +1146,7 @@ const MENU = [
     { key: 'dashboard',    href: '/pages/dashboard.html',   icon: '<i class="ph ph-gauge"></i>', label: t('menu.dashboard', 'Tổng quan'),        role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
     { group: t('group.learning', 'Học tập'),    groupKey: 'learning', role: ['Học viên', 'Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
     { key: 'my-course',    href: '/pages/my-course.html',   icon: '<i class="ph ph-graduation-cap"></i>', label: t('menu.my-course', 'Khóa học của tôi'), role: ['Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'ai-tutor',     href: '/pages/ai-tutor.html',    icon: '<i class="ph ph-chalkboard-teacher"></i>', label: t('menu.ai-tutor', 'Pico B'), role: ['Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'ai-tutor',     href: '/pages/ai-tutor.html',    icon: '<i class="ph ph-chalkboard-teacher"></i>', label: t('menu.ai-tutor', 'HB Minerva'), role: ['Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
     { key: 'certificate',  href: '/pages/certificate.html', icon: '<i class="ph ph-seal-check"></i>', label: t('index.stat-cert', 'Chứng nhận'),       role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
     { key: 'ranking',      href: '/pages/ranking.html',     icon: '<i class="ph ph-trophy"></i>', label: t('menu.ranking', 'Xếp hạng'),         role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
     { key: 'shop',         href: '/pages/shop.html',        icon: '<i class="ph ph-storefront"></i>', label: t('menu.shop', 'Trung Tâm Điểm Thưởng'),          role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
@@ -1459,7 +1599,7 @@ function mountLayout(activeKey, title, subtitle = '') {
                          thì CSS giấu luôn cái khối rỗng (xem .topbar-stats). -->
                     <div class="topbar-stats">
                         <span class="topbar-pill streak hidden" id="pill-streak" title="${esc(t('shell.streakTitle', 'Số ngày học liên tiếp'))}">
-                            <i class="ph-fill ph-fire"></i><b id="pill-streak-value">0</b>
+                            <i class="ph-fill ph-fire" data-force-emoji></i><b id="pill-streak-value">0</b>
                         </span>
                         <!-- Viên điểm dẫn thẳng vào Cửa hàng khi người này vào được đó: điểm chỉ có ý nghĩa khi
                              tiêu được, mà chỗ tiêu lại nằm sâu trong menu bên trái. Vai trò không được vào cửa
@@ -1469,7 +1609,7 @@ function mountLayout(activeKey, title, subtitle = '') {
                               title="${esc(canOpenShop
                                   ? t('shell.pointTitleShop', 'Điểm tích lũy — bấm để vào Trung Tâm đổi quà')
                                   : t('shell.pointTitle', 'Điểm tích lũy'))}">
-                            <i class="ph-fill ph-diamond"></i><b id="pill-point-value">0</b>
+                            <i class="ph-fill ph-diamond" data-force-emoji></i><b id="pill-point-value">0</b>
                         </span>
                     </div>
                   <div class="topbar-dock">
@@ -1935,11 +2075,13 @@ function mountNotificationBell() {
             StudyReminder: ['ph-alarm', ''],
             ShopRedemption: ['ph-gift', 'gold'],
             ExternalCertificate: ['ph-certificate', ''],
+            CourseFeedback: ['ph-chat-circle-text', ''],
         }[type] || ['ph-bell', ''];
     }
 
     /** Nhãn của nút hành động, theo việc mà thông báo đó dẫn tới. */
     function actionLabelOf(item) {
+        if (item.type === 'CourseFeedback' && item.courseId) return t('feedback.xemPhanHoi', 'Xem phản hồi');
         if (item.enrollmentId) return t('shell.notifGoLearn', 'Học ngay');
         if (item.courseId) return t('shell.notifGoCourse', 'Xem khóa học');
         // Thông báo đổi quà không gắn với khóa học nào, nhưng vẫn có chỗ để dẫn tới: lịch sử đổi quà của
@@ -1950,6 +2092,11 @@ function mountNotificationBell() {
     }
 
     function linkOf(item) {
+        // Người soạn khóa đọc ở thẻ Feedback của khóa; người học (nhận trả lời) về hộp phản hồi ở Khóa học của tôi.
+        if (item.type === 'CourseFeedback' && item.courseId)
+            return Auth.isContentAuthor || Auth.isAdmin
+                ? `/pages/course-detail.html?id=${item.courseId}&tab=feedback`
+                : `/pages/my-course.html?feedback=${item.courseId}`;
         if (item.enrollmentId) return `/pages/scorm-player.html?enrollmentId=${item.enrollmentId}`;
         if (item.courseId) return `/pages/course-detail.html?id=${item.courseId}`;
         if (item.type === 'ShopRedemption') return '/pages/shop.html?tab=mine';

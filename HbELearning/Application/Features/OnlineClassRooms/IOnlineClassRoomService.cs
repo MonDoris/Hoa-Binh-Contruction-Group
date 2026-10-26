@@ -13,6 +13,14 @@ public interface IOnlineClassRoomService
 
     Task<Result> GetById(int id);
 
+    /// <summary>Lịch sử: các Buổi học ĐÃ KẾT THÚC mà người gọi được phép xem — Chủ trì, Admin, hoặc người đã từng vào
+    /// buổi đó (có dòng "vào phòng" trong Diễn biến). Mới nhất trước; có tìm kiếm, lọc ngày và lọc "của tôi".</summary>
+    Task<Result> GetHistory(OnlineClassRoomHistoryQuery query);
+
+    /// <summary>Trang xem lại của một Buổi học: tóm tắt (thời lượng, số người, số tin nhắn), các Bản ghi kèm thời lượng
+    /// và dung lượng, và toàn bộ Diễn biến. Cùng quy tắc quyền xem Lịch sử: người không có quyền nhận 403.</summary>
+    Task<Result> GetReview(int id);
+
     /// <summary>Tra id phòng học theo mã tham gia — dùng khi người tham gia chỉ có mã (không có liên kết kèm
     /// sẵn id). Chỉ tìm trong các phòng còn hoạt động (đã lên lịch hoặc đang diễn ra); việc kiểm tra mã có
     /// đúng để THỰC SỰ vào được phòng vẫn do ClassRoomHub.JoinRoom quyết định.</summary>
@@ -24,8 +32,8 @@ public interface IOnlineClassRoomService
     /// <summary>Danh sách bản ghi video của buổi học (quay ở phía trình duyệt người chủ trì bằng MediaRecorder).</summary>
     Task<Result> GetRecordings(int id);
 
-    /// <summary>Người chủ trì hoặc bất kỳ người tham gia nào bắt đầu
-    /// 1 phiên ghi hình mới — tạo sẵn file rỗng trên đĩa và 1 dòng bản ghi trong DB, trả về id để gửi tiếp
+    /// <summary>Chỉ Chủ trì của buổi học đang diễn ra mới bắt đầu được
+    /// 1 phiên ghi hình mới (người khác, kể cả Admin, bị từ chối) — tạo sẵn file rỗng trên đĩa và 1 dòng bản ghi trong DB, trả về id để gửi tiếp
     /// từng đoạn video nhỏ qua UploadRecordingChunk. Ghi theo từng đoạn nhỏ ngay trong lúc quay (thay vì gom
     /// hết rồi tải lên 1 lần lúc kết thúc) để nếu trình duyệt bị đóng/mất mạng đột ngột, phần đã ghi tới thời
     /// điểm đó vẫn được lưu thay vì mất trắng.</summary>

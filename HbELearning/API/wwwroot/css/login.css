@@ -474,51 +474,131 @@ body::-webkit-scrollbar { display: none; }
 
 /* ==================================================================================================
    7. NÚT CHÍNH
-   Vàng công trường, bóng cứng đổ xuống dưới-phải; bấm xuống thì nút tụt đúng bằng độ dày bóng, cho cảm
-   giác nhấn thật. Dùng chung cho cả cửa sổ quên mật khẩu.
+   Gradient xanh thương hiệu, chữ trắng, bóng đổ mềm cùng tông. Rê chuột thì nút nhấc lên, một vệt sáng quét
+   ngang và mũi tên trượt sang phải; bấm xuống thì nút hạ về chỗ cũ. Dùng chung cho cả cửa sổ quên mật khẩu.
+   Xanh nền chọn đậm vừa đủ để chữ trắng đạt tương phản AA (>= 4.5:1) — xanh cyan sáng của thương hiệu chỉ
+   đạt khoảng 2.9:1 với chữ trắng. Tông tối đảo lại: nền cyan sáng, chữ tối.
    ================================================================================================== */
 .btn-glow {
+    --btn-from: #0277b6;
+    --btn-to: #025a8e;
+    --btn-ink: #ffffff;
+    --btn-rim: rgba(255, 255, 255, .22);
+    --btn-shadow: 0 10px 22px -8px rgba(2, 119, 182, .55), inset 0 1px 0 rgba(255, 255, 255, .28);
+    --btn-shadow-hover: 0 16px 28px -8px rgba(2, 119, 182, .62), inset 0 1px 0 rgba(255, 255, 255, .34);
+
     position: relative;
     display: flex; align-items: center; justify-content: center; gap: 10px;
     width: 100%;
-    padding: 15px 18px;
-    border: none; border-radius: 12px;
-    background: var(--lg-accent);
-    color: var(--lg-accent-ink);
-    font-family: inherit; font-size: 15.5px; font-weight: 700; letter-spacing: .2px;
+    padding: 15px 22px;
+    border: 1px solid var(--btn-rim); border-radius: 14px;
+    background: linear-gradient(135deg, var(--btn-from) 0%, var(--btn-to) 100%);
+    background-size: 140% 140%;
+    background-position: 0% 0%;
+    color: var(--btn-ink);
+    font-family: inherit; font-size: 16px; font-weight: 700; letter-spacing: .3px;
     cursor: pointer;
     overflow: hidden;
-    box-shadow: 4px 4px 0 var(--lg-hard);
-    transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
+    box-shadow: var(--btn-shadow);
+    transition: transform .2s ease, box-shadow .2s ease, background-position .35s ease;
 }
-.btn-glow:hover { background: var(--lg-accent-hover); transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--lg-hard); }
-.btn-glow:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--lg-hard); }
+:root[data-theme="dark"] .btn-glow {
+    --btn-from: #38bdf8; --btn-to: #0ea5e9; --btn-ink: #06121f; --btn-rim: rgba(255, 255, 255, .35);
+    --btn-shadow: 0 10px 24px -8px rgba(56, 189, 248, .5), inset 0 1px 0 rgba(255, 255, 255, .45);
+    --btn-shadow-hover: 0 16px 30px -8px rgba(56, 189, 248, .62), inset 0 1px 0 rgba(255, 255, 255, .5);
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .btn-glow {
+        --btn-from: #38bdf8; --btn-to: #0ea5e9; --btn-ink: #06121f; --btn-rim: rgba(255, 255, 255, .35);
+        --btn-shadow: 0 10px 24px -8px rgba(56, 189, 248, .5), inset 0 1px 0 rgba(255, 255, 255, .45);
+        --btn-shadow-hover: 0 16px 30px -8px rgba(56, 189, 248, .62), inset 0 1px 0 rgba(255, 255, 255, .5);
+    }
+}
+
+/* Vệt sáng quét ngang khi rê chuột. */
+.btn-glow::before {
+    content: '';
+    position: absolute; top: 0; bottom: 0; left: -60%;
+    width: 45%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .38), transparent);
+    transform: skewX(-20deg);
+    transition: left .6s ease;
+    pointer-events: none;
+}
+/* Mũi tên chỉ có khi nút bấm được — lúc disabled ::after dành cho sọc chờ máy chủ (xem bên dưới). */
+.btn-glow:not(:disabled)::after {
+    content: '';
+    width: 18px; height: 18px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M221.66 133.66l-72 72a8 8 0 0 1-11.32-11.32L196.69 136H40a8 8 0 0 1 0-16h156.69l-58.35-58.34a8 8 0 0 1 11.32-11.32l72 72a8 8 0 0 1 0 11.32z'/%3E%3C/svg%3E") center / contain no-repeat;
+            mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M221.66 133.66l-72 72a8 8 0 0 1-11.32-11.32L196.69 136H40a8 8 0 0 1 0-16h156.69l-58.35-58.34a8 8 0 0 1 11.32-11.32l72 72a8 8 0 0 1 0 11.32z'/%3E%3C/svg%3E") center / contain no-repeat;
+    transition: transform .2s ease;
+}
+
+.btn-glow:hover { transform: translateY(-2px); box-shadow: var(--btn-shadow-hover); background-position: 100% 100%; }
+.btn-glow:hover::before { left: 120%; }
+.btn-glow:hover:not(:disabled)::after { transform: translateX(4px); }
+.btn-glow:active { transform: translateY(0) scale(.985); box-shadow: var(--btn-shadow); }
 .btn-glow:focus-visible { outline: 3px solid var(--lg-focus); outline-offset: 3px; }
 
-/* Nút không bấm được: dùng cho cả lúc đang chờ máy chủ lẫn lúc tài khoản đã khóa. Trước đây nút vẫn
-   vàng và vẫn nhấc lên khi rê chuột dù đã disabled — trông y như còn bấm được. */
+/* Nút không bấm được mà KHÔNG phải đang chờ (hiện chỉ có lúc tài khoản đã khóa hẳn): phẳng và xám, không
+   nhấc lên khi rê chuột — nếu không trông y như còn bấm được. */
 .btn-glow:disabled {
     background: var(--lg-line-strong);
+    border-color: transparent;
     color: var(--lg-ink-soft);
-    box-shadow: 4px 4px 0 var(--lg-line);
+    box-shadow: none;
     cursor: not-allowed;
 }
-.btn-glow:disabled:hover, .btn-glow:disabled:active { transform: none; box-shadow: 4px 4px 0 var(--lg-line); }
+.btn-glow:disabled::before { display: none; }
+.btn-glow:disabled:hover, .btn-glow:disabled:active { transform: none; box-shadow: none; background-position: 0% 0%; }
 
-/* Sọc băng dính công trường chạy ngang nút trong lúc chờ máy chủ. CHỈ lúc chờ: khi tài khoản bị khóa
-   hẳn, kịch bản gắn thêm .locked — lúc đó không còn gì đang chạy nên sọc phải đứng im. */
+/* ĐANG CHỜ máy chủ: nút giữ nguyên màu xanh, vòng tròn nhỏ quay bên chữ, một dải sáng quét liên tục và bóng
+   quanh nút thở nhẹ — cho thấy đang xử lý mà không cần sọc. Khi tài khoản bị khóa hẳn kịch bản gắn thêm
+   .locked: lúc đó không còn gì đang chạy nên rơi về kiểu xám phẳng ở trên. Khối này phải nằm SAU các luật
+   :disabled bên trên để thắng chúng khi cùng độ ưu tiên. */
+.btn-glow:disabled:not(.locked) {
+    background: linear-gradient(135deg, var(--btn-from) 0%, var(--btn-to) 100%);
+    border-color: var(--btn-rim);
+    color: var(--btn-ink);
+    cursor: progress;
+    box-shadow: var(--btn-shadow);
+    animation: btnGlowPulse 1.4s ease-in-out infinite;
+}
+.btn-glow:disabled:not(.locked)::before {
+    display: block;
+    position: static;
+    flex: none;
+    width: 16px; height: 16px;
+    border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+    background: none;
+    transform: none;
+    transition: none;
+    animation: btnSpin .7s linear infinite;
+}
 .btn-glow:disabled:not(.locked)::after {
     content: '';
-    position: absolute;
-    inset: 0;
-    background-image: repeating-linear-gradient(-45deg,
-        transparent 0 12px, rgba(15, 23, 42, .16) 12px 24px);
-    background-size: 200% 200%;
-    animation: stripeScroll 1.1s linear infinite;
+    position: absolute; top: 0; bottom: 0; left: -60%;
+    width: 45%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .5), transparent);
+    transform: skewX(-20deg);
+    animation: btnShimmer 1.3s ease-in-out infinite;
+    pointer-events: none;
 }
-@keyframes stripeScroll {
-    from { background-position: 100% 100%; }
-    to   { background-position: 0 0; }
+@keyframes btnSpin { to { transform: rotate(360deg); } }
+@keyframes btnShimmer { from { left: -60%; } to { left: 130%; } }
+@keyframes btnGlowPulse {
+    0%, 100% { box-shadow: var(--btn-shadow); }
+    50%      { box-shadow: 0 12px 30px -6px var(--btn-from), inset 0 1px 0 rgba(255, 255, 255, .34); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn-glow, .btn-glow::after { transition: none; }
+    .btn-glow::before { display: none; }
+    .btn-glow:hover, .btn-glow:active { transform: none; }
+    .btn-glow:disabled:not(.locked) { animation: none; }
+    .btn-glow:disabled:not(.locked)::before { animation-duration: 1.6s; display: block; }
+    .btn-glow:disabled:not(.locked)::after { display: none; }
 }
 
 /* ==================================================================================================
@@ -847,8 +927,10 @@ body::-webkit-scrollbar { display: none; }
 
     /* Chạm một lần là :hover dính lại tới khi chạm chỗ khác — nút cứ thế tụt xuống và ở nguyên đó,
        trông như đang bị kẹt. */
-    .btn-glow:hover { transform: none; box-shadow: 4px 4px 0 var(--lg-hard); }
-    .btn-glow:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--lg-hard); }
+    .btn-glow:hover { transform: none; box-shadow: var(--btn-shadow); background-position: 0% 0%; }
+    .btn-glow:hover::before { left: -60%; }
+    .btn-glow:hover:not(:disabled)::after { transform: none; }
+    .btn-glow:active { transform: scale(.985); box-shadow: var(--btn-shadow); }
 }
 
 /* Xoay logo và mở cửa là phản hồi UI chính của việc đăng nhập, không phải trang trí thuần túy — vẫn giữ

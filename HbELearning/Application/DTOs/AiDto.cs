@@ -74,7 +74,7 @@ public record CourseKnowledgeStatusDto(
     string Message,
     List<CourseKnowledgeItemDto> ItemList);
 
-// ==================== LỊCH SỬ HỎI ĐÁP VỚI PICO B ====================
+// ==================== LỊCH SỬ HỎI ĐÁP VỚI HB MINERVA ====================
 
 /// <summary>Một hội thoại trong danh sách lịch sử (chưa kèm nội dung các lượt nói).</summary>
 public record AiChatSessionDto(int Id, string Title, int MessageCount, DateTime CreatedAt, DateTime UpdatedAt);

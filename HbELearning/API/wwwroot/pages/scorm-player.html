@@ -95,8 +95,7 @@
                 <div class="sp-actions">
                     <button type="button" class="btn ghost sm" id="sp-prev"><i class="ph ph-caret-left"></i> <span class="lbl" data-i18n="scorm.truoc">Trước</span></button>
                     <button type="button" class="btn sm" id="sp-next"><span class="lbl" data-i18n="scorm.tiep">Tiếp</span> <i class="ph ph-caret-right"></i></button>
-                    <button type="button" class="btn ghost sm" id="sp-suspend" title="Lưu chỗ đang học rồi thoát"><i class="ph ph-floppy-disk"></i> <span class="lbl" data-i18n="scorm.luuVaThoat">Lưu và thoát</span></button>
-                    <button type="button" class="btn ghost sm" id="sp-exit" title="Kết thúc lượt học này"><i class="ph ph-sign-out"></i> <span class="lbl" data-i18n="scorm.ketThuc">Kết thúc</span></button>
+                    <button type="button" class="btn ghost sm" id="sp-exit" title="Thoát (vị trí đang học được lưu lại)" data-i18n-title="scorm.thoatLuuViTri"><i class="ph ph-sign-out"></i> <span class="lbl" data-i18n="scorm.thoat">Thoát</span></button>
                     <button type="button" class="btn ghost sm sp-icon-btn" id="sp-fullscreen" aria-label="Toàn màn hình" title="Toàn màn hình"><i class="ph ph-corners-out"></i></button>
                 </div>
             </div>
@@ -111,11 +110,26 @@
     </div>
 </div>
 
+<!-- Đánh giá khóa học: tự mở khi học viên vừa hoàn thành khóa -->
+<div class="modal-mask" id="modal-feedback">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="feedback-title" data-i18n="feedback.tieuDe">Phản hồi khóa học</h3>
+            <button class="close-x" onclick="closeModal('modal-feedback')">×</button>
+        </div>
+        <div class="modal-body" id="feedback-body"></div>
+        <div class="modal-foot">
+            <button data-i18n="common.close" class="btn ghost" onclick="closeModal('modal-feedback')">Đóng</button>
+        </div>
+    </div>
+</div>
+
 <script src="/js/api.js"></script>
 <script src="/js/language.js"></script>
 <script src="/js/theme.js"></script>
 <script src="/js/password.js"></script>
 <script src="/js/app.js"></script>
+<script src="/js/feedback.js"></script>
 <script src="/js/scorm-rte.js"></script>
 <script>
 (async function () {
@@ -149,6 +163,8 @@
     let stopped = false;       // phiên bị cửa sổ khác chiếm — ngừng mọi thao tác
     let leaving = false;
     let forcedTermination = false;
+    let reviewOffered = false; // đã mời đánh giá trong lần mở trang này
+    let exitAfterSave = false; // bấm Thoát: lưu chỗ đang học xong thì về trang trước
 
     const shell = document.getElementById('sp-shell');
     const frame = document.getElementById('sp-frame');
@@ -188,6 +204,8 @@
 
     /** Nhận một phiên mới từ máy chủ: vẽ lại mục lục / nút, rồi phát hoạt động được giao (nếu có). */
     function applySession(dto) {
+        // Bấm Thoát: chỗ đang học đã được lưu xong, về trang trước. leaving = true để onPageHide không gửi thêm lệnh.
+        if (exitAfterSave) { leaving = true; location.href = backUrl; return; }
         session = dto;
         document.querySelector('.topbar h1').textContent = dto.packageTitle;
         document.title = `${dto.packageTitle} · HB E-Learning`;
@@ -202,8 +220,23 @@
             document.getElementById('sp-activity').textContent = dto.packageTitle;
             showOverlay(dto.endSession ? endPanelHtml(dto) : messagePanelHtml(dto));
             bindOverlay();
+            if (dto.endSession) offerCourseReview(dto);
         }
         renderSub();
+    }
+
+    /** Vừa hoàn thành khóa học → mở ngay hộp đánh giá, nhưng chỉ khi học viên chưa đánh giá và mỗi lần mở trang một lần. */
+    async function offerCourseReview(dto) {
+        if (reviewOffered || !enrollmentId || dto.isPreview || !dto.isCourse || !dto.summary.completedAt) return;
+        reviewOffered = true;
+        try {
+            const feedback = await API.getSilent(`/feedback/course/${dto.courseId}`);
+            if (!feedback.canReview || feedback.itemList.some(x => x.kind === 'Review' && x.isMine)) return;
+        } catch { return; }
+        document.getElementById('feedback-title').textContent =
+            `${t('feedback.tieuDe', 'Phản hồi khóa học')} — ${dto.courseTitle}`;
+        openModal('modal-feedback');
+        mountCourseFeedback({ container: document.getElementById('feedback-body'), courseId: dto.courseId });
     }
 
     function deliver(item) {
@@ -286,6 +319,8 @@
                 renderButtons();
                 renderSub();
                 setSaveState('saved');
+                // Bài cuối vừa nộp làm cả khóa hoàn thành → mời đánh giá ngay, không đợi học viên bấm Kết thúc.
+                offerCourseReview(session);
             } catch (ex) {
                 handleRequestError(ex);
             }
@@ -371,6 +406,7 @@
             applySession(dto);
         } catch (ex) {
             navigating = false;
+            exitAfterSave = false;
             if (leaving) return;
             handleRequestError(ex);
             renderButtons();
@@ -432,11 +468,12 @@
         document.getElementById('sp-toc-toggle').addEventListener('click', () => shell.classList.toggle('toc-hidden'));
         document.getElementById('sp-prev').addEventListener('click', () => requestNavigation('previous'));
         document.getElementById('sp-next').addEventListener('click', () => requestNavigation('continue'));
-        document.getElementById('sp-suspend').addEventListener('click', () => requestNavigation('suspendAll'));
-        document.getElementById('sp-exit').addEventListener('click', async () => {
-            if (!await confirmDialog(t('scorm.xacNhanKetThuc', 'Kết thúc lượt học này? Kết quả đã đạt vẫn được giữ, nhưng lần sau mở lại sẽ bắt đầu một lượt mới từ đầu.'),
-                { okText: t('scorm.ketThuc', 'Kết thúc') })) return;
-            requestNavigation('exitAll');
+        // Một nút Thoát duy nhất: lưu chỗ đang học (suspendAll) rồi về trang trước. Việc về trang nằm ở applySession
+        // khi máy chủ đã xác nhận lưu xong — rời trang ngay thì lệnh lưu có thể bị hủy giữa đường.
+        document.getElementById('sp-exit').addEventListener('click', () => {
+            if (!session?.nav?.hasCurrent) { leaving = true; location.href = backUrl; return; }
+            exitAfterSave = true;
+            requestNavigation('suspendAll');
         });
         document.getElementById('sp-fullscreen').addEventListener('click', () => {
             if (document.fullscreenElement) document.exitFullscreen?.();
@@ -460,8 +497,8 @@
         };
         setButton('sp-prev', !hide.has('previous'), !!nav?.canPrevious);
         setButton('sp-next', !hide.has('continue'), !!nav?.canContinue);
-        setButton('sp-suspend', !hide.has('suspendAll'), !!nav?.hasCurrent);
-        setButton('sp-exit', !hide.has('exitAll') && !hide.has('exit'), !!nav?.hasCurrent);
+        // Nút Thoát luôn hiện (gói SCORM giấu giao diện LMS cũng không được làm mất lối ra).
+        setButton('sp-exit', true, true);
     }
 
     function renderSub() {

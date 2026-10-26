@@ -174,21 +174,26 @@ public class NotificationDispatcher : INotificationDispatcher
     }
 
     public async Task NotifyCourseAssignedAsync(int enrollmentId)
-    {
-        var enrollment = await _db.Enrollment.AsNoTracking()
-            .Include(x => x.Course)
-            .FirstOrDefaultAsync(x => x.Id == enrollmentId);
-        if (enrollment is null) return;
+        => await NotifyCourseAssignedAsync(new[] { enrollmentId });
 
-        _db.Notification.Add(new Notification
+    public async Task NotifyCourseAssignedAsync(IReadOnlyCollection<int> enrollmentIdList)
+    {
+        if (enrollmentIdList.Count == 0) return;
+
+        var rowList = await _db.Enrollment.AsNoTracking()
+            .Where(x => enrollmentIdList.Contains(x.Id))
+            .Select(x => new { x.Id, x.UserId, x.DueDate, CourseTitle = x.Course.Title })
+            .ToListAsync();
+
+        _db.Notification.AddRange(rowList.Select(x => new Notification
         {
-            UserId = enrollment.UserId,
-            EnrollmentId = enrollment.Id,
+            UserId = x.UserId,
+            EnrollmentId = x.Id,
             Type = NotificationType.CourseAssigned,
             Title = "Khóa học mới được giao",
-            Message = $"Bạn vừa được phân công khóa học \"{enrollment.Course.Title}\"."
-                + (enrollment.DueDate.HasValue ? $" Hạn hoàn thành: {enrollment.DueDate.Value:dd/MM/yyyy}." : "")
-        });
+            Message = FitMessage($"Bạn vừa được phân công khóa học \"{x.CourseTitle}\"."
+                + (x.DueDate.HasValue ? $" Hạn hoàn thành: {x.DueDate.Value:dd/MM/yyyy}." : ""))
+        }));
         await _db.SaveChangesAsync();
     }
 

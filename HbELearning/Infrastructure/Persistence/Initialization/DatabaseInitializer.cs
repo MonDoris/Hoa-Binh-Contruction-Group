@@ -231,6 +231,11 @@ public static class DatabaseInitializer
         await AddMissingSqlServerColumnListAsync(connection, "HBE_EXTERNAL_CERTIFICATE",
             ("IS_AI_REVIEWED", "bit NOT NULL DEFAULT 0"), ("AI_RESULT_JSON", "nvarchar(max) NULL"),
             ("AI_ATTEMPT_COUNT", "int NOT NULL DEFAULT 0"));
+        // Ghi hình tạm dừng được: thời lượng thật (không tính đoạn tạm dừng) + lúc chốt Bản ghi; và Diễn biến gắn
+        // với Bản ghi nào. Cả ba cho phép rỗng nên mọi dòng cũ giữ nguyên. Cố ý KHÔNG kèm khóa ngoại cho RECORDING_ID.
+        await AddMissingSqlServerColumnListAsync(connection, "HBE_ONLINE_CLASS_ROOM_RECORDING",
+            ("DURATION_MS", "bigint NULL"), ("STOPPED_AT", "datetime2 NULL"));
+        await AddMissingSqlServerColumnListAsync(connection, "HBE_ONLINE_CLASS_ROOM_EVENT", ("RECORDING_ID", "int NULL"));
     }
 
     /// <summary>Chạy một câu lệnh vá dữ liệu, bỏ qua lỗi "bảng/cột chưa tồn tại".
@@ -322,6 +327,10 @@ public static class DatabaseInitializer
             ("HR_APPROVER_USER_ID", "INTEGER NULL"), ("HR_APPROVER_IS_DELEGATE", "INTEGER NOT NULL DEFAULT 0"));
         // Mã tham gia phòng học online — chỉ người có mã/liên kết mới vào được buổi học thực sự (ClassRoomHub.JoinRoom).
         await AddMissingColumnListAsync(connection, "HBE_ONLINE_CLASS_ROOM", ("JOIN_CODE", "TEXT NULL"));
+        // Ghi hình tạm dừng được — xem bản SqlServer bên trên.
+        await AddMissingColumnListAsync(connection, "HBE_ONLINE_CLASS_ROOM_RECORDING",
+            ("DURATION_MS", "INTEGER NULL"), ("STOPPED_AT", "TEXT NULL"));
+        await AddMissingColumnListAsync(connection, "HBE_ONLINE_CLASS_ROOM_EVENT", ("RECORDING_ID", "INTEGER NULL"));
         // Câu hỏi chèn trong video: giới hạn số lần trả lời + điểm của câu hỏi. Hết lượt mà vẫn sai thì video
         // chạy tiếp nhưng câu đó bị 0 điểm (xem VideoLearningService.Answer).
         // Lưu ý kiểu cột: EF Core ánh xạ decimal sang TEXT trên Sqlite, không phải REAL/NUMERIC.

@@ -83,6 +83,7 @@ public class QuizService : IQuizService
         var quiz = await _db.Quiz.FirstOrDefaultAsync(x => x.Id == id);
         if (quiz is null) return Result.NotFound(new MessageResponse("Không tìm thấy bài kiểm tra."));
 
+        var lessonChanged = quiz.LessonId != request.LessonId;
         quiz.LessonId = request.LessonId;
         quiz.Title = request.Title.Trim();
         quiz.Description = request.Description;
@@ -94,6 +95,8 @@ public class QuizService : IQuizService
         quiz.IsActive = request.IsActive;
 
         await _db.SaveChangesAsync();
+        // Đổi "Bài học gắn kèm" thì mục của bài kiểm tra trong cấu trúc khóa học phải đi theo bài học đó.
+        await _learningPathService.AlignAttachedResourceAsync(quiz.CourseId, PathItemType.Quiz, quiz.Id, lessonChanged);
         return Result.Success(new MessageResponse("Cập nhật thành công."));
     }
 
@@ -166,22 +169,41 @@ public class QuizService : IQuizService
         question.Content = request.Content.Trim();
         question.QuestionType = request.QuestionType;
         question.Score = request.Score;
-        question.OrderIndex = request.OrderIndex;
+        // Không gửi thứ tự (0) thì giữ nguyên vị trí hiện có, đừng đẩy câu hỏi về đầu bài.
+        if (request.OrderIndex > 0) question.OrderIndex = request.OrderIndex;
         question.Explanation = request.Explanation;
 
-        _db.Answer.RemoveRange(question.AnswerList);
+        // Cập nhật đáp án TẠI CHỖ theo Id thay vì xóa hết rồi tạo lại: bài đã làm lưu "đáp án đã chọn" bằng danh
+        // sách Id (AttemptDetail.SelectedAnswerId, không có khóa ngoại), nên đổi Id là màn xem lại bài làm cũ trỏ
+        // vào những đáp án không còn tồn tại. Đáp án không có Id (hoặc Id không thuộc câu này) là đáp án mới;
+        // đáp án cũ không còn trong yêu cầu thì bị xóa.
+        var existingById = question.AnswerList.ToDictionary(x => x.Id);
+        var keptIdSet = new HashSet<int>();
 
         var order = 1;
         foreach (var answer in request.AnswerList)
         {
-            question.AnswerList.Add(new Answer
-            {
-                Content = answer.Content.Trim(),
-                IsCorrect = answer.IsCorrect,
-                OrderIndex = answer.OrderIndex > 0 ? answer.OrderIndex : order
-            });
+            var orderIndex = answer.OrderIndex > 0 ? answer.OrderIndex : order;
             order++;
+
+            if (answer.Id is { } answerId && existingById.TryGetValue(answerId, out var existing) && keptIdSet.Add(answerId))
+            {
+                existing.Content = answer.Content.Trim();
+                existing.IsCorrect = answer.IsCorrect;
+                existing.OrderIndex = orderIndex;
+            }
+            else
+            {
+                question.AnswerList.Add(new Answer
+                {
+                    Content = answer.Content.Trim(),
+                    IsCorrect = answer.IsCorrect,
+                    OrderIndex = orderIndex
+                });
+            }
         }
+
+        _db.Answer.RemoveRange(existingById.Values.Where(x => !keptIdSet.Contains(x.Id)));
 
         await _db.SaveChangesAsync();
         return Result.Success(new MessageResponse("Cập nhật câu hỏi thành công."));
@@ -269,7 +291,7 @@ public class QuizService : IQuizService
 
         return Result.Success(new QuizStartDto(attempt.Id, quiz.Id, quiz.Title, todayAttempt + 1, quiz.MaxAttempt,
             quiz.TimeLimitMinutes, attempt.StartedAt, attempt.StartedAt.AddMinutes(quiz.TimeLimitMinutes),
-            quiz.PassScore, questionList));
+            quiz.PassScore, questionList, quiz.IsFinalExam));
     }
 
     public async Task<Result> Submit(int attemptId, SubmitQuizRequest request)

@@ -78,6 +78,21 @@ public static class ApiServiceExtensions
         // không đổi — xem TranslationController.GetDictionary.
         services.AddMemoryCache();
 
+        // Nén phản hồi: HTML/JS/CSS/JSON thường co lại 70-85%, giảm mạnh thời gian tải trên mạng nội bộ chậm
+        // hoặc Wi-Fi yếu. Nhanh nhất (Fastest) để không đổi CPU lấy băng thông — mạng công ty thường dư băng thông.
+        services.AddResponseCompression(options =>
+        {
+            options.EnableForHttps = true;
+            options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+            options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+            options.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes
+                .Concat(["image/svg+xml", "application/manifest+json", "model/gltf+json"]);
+        });
+        services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(
+            o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
+        services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(
+            o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
+
         services.AddSignalR();
         // Nghiệp vụ chat báo "có tin mới" qua cổng IChatNotifier; tầng web đẩy đi bằng SignalR.
         services.AddScoped<IChatNotifier, SignalRChatNotifier>();

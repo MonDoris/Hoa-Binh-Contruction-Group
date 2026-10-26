@@ -1,5 +1,7 @@
 // File: Application/DependencyInjection.cs
 
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 namespace HbELearning.Application;
 
 /// <summary>Đăng ký các nghiệp vụ thuần của lớp Application.</summary>
@@ -14,6 +16,8 @@ public static class DependencyInjection
         services.AddScoped<ICertificateIssuer, CertificateIssuer>();
         services.AddScoped<IDataImportService, DataImportService>();
         services.AddScoped<IDocumentProcessingService, DocumentProcessingService>();
+        // Kho vector giữ sẵn trong bộ nhớ, dùng chung mọi yêu cầu (xem ChunkVectorIndex).
+        services.AddSingleton<ChunkVectorIndex>();
         services.AddScoped<IStudyReminderDispatcher, StudyReminderDispatcher>();
 
 
@@ -28,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<IChatService, ChatService>();
         services.AddScoped<ICertificateService, CertificateService>();
         services.AddScoped<IExternalCertificateService, ExternalCertificateService>();
+        services.AddScoped<IFeedbackService, FeedbackService>();
         services.AddScoped<ExternalCertificateVerifier>();
         services.AddScoped<IScormService, ScormService>();
         services.AddScoped<HbELearning.Application.Features.Scorm.Export.ScormCourseExporter>();
@@ -38,12 +43,19 @@ public static class DependencyInjection
         services.AddScoped<IDepartmentService, DepartmentService>();
         services.AddScoped<IEnrollmentService, EnrollmentService>();
         services.AddScoped<IImportService, ImportService>();
+        // Nhớ kết quả lượt đồng bộ nhân sự gần nhất giữa các yêu cầu nên phải là singleton.
+        services.AddSingleton<HrSyncLastRunStore>();
+        services.AddScoped<IHrSyncService, HrSyncService>();
         services.AddScoped<ILearningPathService, LearningPathService>();
         services.AddScoped<ILessonNoteService, LessonNoteService>();
         services.AddScoped<ILessonService, LessonService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IOnlineClassRoomService, OnlineClassRoomService>();
         services.AddScoped<IClassRoomSessionService, ClassRoomSessionService>();
+        // Trạng thái ghi hình phải sống lâu hơn một lệnh của Hub (dịch vụ phiên học được tạo mới cho từng lệnh) nên là singleton.
+        services.AddSingleton<ClassRoomRecordingRegistry>();
+        services.AddScoped<RecordingFinalizer>();
+        services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IPositionService, PositionService>();
         services.AddScoped<IProgressService, ProgressService>();
         services.AddScoped<IQuizService, QuizService>();

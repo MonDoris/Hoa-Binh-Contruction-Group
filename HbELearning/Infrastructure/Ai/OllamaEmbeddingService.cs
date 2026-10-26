@@ -44,6 +44,10 @@ public class OllamaEmbeddingService : IEmbeddingService
         _http.Timeout = TimeSpan.FromSeconds(timeoutSecond);
     }
 
+    /// <summary>Nạp sẵn model nhúng vào RAM để câu hỏi đầu tiên không phải chờ nạp.</summary>
+    public Task WarmUpAsync(CancellationToken cancellationToken)
+        => GetEmbeddingAsync("khởi động", cancellationToken);
+
     public async Task<float[]> GetEmbeddingAsync(string text, CancellationToken cancellationToken = default)
     {
         var result = await GetEmbeddingListAsync([text], cancellationToken);

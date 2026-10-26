@@ -68,7 +68,7 @@
         .wallet-hero {
             display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 22px; align-items: center;
             padding: 22px 24px; margin-bottom: 18px; border-radius: var(--radius-lg); color: #fff;
-            background: linear-gradient(125deg, #0277b6 0%, #0369a1 50%, #075985 100%);
+            background: linear-gradient(125deg, #38bdf8 0%, #0ea5e9 50%, #0284c7 100%);
             box-shadow: 0 14px 30px -16px rgba(3, 105, 161, .6);
         }
         .wallet-hero.solo { grid-template-columns: 1fr; }
@@ -752,10 +752,10 @@
 <script>
 (async function () {
     await Lang.ready;
-    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'shop.view')) return;
+    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'shop.view')) return;
 
     mountLayout('shop', 'Trung tâm điểm thưởng',
-        'Đổi điểm tích lũy được từ việc học lấy quà của công ty — điểm xếp hạng của bạn KHÔNG bị trừ');
+        'Đổi điểm tích lũy được từ việc học lấy quà của công ty');
 
     // Auth.can() trả null khi vai trò chưa cấu hình quyền; khi đó giữ cách chặn cũ theo tên vai trò.
     const canCreate = Auth.isAdmin && Auth.can('shop.create') !== false;
@@ -1108,9 +1108,9 @@
 
         const byCost = (a, b) => a.effectivePointCost - b.effectivePointCost || a.name.localeCompare(b.name, 'vi');
         const shelfList = [
-            { key: 'ready', icon: 'ph-check-circle', title: 'Đổi được ngay', note: 'Đủ điểm và còn hàng.',
+            { key: 'ready', icon: 'ph-check-circle', title: 'Đổi được ngay', note: '',
               items: list.filter(x => x.stock > 0 && x.canAfford) },
-            { key: 'locked', icon: 'ph-lock-simple', title: 'Tích thêm điểm để đổi', note: 'Thanh dưới mỗi món cho biết bạn còn thiếu bao nhiêu điểm.',
+            { key: 'locked', icon: 'ph-lock-simple', title: 'Tích thêm điểm để đổi',
               items: list.filter(x => x.stock > 0 && !x.canAfford) },
             { key: 'out', icon: 'ph-package', title: 'Tạm hết hàng', note: 'Đổi được lại khi kho được bổ sung.',
               items: list.filter(x => x.stock <= 0) },
@@ -1121,7 +1121,7 @@
                 <header class="shelf-head">
                     <h3 id="shelf-${shelf.key}-title"><i class="ph-fill ${shelf.icon}" aria-hidden="true"></i>${shelf.title}
                         <span class="num">${shelf.items.length}</span></h3>
-                    <p>${shelf.note}</p>
+                    ${shelf.note ? `<p>${shelf.note}</p>` : ''}
                 </header>
                 <div class="shop-grid">${shelf.items.sort(byCost).map(giftCardHtml).join('')}</div>
             </section>`).join('');

@@ -213,7 +213,9 @@ public enum OnlineClassRoomStatus { Scheduled = 0, Live = 1, Ended = 2, Cancelle
 public enum OnlineClassRoomEventType
 {
     Started = 0, Ended = 1, Joined = 2, Left = 3, ChatMessage = 4,
-    MicOn = 5, MicOff = 6, CamOn = 7, CamOff = 8
+    MicOn = 5, MicOff = 6, CamOn = 7, CamOff = 8,
+    // Ghi hình của Chủ trì. Giá trị số lưu trong từng dòng Diễn biến: chỉ được thêm vào CUỐI, không bao giờ đánh số lại.
+    RecordingStarted = 9, RecordingPaused = 10, RecordingResumed = 11, RecordingStopped = 12
 }
 
 /// <summary>Trạng thái một lượt đổi quà ở Cửa hàng điểm thưởng.
@@ -318,14 +320,14 @@ public enum KnowledgeSourceKind
     CourseOverview = 2
 }
 
-/// <summary>Ai là người nói trong một lượt hội thoại với Pico B.
+/// <summary>Ai là người nói trong một lượt hội thoại với HB Minerva.
 /// GIÁ TRỊ SỐ LÀ VĨNH VIỄN — nằm trong HBE_AI_CHAT_MESSAGE.ROLE.</summary>
 public enum AiChatRole
 {
     /// <summary>Câu hỏi của người dùng.</summary>
     User = 0,
 
-    /// <summary>Câu trả lời của Pico B.</summary>
+    /// <summary>Câu trả lời của HB Minerva.</summary>
     Assistant = 1
 }
 

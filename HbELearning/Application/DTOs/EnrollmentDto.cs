@@ -24,7 +24,9 @@ public record EnrollmentListDto(
     int UserId, string UserFullName, string EmployeeCode, string? DepartmentName,
     string Status, decimal ProgressPercent, decimal? FinalScore,
     DateTime AssignedAt, DateTime? DueDate, DateTime? StartedAt, DateTime? CompletedAt,
-    bool IsOverdue, bool HasCertificate);
+    bool IsOverdue, bool HasCertificate,
+    // Điểm sao trung bình của KHÓA HỌC (không phải đánh giá riêng của người này) — hiện ở góc thẻ khóa học.
+    decimal? CourseAverageRating = null, int CourseReviewCount = 0);
 
 /// <summary>Một bài học được ghim lên lịch học của người dùng hiện tại.
 ///

@@ -537,18 +537,8 @@ public class LearningPathService : ILearningPathService
             ? ordered.FirstOrDefault(x => x.ItemType == PathItemType.Lesson && x.LessonId == lessonId) : null;
         if (lessonItem is not null)
         {
-            // Ngay sau bài học và các mục đã gắn cùng bài học đứng liền sau nó (cùng cấp).
-            var quizLessonDict = await _db.Quiz.AsNoTracking().Where(x => x.CourseId == courseId).ToDictionaryAsync(x => x.Id, x => x.LessonId);
-            var sceneLessonDict = await _db.ScenarioScene.AsNoTracking().Where(x => x.CourseId == courseId).ToDictionaryAsync(x => x.Id, x => x.LessonId);
-            bool OwnedBySameLesson(PathItem x) => x.ParentItemId == lessonItem.ParentItemId && (
-                (x.ItemType == PathItemType.Quiz && x.QuizId is int q && quizLessonDict.GetValueOrDefault(q) == ownerLessonId)
-                || (x.ItemType == PathItemType.Simulation && x.ScenarioSceneId is int s && sceneLessonDict.GetValueOrDefault(s) == ownerLessonId));
-
-            var index = ordered.IndexOf(lessonItem);
-            var end = SubtreeEnd(ordered, index);
-            while (end + 1 < ordered.Count && OwnedBySameLesson(ordered[end + 1])) end = SubtreeEnd(ordered, end + 1);
             item.ParentItemId = lessonItem.ParentItemId;
-            position = end + 1;
+            position = await PositionAfterLessonAsync(ordered, lessonItem, courseId);
         }
         else if (!isFinalExam)
         {
@@ -560,6 +550,64 @@ public class LearningPathService : ILearningPathService
 
         ordered.Insert(position >= 0 ? position : ordered.Count, item);
         await SaveOrderAsync(path, ordered);
+    }
+
+    /// <summary>
+    /// Bài kiểm tra / mô phỏng vừa được SỬA để gắn vào một bài học: đưa mục của nó trong cấu trúc về ngay sau bài học
+    /// đó (cùng chương, sau các mục đã gắn cùng bài học) — cùng quy tắc với lúc tạo mới (<see cref="AppendResourceAsync"/>).
+    /// Không có bước này, đổi "Bài học gắn kèm" chỉ đổi cột LessonId còn cấu trúc đứng yên, học viên và người soạn
+    /// thấy bài kiểm tra vẫn nằm ngoài chương của bài học mà nó đi kèm.
+    ///
+    /// Chỉ di chuyển khi thật sự cần: bài học gắn kèm vừa đổi, hoặc mục đang nằm khác chương với bài học của nó. Mục
+    /// đã ở đúng chương thì giữ nguyên thứ tự người soạn đã xếp tay — sửa tên hay thời gian làm bài không được làm
+    /// nó nhảy chỗ. Gỡ khỏi bài học (LessonId = null), chưa có cấu trúc, mục chưa nằm trong cấu trúc hay bài học chưa
+    /// có trong cấu trúc đều giữ nguyên: để người soạn tự quyết.
+    /// </summary>
+    public async Task AlignAttachedResourceAsync(int courseId, PathItemType type, int resourceId, bool lessonChanged)
+    {
+        if (type is not (PathItemType.Quiz or PathItemType.Simulation)) return;
+
+        var path = await _db.LearningPath.Include(x => x.PathItemList).FirstOrDefaultAsync(x => x.CourseId == courseId);
+        if (path is null || path.PathItemList.Count == 0) return;   // chưa dựng cấu trúc: thứ tự mặc định tự tính theo LessonId
+
+        var probe = Probe(type, resourceId);
+        var item = path.PathItemList.FirstOrDefault(x => x.ItemType == type && SameResource(x, probe));
+        if (item is null) return;
+
+        var ownerLessonId = type == PathItemType.Quiz
+            ? await _db.Quiz.AsNoTracking().Where(x => x.Id == resourceId).Select(x => x.LessonId).FirstOrDefaultAsync()
+            : await _db.ScenarioScene.AsNoTracking().Where(x => x.Id == resourceId).Select(x => x.LessonId).FirstOrDefaultAsync();
+        if (ownerLessonId is not int lessonId) return;
+
+        var ordered = PreorderOf(path.PathItemList);
+        var lessonItem = ordered.FirstOrDefault(x => x.ItemType == PathItemType.Lesson && x.LessonId == lessonId);
+        if (lessonItem is null) return;
+        if (!lessonChanged && item.ParentItemId == lessonItem.ParentItemId) return;
+
+        var before = ordered.Select(x => (x.Id, x.ParentItemId)).ToList();
+        ordered.Remove(item);
+        item.ParentItemId = lessonItem.ParentItemId;
+        ordered.Insert(await PositionAfterLessonAsync(ordered, lessonItem, courseId), item);
+
+        // Đã đứng đúng chỗ rồi (VD gắn lại đúng bài học cũ): khỏi ghi lại số thứ tự của cả cây.
+        if (before.SequenceEqual(ordered.Select(x => (x.Id, x.ParentItemId)))) return;
+        await SaveOrderAsync(path, ordered);
+    }
+
+    /// <summary>Vị trí chèn để một bài kiểm tra / mô phỏng gắn với <paramref name="lessonItem"/> đứng ngay sau bài học và
+    /// các mục đã gắn cùng bài học đứng liền sau nó (cùng cấp). <paramref name="ordered"/> không được chứa mục sắp chèn.</summary>
+    private async Task<int> PositionAfterLessonAsync(List<PathItem> ordered, PathItem lessonItem, int courseId)
+    {
+        var lessonId = lessonItem.LessonId;
+        var quizLessonDict = await _db.Quiz.AsNoTracking().Where(x => x.CourseId == courseId).ToDictionaryAsync(x => x.Id, x => x.LessonId);
+        var sceneLessonDict = await _db.ScenarioScene.AsNoTracking().Where(x => x.CourseId == courseId).ToDictionaryAsync(x => x.Id, x => x.LessonId);
+        bool OwnedBySameLesson(PathItem x) => x.ParentItemId == lessonItem.ParentItemId && (
+            (x.ItemType == PathItemType.Quiz && x.QuizId is int q && quizLessonDict.GetValueOrDefault(q) == lessonId)
+            || (x.ItemType == PathItemType.Simulation && x.ScenarioSceneId is int s && sceneLessonDict.GetValueOrDefault(s) == lessonId));
+
+        var end = SubtreeEnd(ordered, ordered.IndexOf(lessonItem));
+        while (end + 1 < ordered.Count && OwnedBySameLesson(ordered[end + 1])) end = SubtreeEnd(ordered, end + 1);
+        return end + 1;
     }
 
     private static PathItem Probe(PathItemType type, int resourceId) => new()

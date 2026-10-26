@@ -10,6 +10,9 @@ public interface IDocumentProcessingService
         string filePath, string? fileType = null, int? courseId = null, int? lessonId = null,
         string? sourceFileUrl = null, string? displayFileName = null, CancellationToken cancellationToken = default);
 
+    /// <summary>Sinh sẵn vector câu hỏi vào bộ đệm để chạy song song với việc khác của người gọi; không ném lỗi.</summary>
+    Task PrefetchQueryVectorAsync(string query, CancellationToken cancellationToken = default);
+
     /// <summary>Tìm các đoạn tài liệu gần nghĩa nhất với câu hỏi (tìm kiếm ngữ nghĩa).
     ///
     /// <paramref name="allowedCourseIdList"/> là HÀNG RÀO dữ liệu, khác hẳn <paramref name="courseId"/>:

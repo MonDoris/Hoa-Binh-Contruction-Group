@@ -9,15 +9,15 @@ namespace HbELearning.Application.Features.OnlineClassRooms;
 public class OnlineClassRoomService : IOnlineClassRoomService
 {
     private readonly IAppDbContext _db;
-    private readonly IMediaFileProcessor _mediaFileProcessor;
+    private readonly RecordingFinalizer _recordingFinalizer;
     private readonly IConfiguration _config;
     private readonly IFileService _fileService;
     private readonly IAppPaths _env;
     private readonly ICurrentUser _currentUser;
 
-    public OnlineClassRoomService(IAppDbContext db, IConfiguration config, IFileService fileService, IAppPaths env, ICurrentUser currentUser, IMediaFileProcessor mediaFileProcessor)
+    public OnlineClassRoomService(IAppDbContext db, IConfiguration config, IFileService fileService, IAppPaths env, ICurrentUser currentUser, RecordingFinalizer recordingFinalizer)
     {
-        _mediaFileProcessor = mediaFileProcessor;
+        _recordingFinalizer = recordingFinalizer;
         _db = db;
         _config = config;
         _fileService = fileService;
@@ -29,6 +29,11 @@ public class OnlineClassRoomService : IOnlineClassRoomService
     {
         var query = _db.OnlineClassRoom.AsNoTracking().AsQueryable();
         if (status.HasValue) query = query.Where(x => x.Status == status);
+
+        // Lịch các buổi chưa diễn ra, đang diễn ra và đã hủy mở cho cả công ty như trước; buổi ĐÃ KẾT THÚC chỉ hiện
+        // với người được phép xem Lịch sử của nó (xem WhereCallerMayView).
+        var viewable = WhereCallerMayView(_db.OnlineClassRoom.AsNoTracking());
+        query = query.Where(x => x.Status != OnlineClassRoomStatus.Ended || viewable.Any(v => v.Id == x.Id));
 
         var list = await query
             .OrderByDescending(x => x.ScheduledStart)
@@ -49,6 +54,7 @@ public class OnlineClassRoomService : IOnlineClassRoomService
             .Include(x => x.HostUser)
             .FirstOrDefaultAsync(x => x.Id == id);
         if (room is null) return Result.NotFound(new MessageResponse("Không tìm thấy phòng học."));
+        if (room.Status == OnlineClassRoomStatus.Ended && !await CallerMayViewAsync(room)) return Result.Forbidden();
 
         var isPrivileged = _currentUser.IsAdmin || room.HostUserId == _currentUser.UserId;
         return Result.Success(new OnlineClassRoomListDto(
@@ -58,6 +64,117 @@ public class OnlineClassRoomService : IOnlineClassRoomService
             room.Status.ToString(), room.ActualStartAt, room.ActualEndAt,
             isPrivileged ? room.JoinCode : null));
     }
+
+    public async Task<Result> GetHistory(OnlineClassRoomHistoryQuery query)
+    {
+        var rooms = WhereCallerMayView(_db.OnlineClassRoom.AsNoTracking().Where(x => x.Status == OnlineClassRoomStatus.Ended));
+
+        // "Của tôi" thu hẹp danh sách của Admin (người thấy tất cả); với người thường nó trùng với quyền xem sẵn có.
+        if (query.OnlyMine) rooms = WhereInvolves(rooms, _currentUser.UserId);
+
+        var keyword = query.Keyword?.Trim().ToLower();
+        if (!string.IsNullOrEmpty(keyword))
+            rooms = rooms.Where(x => x.Title.ToLower().Contains(keyword) || x.HostUser.FullName.ToLower().Contains(keyword));
+
+        // Ngày lọc theo LÚC BUỔI HỌC THẬT SỰ BẮT ĐẦU; buổi thiếu mốc đó (dữ liệu cũ) dùng giờ đã lên lịch.
+        if (query.From is { } from) rooms = rooms.Where(x => (x.ActualStartAt ?? x.ScheduledStart) >= from.Date);
+        if (query.To is { } to) rooms = rooms.Where(x => (x.ActualStartAt ?? x.ScheduledStart) < to.Date.AddDays(1));
+
+        var userId = _currentUser.UserId;
+        var rows = await rooms
+            .OrderByDescending(x => x.ActualStartAt ?? x.ScheduledStart)
+            .Select(x => new
+            {
+                x.Id, x.Title, x.HostUserId,
+                HostUserName = x.HostUser.FullName,
+                StartedAt = x.ActualStartAt ?? x.ScheduledStart,
+                x.ActualStartAt, x.ActualEndAt,
+                // Đếm NGƯỜI chứ không đếm lượt vào: ai vào lại nhiều lần vẫn là một.
+                ParticipantCount = _db.OnlineClassRoomEvent
+                    .Where(e => e.OnlineClassRoomId == x.Id && e.EventType == OnlineClassRoomEventType.Joined && e.UserId != null)
+                    .Select(e => e.UserId).Distinct().Count(),
+                RecordingCount = _db.OnlineClassRoomRecording.Count(r => r.OnlineClassRoomId == x.Id),
+                RecordingSizeBytes = _db.OnlineClassRoomRecording.Where(r => r.OnlineClassRoomId == x.Id)
+                    .Sum(r => (long?)r.FileSizeBytes) ?? 0,
+            })
+            .ToListAsync();
+
+        var list = rows.Select(r => new OnlineClassRoomHistoryDto(
+            r.Id, r.Title, r.HostUserId, r.HostUserName,
+            r.StartedAt, r.ActualEndAt,
+            r.ActualStartAt is { } started && r.ActualEndAt is { } ended ? (ended - started).TotalMilliseconds : null,
+            r.ParticipantCount, r.RecordingCount, r.RecordingSizeBytes,
+            r.HostUserId == userId)).ToList();
+
+        return Result.Success(list);
+    }
+
+    public async Task<Result> GetReview(int id)
+    {
+        var room = await _db.OnlineClassRoom.AsNoTracking().Include(x => x.HostUser).FirstOrDefaultAsync(x => x.Id == id);
+        if (room is null) return Result.NotFound(new MessageResponse("Không tìm thấy phòng học."));
+        if (!await CallerMayViewAsync(room)) return Result.Forbidden();
+
+        var eventRows = await _db.OnlineClassRoomEvent.AsNoTracking()
+            .Where(x => x.OnlineClassRoomId == id)
+            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+            .ToListAsync();
+
+        // Bản ghi xếp theo thứ tự quay (cũ trước): "phần 1, phần 2" đọc tự nhiên hơn so với mới nhất trước ở danh sách.
+        var recordingRows = await _db.OnlineClassRoomRecording.AsNoTracking()
+            .Where(x => x.OnlineClassRoomId == id)
+            .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+            .Include(x => x.RecordedByUser)
+            .ToListAsync();
+        var recordingList = recordingRows
+            .Select(x => new OnlineClassRoomRecordingDto(x.Id, x.FileUrl, x.FileSizeBytes, x.RecordedByUserId, x.RecordedByUser.FullName, x.CreatedAt, x.DurationMs))
+            .ToList();
+
+        // Mỗi dòng Diễn biến kèm sẵn vị trí để video nhảy tới (xem RecordingSeekMap).
+        var seekMap = new RecordingSeekMap(
+            recordingRows.Select(r => new SeekRecording(r.Id, r.CreatedAt, r.StoppedAt)),
+            eventRows.Where(e => e.RecordingId != null && e.EventType is OnlineClassRoomEventType.RecordingStarted
+                    or OnlineClassRoomEventType.RecordingPaused or OnlineClassRoomEventType.RecordingResumed
+                    or OnlineClassRoomEventType.RecordingStopped)
+                .Select(e => new SeekMark(e.RecordingId!.Value, e.EventType, e.CreatedAt)),
+            room.ActualEndAt);
+        var eventList = eventRows.Select(x =>
+        {
+            var seek = seekMap.Locate(x.CreatedAt);
+            return new OnlineClassRoomEventDto(x.Id, x.EventType.ToString(), x.UserId, x.UserName, x.Message, x.CreatedAt,
+                x.RecordingId, seek?.RecordingId, seek?.OffsetMs);
+        }).ToList();
+
+        var participantCount = eventList.Where(e => e.EventType == nameof(OnlineClassRoomEventType.Joined) && e.UserId != null)
+            .Select(e => e.UserId).Distinct().Count();
+        var chatMessageCount = eventList.Count(e => e.EventType == nameof(OnlineClassRoomEventType.ChatMessage));
+        var isHost = room.HostUserId == _currentUser.UserId;
+
+        return Result.Success(new OnlineClassRoomReviewDto(
+            room.Id, room.Title, room.HostUserId, room.HostUser.FullName,
+            room.ActualStartAt ?? room.ScheduledStart, room.ActualEndAt,
+            room.ActualStartAt is { } started && room.ActualEndAt is { } ended ? (ended - started).TotalMilliseconds : null,
+            participantCount, chatMessageCount, isHost, CanDownload: isHost || _currentUser.IsAdmin,
+            recordingList, eventList));
+    }
+
+    // ==================== QUYỀN XEM LỊCH SỬ ====================
+    // MỘT quy tắc cho cả danh sách lẫn từng buổi: xem được Lịch sử của một Buổi học nếu là Chủ trì, là Admin, hoặc đã
+    // từng vào buổi đó (có dòng "vào phòng" trong Diễn biến). Chỉ xét việc ĐÃ VÀO — không xét lúc vào hay lúc rời,
+    // nên người vào muộn hay rời sớm vẫn xem được cả những phần họ vắng mặt.
+
+    /// <summary>Giữ lại các buổi do <paramref name="userId"/> chủ trì hoặc đã vào.</summary>
+    private IQueryable<OnlineClassRoom> WhereInvolves(IQueryable<OnlineClassRoom> rooms, int userId)
+        => rooms.Where(x => x.HostUserId == userId
+            || _db.OnlineClassRoomEvent.Any(e => e.OnlineClassRoomId == x.Id && e.UserId == userId
+                                                 && e.EventType == OnlineClassRoomEventType.Joined));
+
+    /// <summary>Giữ lại các buổi mà NGƯỜI ĐANG GỌI được phép xem Lịch sử.</summary>
+    private IQueryable<OnlineClassRoom> WhereCallerMayView(IQueryable<OnlineClassRoom> rooms)
+        => _currentUser.IsAdmin ? rooms : WhereInvolves(rooms, _currentUser.UserId);
+
+    private async Task<bool> CallerMayViewAsync(OnlineClassRoom room)
+        => await WhereCallerMayView(_db.OnlineClassRoom.AsNoTracking().Where(x => x.Id == room.Id)).AnyAsync();
 
     public async Task<Result> ResolveByCode(string code)
     {
@@ -77,11 +194,12 @@ public class OnlineClassRoomService : IOnlineClassRoomService
     {
         var room = await _db.OnlineClassRoom.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
         if (room is null) return Result.NotFound(new MessageResponse("Không tìm thấy phòng học."));
+        if (!await CallerMayViewAsync(room)) return Result.Forbidden();
 
         var list = await _db.OnlineClassRoomEvent.AsNoTracking()
             .Where(x => x.OnlineClassRoomId == id)
             .OrderBy(x => x.CreatedAt)
-            .Select(x => new OnlineClassRoomEventDto(x.Id, x.EventType.ToString(), x.UserId, x.UserName, x.Message, x.CreatedAt))
+            .Select(x => new OnlineClassRoomEventDto(x.Id, x.EventType.ToString(), x.UserId, x.UserName, x.Message, x.CreatedAt, x.RecordingId))
             .ToListAsync();
 
         return Result.Success(list);
@@ -91,11 +209,12 @@ public class OnlineClassRoomService : IOnlineClassRoomService
     {
         var room = await _db.OnlineClassRoom.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
         if (room is null) return Result.NotFound(new MessageResponse("Không tìm thấy phòng học."));
+        if (!await CallerMayViewAsync(room)) return Result.Forbidden();
 
         var list = await _db.OnlineClassRoomRecording.AsNoTracking()
             .Where(x => x.OnlineClassRoomId == id)
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new OnlineClassRoomRecordingDto(x.Id, x.FileUrl, x.FileSizeBytes, x.RecordedByUserId, x.RecordedByUser.FullName, x.CreatedAt))
+            .Select(x => new OnlineClassRoomRecordingDto(x.Id, x.FileUrl, x.FileSizeBytes, x.RecordedByUserId, x.RecordedByUser.FullName, x.CreatedAt, x.DurationMs))
             .ToListAsync();
 
         return Result.Success(list);
@@ -105,6 +224,11 @@ public class OnlineClassRoomService : IOnlineClassRoomService
     {
         var room = await _db.OnlineClassRoom.FirstOrDefaultAsync(x => x.Id == id);
         if (room is null) return Result.NotFound(new MessageResponse("Không tìm thấy phòng học."));
+
+        // Chỉ Chủ trì được ghi hình — kể cả Admin: server là nơi chặn, không dựa vào việc giao diện giấu nút.
+        if (room.HostUserId != _currentUser.UserId) return Result.Forbidden();
+        if (room.Status != OnlineClassRoomStatus.Live)
+            return Result.Invalid(new MessageResponse("Chỉ ghi hình được khi buổi học đang diễn ra."));
 
         var storedName = $"{Guid.NewGuid():N}.webm";
         var relativeFolder = $"classroom-recording/{DateTime.Now:yyyyMM}";
@@ -148,9 +272,8 @@ public class OnlineClassRoomService : IOnlineClassRoomService
         if (recording is null) return Result.NotFound(new MessageResponse("Không tìm thấy bản ghi."));
         if (recording.RecordedByUserId != _currentUser.UserId && !_currentUser.IsAdmin) return Result.Forbidden();
 
-        var fullPath = Path.Combine(_env.WebRootPath, recording.FileUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-        try { _mediaFileProcessor.PatchWebmDuration(fullPath, request.DurationMs); }
-        catch { /* file không đúng cấu trúc mong đợi -> bỏ qua, video vẫn phát được */ }
+        // Trình duyệt của Chủ trì báo độ dài thật của tệp nó vừa ghi (đã trừ các đoạn tạm dừng) — tin con số đó.
+        await _recordingFinalizer.FinalizeAsync(recording, request.DurationMs);
 
         return Result.Success(new MessageResponse("OK"));
     }

@@ -75,13 +75,37 @@
         .ai-doc-toggle { margin-top: 12px; }
         .ai-doc-toggle i { color: var(--primary); }
         .ai-doc-status { line-height: 1.7; }
-        /* Tên tài liệu tách thành từng thẻ nhỏ thay vì một dòng chữ dài nối bằng dấu chấm giữa — người soạn
-           cần liếc qua là biết kho đang có những tài liệu nào, không phải đọc cả câu. */
-        .ai-doc-file {
-            display: inline-block; margin: 2px 4px 0 0; padding: 1px 8px;
-            border-radius: 999px; background: var(--surface); border: 1px solid var(--border);
-            font-size: 11px; color: var(--text-muted);
+        /* Bài nhập từ Word sửa thẳng trên bản xem trước: viền nhấn khi đang gõ để người soạn biết đó là chỗ sửa được. */
+        #l-word-doc-preview [contenteditable="true"] { cursor: text; outline: none; }
+        #l-word-doc-preview [contenteditable="true"]:focus { box-shadow: 0 0 0 2px var(--primary); }
+
+        /* Thanh định dạng của bản xem trước Word — dính mép trên vùng cuộn của hộp thoại để bài dài vẫn với tới.
+           Ghi đè ô select/input toàn cục (width 100%, padding 9px) vì ở đây chúng là nút nhỏ trên một hàng. */
+        /* top âm = đúng bằng padding của .modal-body (22px, 16px ở màn hẹp): sticky tính mốc từ mép trong của
+           padding nên top: 0 sẽ để hở một dải 22px phía trên thanh cho chữ chạy lòi ra. */
+        .wd-toolbar {
+            position: sticky; top: -22px; z-index: 5;
+            display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+            margin-bottom: 10px; padding: 6px;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, .08); user-select: none;
         }
+        .wd-toolbar .wd-btn {
+            position: relative; display: inline-flex; align-items: center; justify-content: center;
+            width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px;
+            background: transparent; color: var(--text); font-size: 17px; cursor: pointer;
+        }
+        .wd-toolbar .wd-btn:hover { background: var(--bg); }
+        .wd-toolbar .wd-btn.active { background: var(--primary); color: #fff; }
+        .wd-toolbar .wd-select { width: auto; height: 30px; padding: 0 28px 0 8px; font-size: 12.5px; background-position: right 8px center; }
+        .wd-toolbar .wd-sep { width: 1px; height: 20px; margin: 0 4px; background: var(--border); }
+        /* Ô chọn màu: input thật phủ trong suốt lên cả nút nên bấm vào đâu cũng mở bảng màu; thanh màu bên dưới
+           biểu tượng cho thấy màu đang chọn. */
+        .wd-toolbar .wd-btn input[type="color"] {
+            position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer;
+        }
+        .wd-toolbar .wd-color-bar { position: absolute; left: 6px; right: 6px; bottom: 3px; height: 3px; border-radius: 2px; pointer-events: none; }
+        @media (max-width: 900px) { .wd-toolbar { top: -16px; } }
         .ai-draft {
             margin-top: 8px;
             max-height: 150px;
@@ -158,6 +182,11 @@
                 <i class="ph-fill ph-user-circle"></i>
                 <span data-i18n="role.Học viên">Học viên</span>
             </button>
+
+            <button data-tab="feedback" style="display:flex;align-items:center;gap:8px">
+                <i class="ph-fill ph-chat-circle-text"></i>
+                <span data-i18n="feedback.tab">Feedback</span>
+            </button>
         </div>
 
         <div class="tab-panel active" id="tab-structure"></div>
@@ -166,6 +195,7 @@
         <div class="tab-panel" id="tab-simulation"></div>
         <div class="tab-panel" id="tab-target"></div>
         <div class="tab-panel" id="tab-learner"></div>
+        <div class="tab-panel" id="tab-feedback"></div>
     </div>
 </div>
 
@@ -258,17 +288,77 @@
                          định dạng hẹp (đậm, nghiêng, màu, danh sách) — nó KHÔNG giữ được bảng gộp ô, độ
                          rộng cột, khung viền hay phông chữ lấy từ style của tài liệu. Nạp một bài đã nhập
                          vào đó là mất sạch những thứ đó ngay lúc mở, và lần lưu kế tiếp ghi đè bản đã hỏng
-                         lên bản gốc. Nên ở đây chỉ hiện bản xem trước, và chỉ giao cho trình soạn thảo khi
-                         người soạn tự bấm chấp nhận đánh đổi. -->
+                         lên bản gốc. Nên mặc định không giao cho Quill: người soạn sửa chữ thẳng trên bản xem
+                         trước (contenteditable — giữ nguyên bảng, ảnh, bố cục), còn trình soạn thảo đầy đủ chỉ
+                         mở khi họ tự bấm chấp nhận đánh đổi. -->
                     <div id="l-word-doc" class="hidden">
+                        <!-- Thanh định dạng cho bản xem trước sửa được. Dùng execCommand với styleWithCSS để kết quả là
+                             <span style="..."> — bộ lọc HTML phía server giữ được style nhưng bỏ thẻ <font>. Nút bấm
+                             chặn mousedown để không cướp vùng chọn của vùng soạn thảo (xem wordPreviewEl bên dưới). -->
+                        <div class="wd-toolbar" id="l-word-toolbar" role="toolbar" aria-label="Định dạng văn bản">
+                            <button type="button" class="wd-btn" data-cmd="undo" title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác"><i class="ph ph-arrow-counter-clockwise"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="redo" title="Làm lại (Ctrl+Y)" aria-label="Làm lại"><i class="ph ph-arrow-clockwise"></i></button>
+                            <span class="wd-sep"></span>
+                            <select class="wd-select" id="wd-block" title="Kiểu đoạn" aria-label="Kiểu đoạn">
+                                <option value="p">Đoạn văn</option>
+                                <option value="h1">Tiêu đề 1</option>
+                                <option value="h2">Tiêu đề 2</option>
+                                <option value="h3">Tiêu đề 3</option>
+                            </select>
+                            <select class="wd-select" id="wd-font" title="Phông chữ" aria-label="Phông chữ">
+                                <option value="">Phông chữ</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Calibri">Calibri</option>
+                                <option value="Cambria">Cambria</option>
+                                <option value="Tahoma">Tahoma</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Segoe UI">Segoe UI</option>
+                                <option value="Courier New">Courier New</option>
+                            </select>
+                            <select class="wd-select" id="wd-size" title="Cỡ chữ (pt) — bôi đen chữ trước" aria-label="Cỡ chữ">
+                                <option value="">Cỡ</option>
+                                <option>8</option><option>9</option><option>10</option><option>11</option>
+                                <option>12</option><option>14</option><option>16</option><option>18</option>
+                                <option>20</option><option>24</option><option>28</option><option>32</option><option>36</option>
+                            </select>
+                            <span class="wd-sep"></span>
+                            <button type="button" class="wd-btn" data-cmd="bold" title="In đậm (Ctrl+B)" aria-label="In đậm"><i class="ph ph-text-b"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="italic" title="In nghiêng (Ctrl+I)" aria-label="In nghiêng"><i class="ph ph-text-italic"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="underline" title="Gạch chân (Ctrl+U)" aria-label="Gạch chân"><i class="ph ph-text-underline"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="strikeThrough" title="Gạch ngang" aria-label="Gạch ngang"><i class="ph ph-text-strikethrough"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="subscript" title="Chỉ số dưới (CO₂)" aria-label="Chỉ số dưới"><i class="ph ph-text-subscript"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="superscript" title="Chỉ số trên (m²)" aria-label="Chỉ số trên"><i class="ph ph-text-superscript"></i></button>
+                            <label class="wd-btn" title="Màu chữ">
+                                <i class="ph ph-text-a-underline"></i><span class="wd-color-bar" id="wd-color-bar" style="background:#000000"></span>
+                                <input type="color" id="wd-color" value="#000000" aria-label="Màu chữ">
+                            </label>
+                            <label class="wd-btn" title="Tô nền chữ">
+                                <i class="ph ph-highlighter"></i><span class="wd-color-bar" id="wd-hilite-bar" style="background:#ffff00"></span>
+                                <input type="color" id="wd-hilite" value="#ffff00" aria-label="Tô nền chữ">
+                            </label>
+                            <span class="wd-sep"></span>
+                            <button type="button" class="wd-btn" data-cmd="justifyLeft" title="Căn trái" aria-label="Căn trái"><i class="ph ph-text-align-left"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="justifyCenter" title="Căn giữa" aria-label="Căn giữa"><i class="ph ph-text-align-center"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="justifyRight" title="Căn phải" aria-label="Căn phải"><i class="ph ph-text-align-right"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="justifyFull" title="Căn đều hai bên" aria-label="Căn đều hai bên"><i class="ph ph-text-align-justify"></i></button>
+                            <span class="wd-sep"></span>
+                            <button type="button" class="wd-btn" data-cmd="insertUnorderedList" title="Danh sách chấm" aria-label="Danh sách chấm"><i class="ph ph-list-bullets"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="insertOrderedList" title="Danh sách số" aria-label="Danh sách số"><i class="ph ph-list-numbers"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="outdent" title="Giảm thụt lề" aria-label="Giảm thụt lề"><i class="ph ph-text-outdent"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="indent" title="Tăng thụt lề" aria-label="Tăng thụt lề"><i class="ph ph-text-indent"></i></button>
+                            <span class="wd-sep"></span>
+                            <button type="button" class="wd-btn" data-cmd="removeFormat" title="Xóa định dạng của đoạn đang chọn" aria-label="Xóa định dạng"><i class="ph ph-eraser"></i></button>
+                        </div>
                         <div class="lesson-body" id="l-word-doc-preview"></div>
-                        <div class="hint mt">
-                            Nội dung này được nhập nguyên từ file Word / PowerPoint nên giữ đúng bảng, ảnh,
-                            bố cục slide và cách trình bày của bản gốc. Muốn sửa nội dung, hãy sửa trong file
-                            gốc rồi nhập lại — trình soạn thảo không giữ được các định dạng đó.
+                        <div class="hint mt" id="l-word-doc-hint">
+                            Nội dung nhập từ file Word / PowerPoint. Bấm thẳng vào chữ để sửa, bôi đen rồi dùng thanh
+                            công cụ phía trên để định dạng — bảng, ảnh, bố cục slide và cách trình bày còn lại của bản
+                            gốc được giữ nguyên. Cần chèn ảnh thì dùng trình soạn thảo đầy đủ (sẽ mất định dạng gốc).
                         </div>
                         <button type="button" class="btn ghost sm mt" id="btn-edit-word-doc">
-                            Vẫn sửa bằng trình soạn thảo (mất định dạng gốc)
+                            Dùng trình soạn thảo đầy đủ (mất định dạng gốc)
                         </button>
                     </div>
 
@@ -441,24 +531,6 @@
             <button class="close-x" onclick="closeModal('modal-video-chapter')">×</button></div>
         <div class="modal-body" id="video-chapter-box"></div>
         <div class="modal-foot" id="video-chapter-foot"></div>
-    </div>
-</div>
-
-<!-- Hộp thoại phân công -->
-<div class="modal-mask" id="modal-assign">
-    <div class="modal">
-        <div class="modal-head"><h3 data-i18n="course-detail.phanCongKhoaHoc">Phân công khóa học</h3>
-            <button class="close-x" onclick="closeModal('modal-assign')">×</button></div>
-        <div class="modal-body">
-            <div class="field"><label for="a-department" data-i18n="account.phongBan">Phòng ban</label><select id="a-department"></select></div>
-            <div class="field"><label for="a-position" data-i18n="account.viTriCongViec">Vị trí công việc</label><select id="a-position"></select></div>
-            <div class="field"><label for="a-due" data-i18n="account.hanHoanThanh">Hạn hoàn thành</label><input type="datetime-local" id="a-due">
-                <div data-i18n="course-detail.deTrongSeDungSoNgayCauHinhTron" class="hint">Để trống sẽ dùng số ngày cấu hình trong khóa học.</div></div>
-        </div>
-        <div class="modal-foot">
-            <button data-i18n="common.cancel" class="btn ghost" onclick="closeModal('modal-assign')">Hủy</button>
-            <button data-i18n="index.step3" class="btn" id="btn-do-assign">Phân công</button>
-        </div>
     </div>
 </div>
 
@@ -643,6 +715,7 @@
 <script src="/js/password.js"></script>
 <script src="/js/app.js"></script>
 <script src="/js/video-learning.js"></script>
+<script src="/js/feedback.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.min.js"></script>
 <script>
 (async function () {
@@ -653,7 +726,7 @@
     // Người được ủy quyền duyệt bước cuối cần mở được trang này để xem nội dung trước khi duyệt, dù vai trò
     // của họ không nằm trong danh sách quản lý khóa học thông thường.
     if (!Auth.isApprovalDelegate && !Auth.isWorkflowApprover && Auth.can('course.view') !== true
-        && !(Auth.can('course.view') === null && ['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc'].some(x => Auth.hasRole(x)))) {
+        && !(Auth.can('course.view') === null && ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc'].some(x => Auth.hasRole(x)))) {
         alert(t('course-detail.banKhongCoQuyenTruyCapChucNang', 'Bạn không có quyền truy cập chức năng này.'));
         location.href = '/pages/dashboard.html';
         return;
@@ -662,12 +735,15 @@
     // Trưởng phòng/Giám Đốc/người được ủy quyền chỉ xem để duyệt nội dung — không được phân công học viên
     // hay sửa đối tượng đào tạo. Admin cũng vậy: quản trị hệ thống chứ không soạn bài (xem
     // RoleName.ContentAuthor ở server), trên khóa học chỉ còn xem/lưu trữ/xóa.
-    const canManage = Auth.can('course.update') ?? Auth.isTrainer;
+    // let: sau khi tải khóa học, chỉ NGƯỜI TẠO mới giữ quyền sửa (xem loadCourse) — người soạn khác vào xem thôi.
+    let canManage = Auth.can('course.update') ?? Auth.isContentAuthor;
 
     /** Nội dung (bài học/bài kiểm tra/mô phỏng 3D/lộ trình) chỉ được thêm/sửa/xóa khi khóa học còn ở trạng
      * thái Nháp hoặc Từ chối — một khi đã gửi duyệt (đang chờ duyệt ở bất kỳ cấp nào) hay đã xuất bản, nội
      * dung bị khóa lại chỉ để xem, tránh thay đổi âm thầm sau khi đã/đang được các cấp duyệt. */
     function canEditContent() {
+        // Giảng Viên xuất bản không qua duyệt nên được sửa tiếp nội dung khóa của chính mình sau khi xuất bản.
+        if (canManage && Auth.isInstructor && course.createdById === Auth.profile?.id) return course.status !== 'Archived';
         return canManage && (course.status === 'Draft' || course.status === 'Rejected');
     }
 
@@ -715,6 +791,9 @@
     /** Đang hiện một tài liệu nhập từ Word ở dạng xem trước, không giao cho trình soạn thảo. */
     let wordDocumentMode = false;
 
+    /** Hộp thoại bài học đang mở ở chế độ chỉ xem — bản xem trước tài liệu Word khi đó không được cho gõ. */
+    let lessonFormReadOnly = false;
+
     quill.on('text-change', () => {
         // Đang ở chế độ xem tài liệu Word thì Quill KHÔNG phải nguồn của nội dung. Bỏ chặn này là hỏng
         // ngay: lệnh dọn khung soạn thảo cũng làm Quill phát sự kiện, và ô nội dung bị ghi rỗng đè lên
@@ -738,6 +817,7 @@
 
         document.getElementById('l-word-doc').classList.toggle('hidden', !wordDocumentMode);
         document.getElementById('l-word-doc-preview').innerHTML = wordDocumentMode ? content : '';
+        if (wordDocumentMode) setWordDocumentEditable(!lessonFormReadOnly);
 
         // Thanh công cụ của Quill là một khối riêng nằm ngoài khung soạn thảo nên phải ẩn tách ra.
         document.getElementById('l-content-editor').classList.toggle('hidden', wordDocumentMode);
@@ -746,6 +826,168 @@
         quill.root.innerHTML = wordDocumentMode ? '' : content;
         updateContentStat();
     }
+
+    /** Phần tử được bật contenteditable: khung bọc cả tài liệu Word/PowerPoint (giữ lại khung đó cả khi người
+     *  soạn xóa sạch chữ, và để dấu nhận biết "word-doc" không bị mất). */
+    function getWordDocumentRoot() {
+        const preview = document.getElementById('l-word-doc-preview');
+        return preview.querySelector(':scope > .word-doc, :scope > .ppt-deck') || preview;
+    }
+
+    /** Cho gõ sửa chữ thẳng trên bản xem trước tài liệu Word — không đi qua Quill nên bảng gộp ô, độ rộng cột,
+     *  phông chữ và bố cục slide được giữ nguyên. */
+    function setWordDocumentEditable(editable) {
+        const root = getWordDocumentRoot();
+        root.contentEditable = editable ? 'true' : 'false';
+        // Từ điển của trình duyệt gạch đỏ gần hết chữ tiếng Việt trong tài liệu — chỉ gây nhiễu.
+        root.spellcheck = false;
+        wordSelectionRange = null;
+    }
+
+    /** Lấy HTML của bản xem trước để ghi vào ô nội dung, gỡ các thuộc tính chỉ phục vụ việc sửa
+     *  (contenteditable, spellcheck) — không để chúng lọt vào bài học được lưu. */
+    function readWordDocumentHtml() {
+        const clone = document.getElementById('l-word-doc-preview').cloneNode(true);
+        clone.querySelectorAll('[contenteditable], [spellcheck]').forEach(el => {
+            el.removeAttribute('contenteditable');
+            el.removeAttribute('spellcheck');
+        });
+        return clone.innerHTML;
+    }
+
+    /** Ghi nội dung đang hiện trên bản xem trước vào ô nội dung (nguồn thật khi lưu). */
+    function syncWordDocument() {
+        document.getElementById('l-content').value = readWordDocumentHtml();
+        updateContentStat();
+    }
+
+    const wordPreviewEl = document.getElementById('l-word-doc-preview');
+    // Chỉ ghi đè ô nội dung khi người soạn thực sự gõ: mở bài rồi lưu luôn thì nội dung gốc đi nguyên vẹn,
+    // không qua lần trình duyệt chuẩn hóa lại HTML.
+    wordPreviewEl.addEventListener('input', syncWordDocument);
+    // Dán chỉ lấy chữ thuần: dán từ Word/web vào sẽ kéo theo cả đống style và thẻ lạ làm hỏng bố cục bản gốc.
+    wordPreviewEl.addEventListener('paste', e => {
+        e.preventDefault();
+        document.execCommand('insertText', false, e.clipboardData?.getData('text/plain') || '');
+    });
+    // Thả tệp vào vùng sửa được thì trình duyệt mở tệp đó ra và bỏ trang — chặn lại.
+    wordPreviewEl.addEventListener('drop', e => { if (e.dataTransfer?.files?.length) e.preventDefault(); });
+
+    // ---------- Thanh định dạng ----------
+    /** Vùng chọn gần nhất nằm trong bản xem trước. Ô chọn phông/cỡ chữ và ô chọn màu lấy mất tiêu điểm của
+     *  vùng soạn thảo khi mở ra, nên phải nhớ vùng chọn để trả lại trước khi áp lệnh. */
+    let wordSelectionRange = null;
+
+    const wordToolbarEl = document.getElementById('l-word-toolbar');
+    const wordBlockEl = document.getElementById('wd-block');
+    const wordFontEl = document.getElementById('wd-font');
+    const wordSizeEl = document.getElementById('wd-size');
+    const WORD_TOGGLE_CMD_LIST = ['bold', 'italic', 'underline', 'strikeThrough', 'subscript', 'superscript',
+        'insertUnorderedList', 'insertOrderedList', 'justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull'];
+
+    /** Vùng chọn cần áp lệnh: ưu tiên vùng chọn đang hiện thời nếu còn nằm trong bài (sự kiện selectionchange
+     *  bắn bất đồng bộ nên bản lưu có thể chậm một nhịp), không thì dùng bản đã nhớ lúc tiêu điểm rời đi. */
+    function getWordSelectionRange() {
+        const selection = document.getSelection();
+        if (selection.rangeCount && getWordDocumentRoot().contains(selection.getRangeAt(0).commonAncestorContainer))
+            return selection.getRangeAt(0).cloneRange();
+        return wordSelectionRange;
+    }
+
+    /** Áp một lệnh định dạng lên vùng đang chọn của bản xem trước. */
+    function runWordCommand(command, value = null) {
+        const root = getWordDocumentRoot();
+        if (root.contentEditable !== 'true') return;
+
+        const range = getWordSelectionRange();
+        root.focus({ preventScroll: true });
+        if (range) {
+            const selection = document.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        // styleWithCSS: ra <span style="..."> thay vì <font>/<b> — bộ lọc phía server giữ style nhưng bỏ <font face>.
+        // Riêng chỉ số trên/dưới phải ra thẻ <sup>/<sub>: dạng CSS (vertical-align) chỉ nâng/hạ chữ chứ không thu
+        // nhỏ, nên "CO2" thành số 2 to bằng chữ. Thẻ này cũng khớp với cách bộ chuyển Word xuất sẵn.
+        document.execCommand('styleWithCSS', false, command !== 'subscript' && command !== 'superscript');
+        document.execCommand(command, false, value);
+        syncWordDocument();
+        refreshWordToolbarState();
+    }
+
+    /** execCommand chỉ có 7 cỡ chữ cũ (1-7), không nhận số điểm. Mẹo: áp cỡ 7 để đánh dấu đúng đoạn vừa chọn,
+     *  rồi đổi dấu đó thành cỡ thật người dùng muốn. */
+    function applyWordFontSize(pt) {
+        if (!pt) return;
+        // Con trỏ nhấp nháy không bôi đen gì: trình duyệt chưa tạo phần tử nào để đổi cỡ.
+        if (getWordSelectionRange()?.collapsed !== false) {
+            toastErr('Hãy bôi đen đoạn chữ cần đổi cỡ.');
+            refreshWordToolbarState();
+            return;
+        }
+        runWordCommand('fontSize', '7');
+        getWordDocumentRoot().querySelectorAll('font[size="7"], [style*="xxx-large"]').forEach(el => {
+            el.removeAttribute('size');
+            el.style.fontSize = `${pt}pt`;
+        });
+        syncWordDocument();
+    }
+
+    /** Cho các nút/ô chọn phản ánh định dạng tại con trỏ: nút nào đang bật thì sáng lên, ô chọn hiện đúng
+     *  phông/cỡ/kiểu đoạn của chữ đang đứng. */
+    function refreshWordToolbarState() {
+        const root = getWordDocumentRoot();
+        const selection = document.getSelection();
+        if (!wordDocumentMode || root.contentEditable !== 'true' || !selection.rangeCount
+            || !root.contains(selection.anchorNode)) return;
+
+        wordToolbarEl.querySelectorAll('button[data-cmd]').forEach(button => {
+            if (!WORD_TOGGLE_CMD_LIST.includes(button.dataset.cmd)) return;
+            let isOn = false;
+            try { isOn = document.queryCommandState(button.dataset.cmd); } catch { /* trình duyệt không hỗ trợ */ }
+            button.classList.toggle('active', isOn);
+        });
+
+        const anchor = selection.anchorNode.nodeType === Node.ELEMENT_NODE
+            ? selection.anchorNode : selection.anchorNode.parentElement;
+        const css = getComputedStyle(anchor);
+
+        const family = css.fontFamily.split(',')[0].replace(/["']/g, '').trim().toLowerCase();
+        wordFontEl.value = [...wordFontEl.options].find(o => o.value && o.value.toLowerCase() === family)?.value ?? '';
+
+        const pt = Math.round(parseFloat(css.fontSize) * 0.75 * 2) / 2;   // px → pt, làm tròn nửa điểm
+        wordSizeEl.value = [...wordSizeEl.options].some(o => o.value && +o.value === pt) ? String(pt) : '';
+
+        wordBlockEl.value = anchor.closest('h1, h2, h3')?.tagName.toLowerCase() ?? 'p';
+    }
+
+    document.addEventListener('selectionchange', () => {
+        if (!wordDocumentMode) return;
+        const selection = document.getSelection();
+        if (!selection.rangeCount || !getWordDocumentRoot().contains(selection.getRangeAt(0).commonAncestorContainer)) return;
+        wordSelectionRange = selection.getRangeAt(0).cloneRange();
+        refreshWordToolbarState();
+    });
+
+    // Bấm nút/khoảng trống trên thanh mà để mặc định thì vùng chọn trong bài bị bỏ mất — chỉ ô chọn và ô màu
+    // (cần nhận bấm để mở ra) mới được giữ hành vi mặc định.
+    wordToolbarEl.addEventListener('mousedown', e => { if (!e.target.closest('select, input')) e.preventDefault(); });
+    wordToolbarEl.addEventListener('click', e => {
+        const button = e.target.closest('button[data-cmd]');
+        if (button) runWordCommand(button.dataset.cmd);
+    });
+    wordBlockEl.addEventListener('change', () => runWordCommand('formatBlock', wordBlockEl.value));
+    wordFontEl.addEventListener('change', () => { if (wordFontEl.value) runWordCommand('fontName', wordFontEl.value); });
+    wordSizeEl.addEventListener('change', () => applyWordFontSize(wordSizeEl.value));
+    // 'change' chứ không phải 'input': 'input' bắn liên tục khi kéo trong bảng màu, mỗi lần là một bước hoàn tác.
+    document.getElementById('wd-color').addEventListener('change', e => {
+        document.getElementById('wd-color-bar').style.background = e.target.value;
+        runWordCommand('foreColor', e.target.value);
+    });
+    document.getElementById('wd-hilite').addEventListener('change', e => {
+        document.getElementById('wd-hilite-bar').style.background = e.target.value;
+        runWordCommand('hiliteColor', e.target.value);
+    });
 
     document.getElementById('btn-edit-word-doc').addEventListener('click', async () => {
         if (!await confirmDialog('Trình soạn thảo không giữ được bố cục slide PowerPoint, bảng gộp ô, độ rộng '
@@ -764,15 +1006,6 @@
         document.getElementById('l-content').value = quill.root.innerHTML;
         updateContentStat();
     });
-
-    /** Ngày hôm nay dạng yyyy-MM-dd, dùng làm mốc tối thiểu cho hạn hoàn thành. */
-    const todayIso = () => new Date().toLocaleDateString('sv-SE');
-
-    /** Thời điểm hiện tại dạng yyyy-MM-ddTHH:mm (giờ địa phương), khớp định dạng input datetime-local. */
-    const nowLocalIso = () => {
-        const d = new Date();
-        return `${todayIso()}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    };
 
     mountLayout('course', t('classroom.dangTai', 'Đang tải...'), '');
     const backLinkHtml = '<a href="/pages/course.html" class="btn ghost sm"><i class="ph ph-arrow-left"></i> <span data-i18n="course-detail.danhSachKhoaHoc">Danh sách khóa học</span></a>';
@@ -799,7 +1032,6 @@
         }
     });
     document.getElementById('btn-ai-lesson').addEventListener('click', generateLessonWithAi);
-    document.getElementById('btn-do-assign').addEventListener('click', doAssign);
 
     [departmentList, positionList] = await Promise.all([API.get('/department'), API.get('/position')]);
     await loadCourse();
@@ -810,6 +1042,8 @@
 
     async function loadCourse() {
         course = await API.get(`/course/${courseId}`);
+        // Khóa học của người khác: xem được nhưng không sửa nội dung / đối tượng đào tạo.
+        if (course.createdById !== Auth.profile?.id) canManage = false;
         document.querySelector('.topbar h1').textContent = course.title;
         document.querySelector('.topbar .sub')?.remove();
         document.querySelector('.topbar h1').insertAdjacentHTML('afterend',
@@ -850,6 +1084,7 @@
             else if (tab === 'simulation') await renderSimulation(box);
             else if (tab === 'target') await renderTarget(box);
             else if (tab === 'learner') await renderLearner(box);
+            else if (tab === 'feedback') { box.innerHTML = ''; mountCourseFeedback({ container: box, courseId }); }
         } catch (ex) { box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
     }
 
@@ -1000,14 +1235,9 @@
         toggleEl.disabled = !usable;
         toggleEl.checked = usable;
 
-        const fileChipHtml = aiKnowledgeScope.fileNameList.slice(0, 4)
-            .map(name => `<span class="ai-doc-file">${esc(name)}</span>`).join('')
-            + (aiKnowledgeScope.fileNameList.length > 4
-                ? `<span class="ai-doc-file">+${aiKnowledgeScope.fileNameList.length - 4} tài liệu khác</span>` : '');
-
-        statusEl.innerHTML = usable
-            ? `<i class="ph ph-check-circle"></i> ${esc(aiKnowledgeScope.message)}<br>${fileChipHtml}`
-            : `<i class="ph ph-warning"></i> ${esc(aiKnowledgeScope.message)}`;
+        // Kho dùng được thì không cần nói gì thêm — chỉ báo khi ô tick bị khóa, để người soạn hiểu vì sao.
+        statusEl.classList.toggle('hidden', usable);
+        statusEl.innerHTML = usable ? '' : `<i class="ph ph-warning"></i> ${esc(aiKnowledgeScope.message)}`;
     }
 
     /** Danh sách đoạn tài liệu AI đã dựa vào, thu gọn — bấm để mở rộng xem nguyên văn đoạn trích. */
@@ -1244,6 +1474,7 @@
         document.getElementById('l-duration').value = lesson?.durationMinutes ?? 15;
         document.getElementById('l-order').value = lesson?.orderIndex ?? 0;
         document.getElementById('l-content').value = lesson?.content || '';
+        lessonFormReadOnly = readOnly;
         showWordDocument(lesson?.content || '');
         const currentUrl = lesson?.contentType !== 'Link' ? (lesson?.resourceUrl || '') : '';
         document.getElementById('l-url').value = currentUrl;
@@ -1273,8 +1504,11 @@
         if (!readOnly) refreshAiKnowledgeScope();
 
         quill.enable(!readOnly);
-        // Chế độ CHỈ XEM thì bản xem trước tài liệu Word vẫn hiện, nhưng lối chuyển sang sửa phải khóa lại.
+        // Chế độ CHỈ XEM thì bản xem trước tài liệu Word vẫn hiện, nhưng ô gõ sửa và lối chuyển sang trình
+        // soạn thảo phải khóa lại (ô gõ đã tắt contenteditable trong showWordDocument).
         document.getElementById('btn-edit-word-doc').classList.toggle('hidden', readOnly);
+        document.getElementById('l-word-doc-hint').classList.toggle('hidden', readOnly);
+        document.getElementById('l-word-toolbar').classList.toggle('hidden', readOnly);
         setFormReadOnly('lesson-form', readOnly);
         openModal('modal-lesson');
     }
@@ -1283,14 +1517,28 @@
         const file = e.target.files[0];
         if (!file) return;
         const hint = document.getElementById('l-url-hint');
-        hint.textContent = t('course-detail.dangTaiLen', 'Đang tải lên...');
+        const uploadingText = t('course-detail.dangTaiLen', 'Đang tải lên...');
+        // Video lớn mất vài phút: bấm "Lưu bài học" giữa chừng sẽ lưu bài khi tệp chưa lên xong (đường dẫn còn rỗng),
+        // nên khóa nút Lưu cho tới khi xong. Hiện % để người soạn biết máy đang chạy chứ không treo.
+        const saveBtn = document.querySelector('#lesson-form .modal-foot button[type="submit"]');
+        if (saveBtn) saveBtn.disabled = true;
+        hint.textContent = uploadingText;
         try {
-            const r = await API.upload(file, 'lesson');
+            const r = await API.uploadWithProgress('/upload?subFolder=lesson', file,
+                percent => { hint.textContent = `${uploadingText} ${percent}%`; });
             document.getElementById('l-url').value = r.url;
             hint.textContent = '';
             renderCurrentFile(r.url);
             toastOk(t('course-detail.taiTepThanhCong', 'Tải tệp thành công.'));
-        } catch (ex) { hint.textContent = t('course-detail.loiTaiTep', 'Lỗi tải tệp.'); toastErr(ex.message); }
+        } catch (ex) {
+            hint.textContent = t('course-detail.loiTaiTep', 'Lỗi tải tệp.');
+            // Máy chủ chặn tệp quá cỡ bằng 413 (không kèm lời) hoặc câu tiếng Anh của ASP.NET — đổi sang câu dễ hiểu.
+            toastErr(ex.status === 413 || /request body too large/i.test(ex.message)
+                ? t('course-detail.tepQuaLon', 'Tệp vượt quá dung lượng tối đa máy chủ cho phép.') : ex.message);
+        } finally {
+            if (saveBtn) saveBtn.disabled = false;
+            e.target.value = '';   // chọn lại đúng tệp đó sau lỗi vẫn kích hoạt sự kiện change
+        }
     }
 
     async function saveLesson(e) {
@@ -1501,14 +1749,17 @@
             </div>
             <div id="question-list">
                 ${quiz.questionList.map((q, i) => `
-                    <div class="question">
+                    <div class="question" id="q-card-${q.id}">
                         <div class="q-head">
                             <div class="q-no">${i + 1}</div>
                             <div style="flex:1">
                                 <b>${esc(q.content)}</b>
                                 <div class="small muted">${esc(q.questionType)} · ${q.score} điểm</div>
                             </div>
-                            ${editable ? `<button data-i18n="common.delete" class="btn ghost sm" data-del-question="${q.id}">Xóa</button>` : ''}
+                            ${editable ? `<div class="flex gap-sm" style="align-items:flex-start">
+                                <button data-i18n="common.edit" class="btn ghost sm" data-edit-question="${q.id}">Sửa</button>
+                                <button data-i18n="common.delete" class="btn ghost sm" data-del-question="${q.id}">Xóa</button>
+                            </div>` : ''}
                         </div>
                         ${q.answerList.map(a => `<div class="option ${a.isCorrect ? 'correct' : ''}" style="cursor:default">
                             <span>${a.isCorrect ? '<i class="ph-bold ph-check"></i>' : '<i class="ph ph-circle"></i>'}</span><span>${esc(a.content)}</span></div>`).join('')}
@@ -1516,6 +1767,7 @@
             </div>
             <div class="card mt hidden" id="question-form-box">
                 <div class="card-body">
+                    <div class="mb"><b id="nq-heading">Thêm câu hỏi</b></div>
                     <div class="field"><label for="nq-content" data-i18n="course-detail.noiDungCauHoi">Nội dung câu hỏi *</label><textarea id="nq-content" rows="2"></textarea></div>
                     <div class="row">
                         <div class="field"><label for="nq-type" data-i18n="course-detail.kieuCauHoi">Kiểu câu hỏi</label>
@@ -1581,12 +1833,22 @@
             } catch (ex) { toastErr(ex.message); runBtn.disabled = false; runBtn.innerHTML = originalHtml; }
         });
 
+        // Một form dùng chung cho THÊM và SỬA. Khi sửa, form được chuyển xuống đúng chỗ của câu hỏi đang sửa
+        // (thẻ câu hỏi đó tạm ẩn) để người soạn không phải cuộn xuống cuối danh sách; đóng form thì về chỗ cũ.
         const formBox = document.getElementById('question-form-box');
         const answerBox = document.getElementById('nq-answer');
+        const listBox = document.getElementById('question-list');
+        const questionById = new Map(quiz.questionList.map(q => [q.id, q]));
+        // API trả tên kiểu câu hỏi, ô chọn dùng số — khớp với enum QuestionType (Domain/Enums/AppEnum.cs).
+        const QUESTION_TYPE_INDEX = { SingleChoice: 0, MultipleChoice: 1, TrueFalse: 2 };
+        let editingQuestion = null;
 
-        const addAnswerRow = (text = '', correct = false) => {
+        /** `answerId` có khi dòng này là đáp án đang tồn tại: gửi lại để server sửa đúng đáp án đó tại chỗ, giữ nguyên
+         *  Id (bài đã làm lưu đáp án đã chọn bằng Id) thay vì xóa đi tạo lại. */
+        const addAnswerRow = (text = '', correct = false, answerId = null) => {
             const row = document.createElement('div');
             row.className = 'flex mb';
+            if (answerId) row.dataset.answerId = answerId;
             row.innerHTML = `<input type="checkbox" class="w-auto" ${correct ? 'checked' : ''} style="width:auto" aria-label="Đây là đáp án đúng">
                              <input type="text" value="${esc(text)}" data-i18n-ph="course-detail.noiDungDapAn" placeholder="Nội dung đáp án">
                              <button type="button" class="btn ghost sm w-auto">×</button>`;
@@ -1594,34 +1856,69 @@
             answerBox.appendChild(row);
         };
 
-        document.getElementById('btn-add-question')?.addEventListener('click', () => {
-            formBox.classList.remove('hidden');
+        const closeQuestionForm = () => {
+            formBox.classList.add('hidden');
+            if (editingQuestion) document.getElementById(`q-card-${editingQuestion.id}`)?.classList.remove('hidden');
+            editingQuestion = null;
+            listBox.after(formBox);
+        };
+
+        const openQuestionForm = (question) => {
+            closeQuestionForm();   // đang sửa dở câu khác thì trả thẻ đó về trước
+            editingQuestion = question;
+
+            document.getElementById('nq-heading').textContent = question
+                ? t('course-detail.suaCauHoi', 'Sửa câu hỏi') : t('course-detail.themCauHoiMoi', 'Thêm câu hỏi');
+            document.getElementById('nq-content').value = question?.content ?? '';
+            document.getElementById('nq-type').value = question ? (QUESTION_TYPE_INDEX[question.questionType] ?? 0) : 0;
+            document.getElementById('nq-score').value = question?.score ?? 1;
+            document.getElementById('nq-explain').value = question?.explanation ?? '';
+
             answerBox.innerHTML = '';
-            addAnswerRow(); addAnswerRow();
-            document.getElementById('nq-content').value = '';
-            document.getElementById('nq-explain').value = '';
-            formBox.scrollIntoView({ behavior: 'smooth' });
-        });
+            if (question) question.answerList.forEach(a => addAnswerRow(a.content, a.isCorrect, a.id));
+            else { addAnswerRow(); addAnswerRow(); }
+
+            if (question) {
+                const card = document.getElementById(`q-card-${question.id}`);
+                card.classList.add('hidden');
+                card.after(formBox);
+            }
+            formBox.classList.remove('hidden');
+            formBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            document.getElementById('nq-content').focus({ preventScroll: true });
+        };
+
+        document.getElementById('btn-add-question')?.addEventListener('click', () => openQuestionForm(null));
+        box.querySelectorAll('[data-edit-question]').forEach(b => b.addEventListener('click',
+            () => openQuestionForm(questionById.get(+b.dataset.editQuestion))));
         document.getElementById('btn-add-answer').addEventListener('click', () => addAnswerRow());
-        document.getElementById('btn-cancel-question').addEventListener('click', () => formBox.classList.add('hidden'));
+        document.getElementById('btn-cancel-question').addEventListener('click', closeQuestionForm);
 
         document.getElementById('btn-save-question').addEventListener('click', async () => {
             const answerList = [...answerBox.children].map((row, i) => ({
+                id: row.dataset.answerId ? +row.dataset.answerId : null,
                 content: row.querySelectorAll('input')[1].value.trim(),
                 isCorrect: row.querySelectorAll('input')[0].checked,
                 orderIndex: i + 1
             })).filter(a => a.content);
 
+            const body = {
+                content: document.getElementById('nq-content').value.trim(),
+                questionType: +document.getElementById('nq-type').value,
+                score: +document.getElementById('nq-score').value || 1,
+                orderIndex: editingQuestion?.orderIndex ?? 0,
+                explanation: document.getElementById('nq-explain').value.trim() || null,
+                answerList
+            };
+
             try {
-                await API.post(`/quiz/${quizId}/question`, {
-                    content: document.getElementById('nq-content').value.trim(),
-                    questionType: +document.getElementById('nq-type').value,
-                    score: +document.getElementById('nq-score').value || 1,
-                    orderIndex: 0,
-                    explanation: document.getElementById('nq-explain').value.trim() || null,
-                    answerList
-                });
-                toastOk(t('course-detail.daThemCauHoi', 'Đã thêm câu hỏi.'));
+                if (editingQuestion) {
+                    await API.put(`/quiz/question/${editingQuestion.id}`, body);
+                    toastOk(t('course-detail.daCapNhatCauHoi', 'Đã cập nhật câu hỏi.'));
+                } else {
+                    await API.post(`/quiz/${quizId}/question`, body);
+                    toastOk(t('course-detail.daThemCauHoi', 'Đã thêm câu hỏi.'));
+                }
                 openQuestionManager(quizId);
                 loadTab('quiz'); // cập nhật lại số câu hỏi ở bảng danh sách bài kiểm tra phía sau
             } catch (ex) { toastErr(ex.message); }
@@ -4018,7 +4315,7 @@
     }
 
     function scormReportTableHtml(rowList) {
-        if (!rowList.length) return emptyHtml(t('scorm.chuaCoHocVienNaoHoc2', 'Chưa có học viên nào mở khóa học trong trình phát SCORM.'), '<i class="ph ph-chart-bar"></i>');
+        if (!rowList.length) return emptyHtml(t('scorm.chuaCoHocVienNaoHoc2', 'Chưa có học viên nào học khóa học này.'), '<i class="ph ph-chart-bar"></i>');
         return `<div class="table-wrap"><table>
             <thead><tr>
                 <th>${esc(t('scorm.hocVien2', 'Học viên'))}</th><th>${esc(t('scorm.goiHoacKhoaHoc', 'Khóa học / gói'))}</th><th>${esc(t('scorm.ketQua', 'Kết quả'))}</th>
@@ -4082,7 +4379,7 @@
         box.innerHTML = `
             <div class="card">
                 <div class="card-head"><h3 data-i18n="course-detail.doiTuongDaoTaoMucTieu">Đối tượng đào tạo mục tiêu</h3>
-                    <span data-i18n="course-detail.deTrongApDungChoToanCongTy" class="small muted">Để trống = áp dụng cho toàn công ty</span></div>
+                    <span data-i18n="course-detail.doiTuongTuDongGui" class="small muted">Khi xuất bản, khóa học tự gửi tới các đối tượng này. Để trống = toàn công ty.</span></div>
                 <div class="card-body">
                     ${canManage ? `
                     <div class="row mb">
@@ -4136,32 +4433,11 @@
 
     // ==================== HỌC VIÊN ====================
     async function renderLearner(box) {
-        const [list, reportRowList] = await Promise.all([
-            API.get(`/enrollment/by-course/${courseId}`),
-            API.getSilent(`/scorm/course/${courseId}/report`).catch(() => []),
-        ]);
+        // Học viên được tự phân công khi khóa học xuất bản (theo thẻ "Đối tượng đào tạo") nên không còn danh sách
+        // phân công tay ở đây — chỉ còn bảng kết quả học.
+        const reportRowList = await API.getSilent(`/scorm/course/${courseId}/report`).catch(() => []);
         box.innerHTML = `
             <div class="card">
-                <div class="card-head"><h3>${list.length} học viên được phân công</h3>
-                    ${canManage ? '<button data-i18n="course-detail.phanCong" class="btn sm" id="btn-assign">+ Phân công</button>' : ''}</div>
-                <div class="table-wrap"><table>
-                    <thead><tr><th data-i18n="role.Học viên">Học viên</th><th data-i18n="account.phongBan">Phòng ban</th><th data-i18n="dashboard.colStatus">Trạng thái</th>
-                        <th data-i18n="account.tienDo" style="width:170px">Tiến độ</th><th data-i18n="certificate.diem">Điểm</th><th data-i18n="course-detail.han">Hạn</th><th data-i18n="index.stat-cert">Chứng nhận</th></tr></thead>
-                    <tbody>${list.length ? list.map(e => `
-                        <tr>
-                            <td><b>${esc(e.userFullName)}</b><div class="small muted">${esc(e.employeeCode)}</div></td>
-                            <td class="small">${esc(e.departmentName || '—')}</td>
-                            <td>${statusBadge(e.status)}</td>
-                            <td>${progressBar(e.progressPercent)}</td>
-                            <td>${e.finalScore ?? '—'}</td>
-                            <td class="nowrap small">${formatDate(e.dueDate)}
-                                ${e.isOverdue ? '<br><span data-i18n="dashboard.overdue" class="badge red">Quá hạn</span>' : ''}</td>
-                            <td>${e.hasCertificate ? '<span data-i18n="course-detail.daCap" class="badge green">Đã cấp</span>' : '<span class="muted small">—</span>'}</td>
-                        </tr>`).join('') : `<tr><td colspan="7">${emptyHtml(t('course-detail.chuaPhanCongChoAi', 'Chưa phân công cho ai.'), '<i class="ph ph-users"></i>')}</td></tr>`}
-                    </tbody>
-                </table></div>
-            </div>
-            <div class="card mt">
                 <div class="card-head">
                     <div><h3>${esc(t('scorm.ketQuaHocScorm', 'Kết Quả Học Của Học Viên'))}</h3></div>
                     ${reportRowList.length ? `<button class="btn ghost sm" id="btn-scorm-csv"><i class="ph ph-file-csv"></i> ${esc(t('scorm.xuatCsv', 'Xuất CSV'))}</button>` : ''}
@@ -4172,26 +4448,6 @@
         document.getElementById('btn-scorm-csv')?.addEventListener('click', () =>
             API.download(`/scorm/course/${courseId}/report.csv`, `ket-qua-scorm-${course.code}.csv`).catch(ex => toastErr(ex.message)));
         box.querySelectorAll('[data-scorm-row]').forEach(row => row.addEventListener('click', () => openScormDetail(+row.dataset.scormRow)));
-
-        if (!canManage) return;
-
-        document.getElementById('btn-assign').addEventListener('click', () => {
-            document.getElementById('a-department').innerHTML =
-                '<option data-i18n="course-detail.tatCaPhongBan" value="">— Tất cả phòng ban —</option>' + departmentList.map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('');
-            document.getElementById('a-position').innerHTML =
-                '<option data-i18n="course-detail.tatCaViTri" value="">— Tất cả vị trí —</option>' + positionList.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
-            // Ô chọn gõ được. Gọi SAU khi đã đổ <option>: lần đầu là dựng ô tìm kiếm, những lần mở hộp thoại
-            // sau chỉ đồng bộ lại nhãn theo danh sách vừa dựng lại (xem enhanceSearchableSelect trong app.js).
-            enhanceSearchableSelect(document.getElementById('a-department'),
-                { placeholder: t('course.goTenPhongBan', 'Gõ tên hoặc mã phòng ban...') });
-            enhanceSearchableSelect(document.getElementById('a-position'),
-                { placeholder: t('course-detail.goTenViTri', 'Gõ tên vị trí...') });
-
-            const dueInput = document.getElementById('a-due');
-            dueInput.min = nowLocalIso();
-            dueInput.value = '';
-            openModal('modal-assign');
-        });
     }
 
     // ==================== NHẬP DỮ LIỆU HÀNG LOẠT ====================
@@ -4600,27 +4856,6 @@
 
         openModal('modal-import');
         if (r.failCount === 0) toastOk(r.message); else toastErr(r.message);
-    }
-
-    async function doAssign() {
-        const departmentId = document.getElementById('a-department').value;
-        const positionId = document.getElementById('a-position').value;
-        const due = document.getElementById('a-due').value;
-
-        if (!departmentId && !positionId) { toastErr(t('course-detail.chonPhongBanHoacViTriCongViec', 'Chọn phòng ban hoặc vị trí công việc.')); return; }
-        if (due && due < nowLocalIso()) { toastErr(t('course-detail.hanHoanThanhKhongDuocOTrongQua', 'Hạn hoàn thành không được ở trong quá khứ.')); return; }
-
-        try {
-            const r = await API.post('/enrollment/assign-by-target', {
-                courseId,
-                departmentId: departmentId ? +departmentId : null,
-                positionId: positionId ? +positionId : null,
-                dueDate: due ? new Date(due).toISOString() : null
-            });
-            toastOk(r.message);
-            closeModal('modal-assign');
-            loadTab('learner');
-        } catch (ex) { toastErr(ex.message); }
     }
 })();
 </script>

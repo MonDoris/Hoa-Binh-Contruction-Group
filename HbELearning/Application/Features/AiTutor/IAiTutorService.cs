@@ -9,11 +9,11 @@ namespace HbELearning.Application.Features.AiTutor;
 /// <summary>Các ca sử dụng của chức năng AiTutor. Tầng API gọi qua cổng này (xem API/Controllers/AiTutorService.cs).</summary>
 public interface IAiTutorService
 {
-    /// <summary>Pico B có dùng được ngay không — để trang chat báo trước thay vì để học viên gõ xong câu hỏi
+    /// <summary>HB Minerva có dùng được ngay không — để trang chat báo trước thay vì để học viên gõ xong câu hỏi
     /// rồi mới nhận lỗi.</summary>
     Task<Result> GetStatus(CancellationToken cancellationToken);
 
-    /// <summary>Hỏi Pico B. Trả về dạng SSE (text/event-stream) giống màn hình quản trị: model chạy trên
+    /// <summary>Hỏi HB Minerva. Trả về dạng SSE (text/event-stream) giống màn hình quản trị: model chạy trên
     /// CPU chỉ sinh được vài chữ mỗi giây, chờ trọn câu trả lời rồi mới hiện thì học viên ngồi nhìn màn hình
     /// trắng cả phút và tưởng hệ thống treo.
     ///

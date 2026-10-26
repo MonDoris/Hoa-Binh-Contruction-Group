@@ -103,6 +103,10 @@ public class CourseService : ICourseService
                 QuizCount = x.QuizList.Count(q => q.IsActive),
                 ScormPackageCount = x.ScormPackageList.Count(p => p.Kind == ScormPackageKind.Imported),
                 EnrollmentCount = x.EnrollmentList.Count,
+                ReviewCount = _db.CourseFeedback.Count(f => f.CourseId == x.Id && f.Kind == FeedbackKind.Review && f.Rating != null),
+                AverageRating = _db.CourseFeedback
+                    .Where(f => f.CourseId == x.Id && f.Kind == FeedbackKind.Review && f.Rating != null)
+                    .Average(f => (double?)f.Rating),
                 x.CreatedById,
                 CreatedByName = x.CreatedBy.FullName,
                 CreatedByDepartmentId = x.CreatedBy.DepartmentId,
@@ -179,7 +183,8 @@ public class CourseService : ICourseService
                     designatedUserId.HasValue ? designatedNameMap.GetValueOrDefault(designatedUserId.Value) : null,
                     activeDelegateName, rejectedByNameMap.GetValueOrDefault(x.Id)),
                 CanReassignApprover(x.Status, currentStep),
-                ScormPackageCount: x.ScormPackageCount);
+                ScormPackageCount: x.ScormPackageCount,
+                AverageRating: CourseRating.Round(x.AverageRating), ReviewCount: x.ReviewCount);
         }).ToList();
 
         return Result.Success(new PagedResult<CourseListDto>(itemList, total, page, pageSize));
@@ -297,6 +302,10 @@ public class CourseService : ICourseService
                 QuizCount = x.QuizList.Count(q => q.IsActive),
                 ScormPackageCount = x.ScormPackageList.Count(p => p.Kind == ScormPackageKind.Imported),
                 EnrollmentCount = x.EnrollmentList.Count,
+                ReviewCount = _db.CourseFeedback.Count(f => f.CourseId == x.Id && f.Kind == FeedbackKind.Review && f.Rating != null),
+                AverageRating = _db.CourseFeedback
+                    .Where(f => f.CourseId == x.Id && f.Kind == FeedbackKind.Review && f.Rating != null)
+                    .Average(f => (double?)f.Rating),
                 x.CreatedById,
                 CreatedByName = x.CreatedBy.FullName,
                 CreatedByDepartmentId = x.CreatedBy.DepartmentId,
@@ -329,19 +338,24 @@ public class CourseService : ICourseService
                 : x.MatchDepartment ? "Department"
                 : x.MatchPosition ? "Position"
                 : "All",
-            ScormPackageCount: x.ScormPackageCount)).ToList();
+            ScormPackageCount: x.ScormPackageCount,
+            AverageRating: CourseRating.Round(x.AverageRating), ReviewCount: x.ReviewCount)).ToList();
 
         return Result.Success(list);
     }
 
     public async Task<Result> Create(CourseCreateRequest request)
     {
-        // Khóa học dùng chung toàn công ty không thuộc phòng ban nào, nên lấy tiền tố ALL. Không đụng tới
-        // danh sách đối tượng đào tạo: khóa mới tạo vốn chưa có dòng đối tượng nào, mà "không có dòng nào"
-        // đã là quy ước "áp dụng cho toàn công ty" của hệ thống (xem GetMyAvailable và
-        // GetCourseAudienceUserIdListAsync). Thêm đủ 39 dòng phòng ban vào đây lại hóa ra HẸP hơn — nhân
-        // viên chưa được gán phòng ban sẽ không khớp dòng nào và mất luôn khóa học.
+        // Khóa học dùng chung toàn công ty không thuộc phòng ban nào, nên lấy tiền tố ALL và KHÔNG có dòng đối
+        // tượng nào: "không có dòng nào" đã là quy ước "áp dụng cho toàn công ty" của hệ thống (xem
+        // GetMyAvailable và GetCourseAudienceUserIdListAsync). Thêm đủ 39 dòng phòng ban vào đây lại hóa ra HẸP
+        // hơn — nhân viên chưa được gán phòng ban sẽ không khớp dòng nào và mất luôn khóa học.
+        //
+        // Khóa học của một phòng ban thì đối tượng đào tạo MẶC ĐỊNH là chính phòng ban đó (form tạo khóa chọn sẵn
+        // phòng của người soạn). Khi xuất bản, khóa tự được gửi tới đúng những người này; người soạn muốn thu
+        // hẹp / mở rộng thì sửa ở thẻ "Đối tượng đào tạo".
         string codePrefix;
+        int? targetDepartmentId = null;
         if (request.AllDepartment)
         {
             codePrefix = AllDepartmentCodePrefix;
@@ -351,6 +365,7 @@ public class CourseService : ICourseService
             var department = await _db.Department.FirstOrDefaultAsync(x => x.Id == request.DepartmentId);
             if (department is null) return Result.Invalid(new MessageResponse("Phòng ban không hợp lệ."));
             codePrefix = department.Code;
+            targetDepartmentId = department.Id;
         }
 
         if (!TryGetCoursePeriod(request, out var startDate, out var endDate))
@@ -378,6 +393,8 @@ public class CourseService : ICourseService
             Status = CourseStatus.Draft,
             ApprovalWorkflowId = workflowId
         };
+        if (targetDepartmentId.HasValue)
+            course.CourseTargetList.Add(new CourseTarget { DepartmentId = targetDepartmentId });
 
         _db.Course.Add(course);
         await _db.SaveChangesAsync();
@@ -534,15 +551,15 @@ public class CourseService : ICourseService
                 CourseId = course.Id, ActorUserId = _currentUser.UserId, ActorRoleName = _currentUser.Role,
                 StepName = "Xuất bản trực tiếp", FromStatus = fromStatus, ToStatus = course.Status
             });
+            var assignedList = await StageAudienceEnrollmentsAsync(course);
             await _db.SaveChangesAsync();
 
-            var publishRecipientList = await GetCourseAudienceUserIdListAsync(course);
-            publishRecipientList.Add(_currentUser.UserId);
-            await _notificationService.NotifyCourseWorkflowAsync(course.Id, publishRecipientList.Distinct().ToList(),
+            await NotifyAudienceAssignedAsync(assignedList);
+            await _notificationService.NotifyCourseWorkflowAsync(course.Id, new List<int> { course.CreatedById },
                 NotificationType.CoursePublished, "Khóa học đã được xuất bản",
-                $"Khóa học \"{course.Title}\" của {course.CreatedBy.FullName} đã được xuất bản.");
+                $"Khóa học \"{course.Title}\" đã được xuất bản và gửi tới {assignedList.Count} học viên.");
 
-            return Result.Success(new MessageResponse("Khóa học đã được xuất bản."));
+            return Result.Success(new MessageResponse($"Khóa học đã được xuất bản và gửi tới {assignedList.Count} học viên."));
         }
 
         // Khóa học có chọn luồng cấp duyệt thì đi theo đúng các bước của luồng đó; không chọn thì chạy chuỗi duyệt
@@ -609,6 +626,8 @@ public class CourseService : ICourseService
         if (course.IsOnWorkflowStep)
             return await ApproveWorkflowStepAsync(course);
 
+        var assignedList = new List<Enrollment>();
+
         var sameDepartment = _currentUser.DepartmentId.HasValue && _currentUser.DepartmentId == course.CreatedBy.DepartmentId;
         var fromStatus = course.Status;
         List<int> recipientIdList;
@@ -648,8 +667,8 @@ public class CourseService : ICourseService
             // Ghi rõ ai thực sự duyệt bước cuối — chỉ Giám Đốc Nhân sự được xem tên người được ủy quyền, các
             // vai trò khác luôn thấy nhãn "Giám Đốc Nhân sự" (CourseService tự tính khi trả dữ liệu ở GetList/GetById).
             course.PublishByHr(_currentUser.UserId, !isHrDirectorApprover, DateTime.Now);
-            recipientIdList = await GetCourseAudienceUserIdListAsync(course);
-            recipientIdList.Add(course.CreatedById);
+            assignedList = await StageAudienceEnrollmentsAsync(course);
+            recipientIdList = new List<int> { course.CreatedById };
             notifyType = NotificationType.CoursePublished;
             notifyTitle = "Khóa học đã được xuất bản";
             notifyMessage = $"Khóa học \"{course.Title}\" đã được duyệt qua tất cả các cấp và chính thức xuất bản.";
@@ -665,6 +684,7 @@ public class CourseService : ICourseService
             FromStatus = fromStatus, ToStatus = course.Status
         });
         await _db.SaveChangesAsync();
+        await NotifyAudienceAssignedAsync(assignedList);
 
         await _notificationService.NotifyCourseWorkflowAsync(course.Id, recipientIdList, notifyType, notifyTitle, notifyMessage);
 
@@ -1085,13 +1105,13 @@ public class CourseService : ICourseService
             CourseId = course.Id, ActorUserId = _currentUser.UserId, ActorRoleName = _currentUser.Role,
             StepName = currentStep.Name, FromStatus = fromStatus, ToStatus = course.Status
         });
+        var assignedList = nextStep is null ? await StageAudienceEnrollmentsAsync(course) : new List<Enrollment>();
         await _db.SaveChangesAsync();
 
         if (nextStep is null)
         {
-            var audienceIdList = await GetCourseAudienceUserIdListAsync(course);
-            audienceIdList.Add(course.CreatedById);
-            await _notificationService.NotifyCourseWorkflowAsync(course.Id, audienceIdList, NotificationType.CoursePublished,
+            await NotifyAudienceAssignedAsync(assignedList);
+            await _notificationService.NotifyCourseWorkflowAsync(course.Id, new List<int> { course.CreatedById }, NotificationType.CoursePublished,
                 "Khóa học đã được xuất bản",
                 $"Khóa học \"{course.Title}\" đã được duyệt qua tất cả các bước và chính thức xuất bản.");
 
@@ -1169,8 +1189,13 @@ public class CourseService : ICourseService
             .ToListAsync();
     }
 
-    /// <summary>Danh sách Id người dùng thuộc đối tượng của khóa học (theo CourseTarget phòng ban/vị trí, hoặc
-    /// toàn bộ nếu không giới hạn) — dùng để báo cho học viên khi khóa học được xuất bản.</summary>
+    /// <summary>Danh sách Id người dùng thuộc đối tượng của khóa học, hoặc toàn bộ nhân viên đang hoạt động (trừ
+    /// Admin) nếu khóa không giới hạn đối tượng nào.
+    ///
+    /// Mỗi dòng CourseTarget là MỘT điều kiện: phòng ban VÀ vị trí cùng khớp (ô để trống = mọi giá trị) — đúng
+    /// nghĩa "Phòng IT · Lập trình viên" trên màn hình Đối tượng đào tạo. Trước đây hai danh sách được tách rời
+    /// rồi nối bằng HOẶC, nên một dòng "IT · DEV" kéo vào cả phòng IT lẫn mọi người làm DEV ở phòng khác; khi chỉ
+    /// dùng để báo tin thì lệch ít, nhưng giờ nó quyết định ai được TỰ PHÂN CÔNG học.</summary>
     private async Task<List<int>> GetCourseAudienceUserIdListAsync(Course course)
     {
         var targetList = await _db.CourseTarget.AsNoTracking()
@@ -1179,21 +1204,64 @@ public class CourseService : ICourseService
             .ToListAsync();
 
         var query = _db.User.AsNoTracking().Where(x => x.IsActive && x.Role.Name != RoleName.Admin);
-        if (targetList.Count > 0)
-        {
-            // EF Core không dịch được .Any() gọi trên list trong bộ nhớ khi so sánh với thuộc tính entity
-            // ngay trong cùng biểu thức Where — tách trước thành 2 danh sách Id rồi dùng .Contains() (dịch
-            // được thành SQL IN) thay vì .Any() lồng nhau.
-            var departmentIdList = targetList.Where(t => t.DepartmentId.HasValue).Select(t => t.DepartmentId!.Value).ToList();
-            var positionIdList = targetList.Where(t => t.PositionId.HasValue).Select(t => t.PositionId!.Value).ToList();
+        if (targetList.Count == 0)
+            return await query.Select(x => x.Id).ToListAsync();
 
-            query = query.Where(x =>
-                (x.DepartmentId.HasValue && departmentIdList.Contains(x.DepartmentId.Value))
-                || (x.PositionId.HasValue && positionIdList.Contains(x.PositionId.Value)));
-        }
+        // EF Core không dịch được .Any() gọi trên list trong bộ nhớ khi so sánh với thuộc tính entity
+        // ngay trong cùng biểu thức Where — tách trước thành 2 danh sách Id rồi dùng .Contains() (dịch
+        // được thành SQL IN). Bước này chỉ lọc thô; khớp đúng từng dòng đối tượng làm trong bộ nhớ bên dưới.
+        var departmentIdList = targetList.Where(t => t.DepartmentId.HasValue).Select(t => t.DepartmentId!.Value).Distinct().ToList();
+        var positionIdList = targetList.Where(t => t.PositionId.HasValue).Select(t => t.PositionId!.Value).Distinct().ToList();
 
-        return await query.Select(x => x.Id).ToListAsync();
+        var candidateList = await query
+            .Where(x => (x.DepartmentId.HasValue && departmentIdList.Contains(x.DepartmentId.Value))
+                     || (x.PositionId.HasValue && positionIdList.Contains(x.PositionId.Value)))
+            .Select(x => new { x.Id, x.DepartmentId, x.PositionId })
+            .ToListAsync();
+
+        return candidateList
+            .Where(u => targetList.Any(t =>
+                (t.DepartmentId is null || t.DepartmentId == u.DepartmentId)
+                && (t.PositionId is null || t.PositionId == u.PositionId)))
+            .Select(u => u.Id)
+            .ToList();
     }
+
+    /// <summary>Khóa học vừa được xuất bản (hoặc vừa thêm đối tượng khi đã xuất bản): dựng sẵn bản ghi phân công
+    /// cho mọi người thuộc đối tượng chưa có bản ghi nào, để học viên thấy khóa ở "Khóa học của tôi" ngay mà không
+    /// phải đợi ai phân công. CHƯA lưu — người gọi lưu cùng lượt đổi trạng thái khóa học, nên không có chuyện khóa
+    /// đã xuất bản mà phân công dở dang.
+    ///
+    /// Người soạn khóa không được tự phân công học khóa của chính mình. Bản ghi đã tồn tại (kể cả đã hủy: người
+    /// phụ trách chủ động gỡ thì không tự thêm lại) được giữ nguyên.</summary>
+    private async Task<List<Enrollment>> StageAudienceEnrollmentsAsync(Course course)
+    {
+        var audienceIdList = await GetCourseAudienceUserIdListAsync(course);
+        var existingIdSet = (await _db.Enrollment.AsNoTracking()
+                .Where(x => x.CourseId == course.Id).Select(x => x.UserId).ToListAsync()).ToHashSet();
+
+        var now = DateTime.Now;
+        var dueDate = course.DeadlineDay.HasValue ? now.AddDays(course.DeadlineDay.Value) : (DateTime?)null;
+        var enrollmentList = audienceIdList
+            .Where(userId => !existingIdSet.Contains(userId))
+            .Select(userId => new Enrollment
+            {
+                UserId = userId,
+                CourseId = course.Id,
+                AssignedById = course.CreatedById,
+                AssignedAt = now,
+                DueDate = dueDate,
+                Status = EnrollmentStatus.Assigned
+            })
+            .ToList();
+
+        _db.Enrollment.AddRange(enrollmentList);
+        return enrollmentList;
+    }
+
+    /// <summary>Báo "khóa học mới được giao" cho những người vừa được tự phân công. Gọi SAU khi đã lưu (cần Id).</summary>
+    private Task NotifyAudienceAssignedAsync(IReadOnlyCollection<Enrollment> assignedList)
+        => _notificationService.NotifyCourseAssignedAsync(assignedList.Select(x => x.Id).ToList());
 
     /// <summary>Xác định người dùng hiện tại có được xem khóa học chưa xuất bản này hay không.</summary>
     private async Task<bool> CanViewCourseAsync(Course course)
@@ -1334,22 +1402,34 @@ public class CourseService : ICourseService
             .Select(x => x.User.FullName)
             .FirstOrDefaultAsync();
 
-    public async Task<Result> Delete(int id)
+    public async Task<Result> Delete(int id, int userId, bool isAdmin)
     {
         var course = await _db.Course.FirstOrDefaultAsync(x => x.Id == id);
         if (course is null) return Result.NotFound(new MessageResponse("Không tìm thấy khóa học."));
+
+        if (!isAdmin && (course.CreatedById != userId || course.Status != CourseStatus.Draft))
+            return Result.Denied(new MessageResponse("Bạn chỉ có thể xóa khóa học ở trạng thái bản nháp."));
 
         if (await _db.Enrollment.AnyAsync(x => x.CourseId == id))
             return Result.Invalid(new MessageResponse("Khóa học đã có người học, không thể xóa. Hãy chuyển sang trạng thái Archived."));
 
         // Gói SCORM: bản xem thử và bước lộ trình trỏ tới gói không tự lan truyền (NoAction) — dọn trước; tệp đã
         // giải nén trên đĩa dọn SAU khi xóa thành công, để lỗi CSDL không để lại khóa học trỏ vào thư mục đã mất.
-        var scormKeyList = await _db.ScormPackage.Where(x => x.CourseId == id).Select(x => x.StorageKey).ToListAsync();
-        if (scormKeyList.Count > 0)
+        // Phải nạp CẢ gói vào context và xóa tường minh: EF chỉ xếp thứ tự DELETE theo các thực thể đang theo dõi.
+        // Nếu chỉ có registration + khóa học, EF không biết registration phụ thuộc gói và có thể xóa khóa học
+        // trước — CSDL lan truyền xóa sang gói khi registration xem thử vẫn còn → vi phạm khóa ngoại.
+        var scormPackageList = await _db.ScormPackage.Where(x => x.CourseId == id).ToListAsync();
+        var scormKeyList = scormPackageList.Select(x => x.StorageKey).ToList();
+        if (scormPackageList.Count > 0)
         {
             _db.ScormRegistration.RemoveRange(_db.ScormRegistration.Where(x => x.ScormPackage.CourseId == id));
             _db.PathItem.RemoveRange(_db.PathItem.Where(x => x.ScormPackage != null && x.ScormPackage.CourseId == id));
+            _db.ScormPackage.RemoveRange(scormPackageList);
         }
+
+        // Feedback tới khóa học bằng khóa ngoại NoAction (xem AppDbContext) nên không tự bị xóa theo. Khóa chưa có
+        // phân công vẫn có thể còn trả lời của người soạn, nên dọn tường minh.
+        _db.CourseFeedback.RemoveRange(_db.CourseFeedback.Where(x => x.CourseId == id));
 
         _db.Course.Remove(course);
         await _db.SaveChangesAsync();
@@ -1359,8 +1439,12 @@ public class CourseService : ICourseService
 
     public async Task<Result> AddTarget(int id, CourseTargetRequest request)
     {
-        if (!await _db.Course.AnyAsync(x => x.Id == id))
+        var course = await _db.Course.FirstOrDefaultAsync(x => x.Id == id);
+        if (course is null)
             return Result.NotFound(new MessageResponse("Không tìm thấy khóa học."));
+
+        if (course.CreatedById != _currentUser.UserId)
+            return Result.Denied(new MessageResponse("Chỉ người tạo khóa học mới được sửa đối tượng đào tạo."));
 
         if (request.DepartmentId is null && request.PositionId is null)
             return Result.Invalid(new MessageResponse("Phải chọn ít nhất phòng ban hoặc vị trí công việc."));
@@ -1377,6 +1461,17 @@ public class CourseService : ICourseService
         });
         await _db.SaveChangesAsync();
 
+        // Khóa đã xuất bản rồi mà thêm đối tượng mới: người mới thuộc đối tượng được gửi khóa học luôn, giống lúc
+        // xuất bản. Người đã có phân công giữ nguyên; bớt đối tượng (RemoveTarget) không thu hồi gì.
+        if (course.Status == CourseStatus.Published)
+        {
+            var assignedList = await StageAudienceEnrollmentsAsync(course);
+            await _db.SaveChangesAsync();
+            await NotifyAudienceAssignedAsync(assignedList);
+            if (assignedList.Count > 0)
+                return Result.Success(new MessageResponse($"Đã thêm đối tượng đào tạo và gửi khóa học tới {assignedList.Count} học viên."));
+        }
+
         return Result.Success(new MessageResponse("Đã thêm đối tượng đào tạo."));
     }
 
@@ -1384,6 +1479,10 @@ public class CourseService : ICourseService
     {
         var target = await _db.CourseTarget.FirstOrDefaultAsync(x => x.Id == targetId);
         if (target is null) return Result.NotFound(new MessageResponse("Không tìm thấy đối tượng đào tạo."));
+
+        var ownerId = await _db.Course.Where(x => x.Id == target.CourseId).Select(x => x.CreatedById).FirstOrDefaultAsync();
+        if (ownerId != _currentUser.UserId)
+            return Result.Denied(new MessageResponse("Chỉ người tạo khóa học mới được sửa đối tượng đào tạo."));
 
         _db.CourseTarget.Remove(target);
         await _db.SaveChangesAsync();

@@ -86,6 +86,8 @@ public interface IAppDbContext
     DbSet<ConversationMember> ConversationMember { get; }
     DbSet<ChatMessage> ChatMessage { get; }
 
+    DbSet<CourseFeedback> CourseFeedback { get; }
+
     // ----- Phần ngoài DbSet mà nghiệp vụ đang dùng tới -----
 
     /// <summary>Bộ theo dõi thay đổi của EF Core (xem CourseKnowledgeService dùng để tắt theo dõi khi nạp khối lượng lớn).</summary>

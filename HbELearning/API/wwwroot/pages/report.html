@@ -10,17 +10,101 @@
     <script src="/js/head.js"></script>
     <title data-i18n="report.baoCaoDaoTaoHbELearning">Báo cáo đào tạo · HB E-Learning</title>
     <link rel="stylesheet" href="/css/style.css">
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        /* Trang này chỉ giữ những gì thật sự của riêng nó: khay tab căn giữa và ngăn kéo hồ sơ bên phải.
-           Card, bảng, nút, huy hiệu đều lấy từ css/style.css — trước đây trang tự dựng lại cả bộ bằng mã
-           màu ghi cứng (#18181b, #fafafa, #e4e4e7...) kèm !important, nên bật nền tối là trang báo cáo
-           vẫn trắng nguyên trong khi phần còn lại của hệ thống đã tối. */
+        /* Trang này dùng chung ngôn ngữ thiết kế với trang Tổng quan: dải bốn chỉ số `.ops-kpi`, khung `.ops-trend`,
+           chú thích nổi `.trend-tip` đều lấy từ css/style.css. Ở đây chỉ giữ phần riêng của trang báo cáo: thanh phân bố
+           trạng thái, bảng có sắp xếp / tìm kiếm và ngăn kéo hồ sơ người học. Mọi màu đi qua biến CSS nên bật nền tối là
+           cả trang đổi theo — không còn mã màu ghi cứng. */
 
-        /* Khay tab căn giữa; hình dáng tab lấy từ css/style.css. */
-        .tabs-container { display: flex; justify-content: center; margin-bottom: 24px; }
+        .tabs-container { display: flex; justify-content: center; margin-bottom: 20px; }
+        .tabs-container .tabs { margin-bottom: 0; }
+
+        /* ==================== PHÂN BỐ TRẠNG THÁI HỌC TẬP ====================
+           Một thanh xếp chồng 100% thay cho biểu đồ vành khuyên cũ. Bốn nhóm ở đây LOẠI TRỪ lẫn nhau (mỗi lượt đào tạo
+           nằm đúng một nhóm), còn "quá hạn" là một lát cắt chéo qua các nhóm chưa xong nên không thể là một khúc của thanh —
+           vành khuyên cũ cộng nó vào như một khúc thứ tư nên đếm đôi các lượt quá hạn. Nó được báo riêng ở dòng lưu ý. */
+        .rpt-status-body { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+
+        @keyframes rpt-grow { from { transform: scaleX(0); } }
+        .rpt-bar {
+            position: relative; display: flex; gap: 2px; height: 20px; transform-origin: left;
+            animation: rpt-grow .7s .3s cubic-bezier(.2, .7, .2, 1) both;
+        }
+        .rpt-bar.is-empty { border-radius: 4px; background: color-mix(in srgb, var(--text-muted) 14%, var(--surface)); }
+        /* Các khúc cách nhau 2px màu nền thay vì kẻ viền; chỉ hai đầu thanh được bo 4px. */
+        .rpt-seg { position: relative; flex: var(--v) 1 0; min-width: 4px; background: var(--c); outline: none; transition: filter .15s; }
+        .rpt-seg:first-child { border-radius: 4px 0 0 4px; }
+        .rpt-seg:last-child { border-radius: 0 4px 4px 0; }
+        .rpt-seg:only-child { border-radius: 4px; }
+        /* Vùng rê chuột / lấy nét lớn hơn phần tô màu: thanh chỉ cao 20px, khúc nhỏ khó nhắm trúng. */
+        .rpt-seg::after { content: ""; position: absolute; inset: -9px 0; }
+        .rpt-seg:hover, .rpt-seg:focus-visible { filter: brightness(1.12); }
+        .rpt-seg:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
+
+        .rpt-legend {
+            list-style: none; margin: 0; padding: 0;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 24px;
+        }
+        .rpt-legend li { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--text-muted); }
+        .rpt-legend i { flex: none; align-self: center; width: 10px; height: 10px; border-radius: 3px; }
+        .rpt-legend b { margin-left: auto; font-size: 15px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+        .rpt-legend small { min-width: 46px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+
+        .rpt-note { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+        .rpt-note i { flex: none; font-size: 18px; }
+        .rpt-note.bad {
+            background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+            border: 1px solid color-mix(in srgb, var(--danger) 25%, var(--border));
+        }
+        .rpt-note.bad i { color: var(--danger); }
+        .rpt-note.ok { padding-left: 0; color: var(--text-muted); }
+        .rpt-note.ok i { color: var(--success); }
+        .rpt-empty { font-size: 13px; color: var(--text-muted); }
+
+        /* ==================== BẢNG BÁO CÁO ==================== */
+        .rpt-card .card-head { flex-wrap: wrap; gap: 12px; }
+        .rpt-title { display: flex; align-items: center; gap: 10px; }
+        .rpt-search { position: relative; flex: 0 1 300px; min-width: 200px; }
+        .rpt-search i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+        .rpt-search input { padding-left: 34px; }
+
+        .rpt-table th.num, .rpt-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        /* Bảng khóa học có 9 cột: đệm ngang hẹp hơn mặc định để vừa khung 1280px mà không phải cuộn ngang, và cột đầu
+           / cuối thẳng hàng với lề 20px của tiêu đề thẻ. */
+        .rpt-table th, .rpt-table td { padding-left: 10px; padding-right: 10px; }
+        /* Tiêu đề dài ("Tỷ lệ hoàn thành") được phép xuống dòng thay vì ép bảng rộng thêm — style.css mặc định cấm. */
+        .rpt-table th { white-space: normal; line-height: 1.3; }
+        .rpt-table th.num .rpt-sort { text-align: right; }
+        .rpt-table th:first-child, .rpt-table td:first-child { padding-left: 20px; min-width: 190px; }
+        .rpt-table th:last-child, .rpt-table td:last-child { padding-right: 20px; }
+        .rpt-table .rpt-wide { min-width: 130px; }
+        .rpt-table .progress { min-width: 56px; }
+        /* Tiêu đề cột bấm được là một <button> thật: tới được bằng bàn phím, trình đọc màn hình đọc ra trạng thái sắp xếp qua aria-sort. */
+        .rpt-sort {
+            display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none;
+            font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; cursor: pointer;
+        }
+        .rpt-sort i { font-size: 12px; opacity: .55; }
+        .rpt-sort:hover, th[aria-sort="ascending"] .rpt-sort, th[aria-sort="descending"] .rpt-sort { color: var(--text); }
+        th[aria-sort="ascending"] .rpt-sort i, th[aria-sort="descending"] .rpt-sort i { opacity: 1; color: var(--primary); }
+        .rpt-sort:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 4px; }
+
+        .rpt-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .rpt-name b { font-weight: 700; }
+        .rpt-name small { font-size: 12px; color: var(--text-muted); }
+        .rpt-person { display: flex; align-items: center; gap: 10px; }
+        /* Số quá hạn luôn đi kèm biểu tượng cảnh báo — màu đỏ một mình không đủ cho người mù màu. */
+        .rpt-bad { display: inline-flex; align-items: center; gap: 4px; color: var(--danger); font-weight: 700; }
+        .rpt-star { color: var(--warning); }
+        .rpt-nomatch { padding: 28px 14px; text-align: center; color: var(--text-muted); }
+
+        @media (max-width: 640px) {
+            .rpt-search { flex-basis: 100%; }
+            .tabs-container .tabs { width: 100%; }
+            .tabs-container .tabs button { flex: 1; justify-content: center; padding: 9px 8px; }
+        }
+        @media (prefers-reduced-motion: reduce) { .rpt-bar { animation: none; } }
 
         /* ====================================================
            NGĂN KÉO HỒ SƠ NGƯỜI HỌC (PANEL BÊN PHẢI)
@@ -31,18 +115,21 @@
         }
         .drawer-overlay.open { opacity: 1; visibility: visible; }
 
+        /* visibility trễ .4s lúc đóng: ngăn kéo trượt ra khỏi màn hình xong mới bị gỡ khỏi thứ tự Tab. */
         .drawer-panel {
             position: fixed; top: 0; right: -480px; width: 100%; max-width: 450px; height: 100vh;
             background: var(--surface); box-shadow: -4px 0 24px rgba(0, 0, 0, .1);
-            transition: .4s cubic-bezier(.25, 1, .5, 1); z-index: 1001;
-            display: flex; flex-direction: column;
+            transition: right .4s cubic-bezier(.25, 1, .5, 1), visibility 0s linear .4s; z-index: 1001;
+            display: flex; flex-direction: column; visibility: hidden;
         }
-        .drawer-panel.open { right: 0; }
+        .drawer-panel.open { right: 0; visibility: visible; transition: right .4s cubic-bezier(.25, 1, .5, 1), visibility 0s; }
 
         .drawer-header {
             padding: 24px; border-bottom: 1px solid var(--border);
             display: flex; justify-content: space-between; align-items: flex-start;
         }
+        .drawer-header h3 { margin: 0; font-size: 18px; font-weight: 700; }
+        .drawer-sub { margin-top: 4px; font-size: 13px; color: var(--text-muted); }
         .drawer-body { padding: 24px; overflow-y: auto; flex: 1; background: var(--bg); }
 
         .close-drawer {
@@ -51,6 +138,7 @@
             display: flex; align-items: center; justify-content: center; transition: .2s;
         }
         .close-drawer:hover { background: var(--border); color: var(--text); }
+        .close-drawer:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
         .drawer-avatar {
             width: 48px; height: 48px; border-radius: 12px;
@@ -58,57 +146,55 @@
             display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
         }
 
+        .rpt-d-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .rpt-d-stat { padding: 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); }
+        .rpt-d-stat small { display: block; font-size: 12px; letter-spacing: .4px; text-transform: uppercase; color: var(--text-muted); }
+        .rpt-d-stat b { display: block; margin-top: 4px; font-size: 20px; font-weight: 700; }
+        .rpt-d-stat b span { font-size: 14px; font-weight: 600; color: var(--text-muted); }
+        .rpt-d-heading { margin-bottom: 12px; font-size: 14px; font-weight: 700; }
+
         .drawer-course-card {
             background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
             padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow-xs);
         }
+        .rpt-d-row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+        .rpt-d-row.sub { font-size: 13px; color: var(--text-muted); }
+        .rpt-d-title { font-size: 14px; font-weight: 700; }
+        .rpt-d-row.sub strong { color: var(--text); }
+        .rpt-d-row.sub strong.is-done { color: var(--success); }
 
-        /* Chấm tròn màu đứng trước tên trạng thái trong bảng. */
-        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        @media print { .drawer-overlay, .drawer-panel { display: none; } }
     </style>
     <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
 </head>
 <body>
 <div class="main">
     <div class="content" style="padding-top: 24px;">
-        
-        <!-- Khối KPI Overview (Sẽ được JS hiển thị) -->
+
+        <!-- Dải chỉ số + phân bố trạng thái (do JS dựng) -->
         <div id="overview"></div>
-        
-        <!-- Vùng chứa Biểu đồ -->
-        <div class="card mb" id="chart-container" style="display: none; padding: 32px; margin-bottom: 32px;">
-            <div style="display: flex; flex-direction: column; align-items: center;">
-                <h3 data-i18n="report.tyTrongTrangThaiHocTap" style="font-size: 16px; font-weight: 600; margin-bottom: 24px; color: var(--text);">Tỷ trọng học tập</h3>
-                <div style="width: 260px; height: 260px;">
-                    <canvas id="overviewChart"></canvas>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Tabs chuyển đổi báo cáo (Segmented Control) -->
+
+        <!-- Thẻ chuyển báo cáo -->
         <div class="tabs-container">
             <div class="tabs">
-                <button class="active" data-tab="course"><i class="ph ph-books"></i> <span data-i18n="report.theoKhoaHoc">Theo khóa học</span></button>
-                <button data-tab="department"><i class="ph ph-buildings"></i> <span data-i18n="report.theoPhongBan">Theo phòng ban</span></button>
-                <button data-tab="learner"><i class="ph ph-user"></i> <span data-i18n="report.theoNguoiHoc">Theo người học</span></button>
+                <button type="button" class="active" data-tab="course"><i class="ph ph-books"></i> <span data-i18n="report.theoKhoaHoc">Theo khóa học</span></button>
+                <button type="button" data-tab="department"><i class="ph ph-buildings"></i> <span data-i18n="report.theoPhongBan">Theo phòng ban</span></button>
+                <button type="button" data-tab="learner"><i class="ph ph-user"></i> <span data-i18n="report.theoNguoiHoc">Theo người học</span></button>
             </div>
         </div>
-        
-        <!-- Các Panel của Tab -->
+
         <div class="tab-panel active" id="tab-course"></div>
         <div class="tab-panel" id="tab-department"></div>
         <div class="tab-panel" id="tab-learner"></div>
     </div>
 </div>
 
-<!-- ====================================================
-     DRAWER: KHU VỰC HIỂN THỊ CHI TIẾT NGƯỜI HỌC 
-     ==================================================== -->
-<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
-<div class="drawer-panel" id="drawer-panel">
+<!-- Ngăn kéo hồ sơ người học -->
+<div class="drawer-overlay" id="drawer-overlay"></div>
+<div class="drawer-panel" id="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
     <div class="drawer-header">
         <div id="drawer-user-info"></div>
-        <button class="close-drawer" onclick="closeDrawer()"><i class="ph ph-x"></i></button>
+        <button type="button" class="close-drawer" id="drawer-close" aria-label="Đóng"><i class="ph ph-x"></i></button>
     </div>
     <div class="drawer-body" id="drawer-body"></div>
 </div>
@@ -122,35 +208,44 @@
 (async function () {
     await Lang.ready;
 
-    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'report.view')) return;
+    if (!Auth.require(['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'], 'report.view')) return;
 
+    // Khai báo hết hằng và trạng thái TRƯỚC khi gọi bất kỳ hàm nào bên dưới: phần khởi tạo nằm cuối hàm và các
+    // nút thẻ gọi loadTab() ngay khi bấm — một "const" nằm phía sau lời gọi đầu tiên sẽ còn trong Temporal Dead Zone.
     const isHeadOfDepartment = Auth.hasRole('Trưởng phòng');
     const isDirector = Auth.hasRole('Giám Đốc');
     const defaultTab = isHeadOfDepartment ? 'learner' : isDirector ? 'department' : 'course';
 
+    const $ = (id) => document.getElementById(id);
+    const fmt = (n) => Number(n || 0).toLocaleString(Lang.locale);
+    const fmtPct = (n) => `${Number(n || 0).toLocaleString(Lang.locale, { maximumFractionDigits: 1 })}%`;
+    const fmtScore = (n) => n == null ? '—' : Number(n).toLocaleString(Lang.locale, { maximumFractionDigits: 1 });
+
+    // Trạng thái mỗi bảng: dữ liệu gốc + cột đang sắp xếp + chuỗi đang tìm. Bảng được dựng khung một lần,
+    // sau đó chỉ vẽ lại phần thân khi sắp xếp / tìm kiếm — dựng lại cả khối sẽ làm ô tìm kiếm mất con trỏ giữa lúc gõ.
+    const tableState = {};
+    let drawerOpener = null;
+
     mountLayout('report', t('report.baoCaoDaoTao', 'Báo cáo đào tạo'), isHeadOfDepartment || isDirector
         ? t('report.thongKeKetQuaDaoTaoCuaPhongBan', 'Thống kê kết quả đào tạo của phòng ban bạn quản lý')
         : t('report.thongKeKetQuaDaoTaoToanDoanhNg', 'Thống kê tổng quan toàn doanh nghiệp'));
-    
-    // Nút in báo cáo style Minimal
+
     setTopbarAction('<button class="btn outline sm" onclick="window.print()"><i class="ph ph-printer"></i> <span data-i18n="report.inBaoCao">Xuất Báo Cáo</span></button>');
 
     if (isHeadOfDepartment) {
-        document.getElementById('overview').style.display = 'none';
-        document.getElementById('chart-container').style.display = 'none';
+        $('overview').style.display = 'none';
         document.querySelector('.tabs-container').style.display = 'none';
-        document.getElementById('tab-learner').classList.add('active');
+        $('tab-course').classList.remove('active');
+        $('tab-learner').classList.add('active');
     } else if (isDirector) {
-        document.getElementById('overview').style.display = 'none';
-        document.getElementById('chart-container').style.display = 'none';
+        $('overview').style.display = 'none';
         document.querySelector('[data-tab="course"]').style.display = 'none';
         document.querySelector('[data-tab="course"]').classList.remove('active');
-        document.getElementById('tab-course').classList.remove('active');
+        $('tab-course').classList.remove('active');
         document.querySelector('[data-tab="department"]').classList.add('active');
-        document.getElementById('tab-department').classList.add('active');
+        $('tab-department').classList.add('active');
     }
 
-    // Logic chuyển Tab
     document.querySelectorAll('.tabs button').forEach(button => {
         button.addEventListener('click', () => {
             showTab(button.dataset.tab, defaultTab);
@@ -159,231 +254,410 @@
     });
 
     // ==========================================
-    // 1. TẢI OVERVIEW & VẼ BIỂU ĐỒ
+    // 1. DẢI CHỈ SỐ + PHÂN BỐ TRẠNG THÁI
     // ==========================================
-    let overviewChartInstance = null;
-
     async function loadOverview() {
-        const box = document.getElementById('overview');
-        box.innerHTML = skeletonHtml('stats', { count: 4 }) + skeletonHtml('block', { height: '260px' });
+        const box = $('overview');
+        box.innerHTML = skeletonHtml('stats', { count: 4 }) + skeletonHtml('block', { height: '150px' });
         try {
             const o = await API.get('/report/overview');
-            
-            // Vẽ 4 KPI theo dạng Dashboard SaaS
-            box.innerHTML = `
-                <div class="grid grid-4 mb">
-                    <div class="stat">
-                        <div class="label" data-i18n="report.tongLuotDaoTao">Lượt phân công</div>
-                        <div class="value">${o.totalEnrollment}</div>
-                        <div class="foot">${o.publishedCourse} khóa học khả dụng</div>
-                    </div>
-                    <div class="stat ok">
-                        <div class="label" data-i18n="dashboard.completionRate">Hoàn thành</div>
-                        <div class="value">${o.completionRate}%</div>
-                        <div class="foot">${o.completedEnrollment} lượt đã đạt</div>
-                    </div>
-                    <div class="stat accent">
-                        <div class="label" data-i18n="dashboard.averageProgress">Tiến độ chung</div>
-                        <div class="value">${o.averageProgress}%</div>
-                        <div class="foot">${o.inProgressEnrollment} đang diễn ra</div>
-                    </div>
-                    <div class="stat ${o.overdueEnrollment ? 'bad' : ''}">
-                        <div class="label" data-i18n="dashboard.overdue">Quá hạn</div>
-                        <div class="value">${o.overdueEnrollment}</div>
-                        <div class="foot">${o.notStartedEnrollment} chưa bắt đầu</div>
-                    </div>
-                </div>`;
-
-            document.getElementById('chart-container').style.display = 'block'; 
-            const ctx = document.getElementById('overviewChart').getContext('2d');
-            if (overviewChartInstance) overviewChartInstance.destroy();
-
-            const chartData = [ o.completedEnrollment || 0, o.inProgressEnrollment || 0, o.notStartedEnrollment || 0, o.overdueEnrollment || 0 ];
-
-            if (chartData.reduce((a, b) => a + b, 0) === 0) {
-                document.getElementById('chart-container').style.display = 'none';
-                return;
-            }
-
-            // Chart phong cách Clean: Màu bệt, viền mỏng
-            overviewChartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Hoàn thành', t('dashboard.inProgress', 'Đang học'), t('dashboard.notStarted', 'Chưa bắt đầu'), t('dashboard.overdue', 'Quá hạn')],
-                    datasets: [{
-                        data: chartData,
-                        backgroundColor: [cssVar('--success'), cssVar('--primary'), cssVar('--border'), cssVar('--danger')],
-                        borderWidth: 2,
-                        borderColor: '#ffffff',
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    cutout: '80%', // Vòng donut mỏng tinh tế
-                    animation: { duration: 800 },
-                    plugins: {
-                        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 6, font: { family: 'inherit', size: 12 } } },
-                        tooltip: { backgroundColor: cssVar('--text'), cornerRadius: 4, padding: 10 }
-                    }
-                }
-            });
-
-        } catch (ex) { 
-            box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); 
-            document.getElementById('chart-container').style.display = 'none';
+            box.innerHTML = `<div class="ops">${kpiHtml(o)}${statusPanelHtml(o)}</div>`;
+            bindStatusTip();
+        } catch (ex) {
+            box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
         }
     }
 
-    // ==========================================
-    // 2. TẢI CÁC TAB BÁO CÁO
-    // ==========================================
-    let learnerList = [];
+    /** Bốn chỉ số, cùng dải liền chia ô của trang Tổng quan.
+     *   • Lượt đào tạo     = số bản ghi phân công khóa học chưa bị hủy (đếm LƯỢT, không đếm người).
+     *   • Tỷ lệ hoàn thành = lượt Hoàn thành / lượt đào tạo.
+     *   • Tiến độ trung bình = trung bình ProgressPercent của các lượt chưa bị hủy.
+     *   • Quá hạn          = lượt có hạn hoàn thành đã qua mà chưa Hoàn thành (xem ReportService.GetOverview). */
+    function kpiHtml(o) {
+        const total = o.totalEnrollment || 0;
+        const unfinished = Math.max(0, total - (o.completedEnrollment || 0));
+        const overdue = o.overdueEnrollment || 0;
+        const overduePercent = unfinished ? Math.round(overdue * 100 / unfinished) : 0;
 
-    async function loadTab(tab) {
-        const box = document.getElementById(`tab-${tab}`);
-        box.innerHTML = skeletonHtml('list', { count: 6, avatar: false });
-        try {
-            const list = await API.get(`/report/${tab}`);
-            if (tab === 'course') box.innerHTML = courseTable(list);
-            else if (tab === 'department') box.innerHTML = departmentTable(list);
-            else {
-                learnerList = list;
-                box.innerHTML = learnerTable(list);
-                box.querySelectorAll('[data-learner-detail]').forEach(button =>
-                    button.addEventListener('click', () => showLearnerDetail(+button.dataset.learnerDetail)));
-            }
-        } catch (ex) { box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+        const cellList = [
+            {
+                tone: 'var(--primary)', icon: 'ph-clipboard-text',
+                label: t('report.tongLuotDaoTao', 'Tổng lượt đào tạo'), value: fmt(total),
+                foot: t('report.kpiEnrollmentFoot', '{count} khóa học đang hiện hành', { count: fmt(o.publishedCourse) }),
+            },
+            {
+                tone: 'var(--viz-done)', icon: 'ph-seal-check',
+                label: t('dashboard.completionRate', 'Tỷ lệ hoàn thành'), value: fmtPct(o.completionRate),
+                foot: t('report.kpiCompletionFoot', '{done}/{total} lượt đã hoàn thành', { done: fmt(o.completedEnrollment), total: fmt(total) }),
+            },
+            {
+                tone: 'var(--info)', icon: 'ph-chart-line-up',
+                label: t('dashboard.averageProgress', 'Tiến độ trung bình'), value: fmtPct(o.averageProgress),
+                foot: t('report.kpiProgressFoot', '{count} lượt đang học', { count: fmt(o.inProgressEnrollment) }),
+            },
+            {
+                tone: overdue ? 'var(--danger)' : 'var(--text-muted)', icon: 'ph-alarm',
+                label: t('dashboard.overdue', 'Quá hạn'), value: fmt(overdue),
+                foot: overdue
+                    ? t('report.kpiOverdueFoot', '{percent}% số lượt chưa hoàn thành', { percent: overduePercent })
+                    : t('report.kpiOverdueNone', 'Không có lượt nào quá hạn'),
+            },
+        ];
+
+        return `<div class="ops-kpi">${cellList.map((c, i) => `
+            <div class="ops-kpi-cell" style="--tone:${c.tone};--i:${i}">
+                <div class="ops-kpi-top">
+                    <span class="ops-kpi-label">${esc(c.label)}</span>
+                    <span class="ops-kpi-icon"><i class="ph-fill ${c.icon}"></i></span>
+                </div>
+                <div class="ops-kpi-value">${esc(c.value)}</div>
+                <div class="ops-kpi-foot">${esc(c.foot)}</div>
+            </div>`).join('')}</div>`;
+    }
+
+    /** Thanh phân bố trạng thái. Ba nhóm đầu là thang thứ tự một sắc (đậm = đã đi xa hơn); "Không đạt" dùng sắc cam
+     *  của "chưa hoàn thành" ở trang Tổng quan và chỉ hiện khi thật sự có. Số "không đạt" không có sẵn trong API nên
+     *  suy ra từ phần còn lại: lượt đào tạo - hoàn thành - đang học - chưa bắt đầu. */
+    function statusPanelHtml(o) {
+        const total = o.totalEnrollment || 0;
+        const done = o.completedEnrollment || 0;
+        const progress = o.inProgressEnrollment || 0;
+        const idle = o.notStartedEnrollment || 0;
+        const failed = Math.max(0, total - done - progress - idle);
+        const percentOf = (n) => total ? n * 100 / total : 0;
+
+        const segList = [
+            { label: t('dashboard.completed', 'Đã hoàn thành'), n: done, color: 'var(--viz-done)' },
+            { label: t('dashboard.inProgress', 'Đang học'), n: progress, color: 'var(--viz-mid)' },
+            { label: t('dashboard.notStarted', 'Chưa bắt đầu'), n: idle, color: 'var(--viz-low)' },
+            { label: t('shell.khongDat', 'Không đạt'), n: failed, color: 'var(--viz-open)', optional: true },
+        ].filter(s => !s.optional || s.n > 0);
+
+        const barHtml = total
+            ? `<div class="rpt-bar" role="group" aria-label="${esc(t('report.statusAria', 'Phân bố trạng thái học tập'))}">
+                ${segList.filter(s => s.n > 0).map(s => `
+                    <span class="rpt-seg" tabindex="0" role="img" style="--v:${s.n};--c:${s.color}"
+                          aria-label="${esc(`${s.label}: ${fmt(s.n)} (${fmtPct(percentOf(s.n))})`)}"
+                          data-label="${esc(s.label)}" data-n="${s.n}" data-pct="${percentOf(s.n)}" data-color="${s.color}"></span>`).join('')}
+               </div>`
+            : `<div class="rpt-bar is-empty"></div>
+               <div class="rpt-empty">${esc(t('report.statusEmpty', 'Chưa có lượt đào tạo nào được giao.'))}</div>`;
+
+        const legendHtml = `<ul class="rpt-legend">${segList.map(s => `
+            <li><i style="background:${s.color}"></i><span>${esc(s.label)}</span>
+                <b>${fmt(s.n)}</b><small>${total ? fmtPct(percentOf(s.n)) : '—'}</small></li>`).join('')}</ul>`;
+
+        const noteHtml = !total ? ''
+            : o.overdueEnrollment > 0
+                ? `<div class="rpt-note bad"><i class="ph-fill ph-warning-circle"></i>
+                       <span>${esc(t('report.overdueNote', '{count} lượt đã quá hạn — nằm trong các nhóm chưa hoàn thành ở trên', { count: fmt(o.overdueEnrollment) }))}</span></div>`
+                : `<div class="rpt-note ok"><i class="ph-fill ph-check-circle"></i>
+                       <span>${esc(t('report.kpiOverdueNone', 'Không có lượt nào quá hạn'))}</span></div>`;
+
+        return `<section class="ops-trend" id="rpt-status">
+            <div class="ops-trend-head">
+                <div>
+                    <h3>${esc(t('report.tyTrongTrangThaiHocTap', 'Tỷ trọng trạng thái học tập'))}</h3>
+                    <p>${esc(t('report.statusSub', '{count} lượt đào tạo, không tính lượt đã hủy', { count: fmt(total) }))}</p>
+                </div>
+            </div>
+            <div class="rpt-status-body">${barHtml}${total ? legendHtml : ''}${noteHtml}</div>
+            <div class="trend-tip" id="status-tip" role="tooltip"></div>
+        </section>`;
+    }
+
+    /** Chú thích nổi dùng chung cho mọi khúc. Số liệu đọc từ data-* và gắn bằng textContent — tên nhóm không bao giờ
+     *  đi qua innerHTML. Mọi con số trong chú thích cũng nằm sẵn ở chú thích dưới thanh nên không có gì chỉ đọc được bằng chuột. */
+    function bindStatusTip() {
+        const panel = $('rpt-status');
+        const bar = panel?.querySelector('.rpt-bar');
+        const tip = $('status-tip');
+        if (!bar || !tip) return;
+
+        const hide = () => tip.classList.remove('on');
+        const show = (seg) => {
+            if (!seg) { hide(); return; }
+            const line = (className, text) => {
+                const node = document.createElement('div');
+                node.className = className;
+                node.textContent = text;
+                return node;
+            };
+            const row = document.createElement('div');
+            row.className = 'tt-row';
+            const key = document.createElement('i');
+            key.className = 'tt-key';
+            key.style.background = seg.dataset.color;
+            const number = document.createElement('b');
+            number.textContent = fmt(seg.dataset.n);
+            row.append(key, number, t('report.tipUnit', 'lượt'));
+
+            tip.replaceChildren(
+                line('tt-title', seg.dataset.label),
+                row,
+                line('tt-foot', t('report.tipShare', '{percent}% tổng số lượt', {
+                    percent: Number(seg.dataset.pct).toLocaleString(Lang.locale, { maximumFractionDigits: 1 }),
+                })));
+
+            const panelRect = panel.getBoundingClientRect();
+            const segRect = seg.getBoundingClientRect();
+            const half = tip.offsetWidth / 2;
+            const centerX = segRect.left + segRect.width / 2 - panelRect.left;
+            tip.style.left = `${Math.min(Math.max(centerX, half + 8), panelRect.width - half - 8)}px`;
+            tip.style.top = `${segRect.top - panelRect.top}px`;
+            tip.classList.add('on');
+        };
+
+        bar.addEventListener('pointerover', e => show(e.target.closest('.rpt-seg')));
+        bar.addEventListener('pointerleave', hide);
+        bar.addEventListener('focusin', e => show(e.target.closest('.rpt-seg')));
+        bar.addEventListener('focusout', hide);
     }
 
     // ==========================================
-    // 3. HIỂN THỊ CHI TIẾT NGƯỜI HỌC (DRAWER)
+    // 2. BẢNG BÁO CÁO (sắp xếp + tìm kiếm)
+    // ==========================================
+    const nameCell = (name, code) => `<div class="rpt-name"><b>${esc(name)}</b><small>${esc(code)}</small></div>`;
+    const overdueCell = (n) => n > 0
+        ? `<span class="rpt-bad"><i class="ph-fill ph-warning"></i>${fmt(n)}</span>`
+        : '<span class="muted">0</span>';
+
+    // Mỗi cột: key, label, num (căn phải), wide, sort (hàm lấy giá trị để sắp; thiếu = cột không sắp được), cell (HTML ô).
+    const tableDefs = {
+        course: () => ({
+            title: t('report.hieuQuaTheoKhoaHoc', 'Hiệu quả theo khóa học'),
+            sortKey: 'assignedCount', sortDir: -1,
+            search: r => `${r.courseTitle} ${r.courseCode}`,
+            columnList: [
+                { key: 'courseTitle', label: t('report.colCourse', 'Khóa học'), sort: r => r.courseTitle, cell: r => nameCell(r.courseTitle, r.courseCode) },
+                { key: 'status', label: t('report.colStatus', 'Trạng thái'), cell: r => statusBadge(r.status) },
+                { key: 'assignedCount', label: t('report.colAssigned', 'Phân công'), num: true, sort: r => r.assignedCount, cell: r => fmt(r.assignedCount) },
+                { key: 'completedCount', label: t('report.colDone', 'Hoàn thành'), num: true, sort: r => r.completedCount, cell: r => fmt(r.completedCount) },
+                { key: 'overdueCount', label: t('report.colOverdue', 'Quá hạn'), num: true, sort: r => r.overdueCount, cell: r => overdueCell(r.overdueCount) },
+                { key: 'completionRate', label: t('report.colRate', 'Tỷ lệ hoàn thành'), wide: true, sort: r => r.completionRate, cell: r => progressBar(r.completionRate) },
+                { key: 'averageScore', label: t('report.colScore', 'Điểm TB'), num: true, sort: r => r.averageScore, cell: r => fmtScore(r.averageScore) },
+                { key: 'certificateCount', label: t('report.colCertificate', 'Chứng nhận'), num: true, sort: r => r.certificateCount, cell: r => fmt(r.certificateCount) },
+                { key: 'averageRating', label: t('report.danhGia', 'Đánh giá'), num: true, sort: r => r.averageRating,
+                  cell: r => r.averageRating != null
+                      ? `<span class="rpt-star"><i class="ph-fill ph-star"></i></span> ${Number(r.averageRating).toFixed(1)} <small class="muted">(${fmt(r.reviewCount)})</small>`
+                      : '—' },
+            ],
+        }),
+        department: () => ({
+            title: t('report.ketQuaDaoTaoTheoPhongBan', 'Kết quả đào tạo theo phòng ban'),
+            sortKey: null, sortDir: 1,
+            search: r => `${r.departmentName} ${r.departmentCode}`,
+            columnList: [
+                { key: 'departmentName', label: t('report.colDepartment', 'Phòng ban'), sort: r => r.departmentName, cell: r => nameCell(r.departmentName, r.departmentCode) },
+                { key: 'userCount', label: t('report.colStaff', 'Nhân sự'), num: true, sort: r => r.userCount, cell: r => fmt(r.userCount) },
+                { key: 'assignedCount', label: t('report.colAssignment', 'Lượt phân công'), num: true, sort: r => r.assignedCount, cell: r => fmt(r.assignedCount) },
+                { key: 'completedCount', label: t('report.colDone', 'Hoàn thành'), num: true, sort: r => r.completedCount, cell: r => fmt(r.completedCount) },
+                { key: 'completionRate', label: t('report.colRate', 'Tỷ lệ hoàn thành'), wide: true, sort: r => r.completionRate, cell: r => progressBar(r.completionRate) },
+                { key: 'averageScore', label: t('report.colScore', 'Điểm TB'), num: true, sort: r => r.averageScore, cell: r => fmtScore(r.averageScore) },
+            ],
+        }),
+        learner: () => ({
+            title: t('report.ketQuaDaoTaoTheoNguoiHoc', 'Kết quả đào tạo theo người học'),
+            sortKey: null, sortDir: 1,
+            search: r => `${r.fullName} ${r.employeeCode} ${r.departmentName || ''}`,
+            columnList: [
+                { key: 'fullName', label: t('report.colName', 'Họ và tên'), sort: r => r.fullName,
+                  cell: r => `<div class="rpt-person"><span class="avatar">${esc(initial(r.fullName))}</span>${nameCell(r.fullName, r.employeeCode)}</div>` },{ key: 'fullName', label: t('report.colName', 'Họ và tên'), sort: r => r.fullName,
+                  cell: r => `<div class="rpt-person"><span class="avatar">${esc(initial(r.fullName))}</span>${nameCell(r.fullName, r.employeeCode)}</div>` },
+                { key: 'departmentName', label: t('report.colDepartment', 'Phòng ban'), sort: r => r.departmentName, cell: r => `<span class="muted">${esc(r.departmentName || '—')}</span>` },
+                { key: 'assignedCount', label: t('report.colAssigned', 'Phân công'), num: true, sort: r => r.assignedCount, cell: r => fmt(r.assignedCount) },
+                { key: 'completedCount', label: t('report.colDone', 'Hoàn thành'), num: true, sort: r => r.completedCount, cell: r => fmt(r.completedCount) },
+                { key: 'overdueCount', label: t('report.colOverdue', 'Quá hạn'), num: true, sort: r => r.overdueCount, cell: r => overdueCell(r.overdueCount) },
+                { key: 'averageProgress', label: t('report.colProgress', 'Tiến độ TB'), wide: true, sort: r => r.averageProgress, cell: r => progressBar(r.averageProgress) },
+                { key: 'averageScore', label: t('report.colScore', 'Điểm TB'), num: true, sort: r => r.averageScore, cell: r => fmtScore(r.averageScore) },
+                { key: 'action', label: '', cls: 'no-print text-right',
+                  cell: r => `<button type="button" class="btn ghost sm" data-learner-detail="${r.userId}">${esc(t('report.detail', 'Chi tiết'))}</button>` },
+            ],
+        }),
+    };
+
+    /** Giá trị rỗng luôn xuống cuối dù sắp tăng hay giảm — "chưa có điểm" không phải điểm thấp nhất. */
+    const compareValue = (a, b, dir) => {
+        const aNone = a == null, bNone = b == null;
+        if (aNone || bNone) return aNone === bNone ? 0 : aNone ? 1 : -1;
+        return (typeof a === 'string' ? a.localeCompare(b, Lang.locale) : a - b) * dir;
+    };
+
+    async function loadTab(tab) {
+        const box = $(`tab-${tab}`);
+        box.innerHTML = skeletonHtml('list', { count: 6, avatar: false });
+        try {
+            mountTable(tab, await API.get(`/report/${tab}`));
+        } catch (ex) { box.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
+    }
+
+    function mountTable(tab, rowList) {
+        const box = $(`tab-${tab}`);
+        const def = tableDefs[tab]();
+        const state = tableState[tab] = { def, rowList, sortKey: def.sortKey, sortDir: def.sortDir, query: '' };
+
+        if (!rowList.length) {
+            box.innerHTML = `<div class="card rpt-card">
+                <div class="card-head"><h3>${esc(def.title)}</h3></div>
+                ${emptyHtml(t('common.empty', 'Chưa có dữ liệu.'), '<i class="ph ph-list" style="font-size:24px; color:var(--text-muted)"></i>')}
+            </div>`;
+            return;
+        }
+
+        const headHtml = def.columnList.map(c => {
+            const cls = [c.num ? 'num' : '', c.wide ? 'rpt-wide' : '', c.cls || ''].filter(Boolean).join(' ');
+            if (!c.sort) return `<th class="${cls}">${esc(c.label)}</th>`;
+            return `<th class="${cls}" data-col="${c.key}" aria-sort="none">
+                <button type="button" class="rpt-sort" data-sort="${c.key}" title="${esc(t('report.sortBy', 'Sắp xếp theo {column}', { column: c.label }))}">
+                    ${esc(c.label)}<i class="ph ph-caret-up-down"></i></button></th>`;
+        }).join('');
+
+        // Bảng vài dòng thì ô tìm kiếm chỉ thêm rối.
+        const searchHtml = rowList.length > 6
+            ? `<label class="rpt-search no-print"><i class="ph ph-magnifying-glass"></i>
+                   <input type="search" data-search placeholder="${esc(t('report.searchPlaceholder', 'Tìm trong bảng...'))}"
+                          aria-label="${esc(t('report.searchPlaceholder', 'Tìm trong bảng...'))}"></label>`
+            : '';
+
+        box.innerHTML = `<div class="card rpt-card">
+            <div class="card-head">
+                <div class="rpt-title"><h3>${esc(def.title)}</h3><span class="badge gray">${fmt(rowList.length)}</span></div>
+                ${searchHtml}
+            </div>
+            <div class="table-wrap"><table class="rpt-table">
+                <thead><tr>${headHtml}</tr></thead>
+                <tbody></tbody>
+            </table></div>
+        </div>`;
+
+        box.querySelector('[data-search]')?.addEventListener('input', e => {
+            state.query = e.target.value;
+            paintTable(tab);
+        });
+        box.querySelector('thead').addEventListener('click', e => {
+            const button = e.target.closest('[data-sort]');
+            if (!button) return;
+            // Bấm lại đúng cột đang sắp thì đảo chiều; sang cột khác thì bắt đầu từ chiều hợp lý của kiểu dữ liệu
+            // (chữ: A→Z, số: lớn trước — người đọc báo cáo thường tìm cái lớn nhất).
+            if (state.sortKey === button.dataset.sort) state.sortDir *= -1;
+            else {
+                state.sortKey = button.dataset.sort;
+                state.sortDir = def.columnList.find(c => c.key === state.sortKey).num ? -1 : 1;
+            }
+            paintTable(tab);
+        });
+        box.querySelector('tbody').addEventListener('click', e => {
+            const button = e.target.closest('[data-learner-detail]');
+            if (button) showLearnerDetail(+button.dataset.learnerDetail, button);
+        });
+
+        paintTable(tab);
+    }
+
+    function paintTable(tab) {
+        const state = tableState[tab];
+        const box = $(`tab-${tab}`);
+        const { def } = state;
+        const query = state.query.trim().toLowerCase();
+
+        const shown = query ? state.rowList.filter(r => def.search(r).toLowerCase().includes(query)) : state.rowList.slice();
+        const sortColumn = def.columnList.find(c => c.key === state.sortKey);
+        if (sortColumn?.sort) shown.sort((a, b) => compareValue(sortColumn.sort(a), sortColumn.sort(b), state.sortDir));
+
+        box.querySelector('tbody').innerHTML = shown.length
+            ? shown.map(r => `<tr>${def.columnList.map(c => {
+                const cls = [c.num ? 'num' : '', c.cls || ''].filter(Boolean).join(' ');
+                return `<td${cls ? ` class="${cls}"` : ''}>${c.cell(r)}</td>`;
+            }).join('')}</tr>`).join('')
+            : `<tr><td class="rpt-nomatch" colspan="${def.columnList.length}">${esc(t('report.noMatch', 'Không có dòng nào khớp.'))}</td></tr>`;
+
+        box.querySelectorAll('th[data-col]').forEach(th => {
+            const active = th.dataset.col === state.sortKey;
+            th.setAttribute('aria-sort', active ? (state.sortDir > 0 ? 'ascending' : 'descending') : 'none');
+            th.querySelector('i').className = `ph ${active ? (state.sortDir > 0 ? 'ph-caret-up' : 'ph-caret-down') : 'ph-caret-up-down'}`;
+        });
+    }
+
+    // ==========================================
+    // 3. HỒ SƠ NGƯỜI HỌC (NGĂN KÉO)
     // ==========================================
     const getInitials = (name) => {
-        if(!name) return '?';
+        if (!name) return '?';
         return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     };
 
-    async function showLearnerDetail(userId) {
-        const learner = learnerList.find(x => x.userId === userId);
+    function openDrawer(opener) {
+        drawerOpener = opener || null;
+        $('drawer-overlay').classList.add('open');
+        $('drawer-panel').classList.add('open');
+        $('drawer-close').focus();
+    }
+
+    function closeDrawer() {
+        $('drawer-overlay').classList.remove('open');
+        $('drawer-panel').classList.remove('open');
+        // Trả con trỏ về nút đã mở ngăn kéo — người dùng bàn phím không bị ném lên đầu trang.
+        if (drawerOpener && document.contains(drawerOpener)) drawerOpener.focus();
+        drawerOpener = null;
+    }
+
+    $('drawer-close').setAttribute('aria-label', t('common.close', 'Đóng'));
+    $('drawer-overlay').addEventListener('click', closeDrawer);
+    $('drawer-close').addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && $('drawer-panel').classList.contains('open')) closeDrawer();
+    });
+
+    async function showLearnerDetail(userId, opener) {
+        const learner = tableState.learner?.rowList.find(x => x.userId === userId);
         if (!learner) return;
 
-        document.getElementById('drawer-overlay').classList.add('open');
-        document.getElementById('drawer-panel').classList.add('open');
+        openDrawer(opener);
 
-        document.getElementById('drawer-user-info').innerHTML = `
-            <div class="drawer-avatar">${getInitials(learner.fullName)}</div>
-            <h3 style="margin:0; font-size: 18px; font-weight:600; color: var(--text);">${esc(learner.fullName)}</h3>
-            <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">ID: ${esc(learner.employeeCode)} • ${esc(learner.departmentName || '—')}</div>
-        `;
+        $('drawer-user-info').innerHTML = `
+            <div class="drawer-avatar">${esc(getInitials(learner.fullName))}</div>
+            <h3 id="drawer-title">${esc(learner.fullName)}</h3>
+            <div class="drawer-sub">ID: ${esc(learner.employeeCode)} • ${esc(learner.departmentName || '—')}</div>`;
 
-        const body = document.getElementById('drawer-body');
+        const body = $('drawer-body');
         body.innerHTML = skeletonHtml('stats', { count: 2 }) + skeletonHtml('list', { count: 4, avatar: false });
 
         try {
             const courseList = await API.get(`/enrollment/by-user/${userId}`);
-            
+
             body.innerHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
-                    <div style="background: var(--surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
-                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Hoàn thành</div>
-                        <div style="font-size: 20px; font-weight: 600; margin-top: 4px;">${learner.completedCount} <span style="color:var(--text-muted); font-size:14px;">/ ${learner.assignedCount}</span></div>
+                <div class="rpt-d-stats">
+                    <div class="rpt-d-stat">
+                        <small>${esc(t('report.drawerDone', 'Hoàn thành'))}</small>
+                        <b>${fmt(learner.completedCount)} <span>/ ${fmt(learner.assignedCount)}</span></b>
                     </div>
-                    <div style="background: var(--surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
-                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Tiến độ trung bình</div>
-                        <div style="font-size: 20px; font-weight: 600; margin-top: 4px;">${learner.averageProgress}%</div>
+                    <div class="rpt-d-stat">
+                        <small>${esc(t('report.drawerProgress', 'Tiến độ trung bình'))}</small>
+                        <b>${fmtPct(learner.averageProgress)}</b>
                     </div>
                 </div>
 
-                <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text);">Lịch sử đào tạo</div>
-                
-                ${courseList.length ? courseList.map((c) => {
+                <div class="rpt-d-heading">${esc(t('report.drawerHistory', 'Lịch sử đào tạo'))}</div>
+
+                ${courseList.length ? courseList.map(c => {
                     const isDone = c.progressPercent === 100;
-                    return `
-                    <div class="drawer-course-card">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <div style="font-weight: 600; color: var(--text); font-size: 14px;">${esc(c.courseTitle)}</div>
-                            ${c.isOverdue ? '<span style="color:var(--danger); font-size:12px; font-weight:500;">Quá hạn</span>' : ''}
+                    return `<div class="drawer-course-card">
+                        <div class="rpt-d-row">
+                            <span class="rpt-d-title">${esc(c.courseTitle)}</span>
+                            ${c.isOverdue ? `<span class="rpt-bad"><i class="ph-fill ph-warning"></i>${esc(t('dashboard.overdue', 'Quá hạn'))}</span>` : ''}
                         </div>
-                        
-                        <div style="display:flex; justify-content:space-between; font-size:13px; color: var(--text-muted); margin-bottom:8px;">
-                            <span>Tiến độ: <strong style="color: ${isDone ? 'var(--success)' : 'var(--text)'}">${c.progressPercent}%</strong></span>
-                            <span>Điểm: <strong>${c.finalScore ?? '—'}</strong></span>
+                        <div class="rpt-d-row sub">
+                            <span>${esc(t('report.drawerCourseProgress', 'Tiến độ'))}: <strong class="${isDone ? 'is-done' : ''}">${c.progressPercent}%</strong></span>
+                            <span>${esc(t('report.drawerScore', 'Điểm'))}: <strong>${c.finalScore ?? '—'}</strong></span>
                         </div>
-                        
                         <div class="progress ${isDone ? 'done' : ''}"><span style="width:${c.progressPercent}%"></span></div>
-                    </div>
-                `}).join('') : emptyHtml(t('report.chuaDuocPhanCongKhoaHocNao', 'Chưa có khóa học.'), '<i class="ph ph-books" style="font-size: 32px; color:var(--text-muted);"></i>')}
-            `;
+                    </div>`;
+                }).join('') : emptyHtml(t('report.chuaDuocPhanCongKhoaHocNao', 'Chưa được phân công khóa học nào.'), '<i class="ph ph-books" style="font-size: 32px; color:var(--text-muted);"></i>')}`;
         } catch (ex) { body.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>'); }
     }
 
-    window.closeDrawer = function() {
-        document.getElementById('drawer-overlay').classList.remove('open');
-        document.getElementById('drawer-panel').classList.remove('open');
-    }
-
     // ==========================================
-    // 4. TIỆN ÍCH DỰNG BẢNG
-    // ==========================================
-    const wrap = (title, head, rows, colspan) => `
-        <div class="card">
-            <div class="card-head"><h3>${title}</h3></div>
-            <div class="table-wrap"><table>
-                <thead><tr>${head}</tr></thead>
-                <tbody>${rows || `<tr><td colspan="${colspan}" style="text-align:center; padding: 40px;">${emptyHtml(t('common.empty', 'Chưa có dữ liệu.'), '<i class="ph ph-list" style="font-size:24px; color:var(--text-muted)"></i>')}</td></tr>`}</tbody>
-            </table></div>
-        </div>`;
-
-    const getStatusColor = (status) => {
-        if(status === 'Completed') return '<span class="status-dot" style="background:var(--success)"></span> Hoàn thành';
-        if(status === 'InProgress') return '<span class="status-dot" style="background:var(--primary)"></span> Đang học';
-        return '<span class="status-dot" style="background:var(--text-muted)"></span> Chưa bắt đầu';
-    };
-
-    const courseTable = (list) => wrap(t('report.hieuQuaTheoKhoaHoc', 'Báo cáo theo khóa học'),
-        `<th>Khóa học</th><th>Trạng thái</th><th class="text-center">Phân công</th>
-         <th class="text-center">Hoàn thành</th><th class="text-center">Quá hạn</th>
-         <th style="width:200px">Tỷ lệ hoàn thành</th><th class="text-center">Điểm TB</th><th class="text-center">Chứng nhận</th>`,
-        list.map((c) => `<tr>
-            <td><div style="font-weight:600;">${esc(c.courseTitle)}</div><div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${esc(c.courseCode)}</div></td>
-            <td style="font-size:13px;">${getStatusColor(c.status)}</td>
-            <td class="text-center">${c.assignedCount}</td>
-            <td class="text-center" style="color: #10b981; font-weight: 500;">${c.completedCount}</td>
-            <td class="text-center">${c.overdueCount > 0 ? `<span style="color:var(--danger); font-weight:600">${c.overdueCount}</span>` : '0'}</td>
-            <td>${progressBar(c.completionRate)}</td>
-            <td class="text-center" style="font-weight: 500;">${c.averageScore ?? '—'}</td>
-            <td class="text-center">${c.certificateCount > 0 ? c.certificateCount : '0'}</td>
-        </tr>`).join(''), 8);
-
-    const departmentTable = (list) => wrap(t('report.ketQuaDaoTaoTheoPhongBan', 'Báo cáo theo phòng ban'),
-        `<th>Phòng ban</th><th class="text-center">Nhân sự</th><th class="text-center">Lượt phân công</th>
-         <th class="text-center">Hoàn thành</th><th style="width:220px">Tỷ lệ hoàn thành</th><th class="text-center">Điểm TB</th>`,
-        list.map((d) => `<tr>
-            <td><div style="font-weight:600;">${esc(d.departmentName)}</div><div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${esc(d.departmentCode)}</div></td>
-            <td class="text-center">${d.userCount}</td>
-            <td class="text-center">${d.assignedCount}</td>
-            <td class="text-center" style="color: #10b981; font-weight: 500;">${d.completedCount}</td>
-            <td>${progressBar(d.completionRate)}</td>
-            <td class="text-center" style="font-weight: 500;">${d.averageScore ?? '—'}</td>
-        </tr>`).join(''), 6);
-
-    const learnerTable = (list) => wrap(t('report.ketQuaDaoTaoTheoNguoiHoc', 'Báo cáo theo nhân sự'),
-        `<th>Họ và tên</th><th>Phòng ban</th><th class="text-center">Phân công</th>
-         <th class="text-center">Hoàn thành</th><th class="text-center">Quá hạn</th>
-         <th style="width:180px">Tiến độ TB</th><th class="text-center">Điểm TB</th><th class="no-print"></th>`,
-        list.map((u) => `<tr>
-            <td><div style="font-weight:600;">${esc(u.fullName)}</div><div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${esc(u.employeeCode)}</div></td>
-            <td style="font-size:13px; color:var(--text-muted);">${esc(u.departmentName || '—')}</td>
-            <td class="text-center">${u.assignedCount}</td>
-            <td class="text-center" style="color:#10b981; font-weight:500;">${u.completedCount}</td>
-            <td class="text-center">${u.overdueCount > 0 ? `<span style="color:var(--danger); font-weight:600">${u.overdueCount}</span>` : '0'}</td>
-            <td>${progressBar(u.averageProgress)}</td>
-            <td class="text-center" style="font-weight:500;">${u.averageScore ?? '—'}</td>
-            <td class="text-right no-print"><button class="btn outline sm" data-learner-detail="${u.userId}">Chi tiết</button></td>
-        </tr>`).join(''), 8);
-
-    // ==========================================
-    // 5. KHỞI TẠO TRANG
+    // 4. KHỞI TẠO TRANG
     // ==========================================
     // Trưởng phòng chỉ có đúng một thẻ (thanh thẻ bị ẩn) nên không cần đọc địa chỉ. Còn lại mở lại thẻ ghi trên địa
     // chỉ trang (?tab=): tải lại trang, kể cả khi đổi ngôn ngữ, vẫn đứng nguyên thẻ đang xem.

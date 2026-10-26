@@ -38,4 +38,8 @@ public interface ILearningPathService
 
     /// <summary>Đưa tài nguyên vừa tạo vào cấu trúc khóa học (gọi từ nơi tạo bài học / bài kiểm tra / mô phỏng / gói).</summary>
     Task AppendResourceAsync(int courseId, PathItemType type, int resourceId, int? parentItemId = null, bool isRequired = true);
+
+    /// <summary>Bài kiểm tra / mô phỏng vừa được sửa (gọi SAU khi đã lưu LessonId mới): đưa mục của nó trong cấu trúc về
+    /// ngay sau bài học gắn kèm. <paramref name="lessonChanged"/> = bài học gắn kèm vừa đổi so với trước khi sửa.</summary>
+    Task AlignAttachedResourceAsync(int courseId, PathItemType type, int resourceId, bool lessonChanged);
 }
