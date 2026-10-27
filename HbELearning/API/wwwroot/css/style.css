@@ -571,6 +571,24 @@ a:hover { text-decoration: underline; }
 .topbar-dock .notif-btn:focus-visible,
 .topbar-dock .theme-switch:focus-visible,
 .topbar-dock .lang-switch:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+/* Cỡ chữ S / M / L: một viên thuốc, cỡ đang chọn là ô tròn tô màu thương hiệu (xem renderTextSizeSwitch, js/theme.js). */
+.text-size-switch {
+    display: inline-flex; align-items: center; gap: 1px; flex: none; height: 30px; padding: 2px; margin: 0 2px;
+    border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+}
+.text-size-switch button {
+    width: 26px; height: 24px; padding: 0; border: 0; border-radius: 999px; cursor: pointer;
+    background: transparent; color: var(--text-muted); font: 800 11.5px/1 var(--font-sans, inherit);
+    transition: background-color .15s ease, color .15s ease;
+}
+.text-size-switch button:hover:not(.on) { color: var(--text); background: var(--bg); }
+.text-size-switch button.on { background: var(--primary); color: #fff; box-shadow: 0 2px 6px -2px color-mix(in srgb, var(--primary) 70%, transparent); }
+.text-size-switch button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+/* Áp cỡ chữ: phóng cả vùng nội dung (chữ cùng khoảng cách), menu và thanh trên giữ nguyên. */
+:root[data-text-size="s"] .main > .content { zoom: .9; }
+:root[data-text-size="l"] .main > .content { zoom: 1.15; }
+
 /* Huy hiệu số ngồi trên GÓC nút, nửa trong nửa ngoài — đặt sát vào trong thì số hai chữ số ("11") che mất
    gần hết cái chuông. Viền cùng màu nền khối để tách khỏi icon bên dưới. */
 .topbar-dock .notif-badge { top: -6px; right: -7px; border-color: var(--bg); }

@@ -90,3 +90,60 @@ function renderThemeSwitch(buttonEl) {
     buttonEl.setAttribute('aria-label', label);
     buttonEl.onclick = () => Theme.toggle();
 }
+
+// ==================== CỠ CHỮ (S / M / L) ====================
+// CSS của hệ thống viết cỡ chữ bằng px (vài trăm chỗ), nên đổi font-size gốc không ăn thua. Thay vào đó phóng
+// to / thu nhỏ CẢ vùng nội dung bằng `zoom` (xem [data-text-size] trong css/style.css) — chữ, khoảng cách và
+// ảnh to lên cùng nhau nên bố cục không vỡ. Menu bên trái và thanh trên giữ nguyên cỡ.
+// head.js đặt thuộc tính sớm từ <head>; ở đây lo ghi nhớ lựa chọn và vẽ nút.
+
+const TEXT_SIZE_KEY = 'hbe_text_size';
+const TEXT_SIZE_LIST = ['s', 'm', 'l'];
+
+const TextSize = {
+    /** 's' | 'm' | 'l' — mặc định 'm'. */
+    get current() {
+        try {
+            const value = localStorage.getItem(TEXT_SIZE_KEY);
+            return TEXT_SIZE_LIST.includes(value) ? value : 'm';
+        } catch { return 'm'; }
+    },
+
+    set(value) {
+        try {
+            if (value === 'm') localStorage.removeItem(TEXT_SIZE_KEY);
+            else localStorage.setItem(TEXT_SIZE_KEY, value);
+        } catch { /* không lưu được thì vẫn đổi cho lượt xem này */ }
+        applyTextSize(value);
+        document.querySelectorAll('.text-size-switch').forEach(renderTextSizeSwitch);
+    },
+};
+
+function applyTextSize(value = TextSize.current) {
+    if (value === 'm') document.documentElement.removeAttribute('data-text-size');
+    else document.documentElement.setAttribute('data-text-size', value);
+}
+
+applyTextSize();
+
+/** Dựng nhóm ba nút S / M / L trong một phần tử bọc (.text-size-switch). */
+function renderTextSizeSwitch(wrapEl) {
+    if (!wrapEl) return;
+    const tr = (key, fallback) => typeof t === 'function' ? t(key, fallback) : fallback;
+    const nameMap = {
+        s: tr('shell.textSizeSmall', 'Chữ nhỏ'),
+        m: tr('shell.textSizeMedium', 'Chữ vừa'),
+        l: tr('shell.textSizeLarge', 'Chữ lớn'),
+    };
+    const current = TextSize.current;
+
+    wrapEl.setAttribute('role', 'group');
+    wrapEl.setAttribute('aria-label', tr('shell.textSize', 'Cỡ chữ'));
+    wrapEl.innerHTML = TEXT_SIZE_LIST.map(size => `
+        <button type="button" data-size="${size}" class="${size === current ? 'on' : ''}"
+                aria-pressed="${size === current}" title="${nameMap[size]}" aria-label="${nameMap[size]}">${size.toUpperCase()}</button>`).join('');
+    wrapEl.onclick = (e) => {
+        const button = e.target.closest('[data-size]');
+        if (button && button.dataset.size !== TextSize.current) TextSize.set(button.dataset.size);
+    };
+}

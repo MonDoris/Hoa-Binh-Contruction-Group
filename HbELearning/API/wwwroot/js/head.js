@@ -1,6 +1,13 @@
 (function () {
     'use strict';
 
+    // Cỡ chữ (S/M/L) đặt lên <html> ngay từ <head> — để tới theme.js (cuối trang) mới đặt thì nội dung đã vẽ ở cỡ
+    // thường rồi mới nhảy cỡ. Xem TextSize trong js/theme.js.
+    try {
+        const size = localStorage.getItem('hbe_text_size');
+        if (size === 's' || size === 'l') document.documentElement.setAttribute('data-text-size', size);
+    } catch { /* trình duyệt chặn localStorage: giữ cỡ thường */ }
+
     document.head.insertAdjacentHTML('beforeend', `
         <!-- Màu thanh trạng thái khi cài như app — js/theme.js cập nhật lại mỗi lần đổi nền sáng/tối. -->
         <meta name="theme-color" content="#00a1e6">

@@ -6,7 +6,7 @@
 
 // ĐỔI SỐ NÀY mỗi lần sửa danh sách SHELL hoặc đổi chiến lược cache — tên cache đổi thì bản cũ bị xóa
 // sạch ở bước activate, người dùng không kẹt lại ở phiên bản cũ.
-const VERSION = 'v47';
+const VERSION = 'v48';
 const SHELL_CACHE = `hbe-shell-${VERSION}`;
 const PAGE_CACHE = `hbe-page-${VERSION}`;
 

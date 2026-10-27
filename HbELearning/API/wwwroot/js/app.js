@@ -1653,6 +1653,7 @@ function mountLayout(activeKey, title, subtitle = '') {
                         </div>
                     </div>
 
+                    <div class="text-size-switch" id="text-size-switch"></div>
                     <button class="theme-switch" type="button" id="theme-switch-btn"></button>
                     <button class="lang-switch" type="button" id="lang-switch-btn"></button>
                   </div>
@@ -1666,6 +1667,7 @@ function mountLayout(activeKey, title, subtitle = '') {
         mountTopbarChrome();
         mountRankBadge();
         renderThemeSwitch(document.getElementById('theme-switch-btn'));
+        renderTextSizeSwitch(document.getElementById('text-size-switch'));
         // Phần bên trong nút và hành vi xổ xuống do language.js lo — xem renderLanguageSwitch().
         renderLanguageSwitch(document.getElementById('lang-switch-btn'));
     }
