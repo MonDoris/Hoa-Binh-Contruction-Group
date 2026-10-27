@@ -97,6 +97,8 @@ const ChatBox = (() => {
         connection.on('PresenceChanged', (userId, isOnline) => {
             isOnline ? onlineIdSet.add(userId) : onlineIdSet.delete(userId);
             renderConversationList();
+            // Dòng "Đang hoạt động" trên đầu khung tin nhắn cũng phải đổi theo, không chỉ chấm xanh ở cột trái.
+            if (currentConversation?.partnerUserId === userId) renderThreadHeader();
         });
 
         // Lập nhóm, đổi tên nhóm, thêm/bớt thành viên — server báo về để danh sách bên trái khớp lại. Không
@@ -117,7 +119,12 @@ const ChatBox = (() => {
         connection.on('Typing', (conversationId) => {
             if (conversationId !== currentConversationId) return;
             const box = el('chat-typing');
+            // Bong bóng "đang nhập" chiếm chỗ ngay dưới khung tin nhắn nên khung thấp đi một đoạn: đang đọc ở
+            // cuối thì cuộn theo, kẻo tin mới nhất bị nó che mất một nửa.
+            const list = el('chat-message-list');
+            const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
             box.classList.remove('hidden');
+            if (atBottom) scrollToBottom();
             clearTimeout(box._timer);
             box._timer = setTimeout(() => box.classList.add('hidden'), 2500);
         });
@@ -191,7 +198,11 @@ const ChatBox = (() => {
         try { list = await API.getSilent(`/chat/conversation/${id}/message`); }
         catch (e) { toast(e.message, 'error'); return; }
 
-        el('chat-message-list').innerHTML = list.map((m, i) => messageHtml(m, list[i - 1] ?? null)).join('');
+        el('chat-message-list').innerHTML = list.length
+            ? list.map((m, i) => messageHtml(m, list[i - 1] ?? null, list[i + 1] ?? null)).join('')
+            : `<div class="chat-hello">${conversationAvatarHtml(currentConversation, 'lg')}
+                   <b>${esc(currentConversation?.title ?? '')}</b>
+                   <small>Chưa có tin nhắn nào. Gửi lời chào để bắt đầu nhé 👋</small></div>`;
         scrollToBottom();
         // Khung tin nhắn vừa từ display:none chuyển sang hiện, nên bây giờ ô nhập mới đo được chiều cao
         // thật của nó — xem ghi chú trong syncComposer.
@@ -703,19 +714,24 @@ const ChatBox = (() => {
             case 'Audio':
                 return `<audio class="chat-audio" controls preload="metadata" src="${esc(m.attachmentUrl)}"></audio>`;
 
-            case 'File':
+            case 'File': {
                 // download: ép TẢI VỀ thay vì mở trong tab — và đặt lại đúng tên gốc, vì tệp trên đĩa mang tên
                 // GUID (xem FileService.SaveAsync) nên không có thuộc tính này thì người ta tải về một chuỗi hex.
-                return `<a class="chat-file" href="${esc(m.attachmentUrl)}" download="${esc(fileNameOf(m.attachmentName))}">
-                            <i class="ph ph-file-arrow-down"></i>
+                const kind = fileKindOf(m.attachmentName);
+                return `<a class="chat-file kind-${kind.key}" href="${esc(m.attachmentUrl)}" download="${esc(fileNameOf(m.attachmentName))}">
+                            <span class="chat-file-icon"><i class="ph-fill ${kind.icon}"></i><em>${esc(kind.label)}</em></span>
                             <span class="body">
                                 <b>${esc(m.attachmentName ?? 'Tệp đính kèm')}</b>
-                                <small>${formatSize(m.attachmentSize)}</small>
+                                <small>${formatSize(m.attachmentSize)} · Bấm để tải về</small>
                             </span>
+                            <i class="ph ph-download-simple chat-file-dl"></i>
                         </a>${captionHtml(m)}`;
+            }
 
             default:
-                return `<div class="bubble">${esc(m.content)}</div>`;
+                return EMOJI_ONLY.test((m.content ?? '').trim())
+                    ? `<div class="chat-emoji">${esc(m.content.trim())}</div>`
+                    : `<div class="bubble">${esc(m.content)}</div>`;
         }
     }
 
@@ -726,6 +742,48 @@ const ChatBox = (() => {
      *  "/" nó tự thay bằng "_" và cho ra cái tên "Hồ sơ_2026_CV.pdf" khó đọc. */
     const fileNameOf = (name) => (name ?? 'tep-dinh-kem').split('/').pop();
 
+    /** Loại tệp theo đuôi — mỗi loại một màu và một nhãn chữ trên ô biểu tượng, để liếc qua là phân biệt được
+     *  tệp Word với PDF hay bảng tính mà không phải đọc tên tệp. */
+    function fileKindOf(name) {
+        const ext = (name ?? '').split('.').pop().toLowerCase();
+        const kind = (key, icon, label) => ({ key, icon, label });
+        if (['doc', 'docx'].includes(ext)) return kind('word', 'ph-file-doc', 'DOC');
+        if (ext === 'pdf') return kind('pdf', 'ph-file-pdf', 'PDF');
+        if (['xls', 'xlsx', 'csv'].includes(ext)) return kind('sheet', 'ph-file-xls', ext.toUpperCase());
+        if (['ppt', 'pptx'].includes(ext)) return kind('slide', 'ph-file-ppt', 'PPT');
+        if (['zip', 'rar', '7z'].includes(ext)) return kind('zip', 'ph-file-zip', ext.toUpperCase());
+        if (['mp4', 'webm', 'mov'].includes(ext)) return kind('video', 'ph-file-video', ext.toUpperCase());
+        return kind('other', 'ph-file', ext && ext.length <= 4 ? ext.toUpperCase() : 'TỆP');
+    }
+
+    const timeOf = (value) => new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+    /** Mốc giờ căn giữa giữa hai đoạn hội thoại, kiểu Messenger: hôm nay chỉ ghi giờ, hôm qua ghi "Hôm qua",
+     *  trong tuần ghi thứ, xa hơn thì ghi cả ngày. */
+    function stampLabel(value) {
+        const at = new Date(value);
+        const today = new Date();
+        const hm = timeOf(value);
+        if (at.toDateString() === today.toDateString()) return hm;
+
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        if (at.toDateString() === yesterday.toDateString()) return `Hôm qua ${hm}`;
+
+        if (today - at < 7 * 24 * 60 * 60 * 1000) {
+            const weekday = at.toLocaleDateString('vi-VN', { weekday: 'long' });
+            return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${hm}`;
+        }
+        return `${hm}, ${at.toLocaleDateString('vi-VN')}`;
+    }
+
+    /** Hai tin cách nhau quá chừng này thì chèn một mốc giờ ở giữa — như Messenger, giờ không đi theo từng
+     *  tin mà chỉ hiện ở chỗ cuộc nói chuyện bị ngắt quãng. */
+    const STAMP_GAP_MS = 15 * 60 * 1000;
+
+    /** Tin chỉ gồm 1–3 emoji thì hiện to, không bong bóng — đúng kiểu Messenger. */
+    const EMOJI_ONLY = /^(?:\p{Extended_Pictographic}[\u{1F3FB}-\u{1F3FF}\u{FE0F}\u{200D}\p{Extended_Pictographic}]*\s*){1,3}$/u;
+
     /** Khoảng lặng đủ lâu thì cắt cụm, dù vẫn là một người nói. Không có nó thì tin nhắn hôm qua và tin
      *  nhắn sáng nay của cùng một người dính liền thành một khối, trông như họ vừa nói một mạch. */
     const RUN_GAP_MS = 5 * 60 * 1000;
@@ -735,38 +793,53 @@ const ChatBox = (() => {
     function startsRun(m, previous) {
         if (!previous) return true;
         if (Number(previous.senderUserId) !== m.senderUserId) return true;
-        return new Date(m.createdAt) - new Date(previous.createdAt) > RUN_GAP_MS;
+        const at = new Date(m.createdAt), previousAt = new Date(previous.createdAt);
+        // Sang ngày mới luôn mở cụm mới, dù chỉ cách vài phút (23:58 → 00:01): giữa hai tin có vạch chia ngày,
+        // để cụm chạy xuyên qua vạch thì cụm bên dưới mất avatar còn cụm bên trên mất giờ gửi.
+        if (at.toDateString() !== previousAt.toDateString()) return true;
+        return Math.abs(at - previousAt) > RUN_GAP_MS;
     }
 
-    function messageHtml(m, previous) {
+    /** @param previous tin liền trước (hoặc {senderUserId, createdAt} đọc lại từ DOM), null nếu là tin đầu.
+     *  @param next tin liền sau, null nếu đây là tin cuối — tin cuối cụm mới mang giờ gửi; với tin vừa tới qua
+     *  hub thì luôn là tin cuối, appendMessage tự gỡ dấu "cuối cụm" khỏi tin trước nó. */
+    function messageHtml(m, previous, next = null) {
         const mine = m.senderUserId === me();
         const isGroup = currentConversation?.type === 'Group';
         const opensRun = startsRun(m, previous);
+        const closesRun = !next || startsRun(next, m);
+        // Mốc giờ căn giữa thay cho việc in giờ dưới MỌI tin: chỉ chèn ở tin đầu tiên, khi sang ngày mới, hoặc
+        // khi cuộc nói chuyện ngắt quãng lâu. Giờ chính xác của từng tin vẫn xem được khi rê chuột (title).
+        const showStamp = !previous
+            || new Date(previous.createdAt).toDateString() !== new Date(m.createdAt).toDateString()
+            || Math.abs(new Date(m.createdAt) - new Date(previous.createdAt)) > STAMP_GAP_MS;
 
-        // Tin của chính mình KHÔNG đeo avatar — giống Messenger và Zalo: nửa bên phải thì đương nhiên là mình,
-        // thêm mặt mình vào chỉ tốn chỗ của bong bóng chữ trong một bảng rộng 360 pixel.
-        // Tin giữa cụm thì chèn một ô trống đúng bề ngang avatar, để cả cụm thẳng hàng với nhau.
+        // Tin của chính mình KHÔNG đeo avatar — giống Messenger: nửa bên phải thì đương nhiên là mình.
+        // Avatar người kia đeo ở tin CUỐI cụm, nằm sát đáy (đúng như Messenger); các tin khác trong cụm chèn một
+        // ô trống đúng bề ngang avatar để cả cụm thẳng hàng.
         const avatar = mine
             ? ''
-            : (opensRun
+            : (closesRun
                 ? avatarHtml(m.senderAvatarUrl, m.senderName, false, 'sm')
                 : '<span class="chat-avatar-gap"></span>');
 
         // data-sender / data-at để appendMessage biết tin liền trước là của ai và vào lúc nào mà quyết định
         // cắt cụm — lúc tin mới tới qua hub thì không còn danh sách nào trong tay, chỉ còn DOM.
-        return `<div class="chat-msg ${mine ? 'mine' : ''}${opensRun ? ' starts-run' : ''}"
+        // Nút thu hồi nằm NGOÀI dòng giờ: giờ chỉ còn hiện ở tin cuối cụm, mà tin nào của mình cũng phải thu
+        // hồi được. Nó đứng cạnh bong bóng và chỉ hiện khi rê chuột (xem .chat-recall trong style.css).
+        const recall = mine && !m.isDeleted
+            ? `<button type="button" class="chat-recall" title="Thu hồi"
+                   onclick="ChatBox.recall(${m.id})"><i class="ph ph-arrow-counter-clockwise"></i></button>`
+            : '';
+
+        return `${showStamp ? `<div class="chat-stamp">${esc(stampLabel(m.createdAt))}</div>` : ''}
+        <div class="chat-msg ${mine ? 'mine' : ''}${opensRun ? ' starts-run' : ''}${closesRun ? ' ends-run' : ''}"
                      data-msg="${m.id}" data-sender="${m.senderUserId}" data-at="${esc(m.createdAt)}">
             ${avatar}
+            ${recall}
             <div class="chat-col">
                 ${!mine && isGroup && opensRun ? `<span class="who">${esc(m.senderName)}</span>` : ''}
-                <div class="chat-body">${bodyHtml(m)}</div>
-                <span class="at">
-                    ${formatDate(m.createdAt, true)}
-                    ${mine && !m.isDeleted
-                        ? `<button type="button" class="chat-recall" title="Thu hồi"
-                               onclick="ChatBox.recall(${m.id})"><i class="ph ph-arrow-counter-clockwise"></i></button>`
-                        : ''}
-                </span>
+                <div class="chat-body" title="${esc(formatDate(m.createdAt, true))}">${bodyHtml(m)}</div>
             </div>
         </div>`;
     }
@@ -779,12 +852,22 @@ const ChatBox = (() => {
 
     function appendMessage(m) {
         const box = el('chat-message-list');
+        box.querySelector('.chat-hello')?.remove();       // lời chào của hội thoại trống nhường chỗ cho tin đầu tiên
         const last = box.lastElementChild;
         const previous = last?.dataset.sender
             ? { senderUserId: last.dataset.sender, createdAt: last.dataset.at }
             : null;
 
+        // Tin mới nối tiếp cụm của tin trước thì tin trước không còn là "cuối cụm": avatar (đeo ở tin cuối cụm)
+        // dời xuống tin mới, chỗ cũ thay bằng ô trống cùng bề ngang.
+        if (previous && !startsRun(m, previous)) {
+            last.classList.remove('ends-run');
+            last.querySelector(':scope > .chat-avatar')?.replaceWith(
+                Object.assign(document.createElement('span'), { className: 'chat-avatar-gap' }));
+        }
+
         box.insertAdjacentHTML('beforeend', messageHtml(m, previous));
+        box.lastElementChild.classList.add('is-new');
         scrollToBottom();
     }
 
@@ -819,7 +902,10 @@ const ChatBox = (() => {
         applyBackground(conversation?.backgroundKey, conversation?.backgroundUrl);
 
         const isGroup = conversation?.type === 'Group';
-        el('chat-thread-sub').textContent = isGroup ? `${conversation.memberCount} thành viên` : '';
+        const isOnline = !isGroup && conversation?.partnerUserId && onlineIdSet.has(conversation.partnerUserId);
+        const sub = el('chat-thread-sub');
+        sub.textContent = isGroup ? `${conversation.memberCount} thành viên` : (isOnline ? 'Đang hoạt động' : 'Ngoại tuyến');
+        sub.classList.toggle('online', !!isOnline);
         el('chat-group-btn').classList.toggle('hidden', !isGroup);
         el('chat-rename-btn').classList.toggle('hidden', !isGroup || conversation.createdByUserId !== me());
         // CỐ Ý không đóng bảng thành viên ở đây. Mời một người ra khỏi nhóm sẽ khiến server đẩy về
@@ -860,11 +946,14 @@ const ChatBox = (() => {
                     onclick="ChatBox.open(${c.id})">
                 ${conversationAvatarHtml(c)}
                 <span class="body">
-                    <span class="row">
+                    <!-- "line" chứ không phải "row": .row là lớp bố cục biểu mẫu chung trong style.css (con được
+                         flex:1 + min-width:180px), dính vào đây là ngày tháng bị đẩy xuống dòng và số tin chưa
+                         đọc bị kéo thành một thanh đỏ dài. -->
+                    <span class="line">
                         <b>${esc(c.title)}</b>
                         <em>${shortTime(c.lastMessageAt)}</em>
                     </span>
-                    <span class="row">
+                    <span class="line">
                         <small>${c.lastMessageIsMine ? 'Bạn: ' : ''}${esc(c.lastMessage ?? 'Chưa có tin nhắn')}</small>
                         ${c.unreadCount ? `<span class="n">${c.unreadCount > 99 ? '99+' : c.unreadCount}</span>` : ''}
                     </span>
@@ -962,6 +1051,14 @@ const ChatBox = (() => {
                         <span class="art"><i class="ph ph-chats-circle"></i></span>
                         <b>Chưa mở cuộc trò chuyện nào</b>
                         <small>Chọn một người ở cột bên trái, hoặc gõ tên đồng nghiệp vào ô tìm kiếm để bắt đầu.</small>
+                        <!-- Hai lối bắt đầu ngay tại chỗ: người mới mở hộp chat lần đầu không phải đi dò xem ô tìm
+                             kiếm hay nút lập nhóm nằm ở đâu. -->
+                        <span class="chat-blank-actions">
+                            <button type="button" class="primary" onclick="document.getElementById('chat-search').focus()">
+                                <i class="ph ph-pencil-simple-line"></i> Nhắn tin mới</button>
+                            <button type="button" onclick="ChatBox.newGroup()">
+                                <i class="ph ph-users-three"></i> Tạo nhóm</button>
+                        </span>
                     </div>
 
                     <div id="chat-thread">
@@ -986,7 +1083,7 @@ const ChatBox = (() => {
 
                         <div id="chat-message-list"></div>
                         <div id="chat-member-panel" class="hidden"></div>
-                        <div id="chat-typing" class="hidden">Đang nhập...</div>
+                        <div id="chat-typing" class="hidden" aria-label="Đang nhập..." title="Đang nhập..."><span class="dots"><i></i><i></i><i></i></span></div>
                         <div id="chat-upload" class="hidden"></div>
 
                         <div id="chat-record-bar" class="hidden">
@@ -1013,7 +1110,7 @@ const ChatBox = (() => {
                             </div>
                             <div class="chat-input-row">
                                 <textarea id="chat-input" rows="1" maxlength="4000" autocomplete="off"
-                                          placeholder="Nhập tin nhắn..."></textarea>
+                                          placeholder="Aa" aria-label="Nhập tin nhắn"></textarea>
                                 <button type="submit" id="chat-send-btn" title="Gửi (Enter)" disabled>
                                     <i class="ph-fill ph-paper-plane-right"></i>
                                 </button>

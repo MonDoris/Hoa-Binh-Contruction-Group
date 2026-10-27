@@ -82,7 +82,11 @@ public record AiChatSessionDto(int Id, string Title, int MessageCount, DateTime 
 /// <summary>Một lượt nói khi mở lại hội thoại cũ. <paramref name="Role"/> dùng chữ ("user"/"assistant")
 /// chứ không dùng số: giao diện đọc thẳng giá trị này, mà một con số 0/1 trong JSON thì không ai đoán được
 /// nghĩa lúc đọc lại mã nguồn hay lúc dò lỗi trên tab Network.</summary>
-public record AiChatMessageDto(int Id, string Role, string Content, List<AiAnswerSourceDto> SourceList, DateTime CreatedAt);
+public record AiChatMessageDto(int Id, string Role, string Content, List<AiAnswerSourceDto> SourceList, DateTime CreatedAt,
+    List<AiChatAttachmentDto> AttachmentList);
+
+/// <summary>Một tệp đã gửi kèm câu hỏi — trang chat vẽ thành thẻ tệp bấm để tải về (GET aitutor/attachment/{Id}).</summary>
+public record AiChatAttachmentDto(int Id, string FileName, long SizeByte);
 
 /// <summary>Nội dung đầy đủ của một hội thoại cũ.</summary>
 public record AiChatSessionDetailDto(int Id, string Title, DateTime CreatedAt, DateTime UpdatedAt, List<AiChatMessageDto> MessageList);

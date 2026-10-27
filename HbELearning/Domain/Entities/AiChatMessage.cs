@@ -27,4 +27,8 @@ public class AiChatMessage
     public string? SourceJson { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+    /// <summary>Tệp người dùng gửi kèm câu hỏi này. Rỗng với câu trả lời của AI và với câu hỏi gửi trước khi hệ
+    /// thống bắt đầu giữ tệp (khi đó chỉ còn tên tệp ở dòng "[Đính kèm: ...]" đầu nội dung).</summary>
+    public ICollection<AiChatAttachment> AttachmentList { get; set; } = new List<AiChatAttachment>();
 }

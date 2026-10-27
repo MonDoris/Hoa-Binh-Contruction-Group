@@ -33,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<ICertificateService, CertificateService>();
         services.AddScoped<IExternalCertificateService, ExternalCertificateService>();
         services.AddScoped<IFeedbackService, FeedbackService>();
+        services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<ExternalCertificateVerifier>();
         services.AddScoped<IScormService, ScormService>();
         services.AddScoped<HbELearning.Application.Features.Scorm.Export.ScormCourseExporter>();

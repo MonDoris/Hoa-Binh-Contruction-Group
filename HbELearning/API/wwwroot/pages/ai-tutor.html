@@ -151,6 +151,11 @@
         }
         .q-file b { font-size: 9.5px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: #fff; background: var(--primary); border-radius: 6px; padding: 3px 6px; }
         .q-file span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Thẻ tệp tải lại được: là <button>, nên phải tự bỏ viền/nền mặc định của nút */
+        button.q-file { border: none; font-family: inherit; cursor: pointer; transition: background .15s, box-shadow .15s; }
+        button.q-file:hover { background: color-mix(in srgb, var(--primary-light) 75%, var(--primary)); }
+        button.q-file:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        button.q-file .ph { font-size: 14px; flex: none; }
 
         /* HB Minerva: bên trái, có ảnh đại diện */
         .msg.ai { justify-content: flex-start; }
@@ -629,10 +634,14 @@
 
             for (const message of detail.messageList) {
                 if (message.role === 'user') {
-                    // Tin có tệp: tách dòng "[Đính kèm: ...]" ra thành thẻ tệp; nội dung tệp không được lưu lại.
+                    // Tin có tệp: tách dòng "[Đính kèm: ...]" ra khỏi nội dung. Tệp máy chủ còn giữ (attachmentList)
+                    // thành thẻ bấm để tải; câu hỏi gửi trước khi hệ thống giữ tệp thì chỉ còn tên trong dòng đó.
                     const match = message.content.match(ATTACH_MARKER);
+                    const fileList = message.attachmentList?.length
+                        ? message.attachmentList.map(a => ({ name: a.fileName, attachmentId: a.id }))
+                        : (match ? match[1].split(';').map(x => x.trim()).filter(Boolean).map(name => ({ name })) : []);
                     appendMessage('me', answerHtml(match ? message.content.slice(match[0].length) : message.content),
-                        match ? match[1].split(';').map(x => x.trim()).filter(Boolean) : [], false, message.createdAt);
+                        fileList, false, message.createdAt);
                 } else {
                     appendMessage('ai', answerHtml(message.content), [], true, message.createdAt);
                 }
@@ -742,11 +751,11 @@
             : `${hm} · ${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
     }
 
-    /** Thêm một tin vào cuộc trò chuyện: side 'me' = tin của người dùng (bên phải; fileNameList là tên các tệp
-     *  đã gửi kèm), side 'ai' = tin của HB Minerva (bên trái; withActions = hiện ngay nút Sao chép, không thì chỉ
+    /** Thêm một tin vào cuộc trò chuyện: side 'me' = tin của người dùng (bên phải; fileList là các tệp đã gửi kèm,
+     *  dạng { name, attachmentId?, blob? } — có attachmentId hoặc blob thì thẻ tệp bấm để tải về), side 'ai' = tin của HB Minerva (bên trái; withActions = hiện ngay nút Sao chép, không thì chỉ
      *  hiện sau khi trả lời xong). createdAt là giờ lưu trong lịch sử, bỏ trống = bây giờ.
      *  Trả về phần bong bóng để nơi gọi ghi nội dung vào. */
-    function appendMessage(side, html, fileNameList = [], withActions = false, createdAt = null) {
+    function appendMessage(side, html, fileList = [], withActions = false, createdAt = null) {
         if (turnCount === 0) logBox.innerHTML = '';
         turnCount++;
 
@@ -756,11 +765,16 @@
         if (side === 'me') {
             row.innerHTML = `
                 <div class="msg-col">
-                    ${fileNameList.length ? `<div class="q-files">${fileNameList.map(name => `
-                        <span class="q-file" title="${esc(name)}"><b>${esc(extOf(name) || 'tệp')}</b><span>${esc(name)}</span></span>`).join('')}</div>` : ''}
+                    ${fileList.length ? `<div class="q-files">${fileList.map((x, i) => {
+                        const inner = `<b>${esc(extOf(x.name) || 'tệp')}</b><span>${esc(x.name)}</span>`;
+                        return x.attachmentId || x.blob
+                            ? `<button type="button" class="q-file" data-file="${i}" title="Tải xuống ${esc(x.name)}">${inner}<i class="ph ph-download-simple"></i></button>`
+                            : `<span class="q-file" title="${esc(x.name)} — tệp gửi trước đây không được lưu lại">${inner}</span>`;
+                    }).join('')}</div>` : ''}
                     <div class="msg-bubble"></div>
                     <span class="msg-time">${timeText(createdAt)}</span>
                 </div>`;
+            row.querySelectorAll('[data-file]').forEach(el => el.addEventListener('click', () => downloadFile(fileList[Number(el.dataset.file)])));
         } else {
             row.innerHTML = `
                 <div class="msg-avatar pico-face" aria-hidden="true"></div>
@@ -789,6 +803,27 @@
         return body;
     }
 
+    /** Tải lại một tệp đã gửi. Tin vừa gửi trong phiên này còn giữ chính tệp trong trình duyệt (blob) nên lưu thẳng;
+     *  tin mở lại từ lịch sử thì tải qua API — API.download gửi kèm token, thẻ <a href> thường thì không. */
+    async function downloadFile(item) {
+        if (item.blob) {
+            const url = URL.createObjectURL(item.blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = item.name;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            return;
+        }
+        try {
+            await API.download(`/aitutor/attachment/${item.attachmentId}`, item.name);
+        } catch (ex) {
+            toastErr(ex.status === 404 ? 'Tệp này không còn trên máy chủ.' : 'Không tải được tệp. Vui lòng thử lại.');
+        }
+    }
+
     function scrollToEnd() {
         // Cuộn khung bao ngoài thay vì logBox
         scrollArea.scrollTop = scrollArea.scrollHeight;
@@ -812,7 +847,7 @@
         if (!question && sendFileList.length === 0) return;
         if (askController) return;
 
-        appendMessage('me', question ? answerHtml(question) : '<em>Phân tích tệp đính kèm</em>', sendFileList.map(f => f.name));
+        appendMessage('me', question ? answerHtml(question) : '<em>Phân tích tệp đính kèm</em>', sendFileList.map(f => ({ name: f.name, blob: f })));
         inputBox.value = '';
         autoGrow();
         clearFiles();

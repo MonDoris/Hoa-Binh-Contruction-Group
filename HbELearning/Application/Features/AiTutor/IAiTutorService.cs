@@ -28,6 +28,9 @@ public interface IAiTutorService
     /// <summary>Mở lại một hội thoại cũ: toàn bộ câu hỏi, câu trả lời và bảng nguồn của từng câu.</summary>
     Task<Result> GetSession(int id, CancellationToken cancellationToken);
 
+    /// <summary>Tải lại một tệp đã gửi kèm câu hỏi — chỉ chủ hội thoại tải được.</summary>
+    Task<Result> GetAttachment(int id, CancellationToken cancellationToken);
+
     /// <summary>Đổi tên một hội thoại. Tên mặc định lấy từ câu hỏi đầu tiên, mà câu hỏi đầu tiên thường là
     /// câu mò đường — vài ngày sau chính người hỏi cũng không nhận ra hội thoại nào là hội thoại nào.</summary>
     Task<Result> RenameSession(int id, AiChatSessionRenameRequest request, CancellationToken cancellationToken);

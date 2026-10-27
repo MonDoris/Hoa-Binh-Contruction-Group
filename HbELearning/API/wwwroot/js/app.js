@@ -1748,12 +1748,29 @@ function mountTopbarSearch() {
     toggle?.addEventListener('click', () =>
         topbar?.classList.contains('search-open') ? closeSearch() : openSearch());
 
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { input.blur(); closeSearch(); return; }
-        if (e.key !== 'Enter') return;
-        e.preventDefault();
+    const goCourseList = () => {
         const keyword = input.value.trim();
         location.href = keyword ? `${targetPage}?keyword=${encodeURIComponent(keyword)}` : targetPage;
+    };
+    const suggest = mountSearchSuggest(input, goCourseList);
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            // Lần Esc đầu chỉ đóng ô gợi ý, lần sau mới rời ô tìm kiếm.
+            if (suggest.isOpen()) { suggest.close(); return; }
+            input.blur(); closeSearch(); return;
+        }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            if (!suggest.isOpen()) return;
+            e.preventDefault();
+            suggest.move(e.key === 'ArrowDown' ? 1 : -1);
+            return;
+        }
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        // Đang chọn một dòng gợi ý bằng phím mũi tên thì mở dòng đó; không thì giữ hành vi cũ: sang danh sách khóa học.
+        if (suggest.pickActive()) return;
+        goCourseList();
     });
 
     // Phím tắt Ctrl/⌘ + K và "/" — chỉ khi KHÔNG đang gõ ở đâu cả. Ctrl + K trong trình soạn thảo bài học
@@ -1770,6 +1787,233 @@ function mountTopbarSearch() {
         e.preventDefault();
         openSearch();
     });
+}
+
+// ==================== GỢI Ý KHI GÕ Ở Ô TÌM KIẾM ====================
+/**
+ * Ô xổ xuống dưới ô tìm kiếm: vài NGƯỜI và vài KHÓA HỌC khớp từ khóa (GET /search). Bấm một người là mở thẻ hồ sơ
+ * của họ ngay trên trang đang đứng (openPersonCard), bấm một khóa là vào học / đăng ký.
+ *
+ * Khóa học ở đây đã được máy chủ lọc theo đối tượng (xem SearchService): khóa dành riêng cho một phòng ban chỉ
+ * hiện với người của phòng ban đó, giao diện không lọc thêm gì.
+ *
+ * @param {HTMLInputElement} input ô tìm kiếm trên thanh trên.
+ * @param {() => void} goCourseList chuyển sang trang danh sách khóa học kèm từ khóa (hành vi Enter trước đây).
+ */
+function mountSearchSuggest(input, goCourseList) {
+    const box = document.createElement('div');
+    box.className = 'ts-pop';
+    box.id = 'ts-pop';
+    box.setAttribute('role', 'listbox');
+    box.hidden = true;
+    input.parentElement.appendChild(box);
+    input.setAttribute('aria-controls', 'ts-pop');
+    input.setAttribute('aria-autocomplete', 'list');
+
+    let itemList = [];      // [{ el, run }] theo thứ tự hiển thị — phím ↑↓ đi trên danh sách này
+    let activeIndex = -1;
+    let seq = 0;
+    let timer = null;
+
+    const close = () => { box.hidden = true; activeIndex = -1; input.setAttribute('aria-expanded', 'false'); };
+    const open = () => { box.hidden = false; input.setAttribute('aria-expanded', 'true'); };
+
+    const setActive = (index) => {
+        activeIndex = index;
+        itemList.forEach((x, i) => x.el.classList.toggle('active', i === index));
+        itemList[index]?.el.scrollIntoView({ block: 'nearest' });
+    };
+
+    function render(keyword, result) {
+        const personList = result?.personList ?? [];
+        const courseList = result?.courseList ?? [];
+        const avatar = (p) => p.avatarUrl
+            ? `<img class="avatar" src="${esc(p.avatarUrl)}" alt="">`
+            : `<span class="avatar">${esc(initial(p.fullName))}</span>`;
+
+        box.innerHTML = `
+            ${personList.length ? `<div class="ts-group">${esc(t('search.nguoi', 'Mọi người'))}</div>
+                ${personList.map(p => `
+                    <button type="button" class="ts-item" role="option" data-person="${p.id}">
+                        ${avatar(p)}
+                        <span class="ts-text"><b>${esc(p.fullName)}</b>
+                            <small>${esc([p.employeeCode, p.positionName, p.departmentName].filter(Boolean).join(' · '))}</small></span>
+                        <i class="ph ph-caret-right ts-go"></i>
+                    </button>`).join('')}` : ''}
+            ${courseList.length ? `<div class="ts-group">${esc(t('search.khoaHoc', 'Khóa học'))}</div>
+                ${courseList.map(c => `
+                    <button type="button" class="ts-item" role="option" data-course="${c.id}">
+                        ${courseThumbHtml(c.title, c.thumbnailUrl, 'ts-thumb')}
+                        <span class="ts-text"><b>${esc(c.title)}</b>
+                            <small>${esc(c.code)} · ${esc(c.audience === 'Company'
+                                ? t('search.toanCongTy', 'Toàn công ty') : t('search.theoPhongBan', 'Theo phòng ban'))}${c.authorName ? ' · ' + esc(c.authorName) : ''}</small></span>
+                        <span class="ts-action">${esc(courseActionOf(c).label)}</span>
+                    </button>`).join('')}` : ''}
+            ${!personList.length && !courseList.length
+                ? `<div class="ts-empty"><i class="ph ph-magnifying-glass"></i>${esc(t('search.khongThay', 'Không tìm thấy người hay khóa học nào khớp "{keyword}".', { keyword }))}</div>` : ''}
+            <button type="button" class="ts-item ts-all" role="option" data-all="1">
+                <i class="ph ph-list-magnifying-glass"></i>
+                <span class="ts-text">${esc(t('search.xemTatCaKhoaHoc', 'Tìm "{keyword}" trong danh sách khóa học', { keyword }))}</span>
+                <kbd class="ts-kbd">Enter</kbd>
+            </button>`;
+
+        itemList = [...box.querySelectorAll('.ts-item')].map(el => ({
+            el,
+            run: el.dataset.person ? () => { close(); openPersonCard(+el.dataset.person); }
+                : el.dataset.course ? () => {
+                    const course = courseList.find(c => c.id === +el.dataset.course);
+                    close();
+                    courseActionOf(course).run();
+                }
+                : goCourseList
+        }));
+        // Chưa chọn dòng nào: Enter giữ hành vi cũ (sang danh sách khóa học).
+        activeIndex = -1;
+        open();
+    }
+
+    async function search() {
+        const keyword = input.value.trim();
+        const mySeq = ++seq;
+        if (keyword.length < 2) { close(); return; }
+        let result;
+        try { result = await API.getSilent(`/search?keyword=${encodeURIComponent(keyword)}`); }
+        catch { result = null; }
+        // Gõ tiếp trong lúc chờ thì kết quả về muộn này đã lỗi thời.
+        if (mySeq !== seq || document.activeElement !== input) return;
+        render(keyword, result);
+    }
+
+    input.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(search, 220);
+    });
+    input.addEventListener('focus', () => { if (input.value.trim().length >= 2) search(); });
+
+    // mousedown chứ không phải click: click đến SAU khi ô tìm kiếm mất tiêu điểm, lúc đó ô gợi ý đã bị đóng.
+    box.addEventListener('mousedown', (e) => {
+        const item = e.target.closest('.ts-item');
+        if (!item) return;
+        e.preventDefault();
+        itemList.find(x => x.el === item)?.run();
+    });
+    box.addEventListener('mousemove', (e) => {
+        const index = itemList.findIndex(x => x.el === e.target.closest('.ts-item'));
+        if (index >= 0 && index !== activeIndex) setActive(index);
+    });
+    input.addEventListener('blur', () => setTimeout(close, 120));
+
+    return {
+        isOpen: () => !box.hidden,
+        close,
+        move(step) {
+            if (!itemList.length) return;
+            setActive((activeIndex + step + itemList.length) % itemList.length);
+        },
+        pickActive() {
+            if (box.hidden || activeIndex < 0 || !itemList[activeIndex]) return false;
+            itemList[activeIndex].run();
+            return true;
+        }
+    };
+}
+
+/** Việc làm được với một khóa học tìm thấy, tùy quan hệ của người xem với khóa đó. Dùng chung cho ô gợi ý lẫn thẻ
+ *  hồ sơ để hai nơi luôn mời cùng một việc. @returns {{label: string, run: () => void, disabled?: boolean}} */
+function courseActionOf(course, onEnrolled) {
+    if (course.enrollmentId && course.enrollmentStatus !== 'Cancelled')
+        return {
+            label: course.enrollmentStatus === 'Completed' ? t('search.xemLai', 'Xem lại') : t('search.vaoHoc', 'Vào học'),
+            run: () => { location.href = `/pages/scorm-player.html?enrollmentId=${course.enrollmentId}`; }
+        };
+    if (course.isMine)
+        return { label: t('search.moKhoaHoc', 'Mở khóa học'), run: () => { location.href = `/pages/course-detail.html?id=${course.id}`; } };
+    // Lượt học đã bị người phụ trách gỡ thì không mời tự đăng ký lại — máy chủ cũng sẽ từ chối.
+    if (course.enrollmentStatus === 'Cancelled')
+        return { label: t('search.daGoPhanCong', 'Đã gỡ phân công'), disabled: true, run: () => {} };
+    return {
+        label: t('suggest.enroll', 'Đăng ký học'),
+        run: async () => { if (await selfEnrollCourse(course.id, course.title)) onEnrolled?.(); }
+    };
+}
+
+/** Thẻ hồ sơ một người (mở từ ô tìm kiếm): thông tin trong hệ thống + các khóa học họ soạn mà mình được thấy.
+ *  Hộp thoại dựng một lần rồi dùng lại, nên mở được từ bất kỳ trang nào có thanh trên. */
+async function openPersonCard(userId) {
+    if (!document.getElementById('person-modal')) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <div class="modal-mask" id="person-modal">
+                <div class="modal wide pc-modal" role="dialog" aria-modal="true" aria-labelledby="pc-name">
+                    <button class="close-x pc-close" type="button" aria-label="${esc(t('common.close', 'Đóng'))}"
+                            onclick="closeModal('person-modal')">×</button>
+                    <div class="pc-body" id="pc-body"></div>
+                </div>
+            </div>`);
+    }
+    const body = document.getElementById('pc-body');
+    body.innerHTML = `<div style="padding:24px">${skeletonHtml('list', { count: 3 })}</div>`;
+    openModal('person-modal');
+
+    let person;
+    try { person = await API.getSilent(`/search/person/${userId}`); }
+    catch (ex) { body.innerHTML = `<div style="padding:24px">${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</div>`; return; }
+
+    const avatarHtml = person.avatarUrl
+        ? `<img class="avatar pc-avatar" src="${esc(person.avatarUrl)}" alt="">`
+        : `<span class="avatar pc-avatar">${esc(initial(person.fullName))}</span>`;
+    const coverStyle = person.coverUrl
+        ? `style="background:center / cover no-repeat url('${encodeURI(person.coverUrl).replace(/'/g, '%27')}')"` : '';
+    const fact = (icon, label, value) => value ? `
+        <div class="pc-fact"><span class="pc-fact-icon"><i class="ph ${icon}"></i></span><span><small>${esc(label)}</small><b>${value}</b></span></div>` : '';
+    const isMe = person.id === Auth.profile?.id;
+
+    body.innerHTML = `
+        <div class="pc-cover" ${coverStyle}></div>
+        <div class="pc-head">
+            ${avatarHtml}
+            <div class="pc-title">
+                <h3 id="pc-name">${esc(person.fullName)}${isMe ? ` <span class="badge gray">${esc(t('search.laBan', 'Bạn'))}</span>` : ''}</h3>
+                <div class="pc-sub"><span class="badge blue">${esc(person.roleName)}</span> <span class="pc-code">${esc(person.employeeCode)}</span></div>
+            </div>
+        </div>
+        <div class="pc-facts">
+            ${fact('ph-buildings', t('search.phongBan', 'Phòng ban'), esc(person.departmentName || '—'))}
+            ${fact('ph-identification-badge', t('search.viTri', 'Vị trí'), esc(person.positionName || '—'))}
+            ${fact('ph-envelope-simple', 'Email', `<a href="mailto:${esc(person.email)}">${esc(person.email)}</a>`)}
+            ${fact('ph-seal-check', t('search.chungNhan', 'Chứng nhận'), esc(String(person.certificateCount)))}
+            ${fact('ph-calendar-blank', t('search.thamGiaTu', 'Tham gia từ'), esc(formatDate(person.createdAt)))}
+        </div>
+        <div class="pc-courses">
+            <h4>${esc(t('search.khoaHocDoSoan', 'Khóa học do {name} soạn', { name: person.fullName }))}
+                <span class="badge gray">${person.authoredCourseList.length}</span></h4>
+            <p class="pc-note">${esc(t('search.khoaHocDoSoanNote', 'Chỉ hiện khóa học dành cho toàn công ty và khóa học dành cho phòng ban / vị trí của bạn.'))}</p>
+            ${person.authoredCourseList.length ? `<div class="pc-course-list">${person.authoredCourseList.map(c => {
+                const action = courseActionOf(c, () => openPersonCard(userId));
+                return `
+                    <div class="pc-course">
+                        ${courseThumbHtml(c.title, c.thumbnailUrl, 'pc-thumb')}
+                        <div class="pc-course-text">
+                            <b>${esc(c.title)}</b>
+                            <div class="pc-course-meta">
+                                <span class="code">${esc(c.code)}</span>
+                                ${c.audience === 'Company'
+                                    ? `<span class="badge green">${esc(t('search.toanCongTy', 'Toàn công ty'))}</span>`
+                                    : `<span class="badge orange">${esc(c.isMine ? t('search.theoPhongBan', 'Theo phòng ban') : t('search.choPhongBanCuaBan', 'Dành cho phòng ban của bạn'))}</span>`}
+                                ${c.isMandatory ? `<span class="badge red">${esc(t('suggest.mandatory', 'Bắt buộc'))}</span>` : ''}
+                                <span><i class="ph ph-clock"></i> ${formatDuration(c.durationMinutes)}</span>
+                                <span><i class="ph ph-list-dashes"></i> ${esc(t('my-course.soBaiHoc', '{n} bài học', { n: c.lessonCount }))}</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn sm ${action.disabled ? 'ghost' : ''}" data-pc-course="${c.id}" ${action.disabled ? 'disabled' : ''}>${esc(action.label)}</button>
+                    </div>`;
+            }).join('')}</div>`
+            : emptyHtml(t('search.chuaCoKhoaHoc', 'Chưa có khóa học nào bạn xem được.'), '<i class="ph ph-books"></i>')}
+        </div>`;
+
+    body.querySelectorAll('[data-pc-course]').forEach(button => button.addEventListener('click', () => {
+        const course = person.authoredCourseList.find(c => c.id === +button.dataset.pcCourse);
+        courseActionOf(course, () => openPersonCard(userId)).run();
+    }));
 }
 
 /** Phần "vỏ" của thanh trên: liên kết bỏ qua tới nội dung, và bóng đổ chỉ hiện khi trang đã cuộn — đứng yên ở

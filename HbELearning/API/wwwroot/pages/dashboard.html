@@ -520,10 +520,10 @@
                 label: t('dashboard.pendingGift', 'Số quà chờ trao'), value: pendingGift,
             };
 
-        // Giảng Viên là người ngoài được mời tới dạy: không cho thấy quy mô nhân sự hay tổng chứng chỉ của công ty,
-        // chỉ số liên quan tới các khóa của chính họ. Server cũng đã cắt số liệu theo cùng phạm vi (xem
-        // ReportService.GetOverview) — đây chỉ là phần nhãn. Ô chứng chỉ không gắn liên kết vì trang Chứng nhận
-        // liệt kê chứng nhận của toàn công ty.
+        // Giảng Viên là người ngoài được mời tới dạy: không cho thấy quy mô nhân sự của công ty, chỉ số liên quan
+        // tới các khóa của chính họ. Server cũng đã cắt số liệu theo cùng phạm vi (xem ReportService.GetOverview) —
+        // đây chỉ là phần nhãn. Ô chứng chỉ của họ không gắn liên kết vì trang Chứng nhận liệt kê chứng nhận của
+        // toàn công ty.
         const instructorView = authorView && Auth.isInstructor;
 
         const cellList = [
@@ -543,15 +543,14 @@
                 value: overview.publishedCourse,
             },
             thirdCell,
-            instructorView
-                ? {
-                    tone: '#10b981', icon: 'ph-certificate', href: null,
-                    label: t('dashboard.myCertificate', 'Chứng chỉ cấp cho khóa của tôi'), value: overview.totalCertificate,
-                }
-                : {
-                    tone: '#10b981', icon: 'ph-certificate', href: '/pages/certificate.html',
-                    label: t('dashboard.issuedCertificate', 'Tất cả chứng chỉ đã được cấp'), value: overview.totalCertificate,
-                },
+            // Chỉ Admin nhận tổng chứng chỉ toàn công ty; vai trò khác server đã đếm chứng chỉ của chính người xem
+            // (ReportService.GetOverview).
+            {
+                tone: '#10b981', icon: 'ph-certificate', href: instructorView ? null : '/pages/certificate.html',
+                label: Auth.isAdmin ? t('dashboard.issuedCertificate', 'Tất cả chứng chỉ đã được cấp')
+                                    : t('dashboard.myCertificate', 'Chứng chỉ của bạn'),
+                value: overview.totalCertificate,
+            },
         ];
 
         return `<div class="ops-kpi">${cellList.map((c, i) => {

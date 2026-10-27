@@ -33,7 +33,7 @@ public class ReportService : IReportService
         var now = DateTime.Now;
 
         // Giảng Viên là người được mời tới dạy chứ không phải nhân sự công ty: chỉ được thấy số liệu của các khóa
-        // CHÍNH họ tạo. Quy mô nhân sự, tổng chứng chỉ và hàng chờ trao quà là thông tin nội bộ nên không trả về —
+        // CHÍNH họ tạo. Quy mô nhân sự và hàng chờ trao quà là thông tin nội bộ nên không trả về —
         // cắt ở đây chứ không chỉ giấu ô trên giao diện, vì API này gọi thẳng được.
         var ownOnly = _currentUser.IsInstructor;
         var ownerId = _currentUser.UserId;
@@ -45,8 +45,12 @@ public class ReportService : IReportService
         {
             courseQuery = courseQuery.Where(x => x.CreatedById == ownerId);
             enrollmentQuery = enrollmentQuery.Where(x => x.Course.CreatedById == ownerId);
-            certificateQuery = certificateQuery.Where(x => x.Enrollment.Course.CreatedById == ownerId);
         }
+
+        // Tổng chứng chỉ toàn công ty chỉ Admin được xem; mọi vai trò khác (kể cả Giảng Viên) chỉ đếm chứng chỉ
+        // CỦA CHÍNH MÌNH. Cắt ở server để gọi thẳng API cũng không lấy được con số chung.
+        if (!_currentUser.IsAdmin)
+            certificateQuery = certificateQuery.Where(x => x.Enrollment.UserId == ownerId);
 
         var totalUser = ownOnly ? 0 : await _db.User.CountAsync();
         var activeUser = ownOnly ? 0 : await _db.User.CountAsync(x => x.IsActive);

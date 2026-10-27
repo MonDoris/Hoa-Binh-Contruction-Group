@@ -47,6 +47,7 @@ global using HbELearning.Application.Features.Ranking;
 global using HbELearning.Application.Features.Reports;
 global using HbELearning.Application.Features.Roles;
 global using HbELearning.Application.Features.Scenarios;
+global using HbELearning.Application.Features.Search;
 global using HbELearning.Application.Features.Shop;
 global using HbELearning.Application.Features.SimAssets;
 global using HbELearning.Application.Features.StudyReminders;

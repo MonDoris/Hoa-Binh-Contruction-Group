@@ -26,6 +26,10 @@ public class AuthController : BaseApiController
     public async Task<ActionResult<UserProfileDto>> UpdateMe(UpdateProfileRequest request)
         => ToActionResult(await _service.UpdateMe(request));
 
+    [HttpPut("me/cover")]
+    public async Task<ActionResult<UserProfileDto>> UpdateMyCover(UpdateCoverRequest request)
+        => ToActionResult(await _service.UpdateMyCover(request));
+
     [HttpPost("change-password")]
     [EnableRateLimiting(ApiServiceExtensions.AuthRateLimitPolicy)]
     public async Task<ActionResult<MessageResponse>> ChangePassword(ChangePasswordRequest request)

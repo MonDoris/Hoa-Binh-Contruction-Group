@@ -321,29 +321,41 @@
     document.getElementById('edit-form').addEventListener('submit', saveProfile);
     document.getElementById('password-form').addEventListener('submit', savePassword);
     document.getElementById('avatar-input').addEventListener('change', uploadAvatar);
+    // Gắn MỘT lần ở đây. Trước đây gắn trong renderProfile() — hàm chạy lại sau mỗi lần lưu hồ sơ, nên lưu vài
+    // lần là một lần chọn ảnh bìa bị tải lên vài lần.
+    document.getElementById('cover-input').addEventListener('change', uploadCover);
 
     await load();
     loadCourseAndCertificate();
 
+    /** Tải ảnh bìa lên rồi GHI vào hồ sơ — chỉ tải lên thôi thì tệp nằm trên máy chủ nhưng hồ sơ không trỏ tới,
+     *  tải lại trang là ảnh bìa biến mất. Ảnh hiện ngay từ máy người dùng trong lúc chờ; lỗi thì trả về ảnh cũ. */
     async function uploadCover(e) {
         const file = e.target.files[0];
         if (!file) return;
 
+        const localPreviewUrl = URL.createObjectURL(file);
+        renderCover(localPreviewUrl);
         try {
-            const localPreviewUrl = URL.createObjectURL(file);
-            const coverEl = document.getElementById('acc-cover');
-            coverEl.style.backgroundImage = `url('${localPreviewUrl}')`;
-            coverEl.style.backgroundSize = 'cover';
-            coverEl.style.backgroundPosition = 'center';
-
             const uploaded = await API.upload(file, 'cover');
+            profile = await API.put('/auth/me/cover', { coverUrl: uploaded.url });
+            renderProfile();
             toastOk(t('account.daCapNhatAnhBia', 'Đã cập nhật ảnh bìa.'));
-            
         } catch (ex) {
-            toastErr("Lỗi Server: " + ex.message);
+            renderCover(profile?.coverUrl);
+            toastErr(ex.message);
         } finally {
+            URL.revokeObjectURL(localPreviewUrl);
             e.target.value = '';
         }
+    }
+
+    /** Vẽ ảnh bìa; không có ảnh thì về dải màu mặc định trong CSS của .profile-cover. */
+    function renderCover(url) {
+        const coverEl = document.getElementById('acc-cover');
+        if (!url) { coverEl.style.removeProperty('background'); return; }
+        // encodeURI + thay dấu nháy: url đi thẳng vào CSS, không để ký tự nào phá vỡ chuỗi url('...').
+        coverEl.style.background = `center / cover no-repeat url('${encodeURI(url).replace(/'/g, '%27')}')`;
     }
 
     async function load() {
@@ -370,7 +382,7 @@
         document.getElementById('d-position').textContent = profile.positionName || '—';
         document.getElementById('d-created').textContent = formatDate(profile.createdAt);
         document.getElementById('d-last-login').textContent = profile.lastLoginAt ? formatDate(profile.lastLoginAt, true) : t('account.chuaDangNhapLanNaoKhac', 'Chưa đăng nhập lần nào khác');
-        document.getElementById('cover-input').addEventListener('change', uploadCover);
+        renderCover(profile.coverUrl);
         Auth.save(Auth.token, { ...Auth.profile, ...profile });
     }
 

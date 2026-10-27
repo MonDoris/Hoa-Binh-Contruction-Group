@@ -16,6 +16,9 @@ public interface IAuthService
     /// <summary>Cập nhật hồ sơ cá nhân (họ tên, số điện thoại, ảnh đại diện).</summary>
     Task<Result> UpdateMe(UpdateProfileRequest request);
 
+    /// <summary>Đổi (hoặc gỡ) ảnh bìa trang tài khoản của chính mình.</summary>
+    Task<Result> UpdateMyCover(UpdateCoverRequest request);
+
     Task<Result> ChangePassword(ChangePasswordRequest request);
 
     /// <summary>Bước 1 quên mật khẩu: gửi mã OTP 6 số qua Zalo ZNS, SMS hoặc Email tùy kênh được chọn.</summary>

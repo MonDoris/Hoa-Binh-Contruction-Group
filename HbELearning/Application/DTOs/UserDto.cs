@@ -20,7 +20,9 @@ public record UserProfileDto(
     /// danh sách quản lý khóa học thông thường — giống cách IsApprovalDelegate mở đường cho người được ủy quyền duyệt thay.</summary>
     bool IsWorkflowApprover = false,
     /// <summary>Tên tài khoản đăng nhập thay cho email — null nếu tài khoản chưa đặt. Xem <see cref="User.UserName"/>.</summary>
-    string? UserName = null);
+    string? UserName = null,
+    /// <summary>Ảnh bìa trang tài khoản — xem <see cref="User.CoverUrl"/>.</summary>
+    string? CoverUrl = null);
 
 public record UserListDto(
     int Id, string EmployeeCode, string FullName, string Email, string RoleName,
@@ -78,3 +80,7 @@ public class UpdateProfileRequest
     [MaxLength(20)] public string? PhoneNumber { get; set; }
     [MaxLength(500)] public string? AvatarUrl { get; set; }
 }
+
+/// <summary>Đổi ảnh bìa trang tài khoản. Tách khỏi <see cref="UpdateProfileRequest"/>: biểu mẫu "Sửa hồ sơ" không
+/// biết gì về ảnh bìa, gộp chung thì mỗi lần lưu họ tên là ảnh bìa bị xóa mất. Null = về ảnh bìa mặc định.</summary>
+public record UpdateCoverRequest([MaxLength(500)] string? CoverUrl);

@@ -333,7 +333,8 @@ public class CertificateService : ICertificateService
                 x.Enrollment.CourseId, x.Enrollment.Course.Code, x.Enrollment.Course.Title,
                 x.Enrollment.UserId, x.Enrollment.User.FullName, x.Enrollment.User.EmployeeCode,
                 x.Enrollment.User.Department != null ? x.Enrollment.User.Department.Name : null,
-                x.Enrollment.User.Position != null ? x.Enrollment.User.Position.Name : null))
+                x.Enrollment.User.Position != null ? x.Enrollment.User.Position.Name : null,
+                x.Enrollment.User.AvatarUrl))
             .ToListAsync();
     }
 }

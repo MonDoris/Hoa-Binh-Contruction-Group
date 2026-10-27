@@ -74,57 +74,176 @@
 .vip-cert-item.revoked .vip-cert-meta, .vip-cert-item.revoked .vip-cert-actions { border-left-color: var(--danger); }
 
 /* ================= CHỨNG NHẬN CỦA NHÂN VIÊN CẤP DƯỚI =================
-   Danh sách xếp gọn: mỗi người một dòng, bấm vào tên thì xổ chứng nhận của người đó ra ngay bên dưới.
-   Cố ý KHÔNG đẩy sang một trang riêng — người quản lý thường rà vài người liền nhau, mà mỗi lượt rà đi
-   kèm một lần tải trang thì họ mất chỗ đang đứng sau mỗi người. */
-.sub-cert-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.sub-cert-head .body { flex: 1; min-width: 200px; }
-.sub-cert-head h3 { font-size: 16px; font-weight: 700; }
-.sub-cert-head small { color: var(--text-muted); font-size: 12.5px; }
-
-.sub-cert-search { position: relative; flex-shrink: 0; }
-.sub-cert-search i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
-.sub-cert-search input {
-    width: 260px; max-width: 100%; padding: 8px 12px 8px 32px; border-radius: 10px;
-    border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; font-size: 13px;
+   Ba tầng: đầu khối (đang xem phòng ban nào) → dải số liệu tổng quan → hai cột "danh sách nhân viên | chứng
+   nhận của người đang chọn". Danh sách luôn nằm bên trái chứ không giấu trong một ô chọn: người quản lý thường
+   rà vài người liền nhau, nhìn thấy cả phòng một lượt (ai có, ai chưa có chứng nhận) mới là thứ họ cần. */
+.sub-box { overflow: hidden; }
+.sub-head { display: flex; align-items: center; gap: 14px; padding: 18px 20px; flex-wrap: wrap; }
+.sub-head-icon {
+    flex: none; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+    font-size: 22px; color: var(--primary); background: var(--primary-light);
 }
-.sub-cert-search input:focus { outline: none; border-color: var(--primary); }
+.sub-head-text { flex: 1; min-width: 200px; }
+.sub-head-text h3 { font-size: 17px; font-weight: 800; letter-spacing: -.2px; }
+.sub-head-text p { margin-top: 2px; font-size: 13px; color: var(--text-muted); }
+/* Nhiều phòng ban: ô chọn phòng ban nằm ngay trên đầu khối — nó đổi CẢ dải số liệu lẫn danh sách bên dưới. */
+.sub-dept { width: 300px; max-width: 100%; }
 
-.sub-cert-body { padding: 16px 20px 20px; }
+.sub-kpi { margin: 0 20px 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sub-kpi .ops-kpi-cell { padding: 14px 18px 12px; }
+.sub-kpi .ops-kpi-value { font-size: 26px; }
 
-/* Hai ô chọn đặt cạnh nhau: Phòng ban bên trái, Nhân viên bên phải — đọc từ trái sang là đúng thứ tự
-   phải chọn. Trước đây là hai dải viên thuốc cuộn ngang; một phòng ban vài chục người thì cái tên cần tìm
-   nằm khuất ngoài mép phải, phải cuộn mò. Ô chọn có sẵn ô gõ để tìm (enhanceSearchableSelect trong app.js)
-   nên gõ vài chữ là ra, dù danh sách dài bao nhiêu. */
-.sub-filter-grid {
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px 16px; margin-bottom: 14px;
-}
-/* Chỉ quản lý một phòng ban thì không có ô Phòng ban — ô Nhân viên không cần giãn hết bề ngang. */
-.sub-filter-grid.single { grid-template-columns: minmax(0, 1fr); max-width: 420px; }
-.sub-filter > label {
-    display: block; margin-bottom: 6px;
-    font-size: 12px; font-weight: 600; color: var(--text-muted);
+.sub-layout {
+    display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    border-top: 1px solid var(--border); min-height: 420px;
 }
 
+/* ----- Cột trái: tìm + lọc + danh sách người ----- */
+.sub-people { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--border); background: var(--bg); }
+.sub-people-tools { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-bottom: 1px solid var(--border); }
+.sub-search { position: relative; }
+.sub-search i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.sub-search input {
+    width: 100%; padding: 9px 12px 9px 34px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 13px;
+}
+.sub-search input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
+.sub-search input:disabled { opacity: .6; cursor: not-allowed; }
+
+.sub-seg { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.sub-seg button {
+    flex: 1; min-width: 0; padding: 6px 4px; border: 0; border-radius: 7px; background: transparent; cursor: pointer;
+    font: 600 12px/1.2 var(--font-sans, inherit); color: var(--text-muted); white-space: nowrap;
+}
+.sub-seg button.on { background: var(--primary-light); color: var(--primary-dark); }
+.sub-seg button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+.sub-people-list { flex: 1; overflow-y: auto; max-height: 560px; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.sub-person {
+    display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 10px; text-align: left;
+    border: 1px solid transparent; border-radius: 10px; background: transparent; color: inherit; cursor: pointer;
+    font: inherit; transition: background .15s, border-color .15s;
+}
+.sub-person:hover { background: var(--surface); }
+.sub-person:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.sub-person.on { background: var(--surface); border-color: var(--primary); box-shadow: var(--shadow-xs); }
+.sub-person .avatar { width: 38px; height: 38px; font-size: 14px; }
+.sub-person-text { flex: 1; min-width: 0; }
+.sub-person-text b, .sub-person-text small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub-person-text b { font-size: 13.5px; font-weight: 700; }
+.sub-person-text small { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+/* Số chứng nhận: xanh khi có, xám khi chưa — kèm con số, không để màu là tín hiệu duy nhất. */
+.sub-count {
+    flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; background: var(--border); color: var(--text-muted);
+}
+.sub-count.has { background: color-mix(in srgb, var(--success) 14%, var(--surface)); color: var(--success); }
+/* "Tất cả phòng ban": nhãn tên phòng đứng đầu mỗi nhóm người, dính lên đỉnh khi cuộn. */
+.sub-group-label {
+    position: sticky; top: -8px; z-index: 1; display: flex; align-items: center; gap: 6px;
+    margin: 8px -8px 2px; padding: 6px 12px; background: var(--bg);
+    font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; color: var(--text-muted);
+}
+.sub-group-label:first-child { margin-top: -8px; }
+.sub-group-label span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sub-group-label small { font-size: 11px; font-weight: 700; }
+.sub-list-note {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 18px 12px; text-align: center; font-size: 12.5px; color: var(--text-muted); line-height: 1.5;
+}
+.sub-list-note i { font-size: 28px; opacity: .7; }
+
+/* ----- Cột phải: chứng nhận của người đang chọn ----- */
+.sub-panel { min-width: 0; padding: 20px; container-type: inline-size; }
+.sub-profile {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px dashed var(--border);
+}
+.sub-profile .avatar { width: 56px; height: 56px; font-size: 20px; }
+.sub-profile-text { flex: 1; min-width: 180px; }
+.sub-profile-text h4 { font-size: 18px; font-weight: 800; letter-spacing: -.2px; }
+.sub-profile-text p { margin-top: 3px; font-size: 13px; color: var(--text-muted); }
+.sub-profile-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Đầu khung đã ghi tên, mã và phòng ban — trên từng thẻ chứng nhận bên dưới thì bỏ dòng đó cho đỡ lặp. */
+.sub-panel .vip-cert-user { display: none; }
+
+/* ================= CHỨNG NHẬN TOÀN CÔNG TY =================
+   Bộ lọc (phòng ban → nhân viên → từ khóa) rồi danh sách gom theo phòng ban, trong mỗi phòng gom theo người. */
+.ac-tools { margin-bottom: 20px; }
+.ac-tools .register-filter-row .field { min-width: 240px; }
+.ac-summary { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.ac-summary h3 { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
+.ac-summary .muted { font-size: 13px; }
+.ac-summary .btn { margin-left: auto; align-self: center; }
+
+/* Mỗi phòng ban là một <details> thu gọn sẵn — bấm dòng tên phòng mới xổ danh sách người ra. */
+.ac-dept { border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.ac-dept + .ac-dept { margin-top: 12px; }
+.ac-dept-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 12px 16px; cursor: pointer; list-style: none; border-radius: 14px;
+}
+.ac-dept-head::-webkit-details-marker { display: none; }
+.ac-dept-head:hover { background: var(--bg); }
+.ac-dept-head:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.ac-dept[open] > .ac-dept-head { border-bottom: 1px solid var(--border); border-radius: 14px 14px 0 0; }
+.ac-dept-caret { font-size: 16px; color: var(--text-muted); transition: transform .2s; }
+.ac-dept[open] .ac-dept-caret { transform: rotate(180deg); }
+.ac-dept-body { padding: 16px; }
+/* Dãy ảnh đại diện chồng mép — nhìn dòng phòng ban đã biết trong đó có những ai. */
+.ac-dept-faces { display: flex; margin-left: auto; padding-left: 8px; }
+.ac-dept-faces .avatar { width: 28px; height: 28px; font-size: 11px; border: 2px solid var(--surface); margin-left: -8px; }
+.ac-dept-faces .ac-more { background: var(--border); color: var(--text-muted); font-weight: 700; }
+.ac-dept-icon {
+    flex: none; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+    font-size: 17px; color: var(--primary); background: var(--primary-light);
+}
+.ac-dept-head h3 { font-size: 17px; font-weight: 800; letter-spacing: -.2px; }
+.ac-dept-head .muted { font-size: 13px; }
+
+.ac-person + .ac-person { margin-top: 20px; }
+.ac-person-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding-left: 2px; }
+.ac-person-head .avatar { width: 34px; height: 34px; font-size: 13px; }
+.ac-person-text { flex: 1; min-width: 0; }
+.ac-person-text b { display: block; font-size: 14.5px; font-weight: 700; }
+.ac-person-text small { display: block; font-size: 12px; color: var(--text-muted); }
+/* Tên, mã và phòng ban đã nằm ở đầu nhóm — bỏ dòng đó trên từng thẻ cho đỡ lặp. */
+.ac-person .vip-cert-user { display: none; }
+
+.sub-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    min-height: 340px; padding: 24px; color: var(--text-muted);
+}
+.sub-empty-icon {
+    width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 14px;
+    font-size: 34px; color: var(--primary); background: var(--primary-light);
+}
+.sub-empty h4 { font-size: 15.5px; font-weight: 700; color: var(--text); }
+.sub-empty p { max-width: 340px; margin-top: 4px; font-size: 13px; line-height: 1.55; }
+
+/* Khung phải hẹp (màn vừa) thì thẻ chứng nhận xếp dọc, dù cửa sổ còn rộng hơn mốc 820px bên dưới. */
+@container (max-width: 640px) {
+    .vip-cert-item { flex-direction: column; align-items: stretch; gap: 14px; padding: 16px; }
+    .vip-cert-meta, .vip-cert-actions { border-left: none; border-top: 1px dashed #fbbf24; padding-left: 0; padding-top: 14px; }
+    .vip-cert-item.revoked .vip-cert-meta, .vip-cert-item.revoked .vip-cert-actions { border-top-color: var(--danger); }
+    .vip-cert-actions { flex-direction: row; }
+    .vip-cert-actions .btn { flex: 1; }
+}
+
+@media (max-width: 900px) {
+    .sub-layout { grid-template-columns: minmax(0, 1fr); }
+    .sub-people { border-right: 0; border-bottom: 1px solid var(--border); }
+    .sub-people-list { max-height: 320px; }
+}
 @media (max-width: 640px) {
-    .sub-filter-grid { grid-template-columns: minmax(0, 1fr); }
-}
-
-/* Đầu khung kết quả: luôn nói rõ ĐANG xem chứng nhận của ai — ô chọn chỉ hiện một dòng tên, thiếu mã
-   nhân viên và chức danh để phân biệt hai người trùng tên. */
-.sub-panel-head {
-    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-    padding-bottom: 10px; margin-bottom: 4px; border-bottom: 1px dashed var(--border);
-}
-.sub-panel-head b { font-size: 15px; }
-.sub-panel-head small { font-size: 12px; color: var(--text-muted); }
-
-
-.sub-note { padding: 10px 20px; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border); }
-
-@media (max-width: 640px) {
-    .sub-cert-body { padding: 12px 14px 16px; }
+    .sub-head { padding: 14px 16px; }
+    .sub-kpi { margin: 0 16px 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .sub-kpi .ops-kpi-cell { padding: 10px 12px; border-left: 1px solid var(--border); border-top: 0; }
+    .sub-kpi .ops-kpi-cell:first-child { border-left: 0; }
+    .sub-kpi .ops-kpi-icon { display: none; }
+    .sub-kpi .ops-kpi-value { font-size: 22px; }
+    .sub-panel { padding: 16px; }
+    .sub-dept { width: 100%; }
 }
 
 /* Responsive cho điện thoại */
@@ -878,8 +997,21 @@
     let selectedUserId = null;
     /** Phòng ban đang được chọn ở bậc lọc thứ nhất, null = chưa chọn. */
     let selectedDepartmentId = null;
+    /** Toàn bộ người của phòng ban đang chọn (CHƯA lọc theo từ khóa) — dải số liệu tính trên danh sách này, để
+     *  gõ tìm một cái tên không làm các con số tổng quan nhảy theo. */
+    let deptPeopleList = [];
+    /** Lọc nhanh danh sách bên trái: 'all' | 'has' (đã có chứng nhận) | 'none' (chưa có). */
+    let peopleFilter = 'all';
+    /** Bộ lọc của danh sách chứng nhận toàn công ty (Chuyên viên đào tạo, Giảng viên): phòng ban -> nhân viên
+     *  -> từ khóa, lọc ngay trên trình duyệt vì cả danh sách đã nằm sẵn trong `list`. '' = không lọc. */
+    const allCertFilter = { departmentKey: '', userId: '', keyword: '' };
+    /** Phòng ban người xem đã tự bấm mở — mặc định thu gọn hết, và giữ nguyên lựa chọn qua các lượt vẽ lại. */
+    const openDepartmentKey = new Set();
     /** Đúng một phòng ban thì bỏ hẳn bậc lọc đó đi — bắt người ta bấm một lựa chọn duy nhất là vô nghĩa. */
     const singleDepartment = departmentList.length === 1;
+    /** Giá trị "Tất cả phòng ban" của bậc lọc thứ nhất (Admin / Tổng Giám Đốc nhìn nhiều phòng). Id phòng ban thật
+     *  từ 1 trở lên, 0 là "Chưa gắn phòng ban" — nên -1 không đụng ai. */
+    const ALL_DEPARTMENT = -1;
     // Cả danh sách chính cũng vào chung bộ nhớ đệm: nút "Xem chi tiết" giờ tra theo id chứng nhận chứ
     // không còn theo vị trí trong mảng — một chỉ số vốn sai ngay khi trang có thêm khối thứ hai cũng vẽ thẻ.
     list.forEach(c => certById.set(c.id, c));
@@ -891,12 +1023,16 @@
         subordinateList = await API.getSilent(
             `/certificate/subordinate?departmentId=${selectedDepartmentId}`).catch(() => []);
         subordinateList.forEach(u => personById.set(u.userId, u));
+        deptPeopleList = subordinateList;
     }
 
     // Có khối nhân viên cấp dưới thì bỏ hẳn danh sách "N chứng nhận đã được cấp" bên dưới: chứng nhận của
     // từng người đã xem được qua hai ô chọn ở trên, để thêm một danh sách dài nữa chỉ là lặp lại. Không có
     // khối đó (nhân viên thường) thì danh sách này là thứ DUY NHẤT trên trang, nên vẫn giữ.
-    const internalHtml = departmentList.length ? subordinateSectionHtml() : (list.length ? `
+    // Vai trò xem được chứng nhận CẢ công ty (Chuyên viên đào tạo...) thì danh sách đó gồm người của mọi phòng
+    // ban — xếp theo phòng ban -> người và có bộ lọc, đổ phẳng ra thì không biết thẻ nào của ai.
+    const internalHtml = departmentList.length ? subordinateSectionHtml()
+        : (Auth.isManager && list.length) ? allCertSectionHtml() : (list.length ? `
         <div style="margin-bottom: 24px;">
             <h3 style="font-size: 20px; font-weight: 800; letter-spacing: -0.3px;">${list.length} chứng nhận đã được cấp</h3>
         </div>
@@ -919,50 +1055,325 @@
     });
 
     bindSubordinateSection();
+    bindAllCertSection();
     bindExternalFeature();
     bindCertTabs();
+
+    // ==================== CHỨNG NHẬN TOÀN CÔNG TY (Chuyên viên đào tạo...) ====================
+
+    /** Khóa nhóm phòng ban của một chứng nhận — DTO chỉ mang tên phòng ban, không mang id. Người chưa gắn
+     *  phòng ban dồn vào một nhóm riêng có khóa '-', không bao giờ trùng tên phòng ban thật. */
+    function departmentKeyOf(c) { return c.departmentName || '-'; }
+
+    function departmentLabelOf(key) {
+        return key === '-' ? t('certificate.regNoDepartment', 'Chưa gắn phòng ban') : key;
+    }
+
+    /** Phòng ban theo vần, nhóm "Chưa gắn phòng ban" luôn nằm cuối — đó là chỗ dồn sót, không phải nơi xem đầu tiên. */
+    function compareDepartmentKey(a, b) {
+        if (a === b) return 0;
+        if (a === '-') return 1;
+        if (b === '-') return -1;
+        return a.localeCompare(b, 'vi');
+    }
+
+    /** Gom một danh sách chứng nhận thành phòng ban -> người -> chứng nhận (mới cấp trước). */
+    function groupCertificate(certificateList) {
+        const departmentMap = new Map();
+        certificateList.forEach(c => {
+            const key = departmentKeyOf(c);
+            if (!departmentMap.has(key)) departmentMap.set(key, new Map());
+            const personMap = departmentMap.get(key);
+            if (!personMap.has(c.userId)) personMap.set(c.userId, []);
+            personMap.get(c.userId).push(c);
+        });
+
+        return [...departmentMap.entries()]
+            .sort(([a], [b]) => compareDepartmentKey(a, b))
+            .map(([key, personMap]) => ({
+                key,
+                personList: [...personMap.values()]
+                    .map(certList => certList.sort((a, b) => new Date(b.issuedAt) - new Date(a.issuedAt)))
+                    .sort((a, b) => a[0].userFullName.localeCompare(b[0].userFullName, 'vi'))
+            }));
+    }
+
+    function allCertSectionHtml() {
+        return `
+            <div class="card ac-tools">
+                <div class="card-body register-filter-row">
+                    <div class="field">
+                        <label for="ac-dept">${esc(t('certificate.department', 'Phòng ban'))}</label>
+                        <select id="ac-dept">${allCertDepartmentOptionHtml()}</select>
+                    </div>
+                    <div class="field">
+                        <label for="ac-user">${esc(t('certificate.employee', 'Nhân viên'))}</label>
+                        <select id="ac-user">${allCertPersonOptionHtml()}</select>
+                    </div>
+                    <div class="field grow">
+                        <label for="ac-keyword">${esc(t('certificate.regSearch', 'Tìm kiếm'))}</label>
+                        <input type="search" id="ac-keyword" autocomplete="off"
+                               placeholder="${esc(t('certificate.searchPh', 'Tìm tên, mã NV, chứng nhận...'))}">
+                    </div>
+                </div>
+            </div>
+            <div class="ac-summary" id="ac-summary"></div>
+            <div id="ac-body"></div>`;
+    }
+
+    function allCertDepartmentOptionHtml() {
+        const countMap = new Map();
+        list.forEach(c => countMap.set(departmentKeyOf(c), (countMap.get(departmentKeyOf(c)) || 0) + 1));
+        return `<option value="">${esc(t('certificate.allDepartment', 'Mọi phòng ban'))}</option>`
+            + [...countMap.keys()].sort(compareDepartmentKey).map(key => `
+                <option value="${esc(key)}">${esc(departmentLabelOf(key))} (${countMap.get(key)})</option>`).join('');
+    }
+
+    /** Ô chọn nhân viên chỉ liệt kê người của phòng ban đang chọn — chọn phòng ban trước là thu hẹp luôn danh sách tên. */
+    function allCertPersonOptionHtml() {
+        const personMap = new Map();
+        list.filter(c => !allCertFilter.departmentKey || departmentKeyOf(c) === allCertFilter.departmentKey)
+            .forEach(c => {
+                const person = personMap.get(c.userId) || { ...c, count: 0 };
+                person.count++;
+                personMap.set(c.userId, person);
+            });
+        return `<option value="">${esc(t('certificate.allEmployee', 'Mọi nhân viên'))}</option>`
+            + [...personMap.values()]
+                .sort((a, b) => a.userFullName.localeCompare(b.userFullName, 'vi'))
+                .map(p => `<option value="${p.userId}">${esc(p.userFullName)} · ${esc(p.employeeCode)} (${p.count})</option>`).join('');
+    }
+
+    function filteredAllCert() {
+        const keyword = normalizeForSearch(allCertFilter.keyword.trim());
+        return list.filter(c =>
+            (!allCertFilter.departmentKey || departmentKeyOf(c) === allCertFilter.departmentKey) &&
+            (!allCertFilter.userId || c.userId === +allCertFilter.userId) &&
+            (!keyword || normalizeForSearch([c.userFullName, c.employeeCode, c.courseTitle, c.courseCode, c.certificateNo]
+                .filter(Boolean).join(' ')).includes(keyword)));
+    }
+
+    function renderAllCert() {
+        const body = document.getElementById('ac-body');
+        if (!body) return;
+
+        const shownList = filteredAllCert();
+        const groupList = groupCertificate(shownList);
+        const personCount = groupList.reduce((sum, g) => sum + g.personList.length, 0);
+        const isFiltered = !!(allCertFilter.departmentKey || allCertFilter.userId || allCertFilter.keyword.trim());
+
+        document.getElementById('ac-summary').innerHTML = `
+            <h3>${shownList.length} ${esc(t('certificate.issuedCount', 'chứng nhận đã được cấp'))}</h3>
+            <span class="muted">${personCount} ${esc(t('certificate.peopleUnit', 'nhân viên'))} · ${groupList.length} ${esc(t('certificate.departmentUnit', 'phòng ban'))}</span>
+            ${isFiltered ? `<button type="button" class="btn ghost sm" data-ac-clear><i class="ph ph-x"></i> ${esc(t('certificate.clearFilter', 'Xóa bộ lọc'))}</button>` : ''}`;
+
+        if (!shownList.length) {
+            body.innerHTML = emptyHtml(t('certificate.filterEmpty', 'Không có chứng nhận nào khớp bộ lọc.'), '<i class="ph ph-funnel"></i>');
+            return;
+        }
+
+        const certUnit = esc(t('certificate.certUnit', 'chứng nhận'));
+        // Đang lọc thì xổ sẵn mọi nhóm còn lại — lọc xong mà vẫn phải bấm mở từng phòng thì bộ lọc mất nửa tác dụng.
+        body.innerHTML = groupList.map(group => `
+            <details class="ac-dept" data-dept-key="${esc(group.key)}"${isFiltered || openDepartmentKey.has(group.key) ? ' open' : ''}>
+                <summary class="ac-dept-head">
+                    <span class="ac-dept-icon"><i class="ph ph-buildings"></i></span>
+                    <h3>${esc(departmentLabelOf(group.key))}</h3>
+                    <span class="muted">${group.personList.length} ${esc(t('certificate.peopleUnit', 'nhân viên'))} · ${group.personList.reduce((sum, p) => sum + p.length, 0)} ${certUnit}</span>
+                    <span class="ac-dept-faces" aria-hidden="true">
+                        ${group.personList.slice(0, 5).map(certList => personAvatarHtml(personOfCert(certList[0]))).join('')}
+                        ${group.personList.length > 5 ? `<span class="avatar ac-more">+${group.personList.length - 5}</span>` : ''}
+                    </span>
+                    <i class="ph ph-caret-down ac-dept-caret"></i>
+                </summary>
+                <div class="ac-dept-body">
+                ${group.personList.map(certList => {
+                    const c = certList[0];
+                    return `
+                        <div class="ac-person">
+                            <div class="ac-person-head">
+                                ${personAvatarHtml(personOfCert(c))}
+                                <div class="ac-person-text">
+                                    <b>${esc(c.userFullName)}</b>
+                                    <small>${esc(c.employeeCode)}${c.positionName ? ' · ' + esc(c.positionName) : ''}</small>
+                                </div>
+                                <span class="badge blue">${certList.length} ${certUnit}</span>
+                            </div>
+                            <div class="vip-cert-list">${certList.map(vipCertItemHtml).join('')}</div>
+                        </div>`;
+                }).join('')}
+                </div>
+            </details>`).join('');
+    }
+
+    /** Thông tin người nhận theo đúng dạng personAvatarHtml() cần. */
+    function personOfCert(c) {
+        return { fullName: c.userFullName, avatarUrl: c.userAvatarUrl };
+    }
+
+    function bindAllCertSection() {
+        const body = document.getElementById('ac-body');
+        if (!body) return;
+
+        const departmentSelect = document.getElementById('ac-dept');
+        const personSelect = document.getElementById('ac-user');
+        const keywordInput = document.getElementById('ac-keyword');
+        enhanceSearchableSelect(departmentSelect, { placeholder: t('certificate.searchDept', 'Tìm phòng ban...') });
+        enhanceSearchableSelect(personSelect, { placeholder: t('certificate.searchEmployee', 'Tìm tên hoặc mã NV...') });
+
+        /** Dựng lại ô chọn nhân viên theo phòng ban; người đang chọn không còn thuộc phòng đó thì bỏ chọn. */
+        const refreshPersonSelect = () => {
+            personSelect.innerHTML = allCertPersonOptionHtml();
+            personSelect.value = [...personSelect.options].some(o => o.value === allCertFilter.userId) ? allCertFilter.userId : '';
+            allCertFilter.userId = personSelect.value;
+            enhanceSearchableSelect(personSelect);
+        };
+
+        departmentSelect.addEventListener('change', () => {
+            allCertFilter.departmentKey = departmentSelect.value;
+            refreshPersonSelect();
+            renderAllCert();
+        });
+        personSelect.addEventListener('change', () => {
+            allCertFilter.userId = personSelect.value;
+            renderAllCert();
+        });
+        let timer;
+        keywordInput.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => { allCertFilter.keyword = keywordInput.value; renderAllCert(); }, 200);
+        });
+        // Ghi nhớ theo CÚ BẤM chứ không theo sự kiện 'toggle': nhóm tự xổ ra lúc đang lọc cũng phát 'toggle', và
+        // ghi cả chúng vào thì xóa bộ lọc xong mọi phòng vẫn mở. Lúc click, .open vẫn còn là trạng thái CŨ.
+        body.addEventListener('click', (e) => {
+            const details = e.target.closest('.ac-dept > summary')?.parentElement;
+            if (!details) return;
+            if (details.open) openDepartmentKey.delete(details.dataset.deptKey);
+            else openDepartmentKey.add(details.dataset.deptKey);
+        });
+        document.getElementById('ac-summary').addEventListener('click', (e) => {
+            if (!e.target.closest('[data-ac-clear]')) return;
+            Object.assign(allCertFilter, { departmentKey: '', userId: '', keyword: '' });
+            departmentSelect.value = '';
+            enhanceSearchableSelect(departmentSelect);
+            keywordInput.value = '';
+            refreshPersonSelect();
+            renderAllCert();
+        });
+
+        renderAllCert();
+    }
 
     // ==================== CHỨNG NHẬN CỦA NHÂN VIÊN CẤP DƯỚI ====================
 
     function subordinateSectionHtml() {
         if (!departmentList.length) return '';
 
-        const total = departmentList.reduce((sum, d) => sum + d.employeeCount, 0);
-
         return `
-            <div class="card" id="sub-cert-box">
-                <div class="card-head sub-cert-head">
-                    <div class="body">
-                       <h3 style="display: inline-flex; align-items: center; gap: 10px;">
-                       <i class="ph ph-users-three"></i>
-                        <span style="margin-top: 5px">Chứng nhận của nhân viên cấp dưới</span>
-                    </h3>
-                        
+            <div class="card sub-box" id="sub-cert-box">
+                <div class="sub-head">
+                    <div class="sub-head-icon"><i class="ph ph-users-three"></i></div>
+                    <div class="sub-head-text">
+                        <h3>Chứng nhận của nhân viên cấp dưới</h3>
+                        <p id="sub-head-note">${esc(headNoteText())}</p>
                     </div>
-                    <div class="sub-cert-search">
-                        <i class="ph ph-magnifying-glass"></i>
-                        <input id="sub-search" type="search" autocomplete="off" placeholder="Tìm theo tên hoặc mã nhân viên...">
-                    </div>
+                    ${singleDepartment ? '' : `
+                        <div class="sub-dept">
+                            <select id="dept-select" aria-label="Phòng ban">${departmentOptionListHtml()}</select>
+                        </div>`}
                 </div>
-                <div class="sub-cert-body">
-                    <div class="sub-filter-grid${singleDepartment ? ' single' : ''}">
-                        ${singleDepartment ? '' : `
-                            <div class="sub-filter">
-                                <label for="dept-select">Phòng ban</label>
-                                <select id="dept-select">${departmentOptionListHtml()}</select>
-                            </div>`}
-                        <div class="sub-filter">
-                            <label for="sub-select">Nhân viên</label>
-                            <select id="sub-select"></select>
+                <div class="ops-kpi sub-kpi" id="sub-kpi">${kpiHtml()}</div>
+                <div class="sub-layout">
+                    <aside class="sub-people" aria-label="Danh sách nhân viên">
+                        <div class="sub-people-tools">
+                            <div class="sub-search">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input id="sub-search" type="search" autocomplete="off" aria-label="Tìm nhân viên"
+                                       placeholder="Tìm theo tên hoặc mã nhân viên...">
+                            </div>
+                            <div class="sub-seg" id="sub-seg" role="group" aria-label="Lọc theo chứng nhận">
+                                <button type="button" data-filter="all">Tất cả</button>
+                                <button type="button" data-filter="has" title="Đã có chứng nhận">Đã có</button>
+                                <button type="button" data-filter="none" title="Chưa có chứng nhận">Chưa có</button>
+                            </div>
                         </div>
-                    </div>
-                    <div id="sub-cert-panel">${panelHintHtml()}</div>
+                        <div class="sub-people-list" id="sub-people-list"></div>
+                    </aside>
+                    <section class="sub-panel" id="sub-cert-panel" aria-live="polite">${panelHintHtml()}</section>
                 </div>
+            </div>`;
+    }
+
+    /** Dòng phụ dưới tiêu đề khối: đang xem phòng ban nào, bao nhiêu người. */
+    function headNoteText() {
+        const department = departmentList.find(d => d.departmentId === selectedDepartmentId);
+        if (department) return `${department.name} · ${department.employeeCount} nhân viên`;
+        const total = allDepartmentEmployeeCount();
+        if (selectedDepartmentId === ALL_DEPARTMENT) return `Tất cả ${departmentList.length} phòng ban · ${total} nhân viên`;
+        return `${departmentList.length} phòng ban · ${total} nhân viên — chọn một phòng ban để bắt đầu`;
+    }
+
+    function allDepartmentEmployeeCount() {
+        return departmentList.reduce((sum, d) => sum + d.employeeCount, 0);
+    }
+
+    /** Tham số lọc phòng ban gửi lên máy chủ — "Tất cả phòng ban" thì không gửi gì. */
+    function departmentQuery(departmentId) {
+        return departmentId === ALL_DEPARTMENT ? '' : `departmentId=${departmentId}`;
+    }
+
+    /** Dải ba con số của phòng ban đang chọn. Chưa chọn phòng ban thì hiện gạch ngang thay vì số 0 — số 0 nói
+     *  "phòng này không ai có chứng nhận", điều không hề đúng. */
+    function kpiHtml() {
+        const ready = singleDepartment || selectedDepartmentId !== null;
+        const department = selectedDepartmentId === ALL_DEPARTMENT
+            ? { employeeCount: allDepartmentEmployeeCount() }
+            : departmentList.find(d => d.departmentId === selectedDepartmentId);
+        const total = deptPeopleList.length;
+        const withCert = deptPeopleList.filter(u => u.certificateCount > 0).length;
+        const percent = total ? Math.round(withCert / total * 100) : 0;
+
+        const cell = (i, tone, icon, label, value, foot) => `
+            <div class="ops-kpi-cell" style="--i:${i}; --tone:${tone}">
+                <div class="ops-kpi-top"><span class="ops-kpi-label">${label}</span><span class="ops-kpi-icon"><i class="ph ${icon}"></i></span></div>
+                <div class="ops-kpi-value">${ready ? value : '—'}</div>
+                <div class="ops-kpi-foot">${ready ? foot : '&nbsp;'}</div>
+            </div>`;
+
+        return cell(0, 'var(--primary)', 'ph-users', 'Nhân viên', total,
+                // Máy chủ trả tối đa 100 người một lượt — nói rõ khi phòng đông hơn thế, kẻo người xem tưởng thiếu người.
+                department && department.employeeCount > total ? `Hiện ${total}/${department.employeeCount} người — gõ tên để tìm`
+                    : selectedDepartmentId === ALL_DEPARTMENT ? 'Toàn công ty' : 'Trong phòng ban')
+            + cell(1, 'var(--success)', 'ph-seal-check', 'Đã có chứng nhận', withCert, `${percent}% nhân viên`)
+            + cell(2, 'var(--warning)', 'ph-hourglass-medium', 'Chưa có chứng nhận', total - withCert, 'Chưa hoàn thành khóa nào');
+    }
+
+    function refreshSummary() {
+        const note = document.getElementById('sub-head-note');
+        const kpi = document.getElementById('sub-kpi');
+        if (note) note.textContent = headNoteText();
+        if (kpi) kpi.innerHTML = kpiHtml();
+    }
+
+    /** Ảnh đại diện, hoặc chữ cái đầu của tên khi chưa có ảnh. */
+    function personAvatarHtml(person) {
+        return person?.avatarUrl
+            ? `<img class="avatar" src="${esc(person.avatarUrl)}" alt="">`
+            : `<span class="avatar" aria-hidden="true">${esc(initial(person?.fullName))}</span>`;
+    }
+
+    function emptyBlockHtml(icon, title, text) {
+        return `
+            <div class="sub-empty">
+                <div class="sub-empty-icon"><i class="ph ${icon}"></i></div>
+                <h4>${esc(title)}</h4>
+                <p>${esc(text)}</p>
             </div>`;
     }
 
     function departmentOptionListHtml() {
         return '<option value="">— Chọn phòng ban —</option>'
+            + `<option value="${ALL_DEPARTMENT}">Tất cả phòng ban (${allDepartmentEmployeeCount()} người)</option>`
             + departmentList.map(d => `
                 <option value="${d.departmentId}">${esc(d.name)} (${d.employeeCount} người)</option>`).join('');
     }
@@ -1015,41 +1426,74 @@
     }
 
     function panelHintHtml() {
-        const text = (!singleDepartment && selectedDepartmentId === null)
-            ? 'Chọn một phòng ban, rồi chọn nhân viên để xem chứng nhận.'
-            : 'Chọn một nhân viên để xem chứng nhận của người đó.';
-        return `<div class="sub-note" style="padding-left:0">${text}</div>`;
+        return (!singleDepartment && selectedDepartmentId === null)
+            ? emptyBlockHtml('ph-buildings', 'Chọn phòng ban để bắt đầu',
+                'Chọn phòng ban ở góc trên, rồi bấm vào một nhân viên trong danh sách để xem chứng nhận của người đó.')
+            : emptyBlockHtml('ph-hand-pointing', 'Chọn một nhân viên',
+                'Bấm vào một người trong danh sách nhân viên để xem các chứng nhận họ đã được cấp.');
     }
 
-    /** Vẽ lại ô chọn Nhân viên theo trạng thái hiện tại.
-     *  @param {string} [message] thay cả danh sách bằng một dòng thông báo (đang tải / lỗi) và khóa ô lại. */
-    function renderSubordinateSelect(message) {
-        const select = document.getElementById('sub-select');
-        if (!select) return;
+    /** Vẽ lại danh sách nhân viên theo trạng thái hiện tại (phòng ban, từ khóa, bộ lọc nhanh).
+     *  @param {boolean} [loading] đang tải danh sách mới — hiện khung xương thay cho tên. */
+    function renderPeopleList(loading = false) {
+        const box = document.getElementById('sub-people-list');
+        if (!box) return;
 
         const needDepartment = !singleDepartment && selectedDepartmentId === null;
-        const note = message
-            || (needDepartment ? '— Chọn phòng ban trước —'
-            : !subordinateList.length
-                ? (document.getElementById('sub-search')?.value.trim()
-                    ? 'Không có nhân viên nào khớp từ khóa' : 'Phòng ban này chưa có nhân viên')
-            : null);
+        const searchInput = document.getElementById('sub-search');
+        searchInput.disabled = needDepartment;
+        document.querySelectorAll('#sub-seg [data-filter]').forEach(button => {
+            button.disabled = needDepartment;
+            button.classList.toggle('on', button.dataset.filter === peopleFilter);
+            button.setAttribute('aria-pressed', String(button.dataset.filter === peopleFilter));
+        });
 
-        // Người đang chọn có thể không còn trong danh sách mới (VD vừa gõ tìm người khác). Vẫn giữ họ làm
-        // một dòng riêng ở đầu, nếu không ô chọn nhảy về trống trong khi khung bên dưới vẫn đang hiện
-        // chứng nhận của họ — hai thứ nói hai điều khác nhau.
-        const keepSelected = selectedUserId !== null && !subordinateList.some(u => u.userId === selectedUserId)
-            ? personById.get(selectedUserId) : null;
-        const peopleList = keepSelected ? [keepSelected, ...subordinateList] : subordinateList;
+        const noteHtml = (icon, text) => `<div class="sub-list-note"><i class="ph ${icon}"></i>${esc(text)}</div>`;
+        if (loading) { box.innerHTML = skeletonHtml('list', { count: 5 }); return; }
+        if (needDepartment) { box.innerHTML = noteHtml('ph-buildings', 'Chọn phòng ban để xem danh sách nhân viên.'); return; }
 
-        select.innerHTML = note && !keepSelected
-            ? `<option value="">${esc(note)}</option>`
-            : '<option value="">— Chọn nhân viên —</option>'
-                + peopleList.map(u => `
-                    <option value="${u.userId}">${esc(u.fullName)} · ${esc(u.employeeCode)} (${u.certificateCount} chứng nhận)</option>`).join('');
-        select.value = selectedUserId ?? '';
-        select.disabled = !!message || needDepartment || (!subordinateList.length && !keepSelected);
-        enhanceSearchableSelect(select, { placeholder: 'Tìm tên hoặc mã nhân viên...' });
+        const shownList = subordinateList.filter(u =>
+            peopleFilter === 'all' || (peopleFilter === 'has') === (u.certificateCount > 0));
+
+        if (!shownList.length) {
+            box.innerHTML = noteHtml('ph-user-circle-dashed',
+                searchInput.value.trim() ? 'Không có nhân viên nào khớp từ khóa.'
+                : peopleFilter === 'has' ? 'Chưa ai trong phòng có chứng nhận.'
+                : peopleFilter === 'none' ? 'Mọi người trong phòng đều đã có chứng nhận.'
+                : 'Phòng ban này chưa có nhân viên.');
+            return;
+        }
+
+        const personHtml = u => `
+            <button type="button" class="sub-person${u.userId === selectedUserId ? ' on' : ''}" data-user="${u.userId}"
+                    aria-pressed="${u.userId === selectedUserId}">
+                ${personAvatarHtml(u)}
+                <span class="sub-person-text">
+                    <b>${esc(u.fullName)}</b>
+                    <small>${esc(u.employeeCode)}${u.positionName ? ' · ' + esc(u.positionName) : ''}</small>
+                </span>
+                <span class="sub-count${u.certificateCount ? ' has' : ''}" title="${u.certificateCount} chứng nhận">
+                    <i class="ph ph-seal-check"></i>${u.certificateCount}
+                </span>
+            </button>`;
+
+        if (selectedDepartmentId !== ALL_DEPARTMENT) { box.innerHTML = shownList.map(personHtml).join(''); return; }
+
+        // "Tất cả phòng ban": gom theo phòng, theo đúng thứ tự của ô chọn phòng ban (máy chủ đã xếp theo vần).
+        const noDepartment = 'Chưa gắn phòng ban';
+        const groupMap = new Map(departmentList.map(d => [d.departmentId === 0 ? noDepartment : d.name, []]));
+        shownList.forEach(u => {
+            const key = u.departmentName || noDepartment;
+            if (!groupMap.has(key)) groupMap.set(key, []);
+            groupMap.get(key).push(u);
+        });
+        // Nhóm "Chưa gắn phòng ban" luôn xuống cuối — đó là chỗ dồn sót, không phải nơi xem đầu tiên.
+        box.innerHTML = [...groupMap.entries()]
+            .filter(([, people]) => people.length)
+            .sort(([a], [b]) => (a === noDepartment) - (b === noDepartment))
+            .map(([name, people]) => `
+            <div class="sub-group-label"><i class="ph ph-buildings"></i><span>${esc(name)}</span><small>${people.length}</small></div>
+            ${people.map(personHtml).join('')}`).join('');
     }
 
     /** Một chỗ gắn sự kiện cho cả khối, thay vì gắn lại cho từng dòng sau mỗi lượt tìm kiếm: danh sách được
@@ -1066,12 +1510,25 @@
             departmentSelect.addEventListener('change', () => {
                 if (departmentSelect.value) selectDepartment(+departmentSelect.value);
             });
+            // Nhiều phòng ban (Admin / Tổng Giám Đốc) thì mở sẵn "Tất cả phòng ban": người nhìn toàn công ty cần
+            // thấy ngay mọi nhân viên, không phải lần lượt mở từng phòng mới biết ai ở đâu. Vẫn tải SAU lượt vẽ
+            // đầu, nên trang không phải chờ danh sách tên mới hiện ra.
+            departmentSelect.value = String(ALL_DEPARTMENT);
+            enhanceSearchableSelect(departmentSelect);
+            selectDepartment(ALL_DEPARTMENT);
         }
 
-        document.getElementById('sub-select').addEventListener('change', (e) => {
-            if (e.target.value) selectSubordinate(+e.target.value);
+        document.getElementById('sub-people-list').addEventListener('click', (e) => {
+            const item = e.target.closest('[data-user]');
+            if (item) selectSubordinate(+item.dataset.user);
         });
-        renderSubordinateSelect();
+        document.getElementById('sub-seg').addEventListener('click', (e) => {
+            const button = e.target.closest('[data-filter]');
+            if (!button || button.disabled) return;
+            peopleFilter = button.dataset.filter;
+            renderPeopleList();
+        });
+        renderPeopleList();
 
         let timer;
         document.getElementById('sub-search').addEventListener('input', (e) => {
@@ -1084,11 +1541,11 @@
                 if (!singleDepartment && selectedDepartmentId === null) return;
                 try {
                     subordinateList = await API.getSilent(
-                        `/certificate/subordinate?departmentId=${selectedDepartmentId}`
+                        `/certificate/subordinate?${departmentQuery(selectedDepartmentId)}`
                         + `&keyword=${encodeURIComponent(keyword)}`);
                 } catch { return; }
                 subordinateList.forEach(u => personById.set(u.userId, u));
-                renderSubordinateSelect();
+                renderPeopleList();
                 // CỐ Ý giữ nguyên khung kết quả bên dưới: người đang xem chứng nhận của một nhân viên rồi
                 // mới gõ tìm người tiếp theo thì xóa trắng nó đi là cướp mất thứ họ đang đọc dở. Dòng tên
                 // ở đầu khung vẫn cho biết đó là chứng nhận của ai.
@@ -1101,6 +1558,8 @@
 
         selectedDepartmentId = departmentId;
         selectedUserId = null;
+        peopleFilter = 'all';
+        deptPeopleList = [];
 
         // Đổi phòng ban thì người đang xem dở không còn thuộc phạm vi đang lọc nữa — trả khung kết quả về
         // lời gợi ý, đừng để chứng nhận của một người phòng khác nằm dưới một phòng ban vừa đổi.
@@ -1108,12 +1567,15 @@
         panel.innerHTML = panelHintHtml();
         document.getElementById('sub-search').value = '';
 
-        renderSubordinateSelect('Đang tải danh sách nhân viên...');
+        refreshSummary();
+        renderPeopleList(true);
 
         try {
-            subordinateList = await API.getSilent(`/certificate/subordinate?departmentId=${departmentId}`);
+            subordinateList = await API.getSilent(`/certificate/subordinate?${departmentQuery(departmentId)}`);
         } catch (ex) {
-            if (selectedDepartmentId === departmentId) renderSubordinateSelect(ex.message);
+            if (selectedDepartmentId === departmentId)
+                document.getElementById('sub-people-list').innerHTML =
+                    `<div class="sub-list-note"><i class="ph ph-warning"></i>${esc(ex.message)}</div>`;
             return;
         }
 
@@ -1121,14 +1583,25 @@
         if (selectedDepartmentId !== departmentId) return;
 
         subordinateList.forEach(u => personById.set(u.userId, u));
-        renderSubordinateSelect();
+        deptPeopleList = subordinateList;
+        refreshSummary();
+        renderPeopleList();
     }
 
     async function selectSubordinate(userId) {
         selectedUserId = userId;
 
+        // Đổi dòng đang sáng tại chỗ thay vì vẽ lại cả danh sách — giữ nguyên vị trí cuộn của cột trái.
+        document.querySelectorAll('#sub-people-list [data-user]').forEach(item => {
+            const on = +item.dataset.user === userId;
+            item.classList.toggle('on', on);
+            item.setAttribute('aria-pressed', String(on));
+        });
+
         const panel = document.getElementById('sub-cert-panel');
         const person = personById.get(userId);
+        // Màn hẹp: danh sách và khung kết quả xếp chồng — đưa người xem xuống chỗ chứng nhận vừa mở.
+        if (matchMedia('(max-width: 900px)').matches) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         if (!certByUser.has(userId)) {
             panel.innerHTML = skeletonHtml('list', { count: 2, avatar: false });
@@ -1136,7 +1609,8 @@
             try {
                 certificateList = await API.getSilent(`/certificate/by-user/${userId}`);
             } catch (ex) {
-                panel.innerHTML = `<div class="sub-note" style="padding-left:0">${esc(ex.message)}</div>`;
+                if (selectedUserId === userId)
+                    panel.innerHTML = emptyBlockHtml('ph-warning', 'Không tải được chứng nhận', ex.message);
                 return;
             }
 
@@ -1151,15 +1625,28 @@
     }
 
     function subordinatePanelHtml(person, certificateList) {
+        const now = new Date();
+        const activeCount = certificateList.filter(c =>
+            !c.isRevoked && !(c.expiredAt && new Date(c.expiredAt) < now)).length;
+
+        // Đầu khung luôn nói rõ ĐANG xem chứng nhận của ai — kèm mã nhân viên và chức danh để phân biệt hai
+        // người trùng tên.
         const head = person ? `
-            <div class="sub-panel-head">
-                <b>${esc(person.fullName)}</b>
-                <small>${esc(person.employeeCode)}${person.departmentName ? ' · ' + esc(person.departmentName) : ''}${person.positionName ? ' · ' + esc(person.positionName) : ''}</small>
-                <small>${certificateList.length} chứng nhận</small>
+            <div class="sub-profile">
+                ${personAvatarHtml(person)}
+                <div class="sub-profile-text">
+                    <h4>${esc(person.fullName)}</h4>
+                    <p>${esc(person.employeeCode)}${person.departmentName ? ' · ' + esc(person.departmentName) : ''}${person.positionName ? ' · ' + esc(person.positionName) : ''}</p>
+                </div>
+                <div class="sub-profile-chips">
+                    <span class="badge blue">${certificateList.length} chứng nhận</span>
+                    ${certificateList.length ? `<span class="badge green">${activeCount} còn hiệu lực</span>` : ''}
+                </div>
             </div>` : '';
 
         if (!certificateList.length)
-            return head + '<div class="sub-note" style="padding-left:0">Người này chưa được cấp chứng nhận nào.</div>';
+            return head + emptyBlockHtml('ph-seal-question', 'Chưa có chứng nhận',
+                'Người này chưa hoàn thành khóa học nào được cấp chứng nhận.');
 
         return head + `<div class="vip-cert-list">${certificateList.map(vipCertItemHtml).join('')}</div>`;
     }

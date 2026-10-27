@@ -35,10 +35,12 @@ public class AiTutorService : IAiTutorService
     private readonly ILogger<AiTutorService> _logger;
     private readonly ICurrentUser _currentUser;
     private readonly IDocumentTextExtractor _textExtractor;
+    private readonly IFileService _fileService;
 
-    public AiTutorService(IAppDbContext db, IDocumentProcessingService documentProcessing, IEmbeddingService embedding, IAiChatService chat, IMemoryCache cache, ILogger<AiTutorService> logger, ICurrentUser currentUser, IDocumentTextExtractor textExtractor)
+    public AiTutorService(IAppDbContext db, IDocumentProcessingService documentProcessing, IEmbeddingService embedding, IAiChatService chat, IMemoryCache cache, ILogger<AiTutorService> logger, ICurrentUser currentUser, IDocumentTextExtractor textExtractor, IFileService fileService)
     {
         _textExtractor = textExtractor;
+        _fileService = fileService;
         _db = db;
         _documentProcessing = documentProcessing;
         _embedding = embedding;
@@ -124,17 +126,28 @@ public class AiTutorService : IAiTutorService
             await events.SendAsync("session", new AiChatSessionDto(
                 session.Id, session.Title, 0, session.CreatedAt, session.UpdatedAt), cancellationToken);
 
-            _db.AiChatMessage.Add(new AiChatMessage
+            var userMessage = new AiChatMessage
             {
                 AiChatSessionId = session.Id,
                 Role = AiChatRole.User,
-                // Lịch sử chỉ nhớ TÊN tệp (dòng đầu, giao diện tự dựng lại thành thẻ tệp), không giữ nội dung tệp.
+                // Dòng đầu ghi TÊN tệp — giao diện dựng lại thành thẻ tệp, kể cả với câu hỏi cũ chưa giữ tệp.
                 Content = attachmentList.Count > 0
                     ? $"{AttachmentMarkerPrefix}{string.Join("; ", attachmentList.Select(x => x.FileName.Replace(';', ',').Replace(']', ')')))}]\n{question}"
                     : question
-            });
+            };
+            var storedPathList = await StoreAttachmentListAsync(userMessage, attachmentList);
+            _db.AiChatMessage.Add(userMessage);
             session.UpdatedAt = DateTime.Now;
-            await _db.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch
+            {
+                // Không ghi được dòng tin nhắn thì tệp vừa lưu thành tệp mồ côi không ai tải lại được — dọn luôn.
+                storedPathList.ForEach(x => _fileService.DeletePrivate(x));
+                throw;
+            }
 
             // Có tệp đính kèm thì trả lời dựa trên chính tệp đó, không tra kho tri thức và không dùng câu cài sẵn:
             // người dùng đang hỏi về thứ họ vừa gửi, không phải về tài liệu nội bộ.
@@ -323,8 +336,46 @@ public class AiTutorService : IAiTutorService
         await events.SendAsync("done", new { }, cancellationToken);
     }
 
+    /// <summary>Lưu tệp đính kèm vào kho tệp riêng và gắn vào tin nhắn câu hỏi, để mở lại hội thoại vẫn tải tệp về
+    /// được (xem <see cref="GetAttachment"/>). Trả về đường dẫn các tệp đã lưu để bên gọi dọn nếu ghi database hỏng.
+    ///
+    /// Lưu hỏng thì chỉ ghi log rồi bỏ qua tệp đó: việc chính của lượt hỏi là câu trả lời, không thể vì ổ đĩa đầy
+    /// mà người dùng không được trả lời — họ chỉ mất nút tải lại tệp ở lịch sử.</summary>
+    private async Task<List<string>> StoreAttachmentListAsync(AiChatMessage message, IReadOnlyList<AiTutorAttachment> attachmentList)
+    {
+        var storedPathList = new List<string>();
+        foreach (var attachment in attachmentList)
+        {
+            var extension = ExtensionOf(attachment.FileName);
+            try
+            {
+                var content = attachment.Content;
+                var path = await _fileService.SavePrivateAsync(
+                    new FileUpload(attachment.FileName, content.Length, attachment.ContentType, () => new MemoryStream(content)),
+                    AttachmentStorageFolder, $".{extension}");
+                storedPathList.Add(path);
+
+                message.AttachmentList.Add(new AiChatAttachment
+                {
+                    FileName = attachment.FileName.Length <= MaxAttachmentFileNameLength
+                        ? attachment.FileName
+                        : attachment.FileName[^MaxAttachmentFileNameLength..],
+                    // Loại tệp chốt theo đuôi đã kiểm ở ValidateAttachmentList, không tin chuỗi trình duyệt gửi lên.
+                    ContentType = ContentTypeByExtension.GetValueOrDefault(extension, "application/octet-stream"),
+                    FilePath = path,
+                    SizeByte = content.Length
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Khong luu duoc tep dinh kem {FileName} cua HB Minerva.", attachment.FileName);
+            }
+        }
+        return storedPathList;
+    }
+
     /// <summary>Chữ trong một tệp văn bản đính kèm. <see cref="IDocumentTextExtractor"/> đọc từ đường dẫn trên đĩa nên
-    /// tệp được ghi tạm rồi xóa ngay — nội dung người dùng gửi không nằm lại trên máy chủ.</summary>
+    /// tệp được ghi tạm vào thư mục tạm rồi xóa ngay — bản lưu để tải lại nằm riêng trong kho tệp riêng.</summary>
     private async Task<string> ExtractAttachmentTextAsync(AiTutorAttachment attachment, string extension, CancellationToken cancellationToken)
     {
         var tempPath = Path.Combine(Path.GetTempPath(), $"hbe-ai-{Guid.NewGuid():N}.{extension}");
@@ -404,6 +455,39 @@ public class AiTutorService : IAiTutorService
     private static readonly HashSet<string> ImageExtensionSet = ["png", "jpg", "jpeg", "webp"];
     private static readonly HashSet<string> DocumentExtensionSet = ["pdf", "docx", "txt", "md"];
 
+    /// <summary>Thư mục trong kho tệp riêng (xem IFileService.SavePrivateAsync).</summary>
+    private const string AttachmentStorageFolder = "ai-tutor";
+
+    /// <summary>Trần tên tệp — khớp MaxLength của cột AiChatAttachment.FileName.</summary>
+    private const int MaxAttachmentFileNameLength = 260;
+
+    private static readonly Dictionary<string, string> ContentTypeByExtension = new()
+    {
+        ["png"] = "image/png",
+        ["jpg"] = "image/jpeg",
+        ["jpeg"] = "image/jpeg",
+        ["webp"] = "image/webp",
+        ["pdf"] = "application/pdf",
+        ["docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ["txt"] = "text/plain",
+        ["md"] = "text/markdown"
+    };
+
+    public async Task<Result> GetAttachment(int id, CancellationToken cancellationToken)
+    {
+        // Lọc theo chủ hội thoại ngay trong truy vấn: tệp của người khác trả về "không tìm thấy" như GetSession.
+        var attachment = await _db.AiChatAttachment.AsNoTracking()
+            .Where(x => x.Id == id && x.AiChatMessage.AiChatSession.UserId == _currentUser.UserId)
+            .Select(x => new { x.FileName, x.ContentType, x.FilePath })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (attachment is null) return Result.NotFound(new MessageResponse("Không tìm thấy tệp này."));
+
+        var stream = _fileService.OpenPrivate(attachment.FilePath);
+        if (stream is null) return Result.NotFound(new MessageResponse("Tệp này không còn trên máy chủ."));
+
+        return Result.FileStreamDownload(stream, attachment.ContentType, attachment.FileName);
+    }
+
     public async Task<Result> GetSessionList(CancellationToken cancellationToken)
         => Result.Success(await _db.AiChatSession.AsNoTracking()
             .Where(x => x.UserId == _currentUser.UserId)
@@ -427,7 +511,12 @@ public class AiTutorService : IAiTutorService
         var messageList = await _db.AiChatMessage.AsNoTracking()
             .Where(x => x.AiChatSessionId == id)
             .OrderBy(x => x.Id)
-            .Select(x => new { x.Id, x.Role, x.Content, x.SourceJson, x.CreatedAt })
+            .Select(x => new
+            {
+                x.Id, x.Role, x.Content, x.SourceJson, x.CreatedAt,
+                AttachmentList = x.AttachmentList.OrderBy(a => a.Id)
+                    .Select(a => new AiChatAttachmentDto(a.Id, a.FileName, a.SizeByte)).ToList()
+            })
             .ToListAsync(cancellationToken);
 
         return Result.Success(new AiChatSessionDetailDto(
@@ -439,7 +528,8 @@ public class AiTutorService : IAiTutorService
                 // Luôn rỗng: bảng nguồn đã bỏ khỏi trang của học viên, mà lịch sử thì chính họ mở lại.
                 // Dữ liệu gốc vẫn nằm nguyên trong cột SourceJson cho quản trị viên tra khi cần.
                 [],
-                x.CreatedAt))]));
+                x.CreatedAt,
+                x.AttachmentList))]));
     }
 
     public async Task<Result> RenameSession(int id, AiChatSessionRenameRequest request, CancellationToken cancellationToken)
@@ -459,9 +549,17 @@ public class AiTutorService : IAiTutorService
 
     public async Task<Result> DeleteSession(int id, CancellationToken cancellationToken)
     {
+        var filePathList = await _db.AiChatAttachment.AsNoTracking()
+            .Where(x => x.AiChatMessage.AiChatSessionId == id && x.AiChatMessage.AiChatSession.UserId == _currentUser.UserId)
+            .Select(x => x.FilePath)
+            .ToListAsync(cancellationToken);
+
         var removedCount = await _db.AiChatSession
             .Where(x => x.Id == id && x.UserId == _currentUser.UserId)
             .ExecuteDeleteAsync(cancellationToken);
+
+        // Xóa tệp SAU khi xóa dòng: hỏng giữa chừng thì cùng lắm còn tệp thừa trên đĩa, chứ không có thẻ tệp trỏ vào hư không.
+        filePathList.ForEach(x => _fileService.DeletePrivate(x));
 
         return removedCount == 0
             ? Result.NotFound(new MessageResponse("Không tìm thấy hội thoại này."))
@@ -470,9 +568,16 @@ public class AiTutorService : IAiTutorService
 
     public async Task<Result> DeleteAllSession(CancellationToken cancellationToken)
     {
+        var filePathList = await _db.AiChatAttachment.AsNoTracking()
+            .Where(x => x.AiChatMessage.AiChatSession.UserId == _currentUser.UserId)
+            .Select(x => x.FilePath)
+            .ToListAsync(cancellationToken);
+
         var removedCount = await _db.AiChatSession
             .Where(x => x.UserId == _currentUser.UserId)
             .ExecuteDeleteAsync(cancellationToken);
+
+        filePathList.ForEach(x => _fileService.DeletePrivate(x));
 
         return Result.Success(new MessageResponse($"Đã xóa {removedCount} hội thoại."));
     }

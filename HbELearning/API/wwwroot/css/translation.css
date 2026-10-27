@@ -53,35 +53,51 @@ body {
     -ms-overflow-style: none;  /* IE và Edge cũ */
     scrollbar-width: none;     /* Firefox */
 }
+/* ==================== KHỐI TRANG ==================== */
+/* Trang chia đúng hai khối, mỗi khối một tiêu đề: "Ngôn ngữ" (chọn dịch cái gì) và "Bàn dịch" (dịch ở đâu).
+   Trước đây thẻ ngôn ngữ, ô lọc, chip và bảng nối đuôi nhau không ranh giới — mắt không biết nhóm nào đi
+   với nhóm nào. */
+.tr-section { margin-bottom: 18px; }
+.tr-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.tr-section-head h2 { font-size: 15px; font-weight: 800; letter-spacing: -.2px; margin: 0; }
+.tr-section-head p { margin: 2px 0 0; font-size: 12.5px; color: var(--text-muted); }
+
 /* ==================== THẺ NGÔN NGỮ ==================== */
 /* Mỗi ngôn ngữ một thẻ, kèm tiến độ dịch. Bấm vào thẻ là chọn ngôn ngữ ĐÍCH đang dịch — thao tác này
-   xảy ra liên tục nên để ngay tầm mắt, thay vì giấu trong một ô select. */
+   xảy ra liên tục nên để ngay tầm mắt, thay vì giấu trong một ô select. Xếp theo lưới cột đều nhau để
+   hàng thẻ luôn lấp kín bề ngang, không để một khoảng trống lớn bên phải. */
 .tr-langs {
-    display: flex; gap: 12px; flex-wrap: wrap; align-items: stretch;
-    margin-bottom: 16px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
 }
 
 .tr-lang {
-    position: relative; flex: 0 1 232px; min-width: 200px;
-    display: flex; flex-direction: column; gap: 9px;
-    padding: 12px 14px;
+    position: relative; min-width: 0;
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 14px 16px;
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--tr-radius);
+    box-shadow: var(--shadow-xs);
     cursor: pointer; text-align: left; font-family: inherit; color: var(--text);
-    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease, transform .15s ease;
 }
-.tr-lang:hover { border-color: var(--tr-primary-line); }
+.tr-lang:hover { border-color: var(--tr-primary-line); transform: translateY(-1px); }
+.tr-lang:focus-visible { outline: 2px solid var(--tr-primary); outline-offset: 2px; }
 .tr-lang.active {
     border-color: var(--tr-primary);
-    background: var(--tr-primary-soft);
+    background: linear-gradient(160deg, var(--tr-primary-soft), var(--surface) 70%);
     box-shadow: 0 0 0 3px var(--tr-primary-soft);
 }
 /* Ngôn ngữ nguồn không bấm chọn làm đích được: dịch từ tiếng Việt sang tiếng Việt là vô nghĩa. */
 .tr-lang.is-source { cursor: default; }
-.tr-lang.is-source:hover { border-color: var(--border); }
+.tr-lang.is-source:hover { border-color: var(--border); transform: none; }
 
 .tr-lang-top { display: flex; align-items: center; gap: 8px; }
-.tr-lang-name { font-weight: 700; font-size: 13.5px; flex: 1; min-width: 0; }
-.tr-lang-pct { font-size: 12.5px; font-weight: 700; color: var(--text-muted); }
+.tr-lang-name { font-weight: 700; font-size: 14px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tr-lang-pct-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.tr-lang-pct { font-size: 24px; font-weight: 800; letter-spacing: -.5px; line-height: 1.1; color: var(--text); }
+.tr-lang-pct small { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-left: 1px; }
+.tr-lang-status { font-size: 12px; color: var(--text-muted); }
+.tr-lang-status.done { display: inline-flex; align-items: center; gap: 4px; color: var(--success); font-weight: 700; }
 
 /* Mã quốc gia hai chữ thay cho ảnh cờ: không phải tải thêm ảnh, và ngôn ngữ nào cũng có mã. */
 .tr-flag {
@@ -92,20 +108,20 @@ body {
 }
 
 .tr-lang-tag {
-    flex: none; font-size: 9.5px; font-weight: 800; letter-spacing: .8px;
-    color: var(--text-muted); text-transform: uppercase;
+    flex: none; padding: 2px 7px; border-radius: 999px;
+    font-size: 9.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase;
+    color: var(--text-muted); background: var(--bg); border: 1px solid var(--border);
 }
+.tr-lang-tag.on { color: var(--tr-primary-ink); background: var(--tr-primary); border-color: var(--tr-primary); }
 
-.tr-bar { height: 5px; border-radius: 999px; background: var(--border); overflow: hidden; }
-.tr-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--tr-primary); }
+.tr-bar { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.tr-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--tr-primary); transition: width .4s ease; }
 .tr-lang.is-source .tr-bar > span { background: var(--success); }
-
-.tr-lang-count { font-size: 11.5px; color: var(--text-muted); }
 
 /* Nút thêm ngôn ngữ: viền đứt để đọc ra ngay đây là ô trống chờ thêm, không phải một ngôn ngữ đã có. */
 .tr-lang.tr-lang-add {
-    align-items: center; justify-content: center; gap: 6px;
-    border-style: dashed; background: none; color: var(--text-muted); font-weight: 600; font-size: 13px;
+    align-items: center; justify-content: center; gap: 6px; min-height: 108px;
+    border-style: dashed; background: none; box-shadow: none; color: var(--text-muted); font-weight: 600; font-size: 13px;
 }
 .tr-lang.tr-lang-add:hover { border-color: var(--tr-primary); color: var(--tr-primary); }
 .tr-lang.tr-lang-add i { font-size: 18px; }
@@ -120,13 +136,20 @@ body {
 .tr-lang:hover .tr-lang-del { display: inline-flex; }
 .tr-lang-del:hover { background: var(--danger); color: #fff; }
 
+/* ==================== ĐẦU BÀN DỊCH ==================== */
+/* Hai tầng trong cùng một dải: chiều dịch (trái) và ô tìm + bộ lọc (phải). Màn hẹp thì xếp chồng. */
+.tr-board-head {
+    display: flex; align-items: center; gap: 14px 20px; flex-wrap: wrap;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+}
+
 /* ==================== THANH LỌC ==================== */
 .tr-filters {
     display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-    margin-bottom: 12px;
+    flex: 1 1 520px; min-width: 0; justify-content: flex-end;
 }
 
-.tr-search { position: relative; flex: 1 1 300px; min-width: 220px; }
+.tr-search { position: relative; flex: 1 1 260px; min-width: 200px; max-width: 420px; }
 .tr-search > i {
     position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
     color: var(--text-muted); font-size: 16px; pointer-events: none;
@@ -141,7 +164,7 @@ body {
     position: relative; display: inline-flex; align-items: center;
 }
 .tr-select select {
-    height: 38px; padding: 0 32px 0 13px; border-radius: 10px;
+    height: 38px; padding: 0 32px 0 34px; border-radius: 10px;
     font-weight: 600; font-size: 13px; cursor: pointer;
     appearance: none; -webkit-appearance: none;
 }
@@ -149,51 +172,79 @@ body {
     position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
     pointer-events: none; color: var(--text-muted); font-size: 14px;
 }
+.tr-select > i.tr-select-icon { left: 12px; right: auto; font-size: 15px; }
 
-/* Cặp nguồn → đích, đẩy sang phải cho tách hẳn khỏi nhóm ô lọc bên trái. */
-.tr-pair { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
-.tr-pair-label { font-size: 12.5px; color: var(--text-muted); }
-.tr-pair-arrow { color: var(--text-muted); font-size: 15px; }
+/* Chiều dịch: "Dịch từ [Tiếng Việt] ⇄ Sang [English]". Nút ⇄ ở giữa nói rõ cụm này bấm được để đổi chiều. */
+.tr-pair { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+.tr-pair-side { display: flex; flex-direction: column; gap: 4px; }
+.tr-pair-label { font-size: 11px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; color: var(--text-muted); }
 
 .tr-pill {
-    display: inline-flex; align-items: center; gap: 7px;
-    height: 34px; padding: 0 12px; border-radius: 9px;
-    border: 1px solid var(--border); background: var(--surface); color: var(--text);
-    font-family: inherit; font-size: 12.5px; font-weight: 700;
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 38px; padding: 0 14px; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    font-family: inherit; font-size: 13.5px; font-weight: 700;
+    transition: border-color .15s ease;
 }
+.tr-pill:hover { border-color: var(--tr-primary-line); }
 .tr-pill.target { border-color: var(--tr-primary); color: var(--tr-primary); background: var(--tr-primary-soft); }
 .tr-pill.target .tr-flag { border-color: var(--tr-primary-line); color: var(--tr-primary); background: transparent; }
 
-/* ==================== CHIP LỌC CHẤT LƯỢNG ==================== */
-.tr-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.tr-swap {
+    width: 38px; height: 38px; flex: none; display: grid; place-items: center;
+    border: 1px solid var(--border); border-radius: 50%; background: var(--surface); cursor: pointer;
+    color: var(--text-muted); font-size: 16px; transition: color .15s, border-color .15s, transform .25s;
+}
+.tr-swap:hover { color: var(--tr-primary); border-color: var(--tr-primary); transform: rotate(180deg); }
+.tr-swap:focus-visible { outline: 2px solid var(--tr-primary); outline-offset: 2px; }
+
+/* ==================== THẺ LỌC CHẤT LƯỢNG ==================== */
+/* Dạng thẻ tab có gạch chân nằm sát mép trên bảng: đọc ra ngay là "xem bảng theo nhóm nào", không lẫn với
+   các nút hành động. */
+.tr-chips {
+    display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none;
+    padding: 0 12px; border-bottom: 1px solid var(--border);
+}
+.tr-chips::-webkit-scrollbar { display: none; }
 
 .tr-chip {
-    display: inline-flex; align-items: center; gap: 7px;
-    height: 32px; padding: 0 13px; border-radius: 9px;
-    border: 1px solid var(--border); background: var(--surface); color: var(--text);
-    font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
-    transition: border-color .15s ease, background-color .15s ease;
+    position: relative; flex: none; display: inline-flex; align-items: center; gap: 7px;
+    height: 44px; padding: 0 12px; border: 0; background: none; color: var(--text-muted);
+    font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    transition: color .15s ease;
+}
+.tr-chip:hover { color: var(--text); }
+.tr-chip:focus-visible { outline: 2px solid var(--tr-primary); outline-offset: -4px; border-radius: 8px; }
+.tr-chip::after {
+    content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 3px;
+    border-radius: 3px 3px 0 0; background: transparent; transition: background .15s ease;
 }
 .tr-chip .n {
-    font-size: 11.5px; font-weight: 800; opacity: .75;
+    min-width: 22px; padding: 1px 7px; border-radius: 999px; text-align: center;
+    font-size: 11.5px; font-weight: 800; background: var(--bg); color: var(--text-muted);
+    border: 1px solid var(--border);
 }
-.tr-chip:hover { border-color: var(--text-muted); }
 
-/* Mỗi loại vấn đề một sắc riêng, giữ nguyên cả khi chưa được chọn — người dịch quét mắt qua hàng chip
-   là biết ngay còn bao nhiêu chỗ hỏng thuộc loại nào, không cần bấm vào từng cái mới biết. */
-.tr-chip.tone-warn { background: var(--tr-warn-soft); border-color: var(--tr-warn-line); color: var(--tr-warn); }
-.tr-chip.tone-danger { background: var(--tr-danger-soft); border-color: var(--tr-danger-line); color: var(--tr-danger); }
-.tr-chip.tone-info { background: var(--tr-info-soft); border-color: var(--tr-info-line); color: var(--tr-info); }
+/* Mỗi loại vấn đề một sắc riêng (chấm màu + số), giữ nguyên cả khi chưa được chọn — người dịch quét mắt qua
+   hàng thẻ là biết ngay còn bao nhiêu chỗ hỏng thuộc loại nào, không cần bấm vào từng cái mới biết. */
+.tr-chip-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.tr-chip.tone-warn .tr-chip-dot { background: var(--tr-warn); }
+.tr-chip.tone-danger .tr-chip-dot { background: var(--tr-danger); }
+.tr-chip.tone-info .tr-chip-dot { background: var(--tr-info); }
+.tr-chip.tone-warn:not(.is-zero) .n { background: var(--tr-warn-soft); border-color: var(--tr-warn-line); color: var(--tr-warn); }
+.tr-chip.tone-danger:not(.is-zero) .n { background: var(--tr-danger-soft); border-color: var(--tr-danger-line); color: var(--tr-danger); }
+.tr-chip.tone-info:not(.is-zero) .n { background: var(--tr-info-soft); border-color: var(--tr-info-line); color: var(--tr-info); }
 
-.tr-chip.active {
+.tr-chip.active { color: var(--text); }
+.tr-chip.active::after { background: var(--tr-primary); }
+.tr-chip.active:not(.tone-warn):not(.tone-danger):not(.tone-info) .n {
     background: var(--tr-primary); border-color: var(--tr-primary); color: var(--tr-primary-ink);
 }
-.tr-chip.active .n { opacity: .85; }
 
 /* ==================== BẢNG DỊCH ==================== */
 .tr-board {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--tr-radius);
-    overflow: hidden;
+    box-shadow: var(--shadow-xs); overflow: hidden;
 }
 
 .tr-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -209,8 +260,8 @@ body {
 .tr-table thead th .side { font-weight: 700; text-transform: none; letter-spacing: 0; opacity: .75; }
 
 .tr-table tbody td {
-    padding: 11px 14px; border-bottom: 1px solid var(--border);
-    font-size: 13px; line-height: 1.5; vertical-align: top;
+    padding: 12px 14px; border-bottom: 1px solid var(--border);
+    font-size: 13.5px; line-height: 1.55; vertical-align: top;
 }
 .tr-table tbody tr:last-child td { border-bottom: none; }
 .tr-table tbody tr:hover td { background: var(--bg); }
@@ -239,14 +290,25 @@ body {
     font-size: 12px; color: var(--text-muted); word-break: break-all;
 }
 
-.tr-src { color: var(--text); }
-.tr-dst { color: var(--text); }
-.tr-empty-cell { color: var(--text-muted); font-style: italic; }
+/* Câu nguồn đọc nhạt hơn một bậc, câu đích đậm: mắt người dịch dừng ở chỗ mình viết. */
+.tr-src { color: var(--text-muted); }
+.tr-dst { color: var(--text); font-weight: 500; }
+.tr-empty-cell { color: var(--tr-warn); font-style: italic; font-weight: 500; }
 
-/* Ô đích bấm vào là sửa được ngay tại chỗ. Viền chỉ hiện khi rê chuột, để bảng ở trạng thái nghỉ vẫn
-   là một bảng đọc chứ không phải một biểu mẫu đầy ô nhập. */
-.tr-dst-cell { cursor: text; border-radius: 7px; }
-.tr-table tbody tr:hover .tr-dst-cell { box-shadow: inset 0 0 0 1px var(--border); }
+/* Ô đích bấm vào là sửa được ngay tại chỗ. Viền và cây bút chỉ hiện khi rê chuột, để bảng ở trạng thái
+   nghỉ vẫn là một bảng đọc chứ không phải một biểu mẫu đầy ô nhập. */
+.tr-dst-cell {
+    position: relative; cursor: text; border-radius: 8px;
+    margin: -6px -8px; padding: 6px 30px 6px 8px; transition: box-shadow .15s, background-color .15s;
+}
+.tr-dst-pen {
+    position: absolute; right: 8px; top: 8px; font-size: 14px; color: var(--tr-primary);
+    opacity: 0; transition: opacity .15s;
+}
+.tr-table tbody tr:hover .tr-dst-cell,
+.tr-table tbody tr.sel .tr-dst-cell { box-shadow: inset 0 0 0 1px var(--tr-primary-line); background: var(--surface); }
+.tr-table tbody tr:hover .tr-dst-pen,
+.tr-table tbody tr.sel .tr-dst-pen { opacity: 1; }
 
 .tr-edit {
     width: 100%; min-height: 62px; resize: vertical;
@@ -358,12 +420,21 @@ body {
 
 /* ==================== MÀN HÌNH HẸP ==================== */
 @media (max-width: 900px) {
-    .tr-pair { margin-left: 0; width: 100%; }
+    .tr-filters { justify-content: flex-start; }
+    .tr-search { max-width: none; }
     .tr-col-group { display: none; }
     .tr-table thead th.tr-col-group, .tr-table tbody td.tr-col-group { display: none; }
 }
 @media (max-width: 640px) {
-    .tr-lang { flex: 1 1 100%; }
+    /* Một thẻ mỗi hàng: hai thẻ chen nhau thì tên ngôn ngữ bị nhãn "Đang dịch" đẩy cụt còn "Eng…". */
+    .tr-langs { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .tr-lang { padding: 12px 14px; }
+    .tr-lang-pct { font-size: 20px; }
+    .tr-lang.tr-lang-add { min-height: 0; flex-direction: row; padding: 10px; }
+    .tr-board-head { padding: 12px; }
+    .tr-select, .tr-select select { width: 100%; }
+    .tr-select { flex: 1 1 140px; }
+    .tr-foot-left > :not(:first-child) { display: none; }  /* phím tắt vô nghĩa trên màn cảm ứng */
 }
 
 /* ==================== DỊCH BẰNG AI ==================== */
@@ -371,7 +442,7 @@ body {
    được điền chữ. */
 .tr-ai-bar {
     display: flex; align-items: center; gap: 12px;
-    margin-bottom: 14px; padding: 10px 14px;
+    margin: 12px 16px 0; padding: 10px 14px;
     border: 1px solid var(--tr-primary-line); border-radius: 12px;
     background: var(--tr-primary-soft); font-size: 12.5px;
 }

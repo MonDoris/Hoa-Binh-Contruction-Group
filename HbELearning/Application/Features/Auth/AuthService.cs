@@ -34,9 +34,11 @@ public class AuthService : IAuthService
     private readonly ICurrentUser _currentUser;
     private readonly ILogger<AuthService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IFileService _fileService;
 
-    public AuthService(IAppDbContext db, ITokenService tokenService, IZaloZnsService zaloZns, IEsmsService esms, IEmailService email, IRankingEngine rankingService, ICurrentUser currentUser, IPasswordHasher passwordHasher, ILogger<AuthService> logger, IServiceScopeFactory scopeFactory)
+    public AuthService(IAppDbContext db, ITokenService tokenService, IZaloZnsService zaloZns, IEsmsService esms, IEmailService email, IRankingEngine rankingService, ICurrentUser currentUser, IPasswordHasher passwordHasher, ILogger<AuthService> logger, IServiceScopeFactory scopeFactory, IFileService fileService)
     {
+        _fileService = fileService;
         _scopeFactory = scopeFactory;
         _logger = logger;
         _passwordHasher = passwordHasher;
@@ -150,6 +152,38 @@ public class AuthService : IAuthService
         await _db.SaveChangesAsync();
         return Result.Success(ToProfile(user));
     }
+
+    public async Task<Result> UpdateMyCover(UpdateCoverRequest request)
+    {
+        var coverUrl = string.IsNullOrWhiteSpace(request.CoverUrl) ? null : request.CoverUrl.Trim();
+
+        // Chỉ nhận tệp vừa tải lên thư mục ảnh bìa. Đường dẫn này được vẽ thẳng vào CSS background-image của
+        // trang: để tự do thì một chuỗi lạ (URL ngoài, dấu nháy) chèn được vào trang của chính người đó.
+        if (coverUrl is not null
+            && (!coverUrl.StartsWith(CoverUrlPrefix, StringComparison.Ordinal)
+                || coverUrl.Contains("..") || coverUrl.IndexOfAny(['\'', '"', '(', ')', '\\', ' ']) >= 0))
+            return Result.Invalid(new MessageResponse("Ảnh bìa không hợp lệ."));
+
+        var user = await _db.User
+            .Include(x => x.Role).ThenInclude(r => r.ParentRole)
+            .Include(x => x.Department).Include(x => x.Position)
+            .FirstOrDefaultAsync(x => x.Id == _currentUser.UserId);
+        if (user is null) return Result.NotFound();
+
+        var oldCoverUrl = user.CoverUrl;
+        user.CoverUrl = coverUrl;
+        await _db.SaveChangesAsync();
+
+        // Ảnh cũ không ai dùng nữa (mỗi người một ảnh bìa riêng) — xóa sau khi đã lưu, để lỗi lúc lưu không làm
+        // mất ảnh đang hiện.
+        if (oldCoverUrl is not null && oldCoverUrl != coverUrl && oldCoverUrl.StartsWith(CoverUrlPrefix, StringComparison.Ordinal))
+            _fileService.Delete(oldCoverUrl);
+
+        return Result.Success(ToProfile(user));
+    }
+
+    /// <summary>Thư mục tải lên của ảnh bìa — khớp "cover" trong UploadService.</summary>
+    private const string CoverUrlPrefix = "/uploads/cover/";
 
     public async Task<Result> ChangePassword(ChangePasswordRequest request)
     {
@@ -376,6 +410,7 @@ public class AuthService : IAuthService
         FunctionKey.Inherit(user.Role.FunctionKeys, user.Role.ParentRole?.FunctionKeys),
         user.Role.ParentRole?.Name,
         isWorkflowApprover,
-        user.UserName
+        user.UserName,
+        user.CoverUrl
         );
 }

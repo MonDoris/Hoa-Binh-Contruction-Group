@@ -77,6 +77,7 @@ public interface IAppDbContext
     DbSet<DocumentChunk> DocumentChunk { get; }
     DbSet<AiChatSession> AiChatSession { get; }
     DbSet<AiChatMessage> AiChatMessage { get; }
+    DbSet<AiChatAttachment> AiChatAttachment { get; }
     DbSet<AiQuickReply> AiQuickReply { get; }
     DbSet<SimAsset> SimAsset { get; }
     DbSet<SimBuiltinScene> SimBuiltinScene { get; }

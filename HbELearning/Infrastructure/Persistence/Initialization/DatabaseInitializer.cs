@@ -206,6 +206,8 @@ public static class DatabaseInitializer
         // Moi tai khoan da co deu bat dau tu 0 lan sai va chua bi khoa, dung voi trang thai that cua chung.
         await AddMissingSqlServerColumnListAsync(connection, "HBE_USER",
             ("FAILED_LOGIN_COUNT", "int NOT NULL DEFAULT 0"), ("LOCKED_OUT_AT", "datetime2 NULL"));
+        // Anh bia trang tai khoan - xem User.CoverUrl. Null = anh bia mac dinh.
+        await AddMissingSqlServerColumnListAsync(connection, "HBE_USER", ("COVER_URL", "nvarchar(500) NULL"));
         // Ngay bat dau / ket thuc khoa hoc - bat buoc, xem Course.StartDate. Kem DEFAULT de ALTER chay duoc tren
         // bang da co du lieu, roi va ngay moi khoa hoc cu: bat dau tu ngay tao, ket thuc sau do mot nam. Moc
         // 0001-01-01 khong the do nguoi dung nhap ra nen dung lam dau hieu "dong chua duoc va".
@@ -350,6 +352,8 @@ public static class DatabaseInitializer
         // Khoa tai khoan sau 3 lan go sai mat khau lien tiep - xem ban SqlServer ben tren.
         await AddMissingColumnListAsync(connection, "HBE_USER",
             ("FAILED_LOGIN_COUNT", "INTEGER NOT NULL DEFAULT 0"), ("LOCKED_OUT_AT", "TEXT NULL"));
+        // Anh bia trang tai khoan - xem ban SqlServer ben tren.
+        await AddMissingColumnListAsync(connection, "HBE_USER", ("COVER_URL", "TEXT NULL"));
         // Quyền mặc định của vai trò + cờ vai trò cài sẵn (không cho đổi tên/xóa) — xem màn hình "Vai trò".
         await AddMissingColumnListAsync(connection, "HBE_ROLE",
             ("FUNCTION_KEYS", "TEXT NULL"), ("IS_SYSTEM", "INTEGER NOT NULL DEFAULT 0"), ("IS_ACTIVE", "INTEGER NOT NULL DEFAULT 1"));

@@ -5,7 +5,8 @@ public record CertificateDto(
     int Id, int EnrollmentId, string CertificateNo, string VerificationCode,
     DateTime IssuedAt, DateTime? ExpiredAt, decimal FinalScore, string? QrCodeUrl, bool IsRevoked,
     int CourseId, string CourseCode, string CourseTitle,
-    int UserId, string UserFullName, string EmployeeCode, string? DepartmentName, string? PositionName);
+    int UserId, string UserFullName, string EmployeeCode, string? DepartmentName, string? PositionName,
+    string? UserAvatarUrl);
 
 /// <summary>Một nhân viên thuộc quyền quản lý của người đang đăng nhập, kèm số chứng nhận đã được cấp —
 /// dùng cho khối "Chứng nhận của nhân viên cấp dưới" ở trang Chứng nhận.

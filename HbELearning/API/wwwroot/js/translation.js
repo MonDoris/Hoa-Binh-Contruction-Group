@@ -247,20 +247,36 @@
             const isSource = lang.lang === state.sourceLang;
             const isTarget = lang.lang === state.targetLang;
             const done = translatedCount(lang.lang);
-            const percent = total ? Math.round(done * 100 / total) : 0;
+            const left = total - done;
+            // Làm tròn XUỐNG khi còn sót: 2.194/2.195 làm tròn thường ra "100%" ngay cạnh dòng "Còn 1 câu chưa
+            // dịch" — hai con số cãi nhau. 100% chỉ dành cho lúc thật sự đủ.
+            const percent = !total ? 0 : left === 0 ? 100 : Math.floor(done * 100 / total);
+
+            // Dòng trạng thái nói thẳng điều người dịch cần biết — còn bao nhiêu câu — thay vì bắt họ tự trừ
+            // hai con số "1.521/2.205".
+            const statusHtml = isSource
+                ? `<span class="tr-lang-status">${esc(t('translation.ngonNguGoc', 'Ngôn ngữ gốc'))} · ${total.toLocaleString(Lang.locale)} ${esc(t('translation.chu', 'câu chữ'))}</span>`
+                : left === 0
+                    ? `<span class="tr-lang-status done"><i class="ph-fill ph-check-circle"></i> ${esc(t('translation.daDichDu', 'Đã dịch đủ'))}</span>`
+                    : `<span class="tr-lang-status">${esc(t('translation.conChuaDich', 'Còn {n} câu chưa dịch', { n: left.toLocaleString(Lang.locale) }))}</span>`;
 
             return `
                 <button type="button" class="tr-lang ${isTarget ? 'active' : ''} ${isSource ? 'is-source' : ''}"
-                        data-lang="${esc(lang.lang)}">
+                        data-lang="${esc(lang.lang)}" aria-pressed="${isTarget}">
                     <span class="tr-lang-top">
                         ${flagHtml(lang.lang)}
                         <span class="tr-lang-name">${esc(lang.label)}</span>
                         ${isSource
                             ? `<span class="tr-lang-tag">${esc(t('translation.nguon', 'Nguồn'))}</span>`
-                            : `<span class="tr-lang-pct">${percent}%</span>`}
+                            : isTarget
+                                ? `<span class="tr-lang-tag on">${esc(t('translation.dangDich', 'Đang dịch'))}</span>`
+                                : ''}
                     </span>
-                    <span class="tr-bar"><span style="width:${percent}%"></span></span>
-                    <span class="tr-lang-count">${done.toLocaleString(Lang.locale)}/${total.toLocaleString(Lang.locale)} ${esc(t('translation.chu', 'câu chữ'))}</span>
+                    <span class="tr-lang-pct-row">
+                        <span class="tr-lang-pct">${isSource ? '100' : percent}<small>%</small></span>
+                        ${statusHtml}
+                    </span>
+                    <span class="tr-bar"><span style="width:${isSource ? 100 : percent}%"></span></span>
                     ${lang.isSystem === false && canDelete
                         ? `<span class="tr-lang-del" role="button" tabindex="0" data-del-lang="${esc(lang.lang)}"
                                  title="${esc(t('translation.xoaNgonNgu', 'Xóa ngôn ngữ này'))}">✕</span>` : ''}
@@ -285,17 +301,25 @@
         const flagList = base.map(analyze);
         const count = (key) => flagList.filter(QUALITY_TEST[key]).length;
 
+        // Mỗi thẻ kèm một câu giải thích (hiện khi rê chuột): "Lệch biến số" hay "Giống hệt nguồn" là từ của người
+        // làm phần mềm, người dịch lần đầu mở trang không tự đoán được nghĩa.
         const chipList = [
-            { key: 'all', label: t('translation.tatCaChip', 'Tất cả'), tone: '', n: base.length },
-            { key: 'missing', label: t('translation.thieuBanDich', 'Thiếu bản dịch'), tone: 'tone-warn', n: count('missing') },
-            { key: 'placeholder', label: t('translation.lechBienSo', 'Lệch biến số'), tone: 'tone-danger', n: count('placeholder') },
-            { key: 'same', label: t('translation.giongHetNguon', 'Giống hệt nguồn'), tone: 'tone-info', n: count('same') },
-            { key: 'custom', label: t('translation.tuThem', 'Tự thêm'), tone: '', n: count('custom') },
+            { key: 'all', label: t('translation.tatCaChip', 'Tất cả'), tone: '', n: base.length,
+              hint: t('translation.tatCaChipHint', 'Mọi câu chữ khớp ô tìm kiếm và bộ lọc') },
+            { key: 'missing', label: t('translation.thieuBanDich', 'Thiếu bản dịch'), tone: 'tone-warn', n: count('missing'),
+              hint: t('translation.thieuBanDichHint', 'Câu chưa có bản dịch — giao diện sẽ hiện tạm bằng ngôn ngữ nguồn') },
+            { key: 'placeholder', label: t('translation.lechBienSo', 'Lệch biến số'), tone: 'tone-danger', n: count('placeholder'),
+              hint: t('translation.lechBienSoChipHint', 'Bản dịch làm rơi hoặc gõ sai chỗ trống như {name} — cần sửa trước tiên') },
+            { key: 'same', label: t('translation.giongHetNguon', 'Giống hệt nguồn'), tone: 'tone-info', n: count('same'),
+              hint: t('translation.giongHetNguonHint', 'Bản dịch y hệt câu gốc — có thể chưa được dịch thật') },
+            { key: 'custom', label: t('translation.tuThem', 'Tự thêm'), tone: '', n: count('custom'),
+              hint: t('translation.tuThemHint', 'Thuật ngữ do công ty tự thêm') },
         ];
 
         document.getElementById('tr-chips').innerHTML = chipList.map(chip => `
-            <button type="button" class="tr-chip ${chip.tone} ${state.quality === chip.key ? 'active' : ''}"
-                    data-quality="${chip.key}">
+            <button type="button" class="tr-chip ${chip.tone} ${state.quality === chip.key ? 'active' : ''} ${chip.n ? '' : 'is-zero'}"
+                    data-quality="${chip.key}" role="tab" aria-selected="${state.quality === chip.key}" title="${esc(chip.hint)}">
+                ${chip.tone ? '<span class="tr-chip-dot"></span>' : ''}
                 ${esc(chip.label)} <span class="n">${chip.n.toLocaleString(Lang.locale)}</span>
             </button>`).join('');
     }
@@ -342,8 +366,9 @@
                     <td class="tr-dst"><div class="tr-dst-cell" data-edit-cell="${esc(row.resourceKey)}">${
                         f.dst
                             ? esc(f.dst)
-                            : `<span class="tr-empty-cell">${esc(t('translation.chuaDich', 'Chưa dịch'))}</span>`
-                    }</div></td>
+                            : `<span class="tr-empty-cell">${esc(t('translation.chuaDich', 'Chưa dịch'))}${canUpdate
+                                ? ` · ${esc(t('translation.bamDeDich', 'bấm để dịch'))}` : ''}</span>`
+                    }${canUpdate ? '<i class="ph ph-pencil-simple tr-dst-pen" aria-hidden="true"></i>' : ''}</div></td>
                     <td class="tr-col-group"><span class="tr-group-chip" title="${esc(row.group)}">${esc(groupLabel(row.group))}</span></td>
                     <td class="tr-col-open">
                         <button type="button" class="tr-open" data-open="${esc(row.resourceKey)}"
@@ -1059,6 +1084,7 @@
     // ngược lại xem câu tiếng Anh đang có nghĩa gì so với tiếng Việt.
     document.getElementById('pair-source').addEventListener('click', swapPair);
     document.getElementById('pair-target').addEventListener('click', swapPair);
+    document.getElementById('pair-swap').addEventListener('click', swapPair);
 
     function swapPair() {
         const source = state.sourceLang;

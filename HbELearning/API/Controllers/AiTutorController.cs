@@ -41,6 +41,10 @@ public class AiTutorController : BaseApiController
     public async Task<ActionResult<AiChatSessionDetailDto>> GetSession(int id, CancellationToken cancellationToken)
         => ToActionResult(await _service.GetSession(id, cancellationToken));
 
+    [HttpGet("attachment/{id:int}")]
+    public async Task<ActionResult> GetAttachment(int id, CancellationToken cancellationToken)
+        => ToActionResult(await _service.GetAttachment(id, cancellationToken));
+
     [HttpPut("session/{id:int}")]
     public async Task<ActionResult<MessageResponse>> RenameSession(int id, AiChatSessionRenameRequest request, CancellationToken cancellationToken)
         => ToActionResult(await _service.RenameSession(id, request, cancellationToken));

@@ -410,6 +410,98 @@ a:hover { text-decoration: underline; }
 .topbar-search input:focus ~ .topbar-kbd,
 .topbar-search input:not(:placeholder-shown) ~ .topbar-kbd { opacity: 0; }
 
+/* ----- Ô gợi ý khi gõ (mountSearchSuggest): người + khóa học ----- */
+.ts-pop {
+    position: absolute; left: 0; top: calc(100% + 6px); z-index: 120;
+    width: max(100%, 440px); max-width: calc(100vw - 24px); max-height: min(70vh, 520px); overflow-y: auto;
+    padding: 6px; border: 1px solid var(--border); border-radius: 14px;
+    background: var(--surface); box-shadow: var(--shadow-lg);
+}
+.ts-pop[hidden] { display: none; }
+.ts-group {
+    padding: 10px 10px 4px; font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
+    color: var(--text-muted);
+}
+.ts-item {
+    display: flex; align-items: center; gap: 11px; width: 100%; padding: 8px 10px; text-align: left;
+    border: 0; border-radius: 10px; background: none; color: var(--text); font: inherit; cursor: pointer;
+}
+.ts-item.active { background: var(--primary-light); }
+.ts-item .avatar { width: 34px; height: 34px; font-size: 13px; }
+.ts-thumb {
+    position: relative; overflow: hidden; flex: none; width: 34px; height: 34px; border-radius: 9px;
+    display: grid; place-items: center; background: var(--cover-fallback, var(--primary-light)); color: #fff; font-size: 17px;
+}
+.ts-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ts-text { flex: 1; min-width: 0; }
+.ts-text b, .ts-text small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ts-text b { font-size: 13.5px; font-weight: 700; }
+.ts-text small { margin-top: 1px; font-size: 12px; color: var(--text-muted); }
+.ts-go { color: var(--text-muted); font-size: 14px; }
+.ts-action {
+    flex: none; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+    color: var(--primary-dark); background: var(--primary-light);
+}
+.ts-all { margin-top: 4px; border-top: 1px solid var(--border); border-radius: 0 0 10px 10px; color: var(--text-muted); }
+.ts-all > i { font-size: 18px; width: 34px; text-align: center; }
+.ts-kbd {
+    flex: none; padding: 2px 6px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 6px;
+    font: 700 11px var(--font-sans, inherit); color: var(--text-muted); background: var(--bg);
+}
+.ts-empty { display: flex; align-items: center; gap: 8px; padding: 14px 10px; font-size: 13px; color: var(--text-muted); }
+
+/* ----- Thẻ hồ sơ một người (openPersonCard) ----- */
+.pc-modal { position: relative; display: block; overflow-y: auto; max-width: 720px; }
+.pc-close {
+    position: absolute; top: 10px; right: 10px; z-index: 2;
+    width: 34px; height: 34px; border-radius: 50%; background: rgba(15, 23, 42, .35); color: #fff;
+}
+.pc-cover { height: 120px; background: linear-gradient(135deg, var(--primary) 0%, #7dd3fc 60%, #a7f3d0 100%); }
+/* Ảnh đại diện đè lên mép dưới ảnh bìa; tên bắt đầu NGAY DƯỚI mép đó (40px đè + 8px thở) để không nằm trên nền ảnh. */
+.pc-head { display: flex; align-items: flex-start; gap: 16px; padding: 0 24px; margin-top: -40px; flex-wrap: wrap; }
+.pc-avatar { width: 88px; height: 88px; font-size: 32px; border: 4px solid var(--surface); box-shadow: var(--shadow); }
+.pc-title { flex: 1; min-width: 200px; padding-top: 48px; }
+.pc-title h3 { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
+.pc-sub { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.pc-code { font: 600 12.5px ui-monospace, Consolas, monospace; color: var(--text-muted); }
+.pc-facts {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;
+    padding: 18px 24px; border-bottom: 1px solid var(--border);
+}
+.pc-fact { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* Nền ô nằm ở lớp bọc ngoài, KHÔNG ở thẻ <i>: emoji.js vẽ biểu tượng bằng background-image trên chính thẻ <i>,
+   đặt background lên đó là xóa mất hình. */
+.pc-fact-icon {
+    flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+    font-size: 17px; color: var(--primary); background: var(--primary-light);
+}
+.pc-fact span { min-width: 0; }
+.pc-fact small { display: block; font-size: 11.5px; color: var(--text-muted); }
+.pc-fact b { display: block; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-courses { padding: 18px 24px 24px; }
+.pc-courses h4 { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; }
+.pc-note { margin: 3px 0 12px; font-size: 12.5px; color: var(--text-muted); }
+.pc-course-list { display: flex; flex-direction: column; gap: 8px; }
+.pc-course {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--bg);
+}
+.pc-thumb {
+    position: relative; overflow: hidden; flex: none; width: 54px; height: 54px; border-radius: 10px;
+    display: grid; place-items: center; background: var(--cover-fallback, var(--primary-light)); color: #fff; font-size: 24px;
+}
+.pc-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pc-course-text { flex: 1; min-width: 0; }
+.pc-course-text > b { display: block; font-size: 14px; font-weight: 700; }
+.pc-course-meta { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+.pc-course-meta .code { font-family: ui-monospace, Consolas, monospace; }
+.pc-course-meta i { vertical-align: -2px; }
+@media (max-width: 560px) {
+    .pc-head, .pc-facts, .pc-courses { padding-left: 16px; padding-right: 16px; }
+    .pc-course { flex-wrap: wrap; }
+    .pc-course .btn { width: 100%; }
+}
+
 /* Nửa bên phải. Vạch ngăn mảnh trước cụm hành động của trang làm việc của cả khoảng trắng lẫn dấu chấm câu:
    bên trái là tiện ích dùng chung ở mọi trang, bên phải là việc của riêng trang đang mở. */
 /* Cụm bên phải KHÔNG co: co lại thì nút bấm bị đẩy ra ngoài mép màn hình, còn tiêu đề cắt bớt chữ vẫn đọc được. */
@@ -3773,7 +3865,7 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
     position: absolute; top: calc(100% + 12px); right: -8px;
     width: min(780px, calc(100vw - 24px));
     height: min(640px, calc(100dvh - 120px));
-    display: grid; grid-template-columns: 264px minmax(0, 1fr);
+    display: grid; grid-template-columns: 284px minmax(0, 1fr);
     /* grid-template-rows PHẢI khai: không có nó thì hàng duy nhất của lưới được cỡ theo NỘI DUNG, nên một
        danh sách hội thoại dài sẽ kéo cả cột cao vượt khỏi bảng thay vì tự sinh thanh cuộn bên trong.
        minmax(0, 1fr) vừa ghim hàng đúng bằng chiều cao bảng, vừa cho phép nó co lại dưới cỡ nội dung —
@@ -3797,9 +3889,9 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
 }
 
 .chat-rail-head {
-    display: flex; align-items: center; gap: 4px; padding: 14px 10px 10px 14px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 4px; padding: 16px 10px 12px 16px; flex-shrink: 0;
 }
-.chat-rail-head b { flex: 1; font-size: 16px; letter-spacing: -.2px; }
+.chat-rail-head b { flex: 1; font-size: 17px; font-weight: 800; letter-spacing: -.3px; }
 .chat-rail-head button,
 .chat-thread-head button,
 #chat-picker header button {
@@ -3815,78 +3907,89 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
 /* Thẻ bọc có padding-bottom 10px mà không có padding-top, nên tâm của nó lệch 5px so với tâm ô nhập. */
 .chat-search-box i { position: absolute; left: 22px; top: calc(50% - 5px); transform: translateY(-50%); color: var(--text-muted); }
 .chat-search-box input {
-    width: 100%; padding: 8px 10px 8px 32px; border-radius: 10px;
+    width: 100%; height: 38px; padding: 0 10px 0 34px; border-radius: 11px;
     border: 1px solid var(--border); background: var(--surface); color: var(--text);
-    font: inherit; font-size: 13px;
+    font: inherit; font-size: 13px; transition: border-color .15s, box-shadow .15s;
 }
-.chat-search-box input:focus { outline: none; border-color: var(--primary); }
+.chat-search-box input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); }
 
-/* Lọc nhanh dạng viên thuốc. Số trên tab "Chưa đọc" đổ ra từ data-count bằng CSS thay vì bằng một thẻ
-   <span> riêng — bớt được một nhánh điều kiện trong đoạn vẽ danh sách. */
-.chat-filter { display: flex; gap: 6px; padding: 0 12px 10px; flex-shrink: 0; }
+/* Lọc nhanh dạng THANH PHÂN ĐOẠN: một khung chung, ba nút nằm trong, nút đang chọn nổi lên. Bản viên thuốc
+   rời trước đây có viền riêng từng nút, đặt trong cột 264px thì chữ "Chưa đọc" + con số không đủ chỗ, rớt
+   xuống hai dòng và kéo cả hàng cao gấp đôi. Số trên tab "Chưa đọc" đổ ra từ data-count bằng CSS thay vì
+   bằng một thẻ <span> riêng — bớt được một nhánh điều kiện trong đoạn vẽ danh sách. */
+.chat-filter {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px;
+    margin: 0 12px 10px; padding: 3px; flex-shrink: 0;
+    border: 1px solid var(--border); border-radius: 11px; background: var(--surface);
+}
 .chat-filter button {
-    flex: 1; padding: 5px 4px; border: 1px solid var(--border); border-radius: 999px;
-    background: var(--surface); color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 4px;
+    min-width: 0; height: 28px; padding: 0 6px; border: 0; border-radius: 8px;
+    background: none; color: var(--text-muted); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap;
+    transition: background-color .15s, color .15s;
 }
 .chat-filter button:hover { color: var(--text); }
-.chat-filter button.active {
-    background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600;
-}
+.chat-filter button.active { background: var(--primary-light); color: var(--primary-dark); }
+.chat-filter button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 .chat-filter button[data-count]:not([data-count=""])::after {
     content: attr(data-count);
-    background: var(--danger); color: #fff; font-size: 10px; font-weight: 700;
-    min-width: 15px; line-height: 15px; padding: 0 4px; border-radius: 8px;
+    background: var(--danger); color: #fff; font-size: 10px; font-weight: 800;
+    min-width: 16px; line-height: 16px; padding: 0 4px; border-radius: 8px; text-align: center;
 }
-.chat-filter button.active[data-count]:not([data-count=""])::after { background: rgba(255, 255, 255, .28); }
 
-#chat-conversation-list, #chat-contact-list { overflow-y: auto; padding: 0 6px 8px; }
+#chat-conversation-list, #chat-contact-list { overflow-y: auto; padding: 0 8px 8px; }
 #chat-conversation-list { flex: 1; }
 #chat-contact-list { max-height: 50%; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
 
+/* font: inherit — mỗi dòng là một <button>, mà nút không tự kế thừa font của trang: thiếu dòng này là tên người
+   trong danh sách hiện bằng font mặc định của trình duyệt, lệch hẳn khỏi phần còn lại của hệ thống. */
 .chat-conv {
-    display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 8px;
+    position: relative; display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 10px;
     border: 0; border-radius: 12px; background: none; cursor: pointer; text-align: left; color: var(--text);
+    font: inherit; transition: background-color .15s;
 }
+.chat-conv + .chat-conv { margin-top: 2px; }
 .chat-conv:hover { background: var(--sidebar-hover); }
 /* Hai cột cùng hiện một lúc nên PHẢI đánh dấu dòng đang mở — không có nó thì cột phải hiện một cuộc trò
-   chuyện mà cột trái không cho biết đó là dòng nào. */
-.chat-conv.current { background: var(--primary-light); }
+   chuyện mà cột trái không cho biết đó là dòng nào. Nền + vạch màu bên trái, đọc ra được cả khi lướt nhanh. */
+.chat-conv.current { background: var(--surface); box-shadow: var(--shadow-xs), inset 3px 0 0 var(--primary); }
 .chat-conv.current .body b { color: var(--primary-dark); }
 
-.chat-conv .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.chat-conv .body .row { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.chat-conv .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.chat-conv .body .line { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .chat-conv .body b { font-size: 13.5px; font-weight: 600; }
-.chat-conv .body small { color: var(--text-muted); font-size: 12px; }
+.chat-conv .body small { color: var(--text-muted); font-size: 12.5px; }
 .chat-conv .body b,
 .chat-conv .body small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* flex:1 chỉ đặt cho con TRỰC TIẾP của .row. Đặt thẳng lên b/small thì ở danh sách người (kết quả tìm
+/* flex:1 chỉ đặt cho con TRỰC TIẾP của .line. Đặt thẳng lên b/small thì ở danh sách người (kết quả tìm
    kiếm, thành viên nhóm) — nơi chúng nằm thẳng trong .body vốn xếp DỌC — flex:1 lại thành "kéo giãn theo
    chiều cao", và hai dòng chữ bị đẩy rời nhau ra. */
-.chat-conv .body .row > b,
-.chat-conv .body .row > small { flex: 1; min-width: 0; }
-.chat-conv .body .row > em {
+.chat-conv .body .line > b,
+.chat-conv .body .line > small { flex: 1; min-width: 0; }
+.chat-conv .body .line > em {
     flex-shrink: 0; font-style: normal; font-size: 11px; color: var(--text-muted);
 }
 /* "(người lập nhóm)" nằm trong chính thẻ <b> của bảng thành viên. */
 .chat-conv .body b em { font-weight: 400; font-size: 11.5px; color: var(--text-muted); }
 
-/* Dòng có tin chưa đọc: tên đậm hơn và dòng xem trước hết mờ. Chỉ dựa vào cái huy hiệu tròn thì lúc lướt
-   nhanh cả danh sách, mắt phải đi soi từng con số ở mép phải. */
-.chat-conv.unread .body b { font-weight: 700; }
-.chat-conv.unread .body small { color: var(--text); font-weight: 500; }
+/* Dòng có tin chưa đọc: tên đậm hơn, dòng xem trước hết mờ, giờ đổi sang màu chủ đạo. Chỉ dựa vào cái huy
+   hiệu tròn thì lúc lướt nhanh cả danh sách, mắt phải đi soi từng con số ở mép phải. */
+.chat-conv.unread .body b { font-weight: 800; }
+.chat-conv.unread .body small { color: var(--text); font-weight: 600; }
+.chat-conv.unread .body .line > em { color: var(--primary); font-weight: 700; }
 .chat-conv .n {
-    flex-shrink: 0; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700;
-    min-width: 18px; padding: 0 5px; line-height: 18px; border-radius: 9px; text-align: center;
+    flex: none; background: var(--danger); color: #fff; font-size: 11px; font-weight: 800;
+    min-width: 20px; height: 20px; padding: 0 6px; line-height: 20px; border-radius: 10px; text-align: center;
 }
 
 .chat-avatar {
-    position: relative; flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
+    position: relative; flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%;
     background: var(--primary-light); color: var(--primary-dark); font-weight: 700; font-size: 15px;
     display: flex; align-items: center; justify-content: center; overflow: visible;
 }
 .chat-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.chat-avatar.group { font-size: 19px; }
+/* Nhóm chưa đặt ảnh: nền ấm khác hẳn nền xanh của avatar chữ cái, để nhóm và người không trông như nhau. */
+.chat-avatar.group { font-size: 20px; background: color-mix(in srgb, var(--warning) 18%, var(--surface)); color: var(--warning); }
 .chat-avatar.sm { width: 28px; height: 28px; font-size: 12px; }
 .chat-avatar.sm.group { font-size: 14px; }
 .chat-avatar.md { width: 34px; height: 34px; font-size: 14px; }
@@ -3911,8 +4014,17 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
     background: var(--primary-light); color: var(--primary);
     display: flex; align-items: center; justify-content: center; font-size: 34px;
 }
-#chat-blank b { font-size: 14.5px; }
-#chat-blank small { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; max-width: 280px; }
+#chat-blank b { font-size: 15px; }
+#chat-blank small { font-size: 12.5px; color: var(--text-muted); line-height: 1.6; max-width: 300px; }
+.chat-blank-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+.chat-blank-actions button {
+    display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text);
+    font: inherit; font-size: 13px; font-weight: 600; transition: border-color .15s, background-color .15s;
+}
+.chat-blank-actions button:hover { border-color: var(--primary); color: var(--primary); }
+.chat-blank-actions button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.chat-blank-actions button.primary:hover { background: var(--primary-dark); color: #fff; }
 
 #chat-thread { display: none; }
 #chat-widget.thread-open #chat-blank { display: none; }
@@ -3920,52 +4032,96 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
     display: flex; flex-direction: column; flex: 1; min-height: 0; position: relative;
 }
 
+/* Đầu khung tin nhắn: nền mờ trong suốt nằm đè lên hoa văn nền khi cuộn. */
 .chat-thread-head {
-    display: flex; align-items: center; gap: 9px; padding: 10px 10px 10px 14px;
-    border-bottom: 1px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; gap: 11px; padding: 11px 12px 11px 16px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0; position: relative; z-index: 2;
+    background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(8px);
 }
 /* Nút quay lại chỉ có việc để làm trên màn hình hẹp, nơi hai cột xếp chồng lên nhau — xem @media ở cuối. */
 .chat-thread-head .chat-back { display: none; }
 #chat-thread-avatar:empty { display: none; }
-.chat-thread-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.chat-thread-name b { font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-thread-name small { font-size: 11.5px; color: var(--text-muted); }
+.chat-thread-head .chat-avatar.md { width: 40px; height: 40px; }
+.chat-thread-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.chat-thread-name b { font-size: 15px; font-weight: 800; letter-spacing: -.2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-thread-name small { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-muted); }
+.chat-thread-name small.online { color: var(--success); font-weight: 600; }
+.chat-thread-name small.online::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--success);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 22%, transparent);
+}
 
 /* -------------------- Khung tin nhắn -------------------- */
-#chat-message-list { flex: 1; overflow-y: auto; padding: 14px 16px; }
+/* -------- Kiểu Messenger --------
+   Nền trắng trơn, tin đến là bong bóng xám, tin của mình bong bóng màu chủ đạo, không viền không bóng; giờ
+   không đi theo từng tin mà là một mốc căn giữa ở chỗ cuộc nói chuyện ngắt quãng. Mẫu nền người dùng tự chọn
+   ([data-bg], .has-photo) vẫn đè lên nền trắng này. --chat-in là màu bong bóng tin đến: pha từ màu chữ nên
+   tự thành xám nhạt ở nền sáng và xám đậm ở nền tối. */
+#chat-panel { --chat-in: color-mix(in srgb, var(--text) 7%, var(--surface)); }
+#chat-message-list { flex: 1; overflow-y: auto; padding: 14px 14px 8px; background: var(--surface); }
 
-/* Một hàng tin nhắn nằm NGANG: avatar (hoặc ô trống thế chỗ) ở ngoài, cột nội dung ở trong. */
-.chat-msg { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+.chat-stamp {
+    margin: 18px 0 10px; text-align: center;
+    font-size: 11.5px; font-weight: 600; color: var(--text-muted);
+}
+.chat-stamp:first-child { margin-top: 4px; }
+
+/* Hội thoại chưa có tin nào: lời chào ở giữa khung thay vì một khoảng trắng. */
+.chat-hello {
+    height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; text-align: center; color: var(--text-muted);
+}
+.chat-hello b { font-size: 15px; color: var(--text); margin-top: 4px; }
+.chat-hello small { font-size: 12.5px; }
+
+/* Một hàng tin nhắn nằm NGANG: avatar (hoặc ô trống thế chỗ) ở ngoài, cột nội dung ở trong; canh theo ĐÁY để
+   avatar ở tin cuối cụm nằm ngang với mép dưới bong bóng, như Messenger. */
+.chat-msg { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 2px; }
 .chat-msg.mine { justify-content: flex-end; }
 /* Tin mở đầu một cụm thì tách hẳn khỏi cụm trên, tin giữa cụm thì dính sát nhau — đó là thứ làm người
    đọc nhìn ra "đoạn này cùng một người nói" mà không cần đọc tên. */
-.chat-msg.starts-run { margin-top: 14px; }
+.chat-msg.starts-run { margin-top: 10px; }
+.chat-stamp + .chat-msg { margin-top: 0; }
 .chat-msg:first-child { margin-top: 0; }
+/* Tin vừa tới: trồi nhẹ lên từ dưới. */
+.chat-msg.is-new { animation: chatPop .22s cubic-bezier(.2, .8, .3, 1.2); }
+@keyframes chatPop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
 
-.chat-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: 74%; }
+.chat-col { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; max-width: 72%; }
 .chat-msg.mine .chat-col { align-items: flex-end; }
 
 .chat-avatar-gap { width: 28px; flex-shrink: 0; }
 
-.chat-msg .who { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; padding-left: 2px; }
-.chat-msg .chat-body { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.chat-msg .who { font-size: 11.5px; color: var(--text-muted); margin-bottom: 2px; padding-left: 12px; }
+.chat-msg .chat-body { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
 .chat-msg.mine .chat-body { align-items: flex-end; }
-.chat-msg .bubble {
-    padding: 8px 12px; border-radius: 14px; background: var(--bg); color: var(--text);
-    font-size: 13.5px; line-height: 1.5; word-break: break-word; white-space: pre-wrap;
-}
-/* Góc nhọn phía người nói: bong bóng chỉ vào đúng cột avatar của chủ nó. */
-.chat-msg.starts-run:not(.mine) .bubble { border-top-left-radius: 5px; }
-.chat-msg.starts-run.mine .bubble { border-top-right-radius: 5px; }
-.chat-msg.mine .bubble { background: var(--primary); color: #fff; }
-.chat-msg .at { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text-muted); margin-top: 3px; }
 
-/* Nút thu hồi chỉ hiện khi rê chuột lên tin của chính mình: luôn hiện thì mỗi dòng giờ gửi lại có thêm
-   một biểu tượng, mà đây là thao tác hiếm dùng. Máy cảm ứng không có "rê chuột" nên @media ở cuối cho nó
-   hiện thường trực. */
-.chat-recall { border: 0; background: none; padding: 0; cursor: pointer; color: var(--text-muted); font-size: 12px; opacity: 0; transition: opacity .15s; }
+/* Bong bóng bo tròn 18px; trong một cụm, các góc phía người nói thu còn 4px để cả cụm dính thành một khối —
+   tin đầu cụm chỉ thu góc dưới, tin cuối cụm chỉ thu góc trên, tin giữa thu cả hai. */
+.chat-msg .bubble {
+    padding: 8px 12px; border-radius: 18px; color: var(--text); background: var(--chat-in);
+    font-size: 14px; line-height: 1.42; word-break: break-word; white-space: pre-wrap;
+}
+.chat-msg:not(.mine):not(.starts-run) .bubble { border-top-left-radius: 4px; }
+.chat-msg:not(.mine):not(.ends-run) .bubble { border-bottom-left-radius: 4px; }
+.chat-msg.mine:not(.starts-run) .bubble { border-top-right-radius: 4px; }
+.chat-msg.mine:not(.ends-run) .bubble { border-bottom-right-radius: 4px; }
+.chat-msg.mine .bubble { color: #fff; background: var(--primary); }
+.chat-msg .bubble i { opacity: .75; }
+
+/* Tin chỉ có 1–3 emoji: hiện to, không bong bóng. */
+.chat-emoji { font-size: 34px; line-height: 1.15; padding: 2px 0; }
+
+/* Nút thu hồi đứng cạnh bong bóng của mình và chỉ hiện khi rê chuột: luôn hiện thì tin nào cũng kè kè một
+   biểu tượng cho một thao tác hiếm dùng. Máy cảm ứng không có "rê chuột" nên @media ở cuối cho nó hiện
+   thường trực. */
+.chat-recall {
+    align-self: center; flex-shrink: 0; width: 26px; height: 26px; border: 0; border-radius: 50%;
+    background: none; padding: 0; cursor: pointer; color: var(--text-muted); font-size: 13px;
+    opacity: 0; transition: opacity .15s, background-color .15s;
+}
 .chat-msg:hover .chat-recall { opacity: 1; }
-.chat-recall:hover { color: var(--danger); }
+.chat-recall:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
 
 /* Ảnh gửi kèm: giới hạn CHIỀU CAO chứ không phải chiều rộng — ảnh dọc chụp bằng điện thoại mà chỉ chặn
    bề ngang thì một tấm chiếm trọn khung chat và đẩy mọi tin khác ra khỏi tầm nhìn. */
@@ -3974,21 +4130,55 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
 
 .chat-audio { max-width: 240px; height: 38px; }
 
+/* Thẻ tệp: ô biểu tượng tô màu theo loại tệp (Word xanh, PDF đỏ, bảng tính xanh lá...) kèm nhãn đuôi tệp. */
 .chat-file {
-    display: flex; align-items: center; gap: 10px; max-width: 100%; padding: 9px 12px;
-    border: 1px solid var(--border); border-radius: 14px; background: var(--bg);
-    color: var(--text); text-decoration: none;
+    --kind: var(--primary);
+    display: flex; align-items: center; gap: 11px; width: 280px; max-width: 100%; padding: 10px 12px 10px 10px;
+    border: 1px solid transparent; border-radius: 18px; background: var(--chat-in);
+    color: var(--text); text-decoration: none; transition: border-color .15s;
 }
-.chat-file:hover { background: var(--sidebar-hover); border-color: var(--primary); }
-.chat-file > i { font-size: 22px; color: var(--primary); flex-shrink: 0; }
-.chat-file .body { min-width: 0; display: flex; flex-direction: column; }
-.chat-file .body b { font-size: 12.5px; font-weight: 600; word-break: break-all; }
+.chat-file:hover { border-color: var(--kind); text-decoration: none; }
+.chat-file.kind-word  { --kind: #2563eb; }
+.chat-file.kind-pdf   { --kind: #dc2626; }
+.chat-file.kind-sheet { --kind: #16a34a; }
+.chat-file.kind-slide { --kind: #ea580c; }
+.chat-file.kind-zip   { --kind: #ca8a04; }
+.chat-file.kind-video { --kind: #9333ea; }
+.chat-file-icon {
+    position: relative; flex-shrink: 0; width: 42px; height: 46px; border-radius: 10px;
+    display: grid; place-items: center; font-size: 22px; color: var(--kind);
+    background: color-mix(in srgb, var(--kind) 13%, var(--surface));
+}
+.chat-file-icon em {
+    position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%);
+    padding: 1px 5px; border-radius: 5px; background: var(--kind); color: #fff;
+    font: 800 8.5px/1.4 var(--font-sans, inherit); font-style: normal; letter-spacing: .3px;
+}
+.chat-file .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.chat-file .body b { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
 .chat-file .body small { font-size: 11px; color: var(--text-muted); }
+.chat-file-dl {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 15px; color: var(--kind); background: color-mix(in srgb, var(--kind) 10%, var(--surface));
+}
 
 /* Nhãn dán KHÔNG có bong bóng: cả điểm hấp dẫn của nó nằm ở chỗ nó là một hình to nằm trần trên nền chat. */
-.chat-sticker { font-size: 56px; line-height: 1.1; }
+.chat-sticker { font-size: 56px; line-height: 1.1; filter: drop-shadow(0 4px 8px rgba(15, 23, 42, .12)); }
 
-#chat-typing { padding: 0 16px 6px; font-size: 12px; color: var(--text-muted); font-style: italic; }
+/* "Đang nhập..." kiểu Messenger: một bong bóng xám có ba chấm nhảy, thẳng hàng với cột bong bóng tin đến
+   (14px lề + 28px avatar + 8px khe). */
+#chat-typing { display: flex; padding: 0 14px 6px 50px; }
+#chat-typing.hidden { display: none; }
+#chat-typing .dots {
+    display: inline-flex; gap: 4px; padding: 11px 13px; border-radius: 18px; background: var(--chat-in);
+}
+#chat-typing .dots i {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted);
+    animation: chatDot 1.1s infinite ease-in-out;
+}
+#chat-typing .dots i:nth-child(2) { animation-delay: .15s; }
+#chat-typing .dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes chatDot { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
 #chat-upload {
     padding: 6px 16px; font-size: 12px; color: var(--primary-dark); background: var(--primary-light);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -3997,39 +4187,41 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
 /* -------------------- Khung soạn tin -------------------- */
 /* Thanh công cụ, ô nhập và nút gửi nằm CHUNG một khung viền bo tròn, để cả cụm đọc ra là "chỗ soạn tin"
    thay vì ba dải rời nhau trôi nổi. */
+/* Kiểu Messenger: MỘT hàng — các nút công cụ màu chủ đạo bên trái, ô "Aa" bo tròn nền xám ở giữa, nút gửi
+   trần bên phải. Canh theo ĐÁY để khi ô nhập giãn ra nhiều dòng, nút hai bên vẫn nằm ở dòng cuối. */
 #chat-form {
-    flex-shrink: 0; margin: 10px 14px 14px; padding: 4px 4px 4px 6px;
-    border: 1px solid var(--border); border-radius: 18px; background: var(--bg);
-    display: flex; flex-direction: column; gap: 2px;
+    flex-shrink: 0; margin: 0; padding: 8px 10px 12px;
+    display: flex; flex-direction: row; align-items: flex-end; gap: 4px; background: var(--surface);
 }
-/* Viền sáng lên khi con trỏ đang nằm trong ô nhập: bản thân <textarea> đã bỏ viền và bỏ outline, không có
-   luật này thì không còn dấu hiệu nào cho biết đang gõ vào đâu. */
-#chat-form:focus-within { border-color: var(--primary); }
 
-#chat-tool-bar { display: flex; gap: 2px; }
+#chat-tool-bar { display: flex; gap: 0; padding-bottom: 2px; }
 #chat-tool-bar button {
-    width: 30px; height: 30px; border: 0; border-radius: 8px; background: none; cursor: pointer;
-    color: var(--text-muted); font-size: 17px; display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border: 0; border-radius: 50%; background: none; cursor: pointer;
+    color: var(--primary); font-size: 20px; display: flex; align-items: center; justify-content: center;
 }
-#chat-tool-bar button:hover { background: var(--sidebar-hover); color: var(--primary); }
+#chat-tool-bar button:hover { background: var(--chat-in); }
 #chat-mic-btn.recording { color: var(--danger); background: rgba(220, 38, 38, .12); }
 
-.chat-input-row { display: flex; align-items: flex-end; gap: 6px; }
+.chat-input-row { flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 4px; }
 /* resize:none vì chiều cao do syncComposer() tính theo số dòng đang gõ; để người dùng kéo tay thì cú gõ
    kế tiếp ghi đè lên chiều cao họ vừa kéo, trông như hỏng. */
 #chat-input {
-    flex: 1; min-width: 0; border: 0; background: none; color: var(--text);
-    font: inherit; font-size: 13.5px; line-height: 1.45; resize: none;
-    padding: 7px 4px; max-height: 104px; overflow-y: auto;
+    flex: 1; min-width: 0; border: 0; background: var(--chat-in); color: var(--text);
+    font: inherit; font-size: 14px; line-height: 1.42; resize: none;
+    padding: 8px 14px; max-height: 104px; overflow-y: auto;
+    /* Gỡ luật chung của textarea trong biểu mẫu (min-height 90px + vòng sáng khi focus): ở đây chúng biến ô
+       soạn tin một dòng thành một ô cao lồng thêm một khung nữa bên trong khung #chat-form. */
+    min-height: 0; border-radius: 20px;
 }
-#chat-input:focus { outline: none; }
+#chat-input:focus { outline: none; box-shadow: none; }
 
 #chat-send-btn {
-    width: 34px; height: 34px; flex-shrink: 0; border: 0; border-radius: 50%; cursor: pointer;
-    background: var(--primary); color: #fff; font-size: 16px;
-    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; flex-shrink: 0; border: 0; border-radius: 50%; cursor: pointer;
+    background: none; color: var(--primary); font-size: 21px;
+    display: flex; align-items: center; justify-content: center; transition: background-color .15s;
 }
-#chat-send-btn:disabled { background: var(--border); color: var(--text-muted); cursor: default; }
+#chat-send-btn:not(:disabled):hover { background: var(--chat-in); }
+#chat-send-btn:disabled { color: var(--text-muted); opacity: .45; cursor: default; }
 
 /* -------------------- Nhãn dán / ghi âm -------------------- */
 #chat-sticker-panel {
@@ -4192,7 +4384,7 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
 #chat-message-list[data-bg] .chat-msg:not(.mine) .bubble,
 #chat-message-list[data-bg] .chat-file,
 #chat-message-list.has-photo .chat-msg:not(.mine) .bubble,
-#chat-message-list.has-photo .chat-file { background: var(--surface); }
+#chat-message-list.has-photo .chat-file { background-color: var(--surface); }
 
 #chat-bg-panel { padding: 12px 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #chat-bg-panel > small { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 9px; }

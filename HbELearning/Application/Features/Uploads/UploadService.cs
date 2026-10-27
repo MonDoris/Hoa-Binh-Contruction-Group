@@ -9,7 +9,10 @@ public class UploadService : IUploadService
     /// <summary>Các thư mục lưu trữ hợp lệ. Danh sách đóng vì subFolder đi thẳng vào đường dẫn đĩa:
     /// để tự do thì một giá trị kiểu "../../Controllers" ghi được file ra ngoài wwwroot.</summary>
     private static readonly string[] SubFolderList =
-        { "lesson", "course", "avatar", "ai-document", "classroom-recording", "qr", "scenario", "sim-library", "shop" };
+        { "lesson", "course", "avatar", "cover", "ai-document", "classroom-recording", "qr", "scenario", "sim-library", "shop" };
+
+    /// <summary>Thư mục ảnh cá nhân — ai đăng nhập cũng tự tải lên được, các thư mục còn lại chỉ người quản lý.</summary>
+    private static readonly string[] PersonalFolderList = { "avatar", "cover" };
     private readonly ICurrentUser _currentUser;
 
     public UploadService(IFileService fileService, ICurrentUser currentUser)
@@ -22,7 +25,7 @@ public class UploadService : IUploadService
     {
         if (!SubFolderList.Contains(subFolder))
             return Result.Invalid(new MessageResponse("Thư mục lưu trữ không hợp lệ."));
-        if (subFolder != "avatar" && !_currentUser.IsManager) return Result.Forbidden();
+        if (!PersonalFolderList.Contains(subFolder) && !_currentUser.IsManager) return Result.Forbidden();
 
         try
         {

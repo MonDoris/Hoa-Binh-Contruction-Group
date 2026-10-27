@@ -30,6 +30,10 @@ public class User
 
     [MaxLength(500)]
     public string? AvatarUrl { get; set; }
+
+    /// <summary>Ảnh bìa ở trang "Tài khoản của tôi" — luôn là tệp trong /uploads/cover/, null = ảnh bìa mặc định.</summary>
+    [MaxLength(500)]
+    public string? CoverUrl { get; set; }
     [MaxLength(1000)]
     public string? FunctionKeys { get; set; }
 

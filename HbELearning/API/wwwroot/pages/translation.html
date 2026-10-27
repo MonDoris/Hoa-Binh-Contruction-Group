@@ -17,54 +17,77 @@
 <div class="main">
     <div class="content tr-page">
 
-        <!-- Thẻ của từng ngôn ngữ, kèm tiến độ dịch. Bấm để chọn ngôn ngữ đích. -->
-        <div class="tr-langs" id="tr-langs"></div>
+        <!-- ===== Khối 1: các ngôn ngữ, kèm tiến độ dịch. Bấm một thẻ để chọn ngôn ngữ cần dịch. ===== -->
+        <section class="tr-section">
+            <div class="tr-section-head">
+                <div>
+                    <h2 data-i18n="translation.ngonNguHeThong">Ngôn ngữ của hệ thống</h2>
+                    <p data-i18n="translation.ngonNguHeThongHint">Bấm vào một thẻ để chọn ngôn ngữ bạn muốn dịch. Thanh màu cho biết đã dịch được bao nhiêu.</p>
+                </div>
+            </div>
+            <div class="tr-langs" id="tr-langs"></div>
+        </section>
 
-        <div class="tr-filters">
-            <div class="tr-search">
-                <i class="ph ph-magnifying-glass"></i>
-                <input id="f-keyword" maxlength="100"
-                       data-i18n-ph="translation.timTheoKhoaHoacNoiDung" placeholder="Tìm theo khóa hoặc nội dung...">
-                <kbd class="tr-kbd">/</kbd>
+        <!-- ===== Khối 2: bàn dịch — cặp ngôn ngữ, bộ lọc, bảng câu chữ. ===== -->
+        <section class="tr-board">
+            <div class="tr-board-head">
+                <!-- Chiều dịch đặt to, ngay đầu bàn dịch: người dịch luôn phải biết mình đang dịch TỪ đâu SANG đâu.
+                     Bấm vào bất kỳ phần nào của cụm này là đổi chiều (xem swapPair trong translation.js). -->
+                <div class="tr-pair" role="group" aria-label="Chiều dịch">
+                    <div class="tr-pair-side">
+                        <span class="tr-pair-label" data-i18n="translation.dichTu">Dịch từ</span>
+                        <button type="button" class="tr-pill" id="pair-source"></button>
+                    </div>
+                    <button type="button" class="tr-swap" id="pair-swap"
+                            data-i18n-title="translation.doiChieu" title="Đổi chiều dịch">
+                        <i class="ph ph-arrows-left-right"></i>
+                    </button>
+                    <div class="tr-pair-side">
+                        <span class="tr-pair-label" data-i18n="translation.sang">Sang</span>
+                        <button type="button" class="tr-pill target" id="pair-target"></button>
+                    </div>
+                </div>
+
+                <div class="tr-filters">
+                    <div class="tr-search">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input id="f-keyword" maxlength="100" type="search"
+                               data-i18n-ph="translation.timTheoKhoaHoacNoiDung" placeholder="Tìm theo khóa hoặc nội dung...">
+                        <kbd class="tr-kbd">/</kbd>
+                    </div>
+
+                    <div class="tr-select">
+                        <i class="ph ph-squares-four tr-select-icon"></i>
+                        <select id="f-group" aria-label="Lọc theo màn hình"></select>
+                        <i class="ph ph-caret-down"></i>
+                    </div>
+
+                    <div class="tr-select">
+                        <i class="ph ph-funnel tr-select-icon"></i>
+                        <select id="f-source" aria-label="Lọc theo nguồn">
+                            <option value="" data-i18n="translation.moiNguon">Mọi nguồn</option>
+                            <option value="system" data-i18n="translation.cuaHeThong">Của hệ thống</option>
+                            <option value="custom" data-i18n="translation.congTyTuThem">Công ty tự thêm</option>
+                            <option value="customized" data-i18n="translation.daSuaKhacBanGoc">Đã sửa khác bản gốc</option>
+                        </select>
+                        <i class="ph ph-caret-down"></i>
+                    </div>
+                </div>
             </div>
 
-            <div class="tr-select">
-                <select id="f-group" aria-label="Lọc theo màn hình"></select>
-                <i class="ph ph-caret-down"></i>
+            <!-- Hàng lọc theo tình trạng bản dịch, dạng thẻ tab ngay trên bảng. -->
+            <div class="tr-chips" id="tr-chips" role="tablist"></div>
+
+            <!-- Thanh tiến độ khi đang nhờ AI dịch hàng loạt. Dịch cả nghìn câu mất vài phút và chia thành
+                 nhiều lô: không có thanh này thì người dùng chỉ thấy màn hình đứng im, không biết còn bao lâu
+                 và cũng không có đường dừng lại giữa chừng. -->
+            <div class="tr-ai-bar" id="tr-ai-bar" hidden>
+                <i class="ph ph-sparkle"></i>
+                <span class="tr-ai-text" id="tr-ai-text"></span>
+                <span class="tr-ai-track"><span class="tr-ai-fill" id="tr-ai-fill"></span></span>
+                <button type="button" class="btn ghost sm" id="tr-ai-stop" data-i18n="translation.aiDung">Dừng</button>
             </div>
 
-            <div class="tr-select">
-                <select id="f-source" aria-label="Lọc theo nguồn">
-                    <option value="" data-i18n="translation.moiNguon">Mọi nguồn</option>
-                    <option value="system" data-i18n="translation.cuaHeThong">Của hệ thống</option>
-                    <option value="custom" data-i18n="translation.congTyTuThem">Công ty tự thêm</option>
-                    <option value="customized" data-i18n="translation.daSuaKhacBanGoc">Đã sửa khác bản gốc</option>
-                </select>
-                <i class="ph ph-caret-down"></i>
-            </div>
-
-            <div class="tr-pair">
-                <span class="tr-pair-label" data-i18n="translation.nguon">Nguồn</span>
-                <button type="button" class="tr-pill" id="pair-source"></button>
-                <i class="ph ph-arrow-right tr-pair-arrow"></i>
-                <span class="tr-pair-label" data-i18n="translation.dich">Đích</span>
-                <button type="button" class="tr-pill target" id="pair-target"></button>
-            </div>
-        </div>
-
-        <div class="tr-chips" id="tr-chips"></div>
-
-        <!-- Thanh tiến độ khi đang nhờ AI dịch hàng loạt. Dịch cả nghìn câu mất vài phút và chia thành
-             nhiều lô: không có thanh này thì người dùng chỉ thấy màn hình đứng im, không biết còn bao lâu
-             và cũng không có đường dừng lại giữa chừng. -->
-        <div class="tr-ai-bar" id="tr-ai-bar" hidden>
-            <i class="ph ph-sparkle"></i>
-            <span class="tr-ai-text" id="tr-ai-text"></span>
-            <span class="tr-ai-track"><span class="tr-ai-fill" id="tr-ai-fill"></span></span>
-            <button type="button" class="btn ghost sm" id="tr-ai-stop" data-i18n="translation.aiDung">Dừng</button>
-        </div>
-
-        <div class="tr-board">
             <table class="tr-table">
                 <thead><tr id="tr-head"></tr></thead>
                 <tbody id="tbody"></tbody>
@@ -73,7 +96,7 @@
                 <div class="tr-foot-left" id="tr-foot-left"></div>
                 <div class="tr-pager" id="tr-pager"></div>
             </div>
-        </div>
+        </section>
     </div>
 </div>
 

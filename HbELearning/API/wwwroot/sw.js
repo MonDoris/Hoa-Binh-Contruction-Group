@@ -6,7 +6,7 @@
 
 // ĐỔI SỐ NÀY mỗi lần sửa danh sách SHELL hoặc đổi chiến lược cache — tên cache đổi thì bản cũ bị xóa
 // sạch ở bước activate, người dùng không kẹt lại ở phiên bản cũ.
-const VERSION = 'v41';
+const VERSION = 'v47';
 const SHELL_CACHE = `hbe-shell-${VERSION}`;
 const PAGE_CACHE = `hbe-page-${VERSION}`;
 
@@ -83,7 +83,22 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // CSS/JS/ảnh/font/JSON ngôn ngữ: trả bản đã lưu ngay cho nhanh, đồng thời âm thầm tải bản mới
+    // JSON ngôn ngữ: cũng ưu tiên mạng. Để stale-while-revalidate thì sửa một câu dịch phải tải lại
+    // trang HAI lần mới thấy — lần đầu vẫn ra chữ cũ trong cache.
+    if (url.pathname.startsWith('/locales/')) {
+        event.respondWith((async () => {
+            try {
+                const res = await fetch(req, { cache: 'no-cache' });
+                if (res.ok) (await caches.open(SHELL_CACHE)).put(req, res.clone());
+                return res;
+            } catch {
+                return (await caches.match(req)) || Response.error();
+            }
+        })());
+        return;
+    }
+
+    // CSS/JS/ảnh/font: trả bản đã lưu ngay cho nhanh, đồng thời âm thầm tải bản mới
     // về cho lần sau (stale-while-revalidate).
     event.respondWith((async () => {
         const cached = await caches.match(req);

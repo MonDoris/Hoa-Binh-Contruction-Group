@@ -84,6 +84,7 @@ public class AppDbContext : DbContext, IAppDbContext
     /// <summary>Lịch sử hỏi đáp với HB Minerva — mỗi người một danh sách hội thoại riêng.</summary>
     public DbSet<AiChatSession> AiChatSession => Set<AiChatSession>();
     public DbSet<AiChatMessage> AiChatMessage => Set<AiChatMessage>();
+    public DbSet<AiChatAttachment> AiChatAttachment => Set<AiChatAttachment>();
 
     /// <summary>Câu trả lời cài sẵn của HB Minerva (chào hỏi, cảm ơn...) — trả lời thẳng, không qua model.</summary>
     public DbSet<AiQuickReply> AiQuickReply => Set<AiQuickReply>();
@@ -639,6 +640,9 @@ public class AppDbContext : DbContext, IAppDbContext
             .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         b.Entity<AiChatMessage>().HasOne(x => x.AiChatSession).WithMany(x => x.MessageList)
             .HasForeignKey(x => x.AiChatSessionId).OnDelete(DeleteBehavior.Cascade);
+        // Dòng tệp đi theo tin nhắn; tệp trên đĩa thì AiTutorService tự xóa trước khi xóa hội thoại.
+        b.Entity<AiChatAttachment>().HasOne(x => x.AiChatMessage).WithMany(x => x.AttachmentList)
+            .HasForeignKey(x => x.AiChatMessageId).OnDelete(DeleteBehavior.Cascade);
         // Danh sách lịch sử của một người luôn sắp theo lượt nói gần nhất.
         b.Entity<AiChatSession>().HasIndex(x => new { x.UserId, x.UpdatedAt });
         b.Entity<AiChatMessage>().HasIndex(x => new { x.AiChatSessionId, x.Id });
