@@ -21,8 +21,6 @@
 - [Bắt đầu nhanh](#bắt-đầu-nhanh)
 - [Cấu hình chi tiết](#cấu-hình-chi-tiết)
 - [Tài liệu liên quan](#tài-liệu-liên-quan)
-- [Đóng góp](#đóng-góp)
-- [Giấy phép](#giấy-phép)
 
 ## Giới thiệu
 
@@ -173,10 +171,3 @@ Cơ sở dữ liệu và dữ liệu nền (vai trò, quyền...) được tự 
 - [`deploy/coturn/README.md`](deploy/coturn/README.md) — hướng dẫn triển khai TURN server cho lớp học online
 - [`Docs/`](Docs) — tài liệu mô tả đề bài và thiết kế ban đầu của dự án
 
-## Đóng góp
-
-Pull request và issue báo lỗi/đề xuất tính năng đều được hoan nghênh. Khi thêm tính năng mới, vui lòng tuân theo ranh giới các lớp mô tả trong `KIEN-TRUC.md` (đặc biệt: Application không được phụ thuộc Infrastructure hay ASP.NET Core).
-
-## Giấy phép
-
-Dự án hiện chưa gắn giấy phép mã nguồn mở cụ thể. Nếu công khai trên GitHub, cân nhắc bổ sung file `LICENSE` (MIT, Apache-2.0...) phù hợp với mục đích sử dụng.
