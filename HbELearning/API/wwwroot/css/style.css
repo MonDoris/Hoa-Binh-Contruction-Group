@@ -20,13 +20,13 @@
     /* Hai chuỗi của biểu đồ "hoàn thành / chưa hoàn thành" ở trang Tổng quan. Không mượn --primary/--success:
        xanh thương hiệu chỉ đạt 2.9:1 trên nền trắng (cột mảnh là mất hút), và đôi màu này đã được kiểm tách
        bạch được cả với người mù màu đỏ–lục. Bản tối là bước khác của cùng hai sắc, không phải đảo màu. */
-    --viz-done: #2a78d6;
+    --viz-done: #00ff7b  ;
     --viz-open: #eb6834;
     /* Hai bậc nhạt hơn của --viz-done cho thang thứ tự "Hoàn thành → Đang học → Chưa bắt đầu" ở trang Báo cáo:
        cùng một sắc, đậm dần theo mức hoàn tất. Ba bậc đã qua validate_palette --ordinal (bậc nhạt nhất 2.09:1 so với
        nền trắng); bản tối là bậc khác của cùng sắc, mờ dần về phía nền chứ không đảo màu. */
-    --viz-mid: #5b9be0;
-    --viz-low: #8cb7e8;
+    --viz-mid: #2a78d6;
+    --viz-low: #fd0000;
 
     --sidebar-bg: #ffffff;
     --sidebar-hover: #f1f5f9;
@@ -571,19 +571,21 @@ a:hover { text-decoration: underline; }
 .topbar-dock .notif-btn:focus-visible,
 .topbar-dock .theme-switch:focus-visible,
 .topbar-dock .lang-switch:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
-/* Cỡ chữ S / M / L: một viên thuốc, cỡ đang chọn là ô tròn tô màu thương hiệu (xem renderTextSizeSwitch, js/theme.js). */
-.text-size-switch {
-    display: inline-flex; align-items: center; gap: 1px; flex: none; height: 30px; padding: 2px; margin: 0 2px;
-    border-radius: 999px; border: 1px solid var(--border); background: var(--surface);
+/* Cỡ chữ: một nút "Aa" cùng khuôn với các nút tiện ích, bấm xổ ra ba lựa chọn (xem renderTextSizeSwitch,
+   js/theme.js). Đang ở cỡ khác "vừa" thì góc nút có một chấm màu thương hiệu. */
+.text-size-switch { display: contents; }
+.text-size-btn {
+    position: relative; width: 32px; height: 32px; flex: none; padding: 0; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 0; border-radius: 9px; background: transparent; color: var(--text-muted); font-size: 18px;
+    transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
 }
-.text-size-switch button {
-    width: 26px; height: 24px; padding: 0; border: 0; border-radius: 999px; cursor: pointer;
-    background: transparent; color: var(--text-muted); font: 800 11.5px/1 var(--font-sans, inherit);
-    transition: background-color .15s ease, color .15s ease;
+.text-size-btn:hover { background: var(--surface); color: var(--text); box-shadow: var(--shadow-xs); }
+.text-size-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.text-size-btn.changed::after {
+    content: ""; position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--primary); box-shadow: 0 0 0 2px var(--bg);
 }
-.text-size-switch button:hover:not(.on) { color: var(--text); background: var(--bg); }
-.text-size-switch button.on { background: var(--primary); color: #fff; box-shadow: 0 2px 6px -2px color-mix(in srgb, var(--primary) 70%, transparent); }
-.text-size-switch button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 
 /* Áp cỡ chữ: phóng cả vùng nội dung (chữ cùng khoảng cách), menu và thanh trên giữ nguyên. */
 :root[data-text-size="s"] .main > .content { zoom: .9; }
@@ -605,8 +607,14 @@ a:hover { text-decoration: underline; }
 .topbar-search-toggle[aria-expanded="true"] { background: var(--surface); color: var(--text); }
 .topbar-search-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 
-/* Nút hành động của trang cùng cao 40px với hai khối bên trái vạch ngăn. */
-.topbar-action .btn { padding: 0 14px; height: 40px; font-size: 13px; border-radius: 11px; }
+/* Nút hành động của trang cùng cao 40px với hai khối bên trái vạch ngăn — kể cả nút trang nào lỡ gắn .sm hay
+   .outline: mọi nút trên thanh trên một khuôn. Quy ước: tối đa một nút chính (nền màu) + nút phụ viền nhạt, việc
+   thỉnh thoảng mới làm thì gom vào nút "…" (.topbar-more). Nút luôn là icon + <span> chữ để màn hẹp rút còn icon. */
+.topbar-action .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+    padding: 0 14px; height: 40px; font-size: 13px; border-radius: 11px;
+}
+.topbar-action .btn i { font-size: 16px; }
 
 /* Nút "…" gom các việc phụ. Cùng khuôn với ba nút tiện ích bên trái vạch ngăn. */
 .topbar-more {
@@ -632,6 +640,8 @@ a:hover { text-decoration: underline; }
 }
 .pop-menu button:hover { background: var(--bg); }
 .pop-menu button i { font-size: 16px; color: var(--text-muted); }
+.pop-menu button i.pop-check { color: var(--primary); }
+.pop-menu button i.pop-check.off { visibility: hidden; }
 .pop-menu button.danger { color: var(--danger); }
 .pop-menu button.danger i { color: var(--danger); }
 :root[data-theme="dark"] .pop-menu { box-shadow: 0 14px 34px rgba(0, 0, 0, .55); }
@@ -1392,7 +1402,7 @@ body.learn-tree-collapsed .learn-tree-toggle i { transform: rotate(180deg); }
 .path-qbox .vl-qlist { border: 0; padding: 0; background: none; }
 
 /* ==================== SỔ GHI CHÚ THEO MỐC THỜI GIAN ====================
-   Ghi chú của học viên gắn với một giây cụ thể trong video bài học — xem js/lesson-note.js. */
+   Ghi chú của học viên gắn với một giây cụ thể trong video bài học — xem pages/learning/lesson-note.js. */
 .note-panel {
     margin: 16px 0 20px;
     border: 1px solid var(--border); border-radius: var(--radius);
@@ -1858,7 +1868,7 @@ body.sco-mode .content { padding: 14px 16px; }
     background: var(--primary-soft); color: var(--primary);
 }
 
-/* Chương ĐANG PHÁT trong video. Chỉ có ở mục lục "sống" của trình phát (js/video-learning.js gắn class theo
+/* Chương ĐANG PHÁT trong video. Chỉ có ở mục lục "sống" của trình phát (js/widgets/video-learning.js gắn class theo
    vị trí phát); mục lục tĩnh của bài chưa mở không bao giờ có chương nào đang phát.
 
    Tô cả nền lẫn viền lẫn vạch bên trái chứ không chỉ đổi màu chữ: cột nội dung này thường có nhiều chương
@@ -2500,7 +2510,7 @@ body.sco-mode .content { padding: 14px 16px; }
 .sim-pick-stage .hint b { color: #fff; }
 
 /* Khung chọn vị trí khi SOẠN BÀI: cùng một cảnh 3D với trang học nhưng KHÔNG có khung lẫn nền (renderer
-   dựng với alpha, xem js/sim-asset-scene.js) — model trông như đang lơ lửng trên nền mờ, thay vì một tấm
+   dựng với alpha, xem js/sim/sim-asset-scene.js) — model trông như đang lơ lửng trên nền mờ, thay vì một tấm
    ảnh dán đè lên. position: relative để các marker (position: absolute) bám theo đúng khung này. */
 .sim-pick-wrap {
     position: relative; flex: 1; width: 100%; min-height: 0; overflow: hidden;
@@ -2650,7 +2660,7 @@ body.sco-mode .content { padding: 14px 16px; }
 
 /* ==================== VIDEO CÓ CHÈN CÂU HỎI ==================== */
 /* Thanh điều khiển tự dựng (không dùng <video controls>) để vẽ được các chấm đánh dấu vị trí câu hỏi
-   lên thanh tiến trình — xem js/video-learning.js. */
+   lên thanh tiến trình — xem js/widgets/video-learning.js. */
 
 .vl-player { border-radius: var(--radius); overflow: hidden; background: #0b1220; box-shadow: var(--shadow); }
 .vl-player:fullscreen { display: flex; flex-direction: column; justify-content: center; border-radius: 0; }
@@ -3623,7 +3633,7 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
        mà dòng nào cũng cao thêm 10px thì phải cuộn gấp rưỡi. 40px vẫn đủ để không bấm nhầm sang nút bên. */
     .btn.sm { min-height: 40px; }
 
-    .notif-btn, .theme-switch, .topbar-more, .mobile-menu-btn, .topbar-search-toggle,
+    .notif-btn, .theme-switch, .text-size-btn, .topbar-more, .mobile-menu-btn, .topbar-search-toggle,
     .topbar .notif-btn, .topbar .theme-switch, .lang-switch, .close-x {
         min-width: 44px; min-height: 44px;
     }
@@ -3863,7 +3873,7 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
     .content { padding: 0 !important; }
 }
 
-/* ==================== HỘP CHAT NỘI BỘ (js/chat.js) ====================
+/* ==================== HỘP CHAT NỘI BỘ (js/widgets/chat.js) ====================
    Nút bấm nằm trên thanh trên cùng, cạnh chuông thông báo, và dùng lại nguyên class .notif-btn /
    .notif-badge — xem phần dựng thanh trên trong app.js. Ở đây chỉ còn phần BẢNG xổ xuống.
    Thẻ bọc là .notif-wrapper (position: relative) nên #chat-widget không cần định vị gì.
@@ -4449,7 +4459,7 @@ a, button, .btn, .tabs button, [onclick], [role="button"] {
     #chat-sticker-panel { height: 148px; }
 }
 
-/* ===== Feedback khóa học (js/feedback.js) ===== */
+/* ===== Feedback khóa học (js/widgets/feedback.js) ===== */
 .fb { display: flex; flex-direction: column; gap: 16px; }
 .fb textarea { min-height: 64px; width: 100%; }
 .fb h4 { margin: 0 0 8px; font-size: 14px; }

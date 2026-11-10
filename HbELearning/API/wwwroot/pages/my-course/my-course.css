@@ -1,0 +1,212 @@
+/* File: wwwroot/pages/my-course/my-course.css */
+        /* ==================== KHÓA HỌC CỦA TÔI ====================
+           Trang học tập RIÊNG của từng người. Học viên, Trưởng Nhóm, Trưởng phòng, Giám Đốc, Tổng Giám Đốc vào đây
+           đều với tư cách người học, nên trang cố ý giống nhau cho mọi vai trò — việc theo vai trò (soạn, duyệt)
+           nằm ở Quản lý khóa học. Tổng quan đã có khối "Tiếp tục học"; trang này là chỗ QUẢN LÝ việc học: còn gì
+           phải học (xếp theo mức gấp), hạn chót nào sắp tới, điểm, chứng nhận, lịch và nhắc nhở.
+
+           Ba thẻ thay cho bốn khối xếp chồng trước đây: lịch tháng cao 600px từng đẩy danh sách khóa học gợi ý xuống
+           tận đáy trang, và nút chuông trên lịch mở ra lời nhắc nằm ở một khối khác hẳn.
+
+           Tiền tố mc- (my course). Mọi màu lấy từ biến của css/style.css để tự đổi theo nền sáng / tối — bản cũ
+           tô cứng #e0f2fe, #fff1f2, nền trắng khi rê chuột... nên ở chế độ tối thành những mảng sáng lóa. */
+
+        .mc-tabs-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+        .mc-tabs-row .tabs { margin-bottom: 0; }
+        .mc-count {
+            min-width: 20px; padding: 0 7px; border-radius: 999px; text-align: center; line-height: 18px;
+            background: var(--border); color: var(--text-muted); font-size: 11px; font-weight: 700;
+        }
+        .tabs button.active .mc-count { background: var(--primary-light); color: var(--primary-dark); }
+
+        .mc-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+        .mc-layout.wide-side { grid-template-columns: minmax(0, 1fr) 380px; }
+        .mc-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+        .mc-layout .card { margin-bottom: 0; }
+        .mc-side .card-head { padding: 13px 16px; }
+        .mc-side .card-body { padding: 14px 16px; }
+        .mc-card-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; }
+        .mc-card-title i { color: var(--primary); font-size: 17px; }
+
+        /* ---------- Thanh lọc + tìm kiếm ---------- */
+        .mc-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .mc-toolbar .dash-chips { margin-bottom: 0; padding-bottom: 0; }
+        .mc-search { position: relative; }
+        .mc-search i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+        .mc-search input { padding-left: 34px; width: 240px; }
+
+        /* ---------- Danh sách khóa học, chia nhóm theo mức gấp ---------- */
+        .mc-group + .mc-group { margin-top: 22px; }
+        .mc-group-head {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+            font-size: 12px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--text-muted);
+        }
+        .mc-group-head i { font-size: 15px; }
+        .mc-group-head .n { padding: 0 8px; border-radius: 999px; background: var(--border); font-size: 11px; letter-spacing: 0; }
+        .mc-group-head.overdue { color: var(--danger); }
+        .mc-group-head.learning i { color: var(--primary); }
+        .mc-group-head.done i { color: var(--success); }
+        .mc-group-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .mc-item {
+            display: grid; grid-template-columns: 136px minmax(0, 1fr) auto; align-items: center; overflow: hidden;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); transition: box-shadow .15s ease;
+        }
+        .mc-item:hover { box-shadow: var(--shadow); }
+        .mc-item.overdue { border-left: 3px solid var(--danger); }
+        .mc-item.done .course-mini-thumb, .mc-item.cancelled .course-mini-thumb { filter: saturate(.5); }
+        /* Ảnh bìa là cả một cột bên trái, tràn kín thẻ từ trên xuống dưới và sát mép trái; chữ bắt đầu sau một
+           khoảng an toàn 18px (padding-left của .mc-main). Cùng khuôn với thẻ ở trang Quản lý khóa học. */
+        .mc-thumb-link { align-self: stretch; display: flex; min-height: 92px; }
+        .mc-thumb-link:hover { text-decoration: none; }
+        .mc-thumb-link .course-mini-thumb { flex: 1; width: auto; height: auto; border-radius: 0; font-size: 30px; }
+        .mc-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 14px 0 14px 18px; }
+        .mc-title {
+            font-size: 15px; font-weight: 700; line-height: 1.4; color: var(--text);
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .mc-title:hover { color: var(--primary-dark); text-decoration: none; }
+        .mc-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 12px; font-size: 12.5px; color: var(--text-muted); }
+        .mc-meta span { display: inline-flex; align-items: center; gap: 4px; }
+        .mc-meta .code { font-weight: 700; color: var(--text); letter-spacing: .2px; }
+        .mc-due { font-weight: 600; }
+        .mc-due.bad { color: var(--danger); }
+        .mc-due.warn { color: var(--warning); }
+        .mc-due.ok { color: var(--success); }
+        .mc-prog { max-width: 440px; margin-top: 2px; }
+        .mc-actions { display: flex; align-items: center; gap: 6px; padding: 14px 16px; }
+
+        .mc-empty-cta { margin-top: 14px; }
+
+        /* ---------- Cột phụ: tổng quan, hạn chót, nhắc nhở ---------- */
+        .mc-overview-num { display: flex; align-items: baseline; gap: 4px; }
+        .mc-overview-num b { font-size: 28px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+        .mc-overview-num span { font-size: 15px; font-weight: 700; color: var(--text-muted); }
+        .mc-overview-sub { font-size: 12.5px; color: var(--text-muted); margin: 4px 0 10px; }
+        .mc-overview-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+            padding: 8px 0; border-top: 1px solid var(--border); font-size: 13px;
+        }
+        .mc-overview-bar { margin-bottom: 10px; }
+        .mc-overview-row span { display: inline-flex; align-items: center; gap: 7px; color: var(--text-muted); }
+        .mc-overview-row b { font-weight: 700; }
+
+        .mc-dl { display: flex; flex-direction: column; }
+        .mc-dl a { display: flex; align-items: center; gap: 11px; padding: 8px; margin: 0 -8px; border-radius: 10px; color: var(--text); }
+        .mc-dl a:hover { background: var(--bg); text-decoration: none; }
+        /* Bề ngang theo chữ tháng chứ không cố định: tháng viết tắt của tiếng Việt là "thg 8" / "tháng 8", ô 42px
+           bẻ nó làm hai dòng. */
+        .mc-date {
+            min-width: 44px; flex-shrink: 0; padding: 5px 6px; border-radius: 9px; text-align: center; line-height: 1.15;
+            background: var(--bg);
+        }
+        .mc-date b { display: block; font-size: 16px; font-weight: 800; }
+        .mc-date span { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; white-space: nowrap; }
+        .mc-date.bad { background: var(--danger-light); }
+        .mc-date.bad b, .mc-date.bad span { color: var(--danger); }
+        .mc-date.warn { background: var(--warning-light); }
+        .mc-date.warn b, .mc-date.warn span { color: var(--warning); }
+        .mc-dl-text { min-width: 0; }
+        .mc-dl-text b {
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+            font-size: 13px; font-weight: 600; line-height: 1.35;
+        }
+        .mc-dl-text small { font-size: 11.5px; color: var(--text-muted); }
+        .mc-dl-text small.bad { color: var(--danger); font-weight: 600; }
+        .mc-dl-text small.warn { color: var(--warning); font-weight: 600; }
+        .mc-side-empty { font-size: 12.5px; color: var(--text-muted); text-align: center; padding: 10px 4px; }
+
+        /* ---------- Lịch tháng ---------- */
+        .mc-cal-nav { display: flex; align-items: center; gap: 6px; }
+        .mc-cal-nav strong { min-width: 150px; text-align: center; font-size: 14px; }
+        .mc-agenda { display: flex; flex-direction: column; gap: 10px; }
+        .mc-day {
+            display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 14px; padding: 12px;
+            border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
+        }
+        .mc-day.today { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+        .mc-day-date { align-self: start; padding: 8px 0; border-radius: 10px; text-align: center; line-height: 1.15; background: var(--bg); }
+        .mc-day-date b { display: block; font-size: 22px; font-weight: 800; }
+        .mc-day-date span { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+        .mc-day.today .mc-day-date { background: var(--primary); }
+        .mc-day.today .mc-day-date b, .mc-day.today .mc-day-date span { color: var(--surface); }
+        .mc-events { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .mc-event { display: flex; align-items: center; gap: 8px; }
+        .mc-event > a {
+            flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px;
+            padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; background: var(--bg); color: var(--text);
+        }
+        .mc-event > a:hover { border-color: var(--primary); text-decoration: none; }
+        .mc-event .ic {
+            width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; display: grid; place-items: center;
+            font-size: 16px; background: var(--primary-light); color: var(--primary-dark);
+        }
+        .mc-event.due .ic { background: var(--danger-light); color: var(--danger); }
+        .mc-event.done > a { opacity: .6; }
+        .mc-event.done .ic { background: var(--success-light); color: var(--success); }
+        .mc-event .tx { min-width: 0; }
+        .mc-event .tx b, .mc-event .tx span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .mc-event .tx b { font-size: 13.5px; }
+        .mc-event .tx span { font-size: 12px; color: var(--text-muted); }
+        /* Chuông sáng lên khi việc đó đã có lời nhắc đang bật — khỏi phải mở danh sách nhắc nhở mới biết. */
+        .mc-bell.on { color: var(--primary-dark); border-color: var(--primary); background: var(--primary-light); }
+
+        /* ---------- Nhắc nhở ---------- */
+        .mc-hint { font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; }
+        .mc-reminder { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+        .mc-reminder:first-child { border-top: none; padding-top: 0; }
+        .mc-reminder:last-child { padding-bottom: 0; }
+        .mc-reminder.off { opacity: .55; }
+        .mc-reminder .ic {
+            width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; display: grid; place-items: center;
+            font-size: 17px; background: var(--primary-light); color: var(--primary-dark);
+        }
+        .mc-reminder .tx { flex: 1; min-width: 0; }
+        .mc-reminder .tx b { display: block; font-size: 13.5px; line-height: 1.4; }
+        .mc-reminder .meta { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11.5px; color: var(--text-muted); }
+        .mc-reminder .meta span { display: inline-flex; align-items: center; gap: 4px; }
+        .mc-reminder .act { display: flex; gap: 4px; flex-shrink: 0; }
+        /* Bản rút gọn trong cột phụ: chỉ giờ + tên việc, không có nút thao tác. */
+        .mc-reminder.mini { padding: 9px 0; }
+        .mc-reminder.mini .ic { width: 30px; height: 30px; font-size: 15px; }
+        .mc-reminder.mini .tx b { font-size: 13px; }
+
+        /* ---------- Gợi ý ---------- */
+        .mc-suggest-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+        .mc-suggest {
+            display: flex; flex-direction: column; overflow: hidden;
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xs); transition: box-shadow .18s ease, transform .18s ease;
+        }
+        .mc-suggest:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+        .mc-suggest .course-mini-thumb { width: 100%; height: 112px; border-radius: 0; font-size: 38px; }
+        .mc-suggest-body { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 14px; }
+        .mc-suggest h4 {
+            font-size: 14.5px; font-weight: 700; line-height: 1.4;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .mc-reason {
+            display: flex; align-items: flex-start; gap: 6px; padding: 8px 10px; border-radius: 9px;
+            background: var(--primary-soft); color: var(--primary-dark); font-size: 12px; font-weight: 600;
+        }
+        .mc-reason i { margin-top: 2px; }
+        .mc-suggest .btn { margin-top: auto; }
+
+        @media (max-width: 1100px) {
+            .mc-layout, .mc-layout.wide-side { grid-template-columns: minmax(0, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .mc-toolbar, .mc-search, .mc-search input { width: 100%; }
+            .mc-item { grid-template-columns: 96px minmax(0, 1fr); }
+            .mc-thumb-link { min-height: 0; }
+            .mc-thumb-link .course-mini-thumb { font-size: 24px; }
+            .mc-main { padding: 12px 12px 12px 14px; }
+            .mc-actions { grid-column: 1 / -1; padding: 10px 12px; border-top: 1px solid var(--border); }
+            .mc-actions .btn:last-child { flex: 1; }
+            /* Hàng nút đã tràn hết bề ngang thẻ — sao không còn chỗ trống để nổi lên nên xuống thành một hàng riêng,
+               vẫn nằm ở góc dưới bên phải của thẻ. */
+            .mc-item > .course-rating { position: static; grid-column: 1 / -1; justify-self: end; margin: 0 14px 10px; }
+            .mc-day { grid-template-columns: 50px minmax(0, 1fr); gap: 10px; padding: 10px; }
+            .mc-day-date b { font-size: 18px; }
+        }

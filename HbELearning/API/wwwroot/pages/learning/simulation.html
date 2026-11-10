@@ -1,0 +1,111 @@
+<!-- File: wwwroot/pages/learning/simulation.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="simulation.moPhong3dHbELearning">Mô phỏng 3D · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Ngoại lệ duy nhất trong dự án dùng ES module CDN (Three.js không còn phát hành bản UMD/global) —
+         mọi thư viện khác (Chart.js, Quill) tải qua <script src> global như thường lệ.
+
+         Trang này KHÔNG biết mình đang dựng cảnh nào: nó chỉ lo nghiệp vụ bài học (gọi API, chấm điểm,
+         bảng xử lý tình huống), còn cảnh 3D được tra theo SceneKey của kịch bản trong js/sim/sim-registry.js
+         rồi nạp động — nhờ vậy thêm một bối cảnh mới không phải sửa gì ở đây. -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="card">
+            <div class="card-head">
+                <h3 data-i18n="simulation.dangTaiMoPhong" id="sim-title">Đang tải mô phỏng...</h3>
+                <div class="sim-tabs hidden" id="sim-tabs"></div>
+                <span id="sim-meta" class="small muted"></span>
+            </div>
+            <div class="card-body" style="padding:0">
+                <div class="sim-stage" id="sim-stage" style="height:min(74vh,660px)">
+                    <div class="sim-canvas-wrap" id="sim-wrap">
+                        <div class="sim-loading" id="sim-loading">
+                            <span class="spinner"></span>
+                            <span data-i18n="simulation.dangKhoiTaoCanh3d" class="sim-loading-text" id="sim-loading-text">Đang khởi tạo cảnh 3D...</span>
+                            <!-- Model bối cảnh thường nặng vài chục MB; không có thanh tiến trình thì người
+                                 học chỉ thấy vòng xoay đứng yên hàng chục giây và tưởng hệ thống treo. -->
+                            <div class="sim-progress hidden" id="sim-progress"><span id="sim-progress-bar"></span></div>
+                        </div>
+
+                        <div class="sim-hud hidden" id="sim-hud">
+                            <div class="chip" id="chip-score"><span data-i18n="certificate.diem" class="label">Điểm</span> <span id="score-value">0</span></div>
+                            <div class="chip"><span data-i18n="simulation.daXuLy" class="label">Đã xử lý</span> <span id="progress-value">0/0</span></div>
+                            <div class="chip hidden" id="chip-step"><span data-i18n="simulation.buocTiepTheo" class="label">Bước tiếp theo</span> <span id="step-value"></span></div>
+                        </div>
+
+                        <div class="sim-tools hidden" id="sim-tools">
+                            <button type="button" id="btn-brief" data-i18n-title="simulation.xemLaiNhiemVuDuocGiao" title="Xem lại nhiệm vụ được giao">
+                                <i class="ph-bold ph-clipboard-text"></i> <span data-i18n="simulation.nhiemVu">Nhiệm vụ</span>
+                            </button>
+                            <button type="button" id="btn-reset-view" data-i18n-title="simulation.veGocNhinTongThe" title="Về góc nhìn tổng thể">
+                                <i class="ph-bold ph-arrows-out"></i> <span data-i18n="simulation.gocNhinTongThe">Góc nhìn tổng thể</span>
+                            </button>
+                            <!-- Chỉ có nghĩa với model 3D nên được ẩn/hiện theo loại bối cảnh trong mã bên dưới. -->
+                            <button type="button" id="btn-auto-rotate" class="hidden" title="Tự xoay quanh vật thể">
+                                <i class="ph-bold ph-arrows-clockwise"></i> <span data-i18n="simulation.tuXoay">Tự xoay</span>
+                            </button>
+                            <button type="button" id="btn-brightness" title="Tăng / giảm độ sáng">
+                                <i class="ph-bold ph-sun"></i> <span data-i18n="simulation.doSang" id="brightness-label">Độ sáng</span>
+                            </button>
+                            <button type="button" id="btn-fullscreen" title="Toàn màn hình">
+                                <i class="ph-bold ph-corners-out"></i> <span data-i18n="simulation.toanManHinh">Toàn màn hình</span>
+                            </button>
+                        </div>
+
+                        <div class="sim-hint hidden" id="sim-hint">
+                            <i class="ph-bold ph-hand-pointing"></i>
+                            <span id="sim-hint-text"></span>
+                        </div>
+
+                        <!-- Bảng giao nhiệm vụ nhập vai: hiện đè lên cảnh trước khi bắt đầu, và mở lại được
+                             bất cứ lúc nào bằng nút "Nhiệm vụ" ở góc trên. -->
+                        <div class="sim-brief hidden" id="sim-brief">
+                            <div class="sim-brief-card" id="sim-brief-card"></div>
+                        </div>
+
+                        <div class="sim-panel" id="sim-panel">
+                            <button type="button" class="close-x btn ghost sm" id="btn-close-panel">×</button>
+                            <div id="sim-panel-body"></div>
+                        </div>
+                    </div>
+
+                    <!-- Khung xem model tham khảo của bên thứ ba (nếu bối cảnh có khai báo): chỉ dựng iframe ở
+                         lần bấm đầu tiên để không tải thêm vài MB cho người học chỉ dùng phần mô phỏng. -->
+                    <div class="sim-embed hidden" id="sim-embed" style="height:100%"></div>
+                </div>
+
+                <div class="sim-credit hidden" id="sim-credit"></div>
+                <div id="sim-result-box"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/learning/sco-runtime.js"></script>
+<script type="module" src="/pages/learning/simulation.js"></script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!-- File: wwwroot/pages/online-class/classroom.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="classroom.phongHocHbELearning">Phòng học · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+
+<link rel="stylesheet" href="/pages/online-class/classroom.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="cr-wrap">
+    <header class="cr-topbar">
+        <div class="cr-title-block">
+            <h1 class="cr-title" id="cr-title">Đang tải...</h1>
+            <div class="cr-sub">
+                <span id="cr-status"></span>
+                <span class="cr-chip cr-elapsed" id="cr-elapsed" hidden data-i18n-title="classroom.thoiGianDaDienRa" title="Thời gian buổi học đã diễn ra"><i class="ph ph-timer"></i><b id="cr-elapsed-text">00:00</b></span>
+                <span class="cr-chip" id="cr-people-chip" data-i18n-title="classroom.nguoiThamGia" title="Người tham gia"><i class="ph ph-users"></i><b id="cr-people-chip-count">1</b></span>
+            </div>
+        </div>
+        <div class="cr-top-actions">
+            <span class="cr-code-badge" id="cr-code-badge"></span>
+            <span class="cr-rec-badge" id="cr-rec-badge"><span class="dot" aria-hidden="true"></span><span id="cr-rec-label">Đang ghi</span> <span class="time" id="cr-rec-time">00:00</span></span>
+            <!-- Thông báo cho trình đọc màn hình chỉ khi trạng thái ĐỔI; đồng hồ nhảy mỗi giây thì không đọc. -->
+            <span class="sr-only" id="cr-rec-announce" role="status"></span>
+            <button type="button" class="cr-panel-btn" id="cr-side-toggle" aria-controls="cr-side" aria-expanded="true" data-i18n-title="classroom.anHienKhungChat" title="Ẩn/hiện khung chat" aria-label="Ẩn/hiện khung chat">
+                <i class="ph ph-chat-circle-text"></i><span class="cr-unread" id="cr-unread" hidden></span></button>
+        </div>
+    </header>
+    <div class="cr-body">
+        <!-- Màn hình xem trước: hiện trước khi vào phòng, ẩn đi khi bấm vào (xem runPreview). -->
+        <div class="cr-preview" id="cr-preview" hidden role="region" aria-labelledby="pv-title">
+            <div class="pv-card">
+                <div class="pv-stage">
+                    <video id="pv-video" autoplay muted playsinline hidden></video>
+                    <div class="pv-off" id="pv-off">
+                        <div class="pv-avatar" id="pv-avatar" aria-hidden="true"></div>
+                        <div id="pv-off-text"></div>
+                    </div>
+                    <div class="pv-toggles">
+                        <button type="button" class="pv-toggle" id="pv-toggle-mic" aria-pressed="false"><i class="ph ph-microphone-slash"></i></button>
+                        <button type="button" class="pv-toggle" id="pv-toggle-cam" aria-pressed="false"><i class="ph ph-video-camera-slash"></i></button>
+                    </div>
+                </div>
+                <div class="pv-side">
+                    <div>
+                        <h2 id="pv-title" data-i18n="classroom.pvTitle">Sẵn sàng tham gia?</h2>
+                        <p class="pv-room" id="pv-room"></p>
+                        <p class="pv-sub" id="pv-sub"></p>
+                    </div>
+                    <div class="pv-status wait" id="pv-status" role="status"><i class="ph-fill ph-hourglass-medium"></i><span id="pv-status-text"></span></div>
+                    <div class="pv-field">
+                        <label for="pv-cam" data-i18n="classroom.pvCamera">Camera</label>
+                        <select id="pv-cam" hidden></select><div class="pv-name" id="pv-cam-name"></div>
+                    </div>
+                    <div class="pv-field">
+                        <label for="pv-mic" data-i18n="classroom.pvMic">Micro</label>
+                        <select id="pv-mic" hidden></select><div class="pv-name" id="pv-mic-name"></div>
+                        <div class="pv-meter" id="pv-meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Mức âm thanh micro">
+                            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                        </div>
+                    </div>
+                    <div class="pv-notes" id="pv-notes" aria-live="polite"></div>
+                    <div class="pv-actions">
+                        <button type="button" class="pv-join" id="pv-join" disabled><i class="ph ph-sign-in"></i><span data-i18n="classroom.pvJoin">Tham gia</span></button>
+                        <a class="pv-back" href="/pages/online-class/online-class.html" data-i18n="classroom.pvBack">Quay lại</a>
+                    </div>
+                    <div class="pv-as" id="pv-join-as"></div>
+                </div>
+            </div>
+        </div>
+        <div class="cr-stage">
+            <div class="cr-gallery" id="cr-gallery" role="group" aria-label="Người tham gia trong phòng">
+                <div data-i18n="classroom.dangKetNoi" class="placeholder" id="cr-placeholder">Đang kết nối...</div>
+            </div>
+        </div>
+        <aside class="cr-side" id="cr-side" aria-label="Chat và người tham gia">
+            <div class="cr-side-inner">
+                <div class="cr-side-tabs">
+                    <button type="button" class="active" data-panel="chat" data-i18n="classroom.tabChat">Chat</button>
+                    <button type="button" data-panel="people"><span data-i18n="classroom.nguoiThamGia">Người tham gia</span> (<span id="cr-people-count">0</span>)</button>
+                    <button type="button" class="cr-side-close" id="cr-side-close" data-i18n-title="classroom.dongKhungChat" title="Đóng khung chat" aria-label="Đóng khung chat"><i class="ph ph-x"></i></button>
+                </div>
+                <div class="cr-side-panel active" id="panel-chat">
+                    <div id="cr-chat-log"><div class="cr-chat-empty" id="cr-chat-empty" data-i18n="classroom.chuaCoTinNhan">Chưa có tin nhắn.</div></div>
+                </div>
+                <div class="cr-side-panel" id="panel-people">
+                    <div id="cr-people-list"></div>
+                </div>
+                <div class="cr-chat-input">
+                    <input id="cr-chat-text" data-i18n-ph="classroom.nhapTinNhan" placeholder="Nhập tin nhắn..." maxlength="500" aria-label="Nhập tin nhắn">
+                    <button type="button" data-i18n="classroom.gui" id="cr-chat-send">Gửi</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+    <div class="cr-controls" id="cr-controls" role="toolbar" aria-label="Điều khiển buổi học"></div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/lib/signalr.min.js"></script>
+<script src="/pages/online-class/classroom.js"></script>
+</body>
+</html>

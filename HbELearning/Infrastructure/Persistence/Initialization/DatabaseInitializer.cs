@@ -233,6 +233,10 @@ public static class DatabaseInitializer
         await AddMissingSqlServerColumnListAsync(connection, "HBE_EXTERNAL_CERTIFICATE",
             ("IS_AI_REVIEWED", "bit NOT NULL DEFAULT 0"), ("AI_RESULT_JSON", "nvarchar(max) NULL"),
             ("AI_ATTEMPT_COUNT", "int NOT NULL DEFAULT 0"));
+        // Phong Nhan su xac nhan chung nhan ben ngoai (sau AI/Admin) - null = chua xac nhan. Khong kem khoa ngoai,
+        // cung ly do voi PARENT_ROLE_ID: cot them vao bang da co du lieu.
+        await AddMissingSqlServerColumnListAsync(connection, "HBE_EXTERNAL_CERTIFICATE",
+            ("HR_CONFIRMED_BY_ID", "int NULL"), ("HR_CONFIRMED_AT", "datetime2 NULL"));
         // Ghi hình tạm dừng được: thời lượng thật (không tính đoạn tạm dừng) + lúc chốt Bản ghi; và Diễn biến gắn
         // với Bản ghi nào. Cả ba cho phép rỗng nên mọi dòng cũ giữ nguyên. Cố ý KHÔNG kèm khóa ngoại cho RECORDING_ID.
         await AddMissingSqlServerColumnListAsync(connection, "HBE_ONLINE_CLASS_ROOM_RECORDING",
@@ -409,6 +413,9 @@ public static class DatabaseInitializer
         await AddMissingColumnListAsync(connection, "HBE_EXTERNAL_CERTIFICATE",
             ("IS_AI_REVIEWED", "INTEGER NOT NULL DEFAULT 0"), ("AI_RESULT_JSON", "TEXT NULL"),
             ("AI_ATTEMPT_COUNT", "INTEGER NOT NULL DEFAULT 0"));
+        // Phòng Nhân sự xác nhận — xem bản SqlServer bên trên.
+        await AddMissingColumnListAsync(connection, "HBE_EXTERNAL_CERTIFICATE",
+            ("HR_CONFIRMED_BY_ID", "INTEGER NULL"), ("HR_CONFIRMED_AT", "TEXT NULL"));
     }
 
     /// <summary>Thêm các cột chỉ định (tên, kiểu Sqlite) còn thiếu trên một bảng đã tồn tại — bỏ qua cột đã có sẵn.</summary>

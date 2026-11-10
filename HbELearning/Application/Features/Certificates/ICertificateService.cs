@@ -45,8 +45,12 @@ public interface ICertificateService
 
     Task<Result> Revoke(int id);
 
-    /// <summary>Danh sách chứng nhận để Admin in: chứng nhận nội bộ còn hiệu lực + chứng nhận bên ngoài đã được
+    /// <summary>Danh sách chứng nhận để in: chứng nhận nội bộ còn hiệu lực + chứng nhận bên ngoài đã được
     /// xác nhận, gộp chung một khuôn. <paramref name="source"/>: "internal" | "external" | null = cả hai.
-    /// Khoảng ngày lọc theo NGÀY CẤP.</summary>
+    /// Khoảng ngày lọc theo NGÀY CẤP. <paramref name="departmentId"/> = 0 là "Chưa gắn phòng ban".
+    ///
+    /// Admin và người phòng Nhân sự in cả công ty. Cấp trưởng (Trưởng phòng, Giám Đốc, Tổng Giám Đốc) chỉ in được
+    /// chứng nhận của chính mình và của người thuộc quyền mình — đúng phạm vi khối "nhân viên cấp dưới"
+    /// (<see cref="GetSubordinateList"/>). Ai khác: 403.</summary>
     Task<Result> GetRegister(string? source, int? departmentId, DateTime? from, DateTime? to, string? keyword);
 }

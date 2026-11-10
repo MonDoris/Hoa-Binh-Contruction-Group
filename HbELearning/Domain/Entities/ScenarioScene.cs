@@ -21,7 +21,7 @@ public class ScenarioScene
     [MaxLength(1000)]
     public string? Description { get; set; }
 
-    /// <summary>Bối cảnh 3D dùng để dựng cảnh (khớp key trong wwwroot/js/sim-registry.js) —
+    /// <summary>Bối cảnh 3D dùng để dựng cảnh (khớp key trong wwwroot/js/sim/sim-registry.js) —
     /// VD "construction" = công trường xây dựng, "hr-office" = văn phòng phòng nhân sự.
     /// Đây là thứ quyết định người học nhìn thấy KHÔNG GIAN nào; nội dung tình huống vẫn do NodeList quy định.</summary>
     [Required, MaxLength(50)]
@@ -34,7 +34,7 @@ public class ScenarioScene
     [MaxLength(500)]
     public string? AssetUrl { get; set; }
 
-    /// <summary>Loại tệp bối cảnh, quyết định cách dựng cảnh trong wwwroot/js/sim-asset-scene.js:
+    /// <summary>Loại tệp bối cảnh, quyết định cách dựng cảnh trong wwwroot/js/sim/sim-asset-scene.js:
     /// "glb" = model 3D, "pano-image" = ảnh 360°, "pano-video" = video 360°, "image-2d" = ảnh thường.</summary>
     [MaxLength(20)]
     public string? AssetType { get; set; }
@@ -50,7 +50,7 @@ public class ScenarioScene
     /// <summary>Cỡ người trong cảnh này — hệ số nhân áp cho MỌI nhân vật được đặt vào.
     ///
     /// Phải có một con số riêng cho từng cảnh vì mọi model tải lên đều bị co về cùng một hộp bao 10 đơn vị
-    /// bất kể kích thước thật (xem MODEL_SIZE trong js/sim-asset-scene.js): một văn phòng rộng 15 m và một
+    /// bất kể kích thước thật (xem MODEL_SIZE trong js/sim/sim-asset-scene.js): một văn phòng rộng 15 m và một
     /// nhà xưởng rộng 60 m sau chuẩn hóa đều là 10 đơn vị, nên cùng một người cao 1,7 m phải hiện ra với hai
     /// tỉ lệ chênh nhau bốn lần. Không có cách nào đoán đúng từ tệp — người soạn bài kéo thanh trượt canh
     /// người đứng cạnh cái bàn cho vừa mắt, một lần cho cả cảnh.</summary>

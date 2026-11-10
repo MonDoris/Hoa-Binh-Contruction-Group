@@ -41,6 +41,11 @@ public class ReportService : IReportService
         var courseQuery = _db.Course.AsQueryable();
         var enrollmentQuery = _db.Enrollment.AsQueryable();
         var certificateQuery = _db.Certificate.Where(x => !x.IsRevoked);
+        // Chứng nhận bên ngoài chỉ được tính là chứng chỉ khi phòng Nhân sự đã xác nhận — AI xác nhận thôi chưa đủ.
+        // Admin thu hồi / xác nhận lại thì HrConfirmedAt bị xóa (xem ExternalCertificate.Decide), nên điều kiện này
+        // cũng tự loại giấy đã bị thu hồi.
+        var externalQuery = _db.ExternalCertificate.Where(x =>
+            x.Status == ExternalCertificateStatus.Approved && x.HrConfirmedAt != null);
         if (ownOnly)
         {
             courseQuery = courseQuery.Where(x => x.CreatedById == ownerId);
@@ -50,7 +55,10 @@ public class ReportService : IReportService
         // Tổng chứng chỉ toàn công ty chỉ Admin được xem; mọi vai trò khác (kể cả Giảng Viên) chỉ đếm chứng chỉ
         // CỦA CHÍNH MÌNH. Cắt ở server để gọi thẳng API cũng không lấy được con số chung.
         if (!_currentUser.IsAdmin)
+        {
             certificateQuery = certificateQuery.Where(x => x.Enrollment.UserId == ownerId);
+            externalQuery = externalQuery.Where(x => x.UserId == ownerId);
+        }
 
         var totalUser = ownOnly ? 0 : await _db.User.CountAsync();
         var activeUser = ownOnly ? 0 : await _db.User.CountAsync(x => x.IsActive);
@@ -70,9 +78,12 @@ public class ReportService : IReportService
         var learnerCount = await enrollmentQuery.Where(x => x.Status != EnrollmentStatus.Cancelled)
             .Select(x => x.UserId).Distinct().CountAsync();
 
-        var totalCertificate = await certificateQuery.CountAsync();
+        // Tổng chứng chỉ = nội bộ còn hiệu lực + bên ngoài đã được Nhân sự xác nhận. Giấy bên ngoài tính vào tháng
+        // Nhân sự xác nhận (lúc nó trở thành chứng chỉ), không theo ngày cấp ghi trên giấy — có thể từ nhiều năm trước.
+        var totalCertificate = await certificateQuery.CountAsync() + await externalQuery.CountAsync();
         var monthStart = new DateTime(now.Year, now.Month, 1);
-        var certificateThisMonth = await certificateQuery.CountAsync(x => x.IssuedAt >= monthStart);
+        var certificateThisMonth = await certificateQuery.CountAsync(x => x.IssuedAt >= monthStart)
+            + await externalQuery.CountAsync(x => x.HrConfirmedAt >= monthStart);
 
         // Quà chờ trao đếm theo LƯỢT ĐỔI chứ không cộng Quantity, cho khớp con số "Chờ trao N lượt" ở trang Cửa hàng.
         var pendingGiftQuery = _db.ShopRedemption.Where(x => x.Status == ShopRedemptionStatus.Pending);

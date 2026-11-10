@@ -1,0 +1,104 @@
+<!-- File: wwwroot/pages/ai-tutor/ai-tutor.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script src="/js/head.js"></script>
+    <title data-i18n="aitutor.pageTitle">HB Minerva · Chat</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/pages/ai-tutor/ai-tutor.css">
+</head>
+<body>
+<div class="main">
+    <div class="content">
+<div class="ai-app">
+    <aside class="ai-sidebar" id="ai-history">
+        <div class="ai-sidebar-header">
+            <button type="button" class="btn-new-chat" id="btn-new">
+                <i class="ph ph-plus"></i>
+                <span data-i18n="aitutor.hoiThoaiMoi">Cuộc trò chuyện mới</span>
+            </button>
+        </div>
+
+        <div class="ai-history-list" id="history-list">
+            <!-- Lịch sử sẽ render vào đây -->
+        </div>
+
+        <div class="ai-sidebar-header" style="border-top: 1px solid var(--ai-border); text-align: center;">
+            <button type="button" id="btn-clear-all" class="btn-new-chat" style="border-color: var(--danger); color: var(--danger); background: transparent;" hidden>
+                <i class="ph ph-trash"></i> <span data-i18n="aitutor.xoaTatCa">Xóa tất cả</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- KHUNG CHÍNH -->
+    <main class="ai-main" id="ai-main">
+        <header class="ai-header">
+            <button class="menu-toggle" id="btn-toggle-menu" aria-label="Lịch sử"><i class="ph ph-list"></i></button>
+            <div id="model-name"><span class="pico-logo pico-face" aria-hidden="true"></span> HB Minerva</div>            
+            <div id="status-card" hidden></div>
+        </header>
+
+        <div class="ai-chat-area" id="scroll-area">
+            <div class="ai-messages-container" id="chat-log">
+                <!-- Nội dung chat render vào đây -->
+            </div>
+        </div>
+
+        <div class="drop-veil" id="drop-veil" hidden>
+            <div><i class="ph ph-upload-simple" style="font-size:34px"></i><br>Thả tệp vào đây để gửi cho HB Minerva<small>Ảnh PNG, JPG, WEBP hoặc tệp PDF, DOCX, TXT</small></div>
+        </div>
+
+        <div class="composer-dock">
+            <div class="desk" id="desk">
+                <div class="desk-signal" aria-hidden="true"></div>
+
+                <!-- Tầng 1: khay tệp đính kèm -->
+                <div class="desk-tray" id="tray" hidden></div>
+
+                <!-- Tầng 2: vùng gõ -->
+                <textarea id="f-question" rows="1" maxlength="500"
+                          placeholder="Hỏi HB Minerva, hoặc gửi ảnh / tệp để được phân tích..."
+                          aria-label="Câu hỏi gửi cho HB Minerva"></textarea>
+
+                <!-- Tầng 3: thanh công cụ -->
+                <div class="desk-bar">
+                    <button type="button" class="tool-btn" id="btn-pick-image" title="Gửi ảnh (hoặc dán bằng Ctrl+V)">
+                        <i class="ph ph-image"></i><span>Ảnh</span>
+                    </button>
+                    <button type="button" class="tool-btn" id="btn-pick-file" title="Gửi tệp PDF, DOCX, TXT">
+                        <i class="ph ph-paperclip"></i><span>Tệp</span>
+                    </button>
+                    <span class="desk-count" id="q-count">0/500</span>
+                    <button type="button" class="btn-stop" id="btn-stop" hidden title="Dừng">
+                        <i class="ph ph-stop-circle"></i> Dừng
+                    </button>
+                    <button type="button" class="btn-send" id="btn-send" disabled title="Gửi">
+                        Gửi <i class="ph ph-paper-plane-tilt"></i>
+                    </button>
+                </div>
+            </div>
+            <input type="file" id="in-image" accept="image/png,image/jpeg,image/webp" multiple hidden>
+            <input type="file" id="in-file" accept=".pdf,.docx,.txt,.md" multiple hidden>
+
+            <div class="composer-footer">
+                HB Minerva là một AI có thể mắc sai sót nên cần bạn kiểm chứng lại
+                <span id="ask-timer" style="margin-left: 8px; color: var(--ai-primary)"></span>
+            </div>
+        </div>
+    </main>
+
+</div><!-- /.ai-app -->
+
+    </div><!-- /.content -->
+</div><!-- /.main -->
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/ai-tutor/ai-tutor.js"></script>
+</body>
+</html>

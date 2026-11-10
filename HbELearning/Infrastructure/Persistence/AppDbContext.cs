@@ -89,6 +89,9 @@ public class AppDbContext : DbContext, IAppDbContext
     /// <summary>Câu trả lời cài sẵn của HB Minerva (chào hỏi, cảm ơn...) — trả lời thẳng, không qua model.</summary>
     public DbSet<AiQuickReply> AiQuickReply => Set<AiQuickReply>();
 
+    /// <summary>Câu trả lời HB Minerva đã viết xong và ghi nhớ để trả lời ngay cho người hỏi lại cùng nội dung.</summary>
+    public DbSet<AiAnswerMemory> AiAnswerMemory => Set<AiAnswerMemory>();
+
     /// <summary>Thư viện bối cảnh 3D dùng chung (model .glb, ảnh/video 360°, ảnh phẳng) cho mô phỏng.</summary>
     public DbSet<SimAsset> SimAsset => Set<SimAsset>();
 
@@ -524,6 +527,8 @@ public class AppDbContext : DbContext, IAppDbContext
             .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<ExternalCertificate>().HasOne(x => x.ReviewedBy).WithMany()
             .HasForeignKey(x => x.ReviewedById).OnDelete(DeleteBehavior.NoAction);
+        b.Entity<ExternalCertificate>().HasOne(x => x.HrConfirmedBy).WithMany()
+            .HasForeignKey(x => x.HrConfirmedById).OnDelete(DeleteBehavior.NoAction);
         b.Entity<ShopRedemption>().HasOne(x => x.ShopProduct).WithMany(x => x.RedemptionList)
             .HasForeignKey(x => x.ShopProductId).OnDelete(DeleteBehavior.Restrict);
         // Người tạo sản phẩm rời công ty thì món quà vẫn còn bày bán, chỉ mất tên người tạo.
@@ -650,6 +655,11 @@ public class AppDbContext : DbContext, IAppDbContext
         // Mọi câu hỏi của mọi người đều quét qua bảng này trước khi tới model, và luôn quét theo đúng thứ tự
         // xét — đánh chỉ mục để lượt quét đó không phải sắp lại bảng ở mỗi câu hỏi.
         b.Entity<AiQuickReply>().HasIndex(x => new { x.IsActive, x.OrderIndex });
+
+        // Câu trả lời đã ghi nhớ cũng được tra ở MỌI câu hỏi, luôn theo đúng khóa nghĩa + model trả lời.
+        b.Entity<AiAnswerMemory>().HasIndex(x => new { x.QuestionKey, x.AnswerModel });
+        // Dọn dòng lâu không ai hỏi tới (xem AiTutorService) quét theo cột này.
+        b.Entity<AiAnswerMemory>().HasIndex(x => x.LastUsedAt);
 
         // ================= DỮ LIỆU GỐC (vai trò) =================
         // IsSystem = true: không cho đổi tên/xóa, vì tên các vai trò này được dùng thẳng trong

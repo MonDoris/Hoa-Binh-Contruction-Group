@@ -1,0 +1,163 @@
+<!-- File: wwwroot/pages/course/course.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="course.quanLyKhoaHocHbELearning">Quản lý khóa học · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+
+    <link rel="stylesheet" href="/pages/course/course.css">
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="cm-toolbar">
+            <div class="tabs" role="tablist" id="cm-tabs" aria-label="Nhóm khóa học">
+                <button type="button" role="tab" data-tab="action" style="display:none">
+                    <i class="ph-fill ph-lightning"></i> <span data-i18n="course.canBanXuLy">Cần bạn xử lý</span>
+                    <span class="cm-count" data-count="action">0</span></button>
+                <button type="button" role="tab" data-tab="draft">
+                    <i class="ph ph-pencil-simple-line"></i> <span data-i18n="course.dangSoan">Đang soạn</span>
+                    <span class="cm-count" data-count="draft">0</span></button>
+                <button type="button" role="tab" data-tab="pending">
+                    <i class="ph ph-hourglass-medium"></i> <span data-i18n="course.dangDuyet">Đang duyệt</span>
+                    <span class="cm-count" data-count="pending">0</span></button>
+                <button type="button" role="tab" data-tab="published">
+                    <i class="ph ph-globe-hemisphere-west"></i> <span data-i18n="status.Published">Đã xuất bản</span>
+                    <span class="cm-count" data-count="published">0</span></button>
+                <button type="button" role="tab" data-tab="archived">
+                    <i class="ph ph-archive"></i> <span data-i18n="status.Archived">Lưu trữ</span>
+                    <span class="cm-count" data-count="archived">0</span></button>
+                <button type="button" role="tab" data-tab="all">
+                    <i class="ph ph-squares-four"></i> <span data-i18n="dashboard.tatCa">Tất cả</span>
+                    <span class="cm-count" data-count="all">0</span></button>
+            </div>
+            <div class="cm-filter">
+                <select id="cm-scope" class="hidden" aria-label="Phạm vi"></select>
+                <div class="cm-search">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="search" id="keyword" data-i18n-ph="course.timTheoTenHoacMaKhoaHoc" placeholder="Tìm theo tên hoặc mã khóa học...">
+                </div>
+            </div>
+        </div>
+        <div id="cm-summary" class="cm-summary hidden"></div>
+        <div id="course-list" class="cm-list"></div>
+        <div id="cm-more" class="cm-more small muted hidden"></div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-course">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 data-i18n="course.taoKhoaHoc" id="modal-title">Tạo khóa học</h3>
+            <button class="close-x" onclick="closeModal('modal-course')">×</button>
+        </div>
+        <form id="course-form">
+            <div class="modal-body">
+                <input type="hidden" id="f-id">
+
+                <!-- Khóa học mới: chọn nguồn nội dung. Khóa học nào cũng là một gói SCORM 2004 4th Edition — soạn trên hệ
+                     thống thì dựng cấu trúc chương / SCO ở trang chi tiết; từ gói có sẵn thì gói đó là nội dung khóa học. -->
+                <div id="f-source-section" class="hidden">
+                    <div class="form-section"><i class="ph-fill ph-tree-structure"></i> <span data-i18n="course.nguonNoiDung">Nguồn nội dung</span></div>
+                    <div class="source-choice">
+                        <label class="source-opt">
+                            <input type="radio" name="f-source" value="author" checked>
+                            <span><b data-i18n="course.soanTrenHeThong">Soạn trên hệ thống</b>
+                                <small data-i18n="course.soanTrenHeThongGoiY">Dựng cấu trúc chương, bài học, bài kiểm tra, mô phỏng 3D ngay trên hệ thống.</small></span>
+                        </label>
+                        <label class="source-opt">
+                            <input type="radio" name="f-source" value="scorm">
+                            <span><b data-i18n="course.tuGoiScorm">Từ gói SCORM (.zip)</b>
+                                <small data-i18n="course.tuGoiScormGoiY">Dùng gói SCORM 1.2 / 2004 xuất từ iSpring, Articulate, Captivate... làm nội dung.</small></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Chỉ hiện khi nguồn là gói SCORM: gói .zip trở thành nội dung của khóa học (một mục của cấu trúc). -->
+                <div id="f-scorm-section" class="hidden">
+                    <div class="form-section"><i class="ph-fill ph-package"></i> <span data-i18n="scorm.goiScorm">Gói SCORM</span></div>
+                    <div class="drop-zone compact" id="f-scorm-drop">
+                        <div class="big"><i class="ph ph-package"></i></div>
+                        <div id="f-scorm-label"></div>
+                    </div>
+                    <input type="file" id="f-scorm-file" accept=".zip,application/zip,application/x-zip-compressed" hidden>
+                    <div id="f-scorm-progress" class="mt hidden"></div>
+                </div>
+
+                <div class="form-section"><i class="ph-fill ph-book-bookmark"></i> <span data-i18n="course.thongTinKhoaHoc">Thông tin khóa học</span></div>
+                <div class="row">
+                    <div class="field" id="f-department-row"><label for="f-department" data-i18n="course.phongBan">Phòng ban *</label><select id="f-department"></select></div>
+                    <div class="field" id="f-code-row" style="display:none"><label for="f-code" data-i18n="course.maKhoaHoc">Mã khóa học</label><input id="f-code" disabled></div>
+                    <div class="field"><label for="f-duration" data-i18n="course-detail.thoiLuongPhut">Thời lượng (phút)</label><input type="number" id="f-duration" min="0" value="60"></div>
+                </div>
+                <div class="field"><label for="f-title" data-i18n="course.tenKhoaHoc">Tên khóa học *</label><input id="f-title" required maxlength="250"></div>
+                <div class="row">
+                    <div class="field"><label for="f-startDate" data-i18n="course.ngayBatDau">Ngày bắt đầu *</label><input type="date" id="f-startDate" required></div>
+                    <div class="field"><label for="f-endDate" data-i18n="course.ngayKetThuc">Ngày kết thúc *</label><input type="date" id="f-endDate" required></div>
+                </div>
+                <div class="field">
+                    <label for="f-workflow" data-i18n="course.luongCapDuyet">Luồng cấp duyệt</label>
+                    <select id="f-workflow"></select>
+                    <div class="hint" id="f-workflow-hint"></div>
+                </div>
+                <div class="field">
+                    <label for="f-thumb-file" data-i18n="course.anhDaiDienKhoaHoc">Ảnh đại diện khóa học</label>
+                    <div id="f-thumb-preview"></div>
+                    <input type="file" id="f-thumb-file" accept="image/*">
+                    <div data-i18n="course.chuaCoAnhSeDungAnhMacDinh" class="hint" id="f-thumb-hint">Chưa có ảnh — sẽ dùng ảnh mặc định.</div>
+                    <input type="hidden" id="f-thumbnail">
+                </div>
+                <!-- Ô "Mô tả" đã được gỡ khỏi biểu mẫu theo yêu cầu. Giá trị cũ vẫn được GIỮ NGUYÊN qua input ẩn này thay vì gửi null — nếu không, mỗi lần mở ra sửa một thứ khác là mô tả đã nhập trước đó bị xóa sạch mà không ai biết. -->
+                <input type="hidden" id="f-description">
+                <div class="form-section"><i class="ph-fill ph-target"></i> <span data-i18n="course.dieuKienHoanThanh">Điều kiện hoàn thành</span></div>
+                <div class="row">
+                    <div class="field"><label for="f-passScore" data-i18n="course-detail.diemDat">Điểm đạt (%)</label><input type="number" id="f-passScore" min="0" max="100" value="70"></div>
+                    <div class="field"><label for="f-deadlineDay" data-i18n="course.soNgayHoanThanh">Số ngày hoàn thành</label><input type="number" id="f-deadlineDay" min="1" data-i18n-ph="course.khongGioiHan" placeholder="Không giới hạn"></div>
+                </div>
+                <label class="check"><input type="checkbox" id="f-mandatory"> Khóa học bắt buộc</label>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-course')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-delegate">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 data-i18n="course.uyQuyenDuyetXuatBan">Ủy quyền duyệt xuất bản</h3>
+            <button class="close-x" onclick="closeModal('modal-delegate')">×</button>
+        </div>
+        <div class="modal-body">
+            <p class="small muted">Chọn <b>một</b> nhân viên cùng phòng ban với bạn được phép Duyệt / Từ chối khóa học thay bạn ở bước cuối
+                (khi khóa học đang chờ Giám Đốc Nhân sự duyệt xuất bản). Tên người này sẽ hiện ở bước cuối trên lộ trình duyệt của bạn.</p>
+            <label class="check" style="border-bottom:1px solid var(--border, #eee);padding-bottom:8px;margin-bottom:8px">
+                <input type="radio" name="delegate-user" id="delegate-none" value="">
+                <b data-i18n="course.khongUyQuyenChoAi">Không ủy quyền cho ai</b>
+            </label>
+            <div id="delegate-candidate-list"></div>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-delegate')">Hủy</button>
+            <button data-i18n="common.save" type="button" class="btn" id="btn-save-delegate">Lưu</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/course/course.js"></script>
+</body>
+</html>

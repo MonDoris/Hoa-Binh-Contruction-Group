@@ -31,7 +31,8 @@ public sealed class TestCurrentUser : ICurrentUser
     public bool IsDirector => false;
     public bool IsManager => IsAdmin;
     public bool IsContentViewer => IsAdmin;
-    public bool IsInRole(string roleName) => false;
+    /// <summary>Theo đúng tên vai trò ActAs đọc từ database (không xét vai trò cha).</summary>
+    public bool IsInRole(string roleName) => Role == roleName;
     public string? FindClaim(string claimType) => null;
 }
 
@@ -67,4 +68,24 @@ public sealed class NullFileService : IFileService
 public sealed class FakeQrCodeGenerator : ICertificateQrCodeGenerator
 {
     public string Generate(string verificationCode) => "data:image/png;base64,";
+}
+
+/// <summary>AI đọc giấy giả — để DI dựng được ExternalCertificateService; các bài test dùng nó không cho AI đọc gì.</summary>
+public sealed class NullCertificateReader : ICertificateReader
+{
+    public string Model => "test";
+
+    public Task<CertificateReading> ReadAsync(byte[] content, string contentType, CancellationToken cancellationToken = default)
+        => throw new AiUnavailableException("AI không chạy trong bài test.");
+}
+
+/// <summary>Hàng đợi AI đối chiếu nền giả — chỉ ghi lại id được đẩy vào.</summary>
+public sealed class FakeExternalCertificateVerifyQueue : IExternalCertificateVerifyQueue
+{
+    public List<int> Enqueued { get; } = new();
+
+    public void Enqueue(int certificateId) => Enqueued.Add(certificateId);
+
+    public Task<IReadOnlyCollection<int>> DequeueAllAsync(CancellationToken cancellationToken)
+        => Task.FromResult<IReadOnlyCollection<int>>(Enqueued.ToArray());
 }

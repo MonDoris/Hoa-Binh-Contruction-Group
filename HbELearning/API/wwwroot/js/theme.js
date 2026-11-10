@@ -3,8 +3,8 @@
 // Tách khỏi app.js vì hai trang công khai — login.html và index.html — không dựng vỏ ứng dụng nhưng vẫn
 // phải có nút chuyển nền. File này không phụ thuộc app.js, chỉ cần nạp SAU language.js (để dùng được t()).
 //
-// Bảng màu nằm trọn trong CSS: css/style.css cho khu quản trị, css/login.css cho trang đăng nhập,
-// css/index.css cho trang chủ. Ở đây chỉ lo ghi nhớ lựa chọn và gắn thuộc tính data-theme lên thẻ <html>.
+// Bảng màu nằm trọn trong CSS: css/style.css cho khu quản trị, pages/login/login.css cho trang đăng nhập,
+// pages/landing/landing.css cho trang chủ. Ở đây chỉ lo ghi nhớ lựa chọn và gắn thuộc tính data-theme lên thẻ <html>.
 //
 // Ba trạng thái, không phải hai: "light" và "dark" là do người dùng chủ động chọn, còn "auto" (chưa chọn gì)
 // thì đi theo cài đặt của máy. Gộp thành hai trạng thái thì người để máy ở chế độ tối vẫn bị ép nền trắng
@@ -126,7 +126,9 @@ function applyTextSize(value = TextSize.current) {
 
 applyTextSize();
 
-/** Dựng nhóm ba nút S / M / L trong một phần tử bọc (.text-size-switch). */
+/** Dựng nút cỡ chữ trong một phần tử bọc (.text-size-switch): MỘT nút "Aa" trong khối tiện ích, bấm xổ ra ba lựa
+ *  chọn (xem openPopMenu, js/app.js). Trước đây là viên S / M / L ba nút luôn bày ra — chiếm chỗ bằng ba nút tiện
+ *  ích cho một việc chỉnh một lần rồi thôi. Cỡ đang khác "vừa" thì nút có chấm màu để vẫn nhìn ra là đang chỉnh. */
 function renderTextSizeSwitch(wrapEl) {
     if (!wrapEl) return;
     const tr = (key, fallback) => typeof t === 'function' ? t(key, fallback) : fallback;
@@ -136,14 +138,20 @@ function renderTextSizeSwitch(wrapEl) {
         l: tr('shell.textSizeLarge', 'Chữ lớn'),
     };
     const current = TextSize.current;
+    const label = `${tr('shell.textSize', 'Cỡ chữ')}: ${nameMap[current]}`;
 
-    wrapEl.setAttribute('role', 'group');
-    wrapEl.setAttribute('aria-label', tr('shell.textSize', 'Cỡ chữ'));
-    wrapEl.innerHTML = TEXT_SIZE_LIST.map(size => `
-        <button type="button" data-size="${size}" class="${size === current ? 'on' : ''}"
-                aria-pressed="${size === current}" title="${nameMap[size]}" aria-label="${nameMap[size]}">${size.toUpperCase()}</button>`).join('');
-    wrapEl.onclick = (e) => {
-        const button = e.target.closest('[data-size]');
-        if (button && button.dataset.size !== TextSize.current) TextSize.set(button.dataset.size);
+    wrapEl.innerHTML = `
+        <button type="button" class="text-size-btn${current === 'm' ? '' : ' changed'}" aria-haspopup="menu"
+                title="${label}" aria-label="${label}"><i class="ph ph-text-aa"></i></button>`;
+    const button = wrapEl.firstElementChild;
+    button.onclick = (e) => {
+        e.stopPropagation();   // không chặn thì chính cú bấm này lọt xuống document và đóng ngay menu vừa mở
+        if (typeof openPopMenu !== 'function') return;
+        if (typeof popMenuEl !== 'undefined' && popMenuEl) { closePopMenu(); return; }
+        openPopMenu(button, TEXT_SIZE_LIST.map(size => ({
+            label: nameMap[size],
+            checked: size === TextSize.current,
+            onClick: () => { if (size !== TextSize.current) TextSize.set(size); },
+        })));
     };
 }

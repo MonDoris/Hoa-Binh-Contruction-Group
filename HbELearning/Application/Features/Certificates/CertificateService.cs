@@ -205,13 +205,27 @@ public class CertificateService : ICertificateService
         var fromDate = from?.Date;
         var toDate = to?.Date.AddDays(1);   // gồm trọn ngày cuối
         var k = string.IsNullOrWhiteSpace(keyword) ? null : keyword.Trim().ToLower();
+        var unassigned = departmentId == UnassignedDepartmentId;
+
+        // Phạm vi người được in. Admin và phòng Nhân sự: cả công ty. Cấp trưởng: chính mình + cấp dưới. Còn lại: không
+        // được in. Phòng Nhân sự là PHÒNG BAN chứ không phải vai trò nên không chặn được bằng [Authorize(Roles)].
+        var isWholeCompany = _currentUser.IsAdmin || await IsHrMemberAsync();
+        if (!isWholeCompany && !RoleName.CertificateRegisterHeads.Split(',').Any(_currentUser.IsInRole))
+            return Result.Forbidden();
+
+        var myId = _currentUser.UserId;
+        var scopeUserIdQuery = isWholeCompany ? null
+            : ((await SubordinateQueryAsync()) ?? _db.User.Where(_ => false)).Select(x => x.Id);
 
         var rowList = new List<CertificateRegisterRowDto>();
 
         if (includeInternal)
         {
             var query = _db.Certificate.AsNoTracking().Where(x => !x.IsRevoked);
-            if (departmentId.HasValue) query = query.Where(x => x.Enrollment.User.DepartmentId == departmentId);
+            if (scopeUserIdQuery is not null)
+                query = query.Where(x => x.Enrollment.UserId == myId || scopeUserIdQuery.Contains(x.Enrollment.UserId));
+            if (unassigned) query = query.Where(x => x.Enrollment.User.DepartmentId == null);
+            else if (departmentId.HasValue) query = query.Where(x => x.Enrollment.User.DepartmentId == departmentId);
             if (fromDate.HasValue) query = query.Where(x => x.IssuedAt >= fromDate);
             if (toDate.HasValue) query = query.Where(x => x.IssuedAt < toDate);
             if (k is not null)
@@ -234,7 +248,10 @@ public class CertificateService : ICertificateService
             // Chỉ giấy ĐÃ XÁC NHẬN: danh sách in ra là hồ sơ năng lực chính thức, giấy chưa ai đối chiếu (hay đã bị
             // từ chối) mà lọt vào đây là danh sách mất giá trị.
             var query = _db.ExternalCertificate.AsNoTracking().Where(x => x.Status == ExternalCertificateStatus.Approved);
-            if (departmentId.HasValue) query = query.Where(x => x.User.DepartmentId == departmentId);
+            if (scopeUserIdQuery is not null)
+                query = query.Where(x => x.UserId == myId || scopeUserIdQuery.Contains(x.UserId));
+            if (unassigned) query = query.Where(x => x.User.DepartmentId == null);
+            else if (departmentId.HasValue) query = query.Where(x => x.User.DepartmentId == departmentId);
             if (fromDate.HasValue) query = query.Where(x => x.IssuedAt >= fromDate);
             if (toDate.HasValue) query = query.Where(x => x.IssuedAt < toDate);
             if (k is not null)
@@ -313,6 +330,14 @@ public class CertificateService : ICertificateService
         }
 
         return query;
+    }
+
+    /// <summary>Người đang đăng nhập thuộc phòng Nhân sự (phòng ban đánh dấu IsHrDepartment) — đọc từ database, cùng
+    /// cách ExternalCertificateService kiểm: chuyển phòng xong là có / mất quyền ngay.</summary>
+    private Task<bool> IsHrMemberAsync()
+    {
+        var userId = _currentUser.UserId;
+        return _db.User.AnyAsync(x => x.Id == userId && x.IsActive && x.Department != null && x.Department.IsHrDepartment);
     }
 
     private async Task<bool> IsSubordinateAsync(int userId)

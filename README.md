@@ -92,7 +92,7 @@ Xem giải thích đầy đủ (quy tắc từng lớp, luồng một request, t
 | Xử lý tài liệu | ClosedXML (Excel), DocumentFormat.OpenXml (Word), PdfPig (trích xuất PDF), QRCoder (QR chứng nhận) |
 | Thông báo OTP | SMTP (Gmail), eSMS.vn (SMS Brandname), Zalo ZNS — 3 kênh song song cho quên mật khẩu |
 | Frontend | HTML/CSS/JS thuần, PWA (service worker + manifest), đa ngôn ngữ (`data-i18n`), Phosphor Icons (vendor cục bộ, không phụ thuộc CDN) |
-| Công cụ dựng asset 3D | Node.js (`Scripts/`) — `@gltf-transform`, `fbx2gltf`, `sharp` |
+| Công cụ dựng asset 3D | Node.js (`HbELearning/Scripts/`) — `@gltf-transform`, `fbx2gltf`, `sharp` |
 | API Docs | Swagger / Swashbuckle tại `/swagger` (chỉ bật ở môi trường Development) |
 
 ## Cấu trúc thư mục
@@ -103,9 +103,18 @@ HB E-Learning/
 │   ├── Domain/                   # Entity, Enum, hằng số — không phụ thuộc gì
 │   ├── Application/               # Use case (Features/*), DTO, interface cổng ra ngoài
 │   ├── Infrastructure/            # EF Core, JWT, SMTP/SMS/Zalo, Ollama, đọc/ghi file
-│   ├── API/                       # Controller, SignalR Hub, Program.cs, wwwroot (frontend)
-│   ├── Scripts/                   # Pipeline dựng asset 3D + sơ đồ ERD (Mermaid)
-│   ├── KIEN-TRUC.md               # Giải thích chi tiết Clean Architecture
+│   ├── API/
+│   │   ├── Controllers/<Trang>/   # Controller gom theo trang (Courses/, Certificates/, Users/...)
+│   │   ├── Hubs/ Extensions/ Services/ Authorization/ Program.cs
+│   │   └── wwwroot/
+│   │       ├── pages/<trang>/     # MỖI TRANG MỘT THƯ MỤC: <trang>.html + .css + .js (+ trang con)
+│   │       ├── js/ css/           # Dùng chung: vỏ ứng dụng (app.js, api.js...), widgets/, sim/, style.css
+│   │       └── index.html, sw.js  # Trang chủ công khai + service worker (phải nằm ở gốc)
+│   ├── Tests/                     # xUnit, chia thư mục theo chức năng
+│   ├── Database/                  # Script tạo CSDL, sơ đồ ERD (Mermaid), backups/ (bản Sqlite cũ)
+│   ├── Docs/                      # Sơ đồ luồng hệ thống (SystemFlow), ảnh gốc Mascot, archive/
+│   ├── Scripts/                   # Pipeline dựng asset 3D (Node.js)
+│   ├── KIEN-TRUC.md               # Kiến trúc + BẢN ĐỒ TRANG (trang nào nằm ở đâu, gọi API nào)
 │   └── HbELearning.sln
 ├── deploy/coturn/                # Hướng dẫn & cấu hình triển khai TURN server (video call)
 ├── Docs/                          # Tài liệu mô tả đề bài / thiết kế ban đầu
@@ -160,7 +169,7 @@ Cơ sở dữ liệu và dữ liệu nền (vai trò, quyền...) được tự 
 ## Tài liệu liên quan
 
 - [`HbELearning/KIEN-TRUC.md`](HbELearning/KIEN-TRUC.md) — chi tiết Clean Architecture, luồng xử lý request, quy tắc thêm tính năng mới
-- [`HbELearning/Scripts/erd.mermaid`](HbELearning/Scripts/erd.mermaid) — sơ đồ quan hệ dữ liệu (ERD)
+- [`HbELearning/Database/erd.mermaid`](HbELearning/Database/erd.mermaid) — sơ đồ quan hệ dữ liệu (ERD)
 - [`deploy/coturn/README.md`](deploy/coturn/README.md) — hướng dẫn triển khai TURN server cho lớp học online
 - [`Docs/`](Docs) — tài liệu mô tả đề bài và thiết kế ban đầu của dự án
 

@@ -28,7 +28,7 @@ public class ScenarioCharacter
     [MaxLength(150)]
     public string? Label { get; set; }
 
-    /// <summary>Bộ nhân vật — khớp CHARACTER_SET_LIST trong wwwroot/js/sim-characters.js.
+    /// <summary>Bộ nhân vật — khớp CHARACTER_SET_LIST trong wwwroot/js/sim/sim-characters.js.
     ///
     /// Một "bộ" không nhất thiết là một tệp model riêng: bộ "office" và bộ "worker" dùng chung một tệp,
     /// khác nhau ở chỗ bộ văn phòng ẩn mũ bảo hộ và áo phản quang đi. Nhân vật Mixamo để mỗi món trang phục
@@ -53,12 +53,12 @@ public class ScenarioCharacter
     /// ScenarioService.CharacterPoseList quy định.
     ///
     /// Tư thế nào tệp nhân vật CHƯA có đoạn animation tương ứng thì lúc dựng cảnh sẽ rơi về "idle" thay vì
-    /// làm nhân vật đứng chết cứng ở tư thế chữ T — xem js/sim-characters.js.</summary>
+    /// làm nhân vật đứng chết cứng ở tư thế chữ T — xem js/sim/sim-characters.js.</summary>
     [Required, MaxLength(30)]
     public string PoseKey { get; set; } = "idle";
 
     /// <summary>Vị trí trong cảnh, cùng hệ tọa độ với <see cref="ScenarioNode"/> (đã chuẩn hóa về hộp bao
-    /// 10 đơn vị, đáy cảnh tại y = 0 — xem MODEL_SIZE trong js/sim-asset-scene.js).</summary>
+    /// 10 đơn vị, đáy cảnh tại y = 0 — xem MODEL_SIZE trong js/sim/sim-asset-scene.js).</summary>
     public float PositionX { get; set; }
     public float PositionY { get; set; }
     public float PositionZ { get; set; }

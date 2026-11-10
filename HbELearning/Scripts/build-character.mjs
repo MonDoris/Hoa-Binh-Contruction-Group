@@ -23,7 +23,7 @@
 //      Lưu thành:  Scripts/character-source/<bộ>/<tên-tư-thế>.fbx
 //
 //      TÊN TỆP CHÍNH LÀ TÊN TƯ THẾ, và phải nằm trong danh sách POSE_LIST của
-//      wwwroot/js/sim-characters.js — đặt sai tên thì tệp vẫn gộp được nhưng giao diện soạn bài không
+//      wwwroot/js/sim/sim-characters.js — đặt sai tên thì tệp vẫn gộp được nhưng giao diện soạn bài không
 //      chọn tới được đoạn đó. Các tên đang dùng:
 //          idle.fbx  sit.fbx  walk.fbx  drink.fbx  eat.fbx  talk.fbx  type.fbx  point.fbx  phone.fbx
 //      Gợi ý tên animation trên Mixamo: Idle / Sitting / Walking / Drinking / Eating /
@@ -51,7 +51,7 @@ import sharp from 'sharp';
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const characterKey = process.argv[2] || 'staff';
 const sourceDir = path.join(rootDir, 'Scripts', 'character-source', characterKey);
-const outputPath = path.join(rootDir, 'wwwroot', 'models', 'character', `${characterKey}.glb`);
+const outputPath = path.join(rootDir, 'API', 'wwwroot', 'models', 'character', `${characterKey}.glb`);
 const workDir = path.join(sourceDir, '.work');
 
 if (!existsSync(sourceDir)) {

@@ -1,0 +1,153 @@
+<!-- File: wwwroot/pages/sim-library/sim-library.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title>Thư viện 3D · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Cùng lý do với pages/learning/simulation.html: Three.js chỉ còn phát hành bản ES module nên phải khai báo
+         importmap. Trang này dùng chính js/sim/sim-asset-scene.js mà học viên sẽ thấy, để cái xem trước ở đây
+         và cảnh thật lúc học là MỘT — xem trước bằng một trình xem khác thì không kiểm chứng được gì. -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <link rel="stylesheet" href="/pages/sim-library/sim-library.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+
+        <div class="card mb">
+            <div class="card-body lib-toolbar">
+                <div class="field">
+                    <label for="f-type">Loại bối cảnh</label>
+                    <select id="f-type">
+                        <option value="">— Tất cả —</option>
+                        <option value="builtin">Bối cảnh dựng sẵn</option>
+                        <option value="glb">Model 3D</option>
+                        <option value="pano-image">Ảnh 360°</option>
+                        <option value="pano-video">Video 360°</option>
+                        <option value="image-2d">Ảnh thường / sơ đồ</option>
+                        <option value="character">Nhân vật</option>
+                    </select>
+                </div>
+                <div class="field" style="flex:1;min-width:200px">
+                    <label for="f-keyword">Tìm theo tên / nhóm</label>
+                    <input id="f-keyword" maxlength="100" placeholder="VD: cẩu tháp, xưởng cơ khí...">
+                </div>
+                <button class="btn ghost" id="btn-search"><i class="ph ph-magnifying-glass"></i> Tìm</button>
+                <!-- Nút riêng cho nhân vật thay vì bắt người dùng bấm "Thêm tệp" rồi tự tìm loại "Nhân vật"
+                     trong ô xổ xuống: nhân vật là thứ khác hẳn bối cảnh (model người có xương, đặt VÀO cảnh
+                     chứ không phải là cảnh), mà giấu nó sau một ô chọn thì gần như không ai tìm ra. -->
+                <button class="btn ghost" id="btn-add-character"><i class="ph ph-user-plus"></i> Thêm nhân vật</button>
+                <button class="btn" id="btn-add"><i class="ph ph-upload-simple"></i> Thêm tệp vào thư viện</button>
+            </div>
+        </div>
+
+        <div id="lib-list"></div>
+    </div>
+</div>
+
+<!-- Hộp thoại tải tệp lên thư viện -->
+<div class="modal-mask" id="modal-upload">
+    <div class="modal">
+        <div class="modal-head"><h3 id="upload-title">Thêm tệp vào thư viện</h3>
+            <button class="close-x" onclick="closeModal('modal-upload')">×</button></div>
+        <div class="modal-body">
+            <input type="hidden" id="u-id">
+            <input type="hidden" id="u-scene-key">
+
+            <div class="hint hidden mb" id="u-builtin-note">
+                Đây là <b>bối cảnh dựng sẵn</b> của hệ thống — không gian do mã nguồn dựng nên nên không có tệp
+                để thay, và cũng không xóa được. Chỉ sửa được tên gọi và mô tả, tức là cách bối cảnh này hiện ra
+                cho người soạn bài chọn.
+            </div>
+
+            <div class="field" id="u-type-field">
+                <label for="u-type">Loại tệp *</label>
+                <select id="u-type">
+                    <optgroup label="Bối cảnh">
+                        <option value="glb">Model 3D (.glb / .gltf / .fbx / .obj)</option>
+                        <option value="pano-image">Ảnh 360° (ảnh panorama)</option>
+                        <option value="pano-video">Video 360° (.mp4 / .webm)</option>
+                        <option value="image-2d">Ảnh thường / sơ đồ (xem phẳng)</option>
+                    </optgroup>
+                    <!-- Tách nhóm vì nhân vật KHÔNG phải bối cảnh: nó được đặt vào trong cảnh, và không bao
+                         giờ xuất hiện ở ô chọn bối cảnh của mô phỏng. -->
+                    <optgroup label="Đặt vào cảnh">
+                        <option value="character">Nhân vật (.glb / .gltf, có xương)</option>
+                    </optgroup>
+                </select>
+                <div class="hint" id="u-type-hint"></div>
+            </div>
+
+            <div class="drop-zone compact" id="drop-zone">
+                <div class="big"><i class="ph ph-cube"></i></div>
+                <div id="drop-label">Kéo thả tệp vào đây hoặc bấm để chọn</div>
+                <div class="small muted" id="drop-note">Tối đa 200 MB</div>
+                <input type="file" id="u-file" hidden aria-label="Chọn tệp bối cảnh 3D để tải lên">
+            </div>
+
+            <div class="field mt">
+                <label for="u-name">Tên hiển thị trong thư viện *</label>
+                <input id="u-name" maxlength="250" placeholder="VD: Cẩu tháp Potain MDT 219">
+                <div class="hint">Đây là tên người soạn bài nhìn thấy khi chọn bối cảnh, nên đặt sao cho nhìn là biết dùng vào việc gì.</div>
+            </div>
+            <div class="field">
+                <label for="u-category">Nhóm phân loại</label>
+                <input id="u-category" maxlength="100" placeholder="VD: Máy móc, Nhà xưởng, PCCC">
+            </div>
+            <!-- Ô "Mô tả" đã được gỡ khỏi biểu mẫu theo yêu cầu. Giá trị cũ vẫn được GIỮ NGUYÊN qua input ẩn này thay vì gửi null — nếu không, mỗi lần mở ra sửa một thứ khác là mô tả đã nhập trước đó bị xóa sạch mà không ai biết. -->
+            <input type="hidden" id="u-description">
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn ghost" onclick="closeModal('modal-upload')">Hủy</button>
+            <button class="btn" id="btn-save-upload">Lưu</button>
+        </div>
+    </div>
+</div>
+
+<!-- Hộp thoại xem trước 3D -->
+<div class="modal-mask" id="modal-preview">
+    <div class="modal wide">
+        <div class="modal-head"><h3 id="preview-title">Xem trước</h3>
+            <button class="close-x" id="btn-close-preview">×</button></div>
+        <div class="modal-body">
+            <div class="lib-stage" id="preview-stage">
+                <div class="lib-stage-loading" id="preview-loading">
+                    <span class="spinner"></span>
+                    <span id="preview-loading-text">Đang tải bối cảnh...</span>
+                    <div class="sim-progress hidden" id="preview-progress"><span id="preview-progress-bar"></span></div>
+                </div>
+            </div>
+            <div class="lib-stage-tools">
+                <button type="button" class="btn ghost sm" id="pv-reset"><i class="ph ph-arrows-out"></i> Góc nhìn tổng thể</button>
+                <button type="button" class="btn ghost sm hidden" id="pv-rotate"><i class="ph ph-arrows-clockwise"></i> Tự xoay</button>
+                <button type="button" class="btn ghost sm" id="pv-bright"><i class="ph ph-sun"></i> Độ sáng</button>
+                <button type="button" class="btn ghost sm" id="pv-fullscreen"><i class="ph ph-corners-out"></i> Toàn màn hình</button>
+                <button type="button" class="btn ghost sm" id="pv-capture"><i class="ph ph-camera"></i> Đặt làm ảnh xem trước</button>
+            </div>
+            <div class="lib-stat" id="preview-stat"></div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script type="module" src="/pages/sim-library/sim-library.js"></script>
+</body>
+</html>

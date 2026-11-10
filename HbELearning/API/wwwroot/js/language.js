@@ -118,7 +118,21 @@ const FLAG_SVG = {
          </svg>`
 };
 
-/** Cờ cho ngôn ngữ công ty tự thêm: không thể vẽ sẵn cờ cho mọi nước, nên dùng một quả địa cầu trung tính
+/** Mã ngôn ngữ -> mã quốc gia (ISO 3166) của lá cờ đại diện. Mỗi nước trong bảng có một tệp cờ tự host ở
+ *  /img/flags/<mã nước>.svg (bộ flag-icons, MIT — xem /img/flags/LICENSE). Thêm ngôn ngữ ngoài bảng thì thêm
+ *  một dòng ở đây + chép tệp cờ tương ứng; chưa thêm thì vẫn hiện quả địa cầu bên dưới. */
+const COUNTRY_BY_LANG = {
+    vi: 'vn', en: 'gb', ja: 'jp', ko: 'kr', zh: 'cn', th: 'th', km: 'kh', lo: 'la',
+    id: 'id', ms: 'my', tl: 'ph', my: 'mm', hi: 'in', fr: 'fr', de: 'de', es: 'es',
+    pt: 'br', it: 'it', nl: 'nl', ru: 'ru', ar: 'sa',
+};
+
+/** Mã quốc gia VIẾT HOA của một ngôn ngữ ("JP"), để hiện kèm cờ. Ngoài bảng thì dùng chính mã ngôn ngữ. */
+function countryOfLang(lang) {
+    return (COUNTRY_BY_LANG[lang] || (lang || '').slice(0, 2)).toUpperCase();
+}
+
+/** Cờ cho ngôn ngữ ngoài bảng trên: không thể có sẵn cờ cho mọi nước, nên dùng một quả địa cầu trung tính
  *  thay vì bỏ trống — nút chỉ còn mỗi hai chữ cái nhìn như bị lỗi hiển thị. */
 const GLOBE_SVG = `<svg class="flag" viewBox="0 0 30 20" aria-hidden="true">
         <rect width="30" height="20" fill="#e2e8f0"/>
@@ -130,7 +144,18 @@ const GLOBE_SVG = `<svg class="flag" viewBox="0 0 30 20" aria-hidden="true">
      </svg>`;
 
 /** Lá cờ của một ngôn ngữ, dùng nhúng thẳng vào template literal. */
-function flagIcon(lang) { return FLAG_SVG[lang] || GLOBE_SVG; }
+/** Ngôn ngữ này có cờ thật (không phải quả địa cầu) hay không. */
+function hasFlag(lang) { return !!(FLAG_SVG[lang] || COUNTRY_BY_LANG[lang]); }
+
+function flagIcon(lang) {
+    if (FLAG_SVG[lang]) return FLAG_SVG[lang];
+    const country = COUNTRY_BY_LANG[lang];
+    return country
+        // object-fit đặt ngay trên thẻ: cờ gốc tỉ lệ 4:3, khung .flag ở mỗi nơi (thanh trên, danh sách, trang đăng
+        // nhập — mỗi nơi một file CSS) lại gần 3:2, thiếu nó là cờ bị bóp méo.
+        ? `<img class="flag" src="/img/flags/${country}.svg" alt="" aria-hidden="true" decoding="async" style="object-fit: cover">`
+        : GLOBE_SVG;
+}
 
 const Lang = {
     /** Mã ngôn ngữ đang dùng ('vi', 'en', hoặc ngôn ngữ công ty tự thêm). */
@@ -170,7 +195,7 @@ const Lang = {
 
 /** Bảng kiểu của danh sách xổ xuống, tự chèn một lần.
  *
- *  Không viết vào css/style.css vì trang đăng nhập chỉ nạp css/login.css — để ở một file thì trang kia mất
+ *  Không viết vào css/style.css vì trang đăng nhập chỉ nạp pages/login/login.css — để ở một file thì trang kia mất
  *  kiểu, để ở cả hai thì sửa một chỗ quên chỗ kia. Danh sách là một thẻ nổi màu trắng nên hợp cả nền sáng của
  *  thanh trên lẫn nền tối của trang đăng nhập. */
 function ensureLangMenuStyle() {

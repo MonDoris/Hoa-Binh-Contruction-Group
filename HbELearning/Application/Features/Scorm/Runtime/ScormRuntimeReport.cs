@@ -6,7 +6,7 @@ namespace HbELearning.Application.Features.Scorm.Runtime;
 /// Bản tóm tắt dữ liệu run-time của MỘT SCO mà trình phát gửi lên ở mỗi lần Commit / Terminate — đã quy về một
 /// dạng chung cho cả SCORM 1.2 lẫn 2004, để engine sequencing chỉ phải hiểu một kiểu.
 ///
-/// Trình phát (wwwroot/js/scorm-rte.js) là nơi áp các luật của RTE trước khi gửi: trạng thái hoàn thành đã tính
+/// Trình phát (wwwroot/pages/learning/scorm-rte.js) là nơi áp các luật của RTE trước khi gửi: trạng thái hoàn thành đã tính
 /// theo completion_threshold, trạng thái đạt đã tính theo scaled_passing_score (2004) hoặc mastery score (1.2).
 /// </summary>
 public sealed class ScormRuntimeReport

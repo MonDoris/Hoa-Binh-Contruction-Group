@@ -60,9 +60,9 @@ public class CourseOrganizationBuilder
     /// <summary>Địa chỉ SCO do hệ thống phục vụ cho từng loại tài nguyên (tương đối gốc web).</summary>
     public static string InternalLaunchUrl(CourseResourceKind kind, int id) => kind switch
     {
-        CourseResourceKind.Lesson => $"/pages/sco-lesson.html?lessonId={id}",
-        CourseResourceKind.Quiz => $"/pages/sco-quiz.html?quizId={id}",
-        CourseResourceKind.Simulation => $"/pages/simulation.html?sco=1&scenarioSceneId={id}",
+        CourseResourceKind.Lesson => $"/pages/learning/sco-lesson.html?lessonId={id}",
+        CourseResourceKind.Quiz => $"/pages/learning/sco-quiz.html?quizId={id}",
+        CourseResourceKind.Simulation => $"/pages/learning/simulation.html?sco=1&scenarioSceneId={id}",
         _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 

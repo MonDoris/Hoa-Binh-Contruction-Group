@@ -229,12 +229,12 @@ public class ScenarioService : IScenarioService
 
     // ---------- Nhân vật trong cảnh ----------
 
-    /// <summary>Các tư thế hợp lệ — phải khớp POSE_LIST trong wwwroot/js/sim-characters.js, vốn lại khớp
+    /// <summary>Các tư thế hợp lệ — phải khớp POSE_LIST trong wwwroot/js/sim/sim-characters.js, vốn lại khớp
     /// TÊN ĐOẠN ANIMATION trong tệp nhân vật (xem wwwroot/models/README.txt).
     ///
     /// Kiểm ở server chứ không chỉ ở giao diện: một tư thế gõ sai sẽ làm nhân vật đứng chết ở tư thế chữ T
     /// giữa cảnh, mà lỗi đó chỉ lộ ra lúc học viên vào học.</summary>
-    /// <summary>Các bộ nhân vật hợp lệ — phải khớp CHARACTER_SET_LIST trong wwwroot/js/sim-characters.js.
+    /// <summary>Các bộ nhân vật hợp lệ — phải khớp CHARACTER_SET_LIST trong wwwroot/js/sim/sim-characters.js.
     /// "staff" là key của dữ liệu cũ, giữ lại để những nhân vật đã đặt trước đó không bị coi là hỏng.</summary>
     public static readonly string[] CharacterSetList = { "office", "worker", "staff" };
 
@@ -384,7 +384,7 @@ public class ScenarioService : IScenarioService
 
     /// <param name="libraryUrlByAssetId">Đường dẫn tệp của các nhân vật trong Thư viện 3D. Bộ CÀI SẴN không
     /// có trong bảng này và trả về ModelUrl = null — trình dựng cảnh tự tra tệp của chúng trong
-    /// CHARACTER_SET_LIST (js/sim-characters.js). Cố ý không chép bảng đó sang server: hai nơi cùng giữ một
+    /// CHARACTER_SET_LIST (js/sim/sim-characters.js). Cố ý không chép bảng đó sang server: hai nơi cùng giữ một
     /// danh sách là sớm muộn cũng lệch nhau.</param>
     private static ScenarioCharacterDto ToCharacterDto(
         ScenarioCharacter x, IReadOnlyDictionary<int, string>? libraryUrlByAssetId = null)
@@ -420,11 +420,11 @@ public class ScenarioService : IScenarioService
         return belongs ? characterId : null;
     }
 
-    /// <summary>Các bối cảnh 3D dựng sẵn — phải khớp key khai báo trong wwwroot/js/sim-registry.js.
+    /// <summary>Các bối cảnh 3D dựng sẵn — phải khớp key khai báo trong wwwroot/js/sim/sim-registry.js.
     /// Kiểm ở server để một key gõ sai không tạo ra mô phỏng vĩnh viễn không mở được cảnh nào.</summary>
     private static readonly string[] SceneKeyList = { "construction", "hr-office", "custom" };
 
-    /// <summary>Các loại tệp bối cảnh mà wwwroot/js/sim-asset-scene.js biết dựng.</summary>
+    /// <summary>Các loại tệp bối cảnh mà wwwroot/js/sim/sim-asset-scene.js biết dựng.</summary>
     private static readonly string[] AssetTypeList = { "glb", "pano-image", "pano-video", "image-2d" };
 
     /// <summary>Kiểm tra bối cảnh của một kịch bản. Với bối cảnh "custom" (nghiệp vụ tự tải tệp lên) thì
@@ -522,7 +522,7 @@ public class ScenarioService : IScenarioService
         var answeredNodeIdList = attempt.DetailList?.Select(d => d.ScenarioNodeId).ToList() ?? new List<int>();
 
         // Tên bối cảnh do Thư viện 3D quản (sửa được trên giao diện) — trả kèm để trang học viên không phải
-        // dùng chuỗi cứng trong js/sim-registry.js. Null với "custom" vì bối cảnh tự tải lên không có ở đó.
+        // dùng chuỗi cứng trong js/sim/sim-registry.js. Null với "custom" vì bối cảnh tự tải lên không có ở đó.
         var sceneName = await _db.SimBuiltinScene.AsNoTracking()
             .Where(x => x.SceneKey == scene.SceneKey)
             .Select(x => x.Name)

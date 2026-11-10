@@ -22,6 +22,9 @@ namespace HbELearning.Application.Features.AiTutor;
 /// <see cref="Services.ICourseKnowledgeService"/>). Cả hai đều mang mã khóa học nên cùng đi qua đúng một
 /// hàng rào quyền đọc ở trên.
 ///
+/// Câu trả lời model viết xong được GHI NHỚ (xem <see cref="AiAnswerMemory"/>): người sau hỏi cùng nội dung thì nhận
+/// lại ngay, không phải chờ model viết lại — xem phần "GHI NHỚ CÂU TRẢ LỜI" bên dưới.
+///
 /// Mỗi lượt hỏi được ghi lại thành lịch sử để người học mở xem lại — xem phần "LỊCH SỬ HỘI THOẠI" bên dưới.
 /// Vài lượt gần nhất của cùng hội thoại còn được đưa lại cho model, nhờ đó người học hỏi nối tiếp được thay
 /// vì phải nhắc lại chủ đề trong từng câu.</summary>
@@ -199,21 +202,20 @@ public class AiTutorService : IAiTutorService
                 return;
             }
 
-            // Cả phòng cùng học một khóa thì cùng vướng đúng mấy chỗ như nhau, mà mỗi lượt hỏi tốn của model
-            // hàng chục giây cho một câu trả lời y hệt lần trước. Khóa đệm gồm mã CÁC ĐOẠN tài liệu đã đưa
-            // cho model, nên nó cũng chính là hàng rào quyền: hai người có phạm vi đọc khác nhau sẽ tìm ra
-            // bộ đoạn khác nhau, tức khóa khác nhau, không ai nhận nhầm bản đệm của ai.
+            // GHI NHỚ: cả phòng cùng học một khóa thì cùng vướng đúng mấy chỗ như nhau, mà mỗi lượt hỏi tốn của
+            // model từ nửa phút tới vài phút cho một câu trả lời y hệt lần trước. Câu nào đã có người hỏi (cùng
+            // khóa nghĩa — xem AnswerMemoryKey) thì trả lại ngay câu trả lời đã ghi nhớ.
             //
-            // Câu hỏi NỐI TIẾP thì không dùng bộ nhớ đệm: cùng một câu "thế còn trường hợp kia?" mang nghĩa
-            // khác hẳn nhau tùy hội thoại, mà khóa đệm chỉ gồm câu hỏi và các đoạn tài liệu nên không phân
-            // biệt nổi — dùng bừa là người này nhận đúng câu trả lời cho ngữ cảnh của người khác.
-            var cacheKey = historyList.Count == 0 ? BuildAnswerCacheKey(question, contextList) : null;
-            if (cacheKey is not null
-                && _cache.TryGetValue<string>(cacheKey, out var cachedAnswer)
-                && cachedAnswer is { Length: > 0 })
+            // Câu hỏi NỐI TIẾP ngắn thì không tra: "thế còn trường hợp kia?" mang nghĩa khác hẳn nhau tùy hội
+            // thoại. Câu dài thì tự đủ nghĩa — chính BuildSearchQuery cũng đem nó đi tìm mà không ghép câu trước.
+            var memoryKey = historyList.Count == 0 || question.Length > ShortQuestionLength
+                ? AnswerMemoryKey.Build(question)
+                : null;
+            var rememberedAnswer = memoryKey is null ? null : await FindRememberedAnswerAsync(memoryKey, foundList, cancellationToken);
+            if (rememberedAnswer is not null)
             {
-                await events.SendAsync("token", new { t = cachedAnswer }, cancellationToken);
-                await SaveAnswerAsync(session, cachedAnswer, sourceList);
+                await events.SendAsync("token", new { t = rememberedAnswer }, cancellationToken);
+                await SaveAnswerAsync(session, rememberedAnswer, sourceList);
                 await events.SendAsync("done", new { }, cancellationToken);
                 return;
             }
@@ -228,16 +230,18 @@ public class AiTutorService : IAiTutorService
                 await events.SendAsync("token", new { t = piece }, cancellationToken);
             }
 
-            // Chỉ đưa vào bộ nhớ đệm khi model đã viết XONG. Người hỏi bỏ ngang giữa chừng thì phần chữ dở
-            // dang không phải câu trả lời, mà lưu vào rồi thì mọi người hỏi lại sau đó đều nhận đúng mẩu cụt ấy.
-            if (cacheKey is not null && answerBuilder.Length > 0 && !cancellationToken.IsCancellationRequested)
-                _cache.Set(cacheKey, answerBuilder.ToString(), AnswerCacheDuration);
-
-            // LỊCH SỬ thì ngược lại: phần chữ dở dang vẫn được ghi. Người học bấm Dừng là vì đã đọc đủ ý mình
-            // cần, và thứ họ mở lại ngày mai phải đúng bằng thứ họ đã nhìn thấy trên màn hình.
+            // LỊCH SỬ ghi cả phần chữ dở dang: người học bấm Dừng là vì đã đọc đủ ý mình cần, và thứ họ mở lại
+            // ngày mai phải đúng bằng thứ họ đã nhìn thấy trên màn hình.
             await SaveAnswerAsync(session, answerBuilder.ToString(), sourceList);
 
             await events.SendAsync("done", new { }, cancellationToken);
+
+            // GHI NHỚ thì ngược lại: chỉ khi model đã viết XONG. Phần dở dang không phải câu trả lời, mà ghi nhớ
+            // rồi thì mọi người hỏi lại sau đó đều nhận đúng mẩu cụt ấy. Chỉ ghi câu trả lời cho câu hỏi ĐẦU hội
+            // thoại: câu giữa hội thoại được model viết có dựa vào các lượt trước ("như đã nói ở trên..."), đem
+            // trả cho người khác là cụt ngữ cảnh.
+            if (memoryKey is not null && historyList.Count == 0 && !cancellationToken.IsCancellationRequested)
+                await RememberAnswerAsync(memoryKey, question, answerBuilder.ToString(), contextList);
         }
         catch (OperationCanceledException)
         {
@@ -759,25 +763,112 @@ public class AiTutorService : IAiTutorService
     /// là thứ sửa được, mà mỗi ký tự thừa đều là thời gian model phải đọc.</summary>
     private const int MaxQuestionLength = 500;
 
-    /// <summary>Câu trả lời nằm trong bộ nhớ đệm bao lâu. Đặt theo ngày chứ không theo giờ vì kho tài liệu
-    /// đổi rất thưa, mà khóa đệm đã gồm mã các đoạn tài liệu: nạp lại tài liệu là sinh đoạn mới với mã mới,
-    /// nên bản đệm cũ tự hết hiệu lực chứ không cần chờ hết hạn.</summary>
-    private static readonly TimeSpan AnswerCacheDuration = TimeSpan.FromHours(24);
-
     /// <summary>Những người đang có một câu trả lời chạy dở. Dùng ConcurrentDictionary làm tập hợp vì .NET
     /// không có ConcurrentHashSet; giá trị không mang ý nghĩa gì.</summary>
     private static readonly ConcurrentDictionary<int, byte> AnsweringUserIdList = new();
 
-    /// <summary>Khóa đệm gồm: câu hỏi (bỏ qua khác biệt hoa thường và khoảng trắng thừa), model trả lời, và
-    /// mã CÁC ĐOẠN TÀI LIỆU đã đưa cho model. Cùng tiền tố "ai-answer|" với màn hình quản trị là cố ý: cùng
-    /// một câu hỏi trên cùng bộ đoạn tài liệu thì hai bên dùng chung được một bản trả lời.</summary>
-    private string BuildAnswerCacheKey(string question, IReadOnlyList<DocumentChunkMatchDto> contextList)
-    {
-        var normalizedQuestion = string.Join(' ',
-            question.ToLowerInvariant().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    // ==================== GHI NHỚ CÂU TRẢ LỜI ====================
 
-        return $"ai-answer|{_chat.Model}||{string.Join(',', contextList.Select(x => x.Id))}|{normalizedQuestion}";
+    /// <summary>Câu trả lời đã ghi nhớ cho khóa nghĩa này, hoặc null nếu chưa có câu nào dùng được.
+    ///
+    /// Một câu đã ghi nhớ chỉ được dùng khi MỌI đoạn tài liệu nó dựa vào đều nằm trong số đoạn vừa tìm được cho
+    /// chính người đang hỏi. Một điều kiện đó lo trọn ba việc: đoạn còn tồn tại (nạp lại tài liệu là sinh đoạn mới
+    /// mã mới, câu trả lời theo bản cũ tự hết hiệu lực), người hỏi có quyền đọc (phần tìm kiếm đã qua hàng rào
+    /// khóa học), và đoạn đó vẫn là căn cứ đúng cho câu hỏi (tài liệu mới nạp sát nghĩa hơn sẽ đẩy nó ra ngoài).</summary>
+    private async Task<string?> FindRememberedAnswerAsync(
+        string memoryKey, IReadOnlyList<DocumentChunkMatchDto> foundList, CancellationToken cancellationToken)
+    {
+        var answerModel = AnswerModelStamp;
+        var candidateList = await _db.AiAnswerMemory
+            .Where(x => x.QuestionKey == memoryKey && x.AnswerModel == answerModel)
+            .OrderByDescending(x => x.LastUsedAt)
+            .Take(MaxMemoryCandidateCount)
+            .ToListAsync(cancellationToken);
+        if (candidateList.Count == 0) return null;
+
+        var foundIdSet = foundList.Select(x => x.Id).ToHashSet();
+        var matched = candidateList.FirstOrDefault(x => ParseChunkIdList(x.ChunkIdList).All(foundIdSet.Contains));
+        if (matched is null) return null;
+
+        matched.HitCount++;
+        matched.LastUsedAt = DateTime.Now;
+        try
+        {
+            await _db.SaveChangesAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            // Đếm lượt dùng chỉ là số liệu cho Admin — hỏng thì người hỏi vẫn phải nhận được câu trả lời.
+            _logger.LogWarning(ex, "Khong cap nhat duoc luot dung cau tra loi da ghi nho {Id}.", matched.Id);
+        }
+
+        return matched.Answer;
     }
+
+    /// <summary>Ghi nhớ một câu trả lời model vừa viết xong. Hỏng thì chỉ ghi log: người hỏi đã nhận đủ câu trả
+    /// lời, mất một lần ghi nhớ chỉ có nghĩa người hỏi sau phải chờ model như bình thường.</summary>
+    private async Task RememberAnswerAsync(
+        string memoryKey, string question, string answer, IReadOnlyList<DocumentChunkMatchDto> contextList)
+    {
+        // Câu "chưa có thông tin" không đáng nhớ: Admin nạp thêm tài liệu xong mà nó vẫn được trả lại thì người
+        // hỏi không bao giờ thấy được thông tin mới — các đoạn cũ vẫn còn nên nó không tự hết hiệu lực. So theo
+        // cụm chữ chứ không theo nguyên câu cài sẵn: model 3B hay viết lệch đi ("Tài liệu hiện tại chưa có thông
+        // tin về thời gian tan làm."), và đã có đúng câu như thế lọt vào bộ nhớ.
+        if (string.IsNullOrWhiteSpace(answer) || NoInformationRegex.IsMatch(answer.Normalize(NormalizationForm.FormC))) return;
+
+        var chunkIdList = string.Join(',', contextList.Select(x => x.Id).Distinct().Order());
+        if (chunkIdList.Length == 0 || chunkIdList.Length > MaxChunkIdListLength) return;
+
+        try
+        {
+            var now = DateTime.Now;
+            _db.AiAnswerMemory.Add(new AiAnswerMemory
+            {
+                QuestionKey = memoryKey,
+                Question = question,
+                Answer = answer,
+                ChunkIdList = chunkIdList,
+                AnswerModel = AnswerModelStamp,
+                CreatedAt = now,
+                LastUsedAt = now
+            });
+            await _db.SaveChangesAsync(CancellationToken.None);
+
+            // Dọn luôn những câu lâu không ai hỏi tới — phần lớn là câu dựa trên đoạn tài liệu đã bị nạp lại, không
+            // bao giờ khớp được nữa. Làm ở đây vì đây là lúc duy nhất bảng phình ra.
+            var idleBefore = now - AnswerMemoryIdleLifetime;
+            await _db.AiAnswerMemory
+                .Where(x => x.LastUsedAt < idleBefore)
+                .ExecuteDeleteAsync(CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Khong ghi nho duoc cau tra loi cho cau hoi {Question}.", question);
+        }
+    }
+
+    /// <summary>Ghi vào cột AiAnswerMemory.AnswerModel: model VÀ phiên bản câu lệnh. Sửa câu lệnh để chữa một lỗi
+    /// trả lời thì các câu đã ghi nhớ theo câu lệnh cũ tự thôi được dùng, không phải chờ Admin xóa tay.</summary>
+    private string AnswerModelStamp => $"{_chat.Model}|{_chat.PromptVersion}";
+
+    /// <summary>Câu trả lời kiểu "chưa có thông tin" — xem RememberAnswerAsync.</summary>
+    private static readonly System.Text.RegularExpressions.Regex NoInformationRegex = new(
+        "chưa có thông tin|không có thông tin|chưa rõ tài liệu nào",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    private static IEnumerable<int> ParseChunkIdList(string chunkIdList)
+        => chunkIdList.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => int.TryParse(x, out var id) ? id : -1);
+
+    /// <summary>Số câu ghi nhớ cùng khóa nghĩa được xét. Cùng một câu hỏi có thể có vài bản dựa trên bộ đoạn khác
+    /// nhau (người hỏi khác phạm vi đọc, hoặc tài liệu đã nạp lại); quá ngần này thì bản cũ nhất cũng đã hết hạn.</summary>
+    private const int MaxMemoryCandidateCount = 5;
+
+    /// <summary>Khớp MaxLength của cột AiAnswerMemory.ChunkIdList.</summary>
+    private const int MaxChunkIdListLength = 400;
+
+    /// <summary>Câu ghi nhớ không được ai hỏi tới trong ngần này thì bị dọn.</summary>
+    private static readonly TimeSpan AnswerMemoryIdleLifetime = TimeSpan.FromDays(90);
 
     private static readonly JsonSerializerOptions SseJsonOption = new(JsonSerializerDefaults.Web);
 }

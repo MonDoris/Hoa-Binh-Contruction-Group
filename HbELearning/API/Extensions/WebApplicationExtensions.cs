@@ -41,7 +41,10 @@ public static class WebApplicationExtensions
         // text/event-stream không nằm trong danh sách mặc định nên luồng trả lời của AI không bị gom bộ đệm.
         app.UseResponseCompression();
 
-        // Frontend tĩnh trong wwwroot
+        // Địa chỉ trang kiểu cũ (/pages/x.html) -> thư mục riêng của từng trang. Xem LegacyPageRedirectExtensions.
+        app.UseLegacyPageRedirect();
+
+        // Frontend tĩnh trong wwwroot — mỗi trang một thư mục wwwroot/pages/<trang>/ (xem KIEN-TRUC.md)
         app.UseDefaultFiles();
 
         // UseStaticFiles mặc định CHỈ phục vụ các đuôi file "quen" (html/css/js/png...) — .glb/.gltf/.fbx

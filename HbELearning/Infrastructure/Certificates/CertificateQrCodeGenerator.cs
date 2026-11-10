@@ -23,7 +23,7 @@ public sealed class CertificateQrCodeGenerator : ICertificateQrCodeGenerator
             ? $"{request.Scheme}://{request.Host}"
             : "https://localhost:7000";
 
-        var payload = $"{baseUrl}/pages/verify.html?code={verificationCode}";
+        var payload = $"{baseUrl}/pages/certificate/verify.html?code={verificationCode}";
 
         using var generator = new QRCodeGenerator();
         using var data = generator.CreateQrCode(payload, QRCodeGenerator.ECCLevel.Q);

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="aidoc.pageTitle">Tài liệu AI · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/pages/ai-document/ai-document.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+
+        <div class="card mb" id="status-card">
+            <div class="card-body"><span class="spinner-inline"></span> <span data-i18n="aidoc.dangKiemTra">Đang kiểm tra máy chủ AI...</span></div>
+        </div>
+
+        <div class="grid grid-2 mb">
+            <div class="card">
+                <div class="card-head">
+                    <h3 data-i18n="aidoc.napTaiLieu"><i class="ph ph-database"></i> Nạp tài liệu vào kho tri thức</h3>
+                </div>
+                <div class="card-body">
+                    <div class="field">
+                        <label for="f-course" data-i18n="aidoc.thuocKhoaHoc">Thuộc khóa học</label>
+                        <select id="f-course"></select>
+                        <div class="hint" data-i18n="aidoc.hintKhoaHoc">Để trống nếu là tài liệu dùng chung cho toàn công ty (quy định, nội quy, sổ tay nhân viên...).</div>
+                    </div>
+
+                    <div class="drop-zone" id="drop-zone">
+                        <div class="big"><i class="ph ph-cloud-arrow-up"></i></div>
+                        <div id="drop-label" data-i18n="aidoc.keoThaFile">Kéo thả file vào đây hoặc bấm để chọn</div>
+                        <div class="small muted mt-sm" data-i18n="aidoc.dinhDangHoTro">Hỗ trợ PDF, DOCX, TXT — tối đa 200 MB</div>
+                        <input type="file" id="f-file" accept=".pdf,.docx,.txt,.md" hidden aria-label="Chọn tệp tài liệu để tải lên">
+                    </div>
+
+                    <div class="action-row">
+                        <button class="btn" id="btn-upload" disabled data-i18n="aidoc.napVaoKho">Nạp vào kho tri thức</button>
+                        <button class="btn ghost" id="btn-clear" hidden data-i18n="common.cancel">Hủy</button>
+                    </div>
+                    <div id="upload-note" class="small muted mt-md"></div>
+                </div>
+            </div>
+
+            <div class="card ai-card">
+                <div class="card-head">
+                    <h3><i class="ph ph-sparkle"></i> <span data-i18n="aidoc.hoiDap">Hỏi đáp với AI (Dựa trên tài liệu)</span></h3>
+                </div>
+                <div class="card-body">
+                    <div class="hint mb" data-i18n="aidoc.hintHoiDap">
+                        AI sẽ đọc hiểu tài liệu bạn đã nạp bên trái và đưa ra câu trả lời chính xác nhất.
+                    </div>
+                    
+                    <div class="ai-input-wrapper">
+                        <input id="f-query" maxlength="500" placeholder="VD: Công ty được thành lập khi nào?">
+                        <div class="ai-input-actions">
+                            <span class="small muted flex-center" id="ask-timer" style="margin-right: 10px; font-family: monospace;"></span>
+                            <button class="btn ghost" id="btn-stop" hidden data-i18n="aidoc.dungTraLoi" style="color: red; border-radius: 20px;"><i class="ph ph-stop-circle"></i> Dừng</button>
+                            <button class="btn-ai" id="btn-ask" data-i18n="aidoc.hoiAi"><i class="ph ph-paper-plane-right"></i> Hỏi AI</button>
+                        </div>
+                    </div>
+
+                    <div id="answer-box"></div>
+                    <div id="source-box" class="mt-lg"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= AI HỌC NỘI DUNG KHÓA HỌC =================
+             Khác hẳn khối "Nạp tài liệu" bên trên: phần này KHÔNG có gì để tải lên. Máy tự đọc nội dung các
+             khóa học nhân viên đang được học và nạp lại mỗi khi bài học đổi, nên ở đây chỉ có một bảng theo
+             dõi "đã học tới đâu" và một nút để bắt học ngay thay vì chờ lượt quét định kỳ. -->
+        <div class="card mb">
+            <div class="card-head">
+                <h3><i class="ph ph-graduation-cap"></i> <span data-i18n="aidoc.kienThucKhoaHoc">AI học nội dung khóa học</span></h3>
+                <div style="display:flex; gap:8px; align-items:center">
+                    <button class="btn ghost sm" id="btn-sync-force" data-i18n-title="aidoc.hocLaiTatCaHint"
+                            title="Nạp lại toàn bộ, kể cả bài học không thay đổi">
+                        <i class="ph ph-arrows-clockwise"></i> <span data-i18n="aidoc.hocLaiTatCa">Học lại tất cả</span>
+                    </button>
+                    <button class="btn sm" id="btn-sync">
+                        <i class="ph ph-brain"></i> <span data-i18n="aidoc.hocNgay">Học ngay</span>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="hint mb" data-i18n="aidoc.hintKienThuc">
+                    HB Minerva tự đọc mô tả khóa học và nội dung từng bài học của các khóa đã xuất bản hoặc đang có người học,
+                    rồi cập nhật lại sau mỗi vài giờ khi bài học được sửa. Học viên chỉ tra được nội dung của khóa mình
+                    được phân công. Nội dung bài kiểm tra không được nạp để không lộ đáp án. Bài học quá ngắn (dưới 60 ký tự) không được nạp nên có thể vẫn hiện là học một phần.
+                </div>
+                <div id="knowledge-box"><span class="spinner-inline"></span></div>
+            </div>
+        </div>
+
+        <!-- ================= CÂU TRẢ LỜI CÀI SẴN =================
+             Những câu xã giao ("hi", "cảm ơn") không nằm trong tài liệu nội bộ nào, mà lại quá ngắn nên đưa
+             qua tìm kiếm ngữ nghĩa là vớ phải một đoạn bất kỳ rồi AI viết ra một bài giảng lạc đề. Cài sẵn
+             câu trả lời cho đúng nhóm câu đó thì vừa đúng vừa hiện ra tức thì. -->
+        <div class="card mb">
+            <div class="card-head">
+                <h3><i class="ph ph-lightning"></i> <span data-i18n="aiqr.tieuDe">Câu trả lời cài sẵn</span></h3>
+                <button class="btn sm" id="btn-qr-add">
+                    <i class="ph ph-plus"></i> <span data-i18n="aiqr.them">Thêm câu trả lời</span>
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="hint mb" data-i18n="aiqr.huongDan">
+                    Gặp đúng những câu này, HB Minerva trả lời ngay bằng câu chữ bạn soạn — không hỏi model, không tra tài liệu.
+                    Chỗ giữ chỗ dùng được: {ten} họ tên người hỏi, {ten_ngan} tên gọi, {vai_tro} vai trò.
+                    So khớp bỏ qua hoa thường và bỏ qua dấu tiếng Việt, nên gõ "chào" là bắt được cả người gõ "chao".
+                </div>
+
+                <!-- Thử trước khi tin: chạy qua đúng hàm so khớp mà lượt hỏi thật dùng. -->
+                <div class="action-row mb" style="gap:8px; flex-wrap:wrap">
+                    <input id="f-qr-test" maxlength="500" style="flex:1; min-width:240px"
+                           data-i18n-ph="aiqr.thuPlaceholder" placeholder="Gõ thử một câu hỏi, VD: hi">
+                    <button class="btn ghost" id="btn-qr-test"><i class="ph ph-play"></i> <span data-i18n="aiqr.thu">Thử</span></button>
+                </div>
+                <div id="qr-test-result" class="mb"></div>
+
+                <div id="qr-list"></div>
+            </div>
+        </div>
+
+        <!-- ================= CÂU TRẢ LỜI ĐÃ GHI NHỚ =================
+             HB Minerva tự ghi nhớ câu trả lời đã viết xong; người sau hỏi cùng nội dung thì nhận lại ngay. Một câu
+             nhớ sai sẽ được trả cho tất cả mọi người, nên Admin phải xem, sửa và xóa được ở đây. -->
+        <div class="card mb">
+            <div class="card-head">
+                <h3><i class="ph ph-brain"></i> <span data-i18n="aimem.tieuDe">Câu trả lời đã ghi nhớ</span></h3>
+                <button class="btn ghost sm" id="btn-mem-clear" style="color:var(--danger)">
+                    <i class="ph ph-trash"></i> <span data-i18n="aimem.xoaTatCa">Xóa tất cả</span>
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="hint mb" data-i18n="aimem.huongDan">
+                    Khi học viên hỏi một câu đã có người hỏi trước (cùng nội dung, dù gõ khác chữ), HB Minerva trả lại ngay câu trả lời đã ghi nhớ thay vì viết lại từ đầu.
+                    Câu trả lời tự hết hiệu lực khi tài liệu làm căn cứ được nạp lại, và chỉ được trả cho người có quyền đọc tài liệu đó.
+                    Thấy câu nào sai thì sửa hoặc xóa — xóa rồi, lần tới có người hỏi AI sẽ trả lời lại.
+                </div>
+
+                <div class="action-row mb" style="gap:8px; flex-wrap:wrap">
+                    <input id="f-mem-search" maxlength="200" style="flex:1; min-width:240px"
+                           data-i18n-ph="aimem.timPlaceholder" placeholder="Tìm trong câu hỏi hoặc câu trả lời...">
+                </div>
+
+                <div id="mem-list"></div>
+            </div>
+        </div>
+
+        <div id="doc-list"></div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-qr">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="qr-modal-title" data-i18n="aiqr.them">Thêm câu trả lời</h3>
+            <button class="close-x" onclick="closeModal('modal-qr')">×</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="f-qr-id">
+
+            <div class="field">
+                <label for="f-qr-keyword" data-i18n="aiqr.tuKhoa">Từ khóa kích hoạt</label>
+                <textarea id="f-qr-keyword" rows="4" maxlength="500"
+                          data-i18n-ph="aiqr.phTuKhoa" placeholder="hi&#10;hello&#10;chào&#10;xin chào"></textarea>
+                <div class="hint" data-i18n="aiqr.hintTuKhoa">Mỗi dòng một từ khóa — bất kỳ dòng nào khớp là dùng câu trả lời này.</div>
+            </div>
+
+            <div class="field">
+                <label for="f-qr-answer" data-i18n="aiqr.cauTraLoi">Câu trả lời</label>
+                <textarea id="f-qr-answer" rows="5" maxlength="2000"
+                          placeholder="Chào {ten_ngan}! Bạn cần mình giúp gì?"></textarea>
+                <div class="hint" data-i18n="aiqr.hintCauTraLoi">Dùng được {ten}, {ten_ngan}, {vai_tro}. Xuống dòng được giữ nguyên khi hiển thị.</div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="field">
+                    <label for="f-qr-match" data-i18n="aiqr.kieuKhop">Cách so khớp</label>
+                    <select id="f-qr-match">
+                        <option value="Exact" data-i18n="aiqr.khopCaCau">Khớp cả câu (an toàn)</option>
+                        <option value="Contains" data-i18n="aiqr.chuaTuKhoa">Câu hỏi có chứa từ khóa</option>
+                    </select>
+                    <div class="hint" data-i18n="aiqr.hintKieuKhop">"Khớp cả câu" chỉ bắt khi người dùng gõ đúng chừng ấy chữ. "Chứa từ khóa" rộng hơn nên dễ bắt nhầm câu hỏi thật.</div>
+                </div>
+                <div class="field">
+                    <label for="f-qr-order" data-i18n="aiqr.thuTu">Thứ tự xét</label>
+                    <input type="number" id="f-qr-order" min="0" max="9999" value="0">
+                    <div class="hint" data-i18n="aiqr.hintThuTu">Số nhỏ được xét trước. Đặt câu khớp hẹp lên trên câu khớp rộng.</div>
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="check"><input type="checkbox" id="f-qr-active" checked>
+                    <span data-i18n="aiqr.dangBat">Đang bật</span></label>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn ghost" onclick="closeModal('modal-qr')" data-i18n="common.cancel">Hủy</button>
+            <button type="button" class="btn" id="btn-qr-save" data-i18n="common.save">Lưu</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-mem">
+    <div class="modal modal-wide">
+        <div class="modal-head">
+            <h3 data-i18n="aimem.sua">Sửa câu trả lời đã ghi nhớ</h3>
+            <button class="close-x" onclick="closeModal('modal-mem')">×</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="f-mem-id">
+            <div class="field">
+                <label data-i18n="aimem.cauHoi">Câu hỏi</label>
+                <div id="f-mem-question" style="font-weight:600"></div>
+            </div>
+            <div class="field">
+                <label for="f-mem-answer" data-i18n="aimem.cauTraLoi">Câu trả lời</label>
+                <textarea id="f-mem-answer" rows="12" maxlength="8000"></textarea>
+                <div class="hint" data-i18n="aimem.hintCauTraLoi">Viết được Markdown như AI: **in đậm**, gạch đầu dòng, bảng. Lưu xong, ai hỏi lại câu này sẽ nhận bản bạn sửa.</div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn ghost" onclick="closeModal('modal-mem')" data-i18n="common.cancel">Hủy</button>
+            <button type="button" class="btn" id="btn-mem-save" data-i18n="common.save">Lưu</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-chunk">
+    <div class="modal modal-wide">
+        <div class="modal-head">
+            <h3 id="chunk-title">Nội dung đã cắt đoạn</h3>
+            <button class="close-x" onclick="closeModal('modal-chunk')">×</button>
+        </div>
+        <div class="modal-body chunk-scroll" id="chunk-body"></div>
+        <div class="modal-foot">
+            <button type="button" class="btn ghost" onclick="closeModal('modal-chunk')" data-i18n="aidoc.dong">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/ai-document/ai-document.js"></script>
+</body>
+</html>

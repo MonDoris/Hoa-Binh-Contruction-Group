@@ -1,0 +1,72 @@
+/* File: wwwroot/pages/learning/scorm-player.css */
+        /* ==================== TRÌNH PHÁT SCORM ====================
+           Một khung cao trọn màn hình: thanh điều khiển trên cùng, mục lục bên trái, nội dung gói chiếm phần còn lại.
+           Nội dung SCORM được soạn để chạy trong một cửa sổ riêng — càng nhiều chỗ cho iframe càng tốt, nên mục lục
+           gập được và có chế độ toàn màn hình. */
+        .sp-shell {
+            display: flex; flex-direction: column;
+            height: calc(100vh - var(--topbar-h) - 48px);
+            min-height: 520px;
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+            box-shadow: var(--shadow); overflow: hidden;
+        }
+        .sp-shell:fullscreen { height: 100vh; border-radius: 0; border: 0; }
+        .sp-toolbar {
+            display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+            border-bottom: 1px solid var(--border); flex-wrap: wrap;
+        }
+        .sp-title { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+        .sp-title b { font-size: 15px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sp-title .small { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .sp-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .sp-icon-btn { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+        .sp-body { flex: 1; display: flex; min-height: 0; }
+        .sp-toc {
+            width: 300px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto;
+            padding: 10px 8px; background: var(--bg);
+        }
+        .sp-shell.toc-hidden .sp-toc { display: none; }
+        .sp-toc-head { font-size: 11.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+            color: var(--text-muted); padding: 6px 10px 10px; }
+        .sp-node {
+            display: flex; align-items: flex-start; gap: 8px; width: 100%; text-align: left;
+            padding: 8px 10px; border-radius: 8px; border: 1px solid transparent; background: none;
+            color: var(--text); font: inherit; font-size: 13.5px; line-height: 1.4; cursor: pointer;
+        }
+        .sp-node:hover:not(:disabled) { background: var(--surface); border-color: var(--border); }
+        .sp-node:disabled { cursor: not-allowed; color: var(--text-muted); }
+        .sp-node.cluster { font-weight: 700; cursor: default; }
+        .sp-node.current { background: var(--primary-soft); border-color: var(--primary-light); color: var(--primary-dark); font-weight: 700; }
+        .sp-node .ic { flex-shrink: 0; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+        .sp-node .ic.done { color: var(--success); }
+        .sp-node .ic.fail { color: var(--danger); }
+        .sp-node .ic.doing { color: var(--warning); }
+        .sp-node .ic.lock { color: var(--text-muted); }
+        .sp-node .label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+        .sp-node .score { font-size: 12px; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+        .sp-stage { position: relative; flex: 1; min-width: 0; background: #fff; }
+        .sp-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+        .sp-overlay {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            background: var(--bg); padding: 24px; overflow-y: auto;
+        }
+        .sp-overlay.hidden { display: none; }
+        .sp-panel { max-width: 560px; width: 100%; text-align: center; }
+        .sp-panel .big-icon { font-size: 48px; color: var(--primary); margin-bottom: 8px; }
+        .sp-panel h2 { font-size: 21px; margin: 0 0 8px; }
+        .sp-panel p { color: var(--text-muted); margin: 0 0 18px; }
+        .sp-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 0 0 20px; }
+        .sp-summary .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 10px; }
+        .sp-summary .tile .k { font-size: 11.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+        .sp-summary .tile .v { font-size: 18px; font-weight: 800; margin-top: 4px; }
+        .sp-panel .row-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .sp-save { font-size: 12px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px; }
+        .sp-save.error { color: var(--danger); }
+        .sp-preview-flag { background: var(--warning-light); color: var(--warning); border-radius: 999px; padding: 1px 8px; font-weight: 700; font-size: 11.5px; }
+
+        @media (max-width: 900px) {
+            .sp-shell { height: calc(100vh - var(--topbar-h) - 24px); }
+            .sp-toc { position: absolute; z-index: 5; top: 0; bottom: 0; left: 0; width: min(300px, 86vw); box-shadow: var(--shadow-lg); }
+            .sp-body { position: relative; }
+            .sp-actions .lbl { display: none; }
+        }

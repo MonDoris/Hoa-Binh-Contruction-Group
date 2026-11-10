@@ -1,0 +1,186 @@
+<!-- File: wwwroot/pages/approval-workflow/approval-workflow.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script src="/js/head.js"></script>
+    <title data-i18n="approval-workflow.title">Luồng cấp duyệt · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+    <link rel="stylesheet" href="/pages/approval-workflow/approval-workflow.css">
+</head>
+<body>
+<div class="main">
+    <div class="content" style="max-width: 1440px; margin: 0 auto;">
+
+        <!-- Banner phạm vi & Thống kê -->
+        <div class="aw-top-meta">
+            <div class="aw-scope-wrap">
+                <span class="aw-scope-icon"><i class="ph ph-git-merge"></i></span>
+                <p id="scopeNote"></p>
+            </div>
+            <div class="aw-summary-text" id="aw-summary-count"></div>
+        </div>
+
+        <!-- Thanh công cụ lọc & tìm kiếm -->
+        <div class="aw-header-container" id="aw-toolbar">
+            <div class="aw-toolbar-left">
+                <div class="aw-tabs" id="aw-tabs" style="display:none">
+                    <button type="button" class="aw-tab active" data-tab="department"><i class="ph ph-buildings"></i> Cấp Phòng ban</button>
+                    <button type="button" class="aw-tab" data-tab="company"><i class="ph ph-globe-hemisphere-west"></i> Cấp Công ty</button>
+                </div>
+
+                <div class="aw-search-input">
+                    <i class="ph ph-magnifying-glass search-ico"></i>
+                    <input type="text" id="aw-quick-search" placeholder="Tìm theo tên luồng, vai trò, trạm duyệt...">
+                    <button type="button" class="aw-search-clear" id="aw-search-clear" title="Xóa tìm kiếm"><i class="ph ph-x"></i></button>
+                </div>
+
+                <div class="aw-status-pills" id="aw-status-filter" role="group" aria-label="Lọc trạng thái">
+                    <button type="button" class="aw-status-btn active" data-status="all">Tất cả</button>
+                    <button type="button" class="aw-status-btn" data-status="active">Đang bật</button>
+                    <button type="button" class="aw-status-btn" data-status="inactive">Tạm ngưng</button>
+                </div>
+            </div>
+
+            <div class="aw-toolbar-right">
+                <div class="aw-filter-wrap" id="aw-filter-wrap" style="display:none">
+                    <label for="aw-filter-department"><i class="ph ph-funnel"></i> Phòng ban:</label>
+                    <select id="aw-filter-department"></select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Danh sách thẻ luồng duyệt -->
+        <div id="workflow-list" class="workflow-grid"></div>
+
+    </div>
+</div>
+
+<!-- Side Drawer cấu hình luồng -->
+<div class="modal-mask dock-right" id="modal-workflow">
+    <div class="modal">
+        <div class="drawer-header">
+            <div class="drawer-header-title">
+                <span class="aw-scope-icon" style="width:30px;height:30px;font-size:1rem;"><i class="ph ph-flow-arrow"></i></span>
+                <h3 id="modal-title">Tạo luồng duyệt</h3>
+            </div>
+            <button type="button" class="btn-icon" onclick="closeModal('modal-workflow')" aria-label="Đóng"><i class="ph ph-x"></i></button>
+        </div>
+        
+        <form id="workflow-form">
+            <div class="drawer-body">
+                <input type="hidden" id="f-id">
+
+                <div class="form-section">
+                    <div class="section-head">
+                        <h4 class="section-title"><i class="ph ph-sliders-horizontal"></i> Thông tin chung</h4>
+                    </div>
+
+                    <div class="form-row-2">
+                        <div class="fg">
+                            <label for="f-name">Tên luồng duyệt <span style="color: var(--aw-danger);">*</span></label>
+                            <input id="f-name" class="clean-input" required maxlength="150" placeholder="VD: Duyệt 2 cấp khóa học nội bộ">
+                        </div>
+
+                        <div class="fg" id="f-department-group">
+                            <label for="f-workflow-department">Phòng ban sở hữu</label>
+                            <select id="f-workflow-department" class="clean-input"></select>
+                        </div>
+
+                        <div class="fg" style="display: none;" id="f-department-fixed">
+                            <label>Phòng ban sở hữu</label>
+                            <div class="clean-input" style="background: var(--aw-surface-alt); font-weight: 500;" id="f-department-fixed-name"></div>
+                        </div>
+                    </div>
+
+                    <div class="fg">
+                        <label for="f-description">Mô tả ngắn</label>
+                        <textarea id="f-description" class="clean-input" rows="2" maxlength="500" placeholder="Ghi chú phạm vi hoặc loại khóa học áp dụng..."></textarea>
+                    </div>
+
+                    <div class="inline-switches">
+                        <label class="switch-item">
+                            <span class="neo-switch"><input type="checkbox" id="f-active" checked><span class="neo-slider"></span></span>
+                            <span>
+                                <span class="lbl">Đang hoạt động</span>
+                                <small>Cho phép chọn khi tạo khóa học</small>
+                            </span>
+                        </label>
+
+                        <label class="switch-item">
+                            <span class="neo-switch"><input type="checkbox" id="f-default"><span class="neo-slider"></span></span>
+                            <span>
+                                <span class="lbl">Đặt làm mặc định</span>
+                                <small>Tự động gán cho khóa học mới</small>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-head">
+                        <h4 class="section-title"><i class="ph ph-git-commit"></i> Trình tự phê duyệt</h4>
+                        <span class="section-sub" id="step-count-label">1 bước</span>
+                    </div>
+                    
+                    <div class="timeline-container" id="step-list"></div>
+                    
+                    <button type="button" class="btn-add-node" id="btn-add-step">
+                        <i class="ph ph-plus-circle"></i> Thêm bước duyệt tiếp theo
+                    </button>
+                </div>
+            </div>
+            
+            <div class="drawer-footer">
+                <button type="button" class="btn-ghost" onclick="closeModal('modal-workflow')">Hủy</button>
+                <button type="submit" class="btn-primary"><i class="ph ph-check"></i> Lưu thiết lập</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Nhân bản -->
+<div class="modal-mask" id="modal-clone">
+    <div class="modal" style="max-width:480px; border-radius: 12px; background: var(--aw-surface);">
+        <div class="modal-head" style="border-bottom: 1px solid var(--aw-border); padding: 16px 20px;">
+            <h3 style="color: var(--aw-text-main); font-weight: 600; font-size: 1rem; margin:0; display:flex; align-items:center; gap:8px;">
+                <i class="ph ph-copy" style="color: var(--aw-primary);"></i> Nhân bản luồng duyệt
+            </h3>
+            <button class="close-x" type="button" onclick="closeModal('modal-clone')">×</button>
+        </div>
+        <form id="clone-form">
+            <div class="modal-body" style="padding: 20px;">
+                <p class="small muted" id="clone-source" style="margin-top:0; padding: 10px 12px; background: var(--aw-surface-alt); border: 1px solid var(--aw-border); border-radius: 8px;"></p>
+                <div class="fg" id="clone-department-field">
+                    <label for="c-department">Nhân bản sang phòng ban <span style="color:var(--aw-danger)">*</span></label>
+                    <select id="c-department" class="clean-input"></select>
+                </div>
+                <div class="fg" id="clone-target-fixed" style="display:none">
+                    <label>Nhân bản về phòng ban</label>
+                    <div class="clean-input" style="background: var(--aw-surface-alt);">
+                        <b id="clone-target-name"></b>
+                    </div>
+                </div>
+                <div class="fg" style="margin-top:14px;">
+                    <label for="c-name">Tên bản sao (Tùy chọn)</label>
+                    <input id="c-name" class="clean-input" maxlength="150" placeholder="Bỏ trống để hệ thống tự đặt tên">
+                </div>
+            </div>
+            <div class="modal-foot" style="padding: 14px 20px; border-top: 1px solid var(--aw-border);">
+                <button type="button" class="btn-ghost" onclick="closeModal('modal-clone')">Hủy</button>
+                <button type="submit" class="btn-primary"><i class="ph ph-copy"></i> Tạo bản sao</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/approval-workflow/approval-workflow.js"></script>
+</body>
+</html>

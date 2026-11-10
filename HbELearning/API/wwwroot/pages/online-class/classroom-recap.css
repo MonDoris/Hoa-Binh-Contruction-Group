@@ -1,0 +1,81 @@
+/* File: wwwroot/pages/online-class/classroom-recap.css */
+        /* Trang xem lại dùng chung ngôn ngữ thiết kế với Tổng quan và Báo cáo (dải số `.ops-kpi`); phần riêng của trang
+           là khung phát lại và dòng thời gian Diễn biến. Mọi màu đi qua biến CSS nên theme sáng và tối đều đúng. */
+        .rc-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr); gap: 18px; align-items: start; }
+        .rc-main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+        .rc-layout .card { margin-bottom: 0; }
+
+        /* ---- Khung phát lại ---- */
+        .rc-stage { background: #05070c; aspect-ratio: 16 / 9; display: grid; place-items: center; }
+        .rc-stage video { width: 100%; height: 100%; display: block; background: #05070c; }
+        .rc-player-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; padding: 14px 20px; }
+        .rc-part-title { display: block; font-size: 14px; font-weight: 800; letter-spacing: -.2px; }
+        .rc-part-info { display: block; margin-top: 2px; font-size: 12.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+        .rc-parts { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 18px; }
+        .rc-part {
+            display: inline-flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 999px; cursor: pointer;
+            font: 600 12.5px/1.2 var(--font-sans); color: var(--text-muted); background: var(--bg); border: 1px solid var(--border);
+            transition: background .15s, color .15s, border-color .15s;
+        }
+        .rc-part:hover { color: var(--text); }
+        .rc-part[aria-pressed="true"] { background: var(--primary-light); color: var(--primary-dark); border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); }
+        .rc-part:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .rc-part small { font-weight: 600; opacity: .8; font-variant-numeric: tabular-nums; }
+        .rc-none { display: grid; place-items: center; gap: 4px; padding: 56px 20px; text-align: center; color: var(--text-muted); }
+        .rc-none i { font-size: 34px; opacity: .55; }
+        .rc-none b { color: var(--text); font-size: 14px; }
+
+        /* ---- Dòng thời gian Diễn biến ---- */
+        .rc-aside { position: sticky; top: 16px; min-width: 0; }
+        .rc-aside .card { display: flex; flex-direction: column; max-height: calc(100vh - 32px); }
+        .rc-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        .rc-chip {
+            display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+            font: 700 12px/1.2 var(--font-sans); color: var(--text-muted); background: var(--bg); border: 1px solid var(--border);
+        }
+        .rc-chip b { font-weight: 700; font-variant-numeric: tabular-nums; opacity: .75; }
+        .rc-chip[aria-pressed="true"] { background: var(--text); color: var(--surface); border-color: var(--text); }
+        .rc-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .rc-timeline { list-style: none; margin: 0; padding: 6px 8px 10px; overflow-y: auto; flex: 1; }
+        .rc-ev { position: relative; }
+        .rc-ev[hidden] { display: none; }
+        /* Cả dòng là một nút khi sự kiện nằm trong video (bấm để nhảy tới); dòng không nằm trong video thì chỉ để đọc. */
+        .rc-ev-hit {
+            display: flex; gap: 11px; width: 100%; padding: 9px 8px; border: 0; border-radius: 10px; text-align: left;
+            background: none; font: inherit; color: inherit;
+        }
+        button.rc-ev-hit { cursor: pointer; }
+        button.rc-ev-hit:hover { background: var(--bg); }
+        button.rc-ev-hit:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+        .rc-ev.is-now .rc-ev-hit { background: var(--primary-light); box-shadow: inset 3px 0 0 var(--primary); }
+        /* Đường dọc nối các chấm như một dải phim; chấm cuối không có đường nối xuống. */
+        .rc-ev::before { content: ""; position: absolute; left: 21px; top: 36px; bottom: -9px; width: 1px; background: var(--border); }
+        .rc-ev:last-child::before { display: none; }
+        .rc-ev-dot {
+            flex: none; z-index: 1; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; font-size: 15px;
+            color: var(--tone, var(--text-muted)); background: color-mix(in srgb, var(--tone, var(--text-muted)) 13%, var(--surface));
+        }
+        .rc-ev-body { min-width: 0; flex: 1; font-size: 13px; line-height: 1.45; }
+        .rc-ev-text { overflow-wrap: anywhere; }
+        .rc-ev-text .who { font-weight: 700; }
+        .rc-ev-time { margin-top: 2px; font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+        /* Vị trí trong video — chỉ có ở dòng nhảy được; chữ "▶" đi kèm số nên không dựa vào màu. */
+        .rc-ev-seek { margin-left: 6px; font-weight: 700; color: var(--primary-dark); }
+        .rc-ev-nov { margin-left: 6px; font-style: italic; }
+        .rc-ev-chat .rc-ev-text { padding: 7px 11px; border-radius: 4px 12px 12px 12px; background: var(--bg); }
+        .rc-ev[data-kind="chat"] { --tone: var(--primary); }
+        .rc-ev[data-kind="presence"] { --tone: var(--success); }
+        .rc-ev[data-kind="media"] { --tone: #8b5cf6; }
+        .rc-ev[data-kind="recording"] { --tone: var(--danger); }
+        .rc-ev[data-kind="session"] { --tone: var(--text); }
+        .rc-ev-empty { padding: 28px 14px; text-align: center; font-size: 13px; color: var(--text-muted); }
+
+        .rc-denied { max-width: 460px; margin: 48px auto; text-align: center; }
+        .rc-denied .btn { margin-top: 14px; }
+
+        @media (max-width: 1000px) {
+            .rc-layout { grid-template-columns: minmax(0, 1fr); }
+            .rc-aside { position: static; }
+            .rc-aside .card { max-height: none; }
+            .rc-timeline { max-height: 460px; }
+        }

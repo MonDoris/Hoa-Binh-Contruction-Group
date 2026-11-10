@@ -50,7 +50,7 @@ public class ScenarioSceneRequest
     [Range(0, 100)] public decimal PassScore { get; set; } = 70m;
     public bool IsActive { get; set; } = true;
 
-    /// <summary>Bối cảnh 3D (key trong wwwroot/js/sim-registry.js). Danh sách hợp lệ được kiểm tại ScenarioService.</summary>
+    /// <summary>Bối cảnh 3D (key trong wwwroot/js/sim/sim-registry.js). Danh sách hợp lệ được kiểm tại ScenarioService.</summary>
     [Required, MaxLength(50)] public string SceneKey { get; set; } = "construction";
 
     /// <summary>Tệp bối cảnh tự tải lên — BẮT BUỘC khi SceneKey = "custom" (xem ScenarioService).</summary>
@@ -101,7 +101,7 @@ public class ScenarioChoiceRequest
 
 // ---------- Chơi mô phỏng (Learner) — KHÔNG lộ IsCorrect/PointDelta/Feedback trước khi trả lời ----------
 /// <param name="SceneName">Tên bối cảnh như Thư viện 3D đang đặt (bảng SimBuiltinScene). Gửi kèm để trang
-/// học viên hiện đúng tên mà người quản trị đã đặt, thay vì chuỗi cứng trong js/sim-registry.js — học viên
+/// học viên hiện đúng tên mà người quản trị đã đặt, thay vì chuỗi cứng trong js/sim/sim-registry.js — học viên
 /// không được gọi API thư viện nên không tự tra được. Null với bối cảnh tự tải lên ("custom").</param>
 public record ScenarioStartDto(int AttemptId, int ScenarioSceneId, string Title, string? Description,
     int AttemptNo, decimal PassScore, int MaxScore, int Score, DateTime StartedAt,

@@ -16,6 +16,8 @@ global using HbELearning.Application.DTOs;
 // nằm ở Application, Infrastructure đọc xuống là đúng chiều cho phép.
 global using HbELearning.Application.Services;
 global using HbELearning.Application.Features.HrSync;
+// AiTranslateJobWorker chạy các lượt dịch nền bằng ITranslationService + AiTranslateJob.
+global using HbELearning.Application.Features.Translations;
 
 // ----- Chính lớp Infrastructure -----
 global using HbELearning.Infrastructure.Ai;

@@ -80,6 +80,9 @@ public static class DependencyInjection
         // AI đối chiếu chứng nhận bên ngoài chưa có kết quả quét sẵn (xem ExternalCertificateVerifyWorker).
         services.AddSingleton<IExternalCertificateVerifyQueue, ExternalCertificateVerifyQueue>();
         services.AddHostedService<ExternalCertificateVerifyWorker>();
+        // Dịch giao diện bằng AI hàng loạt: nhận cả danh sách một lần, tự cắt lô và dịch nền (xem AiTranslateJobWorker).
+        services.AddSingleton<IAiTranslateJobQueue, AiTranslateJobQueue>();
+        services.AddHostedService<AiTranslateJobWorker>();
         // Tự đồng bộ nhân sự mỗi ngày một lần nếu bật HrSync:AutoSyncHour (mặc định tắt — xem HrSyncWorker).
         services.AddHostedService<HrSyncWorker>();
 

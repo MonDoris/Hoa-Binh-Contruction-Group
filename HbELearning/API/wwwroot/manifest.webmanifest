@@ -4,7 +4,7 @@
   "description": "Hệ thống đào tạo trực tuyến Hòa Bình — khóa học, lớp học trực tuyến, mô phỏng 3D và kiểm tra.",
   "lang": "vi",
   "dir": "ltr",
-  "start_url": "/pages/dashboard.html",
+  "start_url": "/pages/dashboard/dashboard.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
@@ -18,8 +18,8 @@
     { "src": "/img/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Khóa học của tôi", "short_name": "Khóa học", "url": "/pages/my-course.html", "icons": [{ "src": "/img/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Lớp học trực tuyến", "short_name": "Lớp học", "url": "/pages/online-class.html", "icons": [{ "src": "/img/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Bảng xếp hạng", "short_name": "Xếp hạng", "url": "/pages/ranking.html", "icons": [{ "src": "/img/icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Khóa học của tôi", "short_name": "Khóa học", "url": "/pages/my-course/my-course.html", "icons": [{ "src": "/img/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Lớp học trực tuyến", "short_name": "Lớp học", "url": "/pages/online-class/online-class.html", "icons": [{ "src": "/img/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Bảng xếp hạng", "short_name": "Xếp hạng", "url": "/pages/ranking/ranking.html", "icons": [{ "src": "/img/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

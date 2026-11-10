@@ -1,0 +1,465 @@
+// File: wwwroot/pages/user/user.js
+// Khóa viết thường: tên vai trò hệ thống không thống nhất hoa/thường ("Học viên", "Trưởng phòng", "Giám Đốc").
+const ROLE_BADGE_CLASS = {
+    'admin': 'red',
+    'tổng giám đốc': 'orange',
+    'giám đốc': 'green',
+    'trưởng phòng': 'blue',
+    'trưởng nhóm': 'cyan',
+    'giảng viên': 'cyan',
+    'học viên': 'gray'
+};
+/** Vai trò con ("Trưởng Phòng IT", "Giám Đốc Nhân Sự"...) mang màu của vai trò cha — nhìn là biết thuộc nhánh nào.
+ *  Kế thừa chỉ một cấp (cha luôn là vai trò hệ thống), nên tra cha một lần là đủ. */
+function roleBadgeClass(roleName, roleList) {
+    const baseName = roleList.find(r => r.name === roleName)?.parentRoleName || roleName || '';
+    return ROLE_BADGE_CLASS[baseName.toLowerCase()] || 'gray';
+}
+
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.require(['Admin'], 'user.view')) return;
+    mountLayout('user', t('user.quanLyNguoiDung', 'Quản lý người dùng'), t('user.taiKhoanVaPhanQuyenTruyCapHeTh', 'Tài khoản và phân quyền truy cập hệ thống'));
+    // Chỉ hiện nút thao tác mà vai trò thực sự được cấp — tránh bấm vào rồi nhận lỗi 403 từ API.
+    const canCreate = Auth.can('user.create') ?? true;
+    const canUpdate = Auth.can('user.update') ?? true;
+    const canDelete = Auth.can('user.delete') ?? true;
+
+    // Một nút chính + nút "…". Bày cả bốn nút chữ (mẫu, import, đồng bộ, thêm) thì cụm nút dài hơn nửa thanh trên:
+    // tiêu đề trang bị ép mất hẳn, ô tìm kiếm bị bóp — mà ba việc kia thỉnh thoảng mới làm.
+    if (canCreate)
+        setTopbarAction(`
+            <button class="btn" id="btn-new" title="${esc(t('user.themNguoiDung', 'Thêm người dùng'))}">
+                <i class="ph ph-plus"></i> <span data-i18n="user.themNguoiDung">Thêm người dùng</span></button>
+            <button class="topbar-more" type="button" id="btn-user-more" aria-haspopup="menu"
+                    title="${esc(t('common.moreActions', 'Việc khác'))}"><i class="ph ph-dots-three-outline"></i></button>`);
+
+    const tbody = document.getElementById('tbody');
+    let roleList = [], departmentList = [], positionList = [], currentList = [], timer = null;
+    // Quyền cấp riêng ĐÃ LƯU của người đang mở (null = kế thừa vai trò). Giữ lại để lúc đổi vai trò
+    // trong biểu mẫu còn biết phần thu hẹp nào là do Admin cố ý, phần nào chỉ là quyền vai trò cũ.
+    let editingFunctionKeys = null;
+
+    [roleList, departmentList, positionList] = await Promise.all([
+        API.get('/auth/role'), API.get('/department'), API.get('/position')
+    ]);
+    await ensureRolePermission();
+
+    fillSelect('f-department', departmentList, t('user.tatCaPhongBan', 'Tất cả phòng ban'));
+    fillSelect('f-role', roleList, t('user.tatCaVaiTro', 'Tất cả vai trò'));
+    fillSelect('u-role', roleList, null);
+    fillSelect('u-department', departmentList, t('organization.khongChon', '— Không chọn —'));
+    fillSelect('u-position', positionList, t('organization.khongChon', '— Không chọn —'));
+    renderPermissionMatrix('u-function');
+    bindPermissionMatrix('u-function');
+
+    attachPasswordEye(document.getElementById('u-password'));
+    attachPasswordStrength(document.getElementById('u-password'));
+
+    document.getElementById('btn-new')?.addEventListener('click', () => openForm());
+    document.getElementById('user-form').addEventListener('submit', save);
+
+    const excel = bindExcelImport({
+        fileId: 'import-user-file',
+        templatePath: '/user/import/template', importPath: '/user/import',
+        fileName: 'Mau_Import_NguoiDung.xlsx',
+        onDone: () => load(),
+    });
+
+    bindPopMenu(document.getElementById('btn-user-more'), () => [
+        { icon: 'ph ph-arrows-clockwise', label: t('user.dongBoNhanSu', 'Đồng bộ nhân sự'), onClick: openHrSync },
+        { icon: 'ph ph-upload-simple', label: t('import.importExcel', 'Import Excel'), onClick: excel?.pickFile },
+        { icon: 'ph ph-download-simple', label: t('import.taiFileMau', 'Tải file mẫu'), onClick: excel?.downloadTemplate },
+    ]);
+
+    // ==================== ĐỒNG BỘ NHÂN SỰ ====================
+    // Lấy phòng ban / vị trí / nhân viên từ phần mềm quản lý nhân sự (cấu hình HrSystem ở máy chủ). Luôn "Xem trước"
+    // (không ghi gì) rồi mới cho "Đồng bộ ngay" — đây là thao tác tạo / sửa / khóa hàng loạt tài khoản.
+    const hrBody = document.getElementById('hr-sync-body');
+
+    async function openHrSync() {
+        openModal('modal-hr-sync');
+        hrBody.innerHTML = skeletonHtml('list', { count: 3, avatar: false });
+        try {
+            renderHrStatus(await API.get('/hrsync/status'));
+        } catch (ex) {
+            hrBody.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning-circle"></i>');
+        }
+    }
+
+    function hrStatHtml(label, value) {
+        return `<div class="stat"><div class="label">${esc(label)}</div><div class="value">${value}</div></div>`;
+    }
+
+    function hrResultHtml(r) {
+        const issues = r.issueList.length ? `
+            <h4 class="mt">Cần xem lại (${r.issueCount})</h4>
+            <div class="table-wrap" style="max-height:240px;overflow:auto"><table>
+                <thead><tr><th>Đối tượng</th><th>Vấn đề</th></tr></thead>
+                <tbody>${r.issueList.map(i => `<tr><td><b>${esc(i.subject)}</b></td><td>${esc(i.message)}</td></tr>`).join('')}</tbody>
+            </table></div>
+            ${r.issueCount > r.issueList.length ? `<div class="small muted mt">Chỉ hiện ${r.issueList.length} dòng đầu.</div>` : ''}` : '';
+        return `
+            <div class="small muted mb">${esc(r.isPreview ? 'Bản xem trước — chưa ghi gì vào hệ thống.' : 'Đã đồng bộ lúc ' + formatDate(r.runAt, true))}</div>
+            <div class="grid grid-4 mb">
+                ${hrStatHtml('Người mới', r.userCreated)}
+                ${hrStatHtml('Cập nhật', r.userUpdated)}
+                ${hrStatHtml('Vô hiệu hóa (đã nghỉ)', r.userDeactivated)}
+                ${hrStatHtml('Không đổi', r.userUnchanged)}
+            </div>
+            <div class="small muted">Phòng ban: +${r.departmentCreated} mới, ${r.departmentUpdated} đổi tên · Vị trí: +${r.positionCreated} mới, ${r.positionUpdated} đổi</div>
+            ${issues}`;
+    }
+
+    function renderHrStatus(s) {
+        if (!s.isConfigured) {
+            hrBody.innerHTML = `
+                <div class="empty" style="padding:8px 0 16px">
+                    <div class="icon"><i class="ph ph-plugs"></i></div>
+                    <p><b>Chưa kết nối phần mềm nhân sự.</b></p>
+                    <p class="small muted">Khi có API Key: mở <code>appsettings.json</code>, điền mục <code>HrSystem</code> (BaseUrl, ApiKey, đường dẫn và tên trường theo tài liệu API của phần mềm), khởi động lại ứng dụng rồi quay lại đây.</p>
+                </div>`;
+            return;
+        }
+
+        hrBody.innerHTML = `
+            <div class="mb"><b>Nguồn:</b> ${esc(s.providerName)} · <span class="small muted">người mới nhận vai trò “${esc(s.defaultRoleName)}”, không có mật khẩu — vào bằng “Quên mật khẩu” hoặc Admin “Reset MK”.</span></div>
+            <div class="flex gap-sm wrap mb">
+                <button class="btn ghost" id="btn-hr-preview"><i class="ph ph-eye"></i> Xem trước</button>
+                <button class="btn" id="btn-hr-run" disabled><i class="ph ph-arrows-clockwise"></i> Đồng bộ ngay</button>
+            </div>
+            <div id="hr-result">${s.lastRun ? '<h4 class="mb">Lượt đồng bộ gần nhất</h4>' + hrResultHtml(s.lastRun)
+                : '<div class="small muted">Bấm “Xem trước” để biết sẽ thêm / sửa / khóa bao nhiêu người trước khi đồng bộ thật.</div>'}</div>`;
+
+        const preview = document.getElementById('btn-hr-preview');
+        const run = document.getElementById('btn-hr-run');
+        const resultBox = document.getElementById('hr-result');
+
+        preview.addEventListener('click', async () => {
+            preview.disabled = true; run.disabled = true;
+            resultBox.innerHTML = skeletonHtml('list', { count: 3, avatar: false });
+            try {
+                resultBox.innerHTML = hrResultHtml(await API.post('/hrsync/preview'));
+                run.disabled = false;
+            } catch (ex) {
+                resultBox.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning-circle"></i>');
+            }
+            preview.disabled = false;
+        });
+
+        run.addEventListener('click', async () => {
+            if (!await confirmDialog('Đồng bộ nhân sự sẽ tạo tài khoản mới, cập nhật thông tin và vô hiệu hóa người đã nghỉ việc theo phần mềm nhân sự. Tiếp tục?',
+                { okText: 'Đồng bộ ngay' })) return;
+            preview.disabled = true; run.disabled = true;
+            resultBox.innerHTML = skeletonHtml('list', { count: 3, avatar: false });
+            try {
+                const r = await API.post('/hrsync/run');
+                resultBox.innerHTML = hrResultHtml(r);
+                toastOk(`Đã đồng bộ: ${r.userCreated} người mới, ${r.userUpdated} cập nhật, ${r.userDeactivated} vô hiệu hóa.`);
+                load();
+            } catch (ex) {
+                resultBox.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning-circle"></i>');
+            }
+            preview.disabled = false;
+        });
+    }
+
+    document.getElementById('u-avatar-file').addEventListener('change', uploadUserAvatar);
+    document.getElementById('u-avatar-clear').addEventListener('click', () => {
+        document.getElementById('u-avatar').value = '';
+        refreshAvatarPreview();
+    });
+    // Chưa có ảnh thì vòng tròn hiện chữ cái đầu của tên — gõ tên tới đâu đổi tới đó.
+    document.getElementById('u-name').addEventListener('input', () => {
+        if (!document.getElementById('u-avatar').value) refreshAvatarPreview();
+    });
+    ['f-department', 'f-role'].forEach(id => document.getElementById(id).addEventListener('change', load));
+
+    enhanceSearchableSelect(document.getElementById('f-department'),
+            { placeholder: t('course.goTenPhongBan', 'Gõ tên hoặc mã phòng ban...') });
+    enhanceSearchableSelect(document.getElementById('f-role'),
+            { placeholder: t('course-detail.goTenViTri', 'Gõ tên vị trí...') });
+
+
+    // Đổi vai trò là đổi luôn bộ quyền nền — vẽ lại ngay để Admin thấy vai trò mới cho phép những gì.
+    document.getElementById('u-role').addEventListener('change', () => setFunctionPermission(editingFunctionKeys));
+    document.getElementById('keyword').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(load, 350); });
+
+    await load();
+
+    /**
+     * Bảo đảm mỗi vai trò trong roleList có kèm functionKeys — bảng tick quyền bên dưới dựa vào đó.
+     *
+     * /auth/role trả sẵn quyền, nhưng chỉ từ bản backend có RoleDto.FunctionKeys. Chạy trên bản cũ hơn
+     * thì payload không có trường này và cả bảng tick sẽ tưởng mọi vai trò đều chưa cấu hình quyền —
+     * nên lấy bổ sung từ /role. Kiểm tra bằng 'functionKeys' in ... chứ không phải giá trị khác null,
+     * để phân biệt "backend cũ" với "backend mới, vai trò thật sự chưa được cấp quyền nào".
+     */
+    async function ensureRolePermission() {
+        if (!roleList.length || 'functionKeys' in roleList[0]) return;
+
+        try {
+            const detailList = await API.get('/role');
+            const keysById = new Map(detailList.map(r => [r.id, r.functionKeys ?? null]));
+            roleList = roleList.map(r => ({ ...r, functionKeys: keysById.get(r.id) ?? null }));
+        } catch {
+            // Không đọc được danh mục vai trò thì cứ để trống: bảng tick mở khóa toàn bộ và hiện lời
+            // nhắc "vai trò chưa cấu hình quyền" — thà vậy còn hơn chặn luôn cả biểu mẫu người dùng.
+        }
+    }
+
+    function fillSelect(id, list, placeholder) {
+        const el = document.getElementById(id);
+        el.innerHTML = (placeholder ? `<option value="">${placeholder}</option>` : '')
+            // Vai trò kế thừa được thụt vào dưới vai trò cha (danh sách đã xếp sẵn theo cây ở server) —
+            // nhìn là biết ngay "Trưởng phòng IT" thuộc nhánh "Trưởng phòng", và lọc theo cha sẽ ra cả nhánh.
+            + list.map(x => `<option value="${x.id}">${x.parentRoleId ? '  └─ ' : ''}${esc(x.name)}</option>`).join('');
+    }
+
+    /** Vai trò đang chọn trong biểu mẫu. */
+    function selectedRole() {
+        return roleList.find(r => r.id == document.getElementById('u-role').value);
+    }
+
+    /** Bảng tick quyền dùng chung với trang Vai trò — xem setUserPermissionMatrix() trong js/app.js. */
+    function setFunctionPermission(raw) {
+        const roleConfigured = setUserPermissionMatrix('u-function', selectedRole()?.functionKeys, raw);
+        document.getElementById('u-function-hint').classList.toggle('hidden', !roleConfigured);
+        document.getElementById('u-function-none-hint').classList.toggle('hidden', roleConfigured);
+    }
+
+    /**
+     * Quyền riêng để gửi đi. Tick đúng bằng trọn bộ quyền vai trò = KHÔNG thu hẹp gì, nên lưu null
+     * thay vì lưu một bản sao: về sau vai trò được cấp thêm quyền thì người này được theo, chứ không
+     * bị đóng băng ở bộ quyền của ngày hôm nay.
+     */
+    function getFunctionPermission() {
+        const picked = getPermissionMatrix('u-function');
+        const roleKeyList = functionKeyList(selectedRole()?.functionKeys);
+        if (!roleKeyList.length) return picked;
+
+        const pickedList = functionKeyList(picked);
+        const sameAsRole = pickedList.length === roleKeyList.length
+            && roleKeyList.every(x => pickedList.includes(x));
+
+        return sameAsRole ? null : picked;
+    }
+
+    async function load() {
+        tbody.innerHTML = skeletonHtml('table', { rows: 6, cols: 8 });
+        const query = new URLSearchParams({ page: 1, pageSize: 200 });
+        const keyword = document.getElementById('keyword').value.trim();
+        const departmentId = document.getElementById('f-department').value;
+        const roleId = document.getElementById('f-role').value;
+        if (keyword) query.set('keyword', keyword);
+        if (departmentId) query.set('departmentId', departmentId);
+        if (roleId) query.set('roleId', roleId);
+
+        try {
+            const result = await API.get(`/user?${query}`);
+            currentList = result.item;
+            tbody.innerHTML = currentList.length ? currentList.map(u => `
+                <tr>
+                    <td><code>${esc(u.employeeCode)}</code></td>
+                    <td><b>${esc(u.fullName)}</b></td>
+                    <td class="small">${esc(u.email)}</td>
+                    <td><span class="badge ${roleBadgeClass(u.roleName, roleList)}">${esc(u.roleName)}</span></td>
+                    <td class="small">${esc(u.departmentName || '—')}</td>
+                    <td class="small">${esc(u.positionName || '—')}</td>
+                    <td>
+                        ${u.isActive ? '<span data-i18n="organization.hoatDong" class="badge green">Hoạt động</span>' : '<span data-i18n="user.daKhoa" class="badge gray">Đã khóa</span>'}
+                        ${u.isLockedOut ? `<span data-i18n="user.khoaDangNhap" class="badge red" style="margin-top:12px" title="${esc(t('user.khoaDangNhapTitle', 'Gõ sai mật khẩu quá số lần cho phép — bấm "Mở khóa" để cho đăng nhập lại.'))}">Khóa đăng nhập</span>` : ''}
+                    </td>
+                    <td class="text-right nowrap">
+                        ${canUpdate ? `<button data-i18n="common.edit" class="btn ghost sm" data-edit="${u.id}" style="background-color: yellow">Sửa</button>` : ''}
+                        ${canUpdate && u.isLockedOut ? `<button data-i18n="user.moKhoa" class="btn ghost sm" data-unlock="${u.id}" style="background-color: #16a34a; color: white">Mở khóa</button>` : ''}
+                        ${canUpdate ? `<button class="btn ghost sm" data-reset="${u.id}" style="background-color: orange">Reset MK</button>` : ''}
+                        ${canUpdate && u.isActive ? `<button data-i18n="user.khoa" class="btn ghost sm" data-off="${u.id}" style="background-color: red; color: white">Khóa</button>` : ''}
+                        ${canDelete ? `<button data-i18n="common.delete" class="btn danger sm" data-del="${u.id}">Xóa</button>` : ''}
+                    </td>
+                </tr>`).join('') : `<tr><td colspan="8">${emptyHtml(t('user.khongTimThayNguoiDung', 'Không tìm thấy người dùng.'), '<i class="ph ph-users"></i>')}</td></tr>`;
+            bind();
+        } catch (ex) {
+            tbody.innerHTML = `<tr><td colspan="8">${emptyHtml(ex.message, '<i class="ph ph-warning"></i>')}</td></tr>`;
+        }
+    }
+
+    function generateRandomPassword(length = 12) {
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    
+    // 1. Tạo một mảng (TypedArray) chứa 'length' phần tử số nguyên 32-bit không dấu
+    const randomValues = new Uint32Array(length);
+    
+    // 2. Yêu cầu trình duyệt điền các giá trị ngẫu nhiên thực sự vào mảng này
+    window.crypto.getRandomValues(randomValues);
+    
+    // 3. Chuyển đổi các con số ngẫu nhiên thành ký tự trong charset
+    for (let i = 0; i < length; i++) {
+        // Dùng phép chia lấy dư (%) để đảm bảo index luôn nằm trong giới hạn chiều dài của charset
+        const randomIndex = randomValues[i] % charset.length;
+        password += charset[randomIndex];
+    }
+    
+    return password;
+}
+
+    function bind() {
+        tbody.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', async () =>
+            openForm(await API.get(`/user/${b.dataset.edit}`))));
+
+        tbody.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', async () => {
+            // 1. Tạo mật khẩu ngẫu nhiên
+            const newPassword = generateRandomPassword(12);
+            
+            // 2. Hiển thị mật khẩu mới trong câu hỏi xác nhận để Admin biết trước
+            if (!await confirmDialog(`Bạn có muốn đặt lại mật khẩu ngẫu nhiên thành: ${newPassword}`, { okText: t('user.datLai', 'Đặt lại') })) return;
+            
+            try {
+                // 3. Gửi mật khẩu mới xuống backend — key phải khớp đúng "newPassword" (AdminResetPasswordRequest.NewPassword ở UserController).
+                const response = await API.post(`/user/${b.dataset.reset}/reset-password`, { newPassword });
+
+                // 4. response.message do backend trả về đã chứa đúng mật khẩu vừa lưu (Quan trọng để copy lại nếu lỡ quên).
+                toastOk(response.message);
+            }
+            catch (ex) { toastErr(ex.message); }
+        }));
+
+        // Mở khóa cho người gõ sai mật khẩu quá số lần cho phép — KHÔNG đổi mật khẩu, họ đăng nhập lại
+        // bằng đúng mật khẩu cũ. Ai quên hẳn mật khẩu thì dùng "Reset MK", nút đó mở khóa luôn.
+        tbody.querySelectorAll('[data-unlock]').forEach(b => b.addEventListener('click', async () => {
+            if (!await confirmDialog(t('user.moKhoaDangNhapChoTaiKhoanNay', 'Mở khóa đăng nhập cho tài khoản này? Mật khẩu giữ nguyên như cũ.'), { okText: t('user.moKhoa', 'Mở khóa') })) return;
+            try { toastOk((await API.post(`/user/${b.dataset.unlock}/unlock`)).message); load(); }
+            catch (ex) { toastErr(ex.message); }
+        }));
+
+        tbody.querySelectorAll('[data-off]').forEach(b => b.addEventListener('click', async () => {
+            if (!await confirmDialog(t('user.khoaTaiKhoanNayLichSuHocTapVan', 'Khóa tài khoản này? Lịch sử học tập vẫn được giữ lại.'), { danger: true, okText: t('user.khoaTaiKhoan', 'Khóa tài khoản') })) return;
+            try { toastOk((await API.del(`/user/${b.dataset.off}`)).message); load(); }
+            catch (ex) { toastErr(ex.message); }
+        }));
+
+        tbody.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+            if (!await confirmDialog(t('user.xoaVinhVienTaiKhoanNayChiThucH', 'Xóa vĩnh viễn tài khoản này? Chỉ thực hiện được nếu tài khoản chưa có dữ liệu hoạt động nào (khóa học, phân công, duyệt nội dung...) — nếu đã có, hãy dùng "Khóa" thay vì Xóa.'), { danger: true, okText: t('user.xoaVinhVien', 'Xóa vĩnh viễn') })) return;
+            try { toastOk((await API.del(`/user/${b.dataset.del}/permanent`)).message); load(); }
+            catch (ex) { toastErr(ex.message); }
+        }));
+    }
+
+    function openForm(user) {
+        const isEdit = !!user;
+        document.getElementById('modal-title').textContent = isEdit ? 'Sửa người dùng' : t('user.themNguoiDung', 'Thêm người dùng');
+        document.getElementById('u-id').value = user?.id || '';
+        document.getElementById('u-name').value = user?.fullName || '';
+        document.getElementById('u-email').value = user?.email || '';
+        document.getElementById('u-email').disabled = isEdit;
+        // Tên tài khoản sửa được cả lúc thêm lẫn lúc sửa — khác email (khóa lại sau khi tạo) vì đây chỉ là
+        // một lối đăng nhập phụ, đổi hay gỡ đi cũng không ảnh hưởng dữ liệu học tập đã gắn với tài khoản.
+        document.getElementById('u-username').value = user?.userName || '';
+        document.getElementById('u-password').value = '';
+        document.getElementById('u-password').dispatchEvent(new Event('input'));
+        document.getElementById('u-password').required = !isEdit;
+        document.getElementById('password-field').classList.toggle('hidden', isEdit);
+        document.getElementById('u-department').value = user?.departmentId || '';
+        document.getElementById('u-position').value = user?.positionId || '';
+        document.getElementById('u-active').checked = true;
+
+        const role = roleList.find(r => r.name === user?.roleName);
+        document.getElementById('u-role').value = role?.id || roleList.at(-1)?.id || '';
+
+        document.getElementById('u-avatar').value = user?.avatarUrl || '';
+        refreshAvatarPreview();
+        
+
+        enhanceSearchableSelect(document.getElementById('u-department'),
+            { 
+                placeholder: t('course.goTenPhongBan', 'Gõ tên hoặc mã phòng ban...'),
+                maxHeight: '250px',
+                size: 5
+            });
+        enhanceSearchableSelect(document.getElementById('u-position'),
+            { placeholder: t('course-detail.goTenViTri', 'Gõ tên vị trí...') });
+
+        enhanceSearchableSelect(document.getElementById('u-role'),
+            { placeholder: t('course-detail.goTenViTri', 'Gõ tên vị trí...') });
+        
+        editingFunctionKeys = user?.functionKeys || null;
+        setFunctionPermission(editingFunctionKeys);
+        openModal('modal-user');
+    }
+
+    /** Vẽ lại vòng tròn ảnh: có ảnh thì hiện ảnh, chưa có thì hiện chữ cái đầu của tên đang gõ. */
+    function refreshAvatarPreview() {
+        const url = document.getElementById('u-avatar').value;
+        const box = document.getElementById('u-avatar-preview');
+
+        if (url) box.outerHTML = `<img class="avatar" id="u-avatar-preview" src="${esc(url)}" alt="">`;
+        else box.outerHTML = `<span class="avatar" id="u-avatar-preview">${esc(initial(document.getElementById('u-name').value))}</span>`;
+
+        document.getElementById('u-avatar-clear').classList.toggle('hidden', !url);
+    }
+
+    /** Tải ảnh lên NGAY khi chọn, không đợi bấm Lưu: người dùng thấy được ảnh mình vừa chọn trước khi lưu,
+     *  và biểu mẫu chỉ cần gửi đi một đường dẫn thay vì kèm cả tệp. */
+    async function uploadUserAvatar(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const hintEl = document.getElementById('u-avatar-hint');
+        const previousHint = hintEl.textContent;
+        hintEl.innerHTML = '<span class="spinner-inline"></span> Đang tải ảnh lên...';
+        try {
+            const uploaded = await API.upload(file, 'avatar');
+            document.getElementById('u-avatar').value = uploaded.url;
+            refreshAvatarPreview();
+            hintEl.textContent = previousHint;
+        } catch (ex) {
+            hintEl.textContent = previousHint;
+            toastErr(ex.message);
+        } finally {
+            // Xóa lựa chọn để chọn lại ĐÚNG tệp vừa rồi vẫn kích hoạt sự kiện change.
+            e.target.value = '';
+        }
+    }
+
+    async function save(e) {
+        e.preventDefault();
+        const id = document.getElementById('u-id').value;
+        const departmentId = document.getElementById('u-department').value;
+        const positionId = document.getElementById('u-position').value;
+
+        const common = {
+            fullName: document.getElementById('u-name').value.trim(),
+            userName: document.getElementById('u-username').value.trim() || null,
+            roleId: +document.getElementById('u-role').value,
+            departmentId: departmentId ? +departmentId : null,
+            positionId: positionId ? +positionId : null,
+            phoneNumber: document.getElementById('u-phone').value.trim() || null,
+            avatarUrl: document.getElementById('u-avatar').value || null,
+            functionKeys: getFunctionPermission()
+        };
+
+        if (!id) {
+            const email = document.getElementById('u-email').value.trim();
+            const ruleError = passwordRuleError(document.getElementById('u-password').value, email);
+            if (ruleError) { toastErr(ruleError); return; }
+        }
+
+        try {
+            if (id) {
+                await API.put(`/user/${id}`, { ...common, isActive: document.getElementById('u-active').checked });
+            } else {
+                await API.post('/user', {
+                    ...common,
+                    email: document.getElementById('u-email').value.trim(),
+                    password: document.getElementById('u-password').value
+                });
+            }
+            toastOk(t('user.daLuuNguoiDung', 'Đã lưu người dùng.'));
+            closeModal('modal-user');
+            load();
+        } catch (ex) { toastErr(ex.message); }
+    }
+})();

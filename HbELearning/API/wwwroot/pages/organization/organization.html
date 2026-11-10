@@ -1,0 +1,63 @@
+<!-- File: wwwroot/pages/organization/organization.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="organization.phongBanViTriHbELearning">Phòng ban & Vị trí · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="tabs">
+            <button class="active" data-tab="department"><i class="ph ph-buildings"></i> <span data-i18n="account.phongBan">Phòng ban</span></button>
+            <button data-tab="position"><i class="ph ph-briefcase"></i> <span data-i18n="account.viTriCongViec">Vị trí công việc</span></button>
+        </div>
+        <div class="tab-panel active" id="tab-department"></div>
+        <div class="tab-panel" id="tab-position"></div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-org">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="organization.them" id="org-title">Thêm</h3>
+            <button class="close-x" onclick="closeModal('modal-org')">×</button></div>
+        <form id="org-form">
+            <div class="modal-body">
+                <input type="hidden" id="o-id"><input type="hidden" id="o-kind">
+                <div class="row">
+                    <div class="field hidden" id="o-code-row"><label for="o-code" data-i18n="organization.maHeThongTuSinh">Mã (hệ thống tự sinh)</label><input id="o-code" disabled></div>
+                    <div class="field"><label for="o-name" data-i18n="organization.ten">Tên *</label><input id="o-name" required maxlength="150"></div>
+                </div>
+                <div class="field hidden" id="o-department-field">
+                    <label for="o-department" data-i18n="organization.thuocPhongBan">Thuộc phòng ban</label><select id="o-department"></select>
+                </div>
+                <!-- Ô "Mô tả" đã được gỡ khỏi biểu mẫu theo yêu cầu. Giá trị cũ vẫn được GIỮ NGUYÊN qua input ẩn này thay vì gửi null — nếu không, mỗi lần mở ra sửa một thứ khác là mô tả đã nhập trước đó bị xóa sạch mà không ai biết. -->
+                <input type="hidden" id="o-description">
+                <label class="check hidden" id="o-hr-row"><input type="checkbox" id="o-hr"> <span data-i18n="organization.laPhongNhanSu">Là phòng Nhân sự (Giám Đốc phòng này duyệt xuất bản cuối cùng cho mọi khóa học)</span></label>
+                <label class="check"><input type="checkbox" id="o-active" checked> Đang hoạt động</label>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-org')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<input type="file" id="import-org-file" accept=".xlsx,.xlsm" hidden aria-label="Chọn tệp Excel phòng ban / vị trí">
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/organization/organization.js"></script>
+</body>
+</html>

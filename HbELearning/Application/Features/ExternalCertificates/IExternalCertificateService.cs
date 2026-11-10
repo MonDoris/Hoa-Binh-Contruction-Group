@@ -10,8 +10,11 @@ public interface IExternalCertificateService
     /// <summary>Giấy của chính người đang đăng nhập, mới gửi trước.</summary>
     Task<Result> GetMy();
 
-    /// <summary>Danh sách cho Admin tra cứu. <paramref name="status"/> null = mọi trạng thái.</summary>
+    /// <summary>Danh sách cho Admin và phòng Nhân sự tra cứu. <paramref name="status"/> null = mọi trạng thái.</summary>
     Task<Result> GetList(ExternalCertificateStatus? status, int? departmentId, string? keyword);
+
+    /// <summary>Người đang đăng nhập có thuộc phòng Nhân sự không — giao diện hỏi để hiện thẻ duyệt và nút xác nhận.</summary>
+    Task<Result> GetHrAccess();
 
     /// <summary>Số giấy AI chưa đối chiếu xong — con số trên thẻ chứng nhận bên ngoài của Admin.</summary>
     Task<Result> GetPendingCount();
@@ -28,7 +31,7 @@ public interface IExternalCertificateService
     /// xóa được mọi giấy.</summary>
     Task<Result> Delete(int id);
 
-    /// <summary>Nội dung tệp quét — chỉ chủ giấy và Admin đọc được.</summary>
+    /// <summary>Nội dung tệp quét — chỉ chủ giấy, Admin và phòng Nhân sự đọc được.</summary>
     Task<Result> GetFile(int id);
 
     /// <summary>Admin xác nhận tay (giấy đang chờ, hoặc AI từ chối nhầm).</summary>
@@ -36,4 +39,7 @@ public interface IExternalCertificateService
 
     /// <summary>Admin từ chối tay, hoặc thu hồi một giấy đã được xác nhận.</summary>
     Task<Result> Reject(int id, ExternalCertificateRejectRequest request);
+
+    /// <summary>Phòng Nhân sự xác nhận một giấy đã qua đối chiếu: "AI xác nhận" → "Phòng nhân sự đã xác nhận".</summary>
+    Task<Result> ConfirmByHr(int id);
 }

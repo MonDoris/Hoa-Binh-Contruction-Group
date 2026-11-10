@@ -1,0 +1,153 @@
+/* File: wwwroot/pages/report/report.css */
+        /* Trang này dùng chung ngôn ngữ thiết kế với trang Tổng quan: dải bốn chỉ số `.ops-kpi`, khung `.ops-trend`,
+           chú thích nổi `.trend-tip` đều lấy từ css/style.css. Ở đây chỉ giữ phần riêng của trang báo cáo: thanh phân bố
+           trạng thái, bảng có sắp xếp / tìm kiếm và ngăn kéo hồ sơ người học. Mọi màu đi qua biến CSS nên bật nền tối là
+           cả trang đổi theo — không còn mã màu ghi cứng. */
+
+        .tabs-container { display: flex; justify-content: center; margin-bottom: 20px; }
+        .tabs-container .tabs { margin-bottom: 0; }
+
+        /* ==================== PHÂN BỐ TRẠNG THÁI HỌC TẬP ====================
+           Một thanh xếp chồng 100% thay cho biểu đồ vành khuyên cũ. Bốn nhóm ở đây LOẠI TRỪ lẫn nhau (mỗi lượt đào tạo
+           nằm đúng một nhóm), còn "quá hạn" là một lát cắt chéo qua các nhóm chưa xong nên không thể là một khúc của thanh —
+           vành khuyên cũ cộng nó vào như một khúc thứ tư nên đếm đôi các lượt quá hạn. Nó được báo riêng ở dòng lưu ý. */
+        .rpt-status-body { display: flex; flex-direction: column; gap: 16px; padding: 20px; }
+
+        @keyframes rpt-grow { from { transform: scaleX(0); } }
+        .rpt-bar {
+            position: relative; display: flex; gap: 2px; height: 20px; transform-origin: left;
+            animation: rpt-grow .7s .3s cubic-bezier(.2, .7, .2, 1) both;
+        }
+        .rpt-bar.is-empty { border-radius: 4px; background: color-mix(in srgb, var(--text-muted) 14%, var(--surface)); }
+        /* Các khúc cách nhau 2px màu nền thay vì kẻ viền; chỉ hai đầu thanh được bo 4px. */
+        .rpt-seg { position: relative; flex: var(--v) 1 0; min-width: 4px; background: var(--c); outline: none; transition: filter .15s; }
+        .rpt-seg:first-child { border-radius: 4px 0 0 4px; }
+        .rpt-seg:last-child { border-radius: 0 4px 4px 0; }
+        .rpt-seg:only-child { border-radius: 4px; }
+        /* Vùng rê chuột / lấy nét lớn hơn phần tô màu: thanh chỉ cao 20px, khúc nhỏ khó nhắm trúng. */
+        .rpt-seg::after { content: ""; position: absolute; inset: -9px 0; }
+        .rpt-seg:hover, .rpt-seg:focus-visible { filter: brightness(1.12); }
+        .rpt-seg:focus-visible { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
+
+        .rpt-legend {
+            list-style: none; margin: 0; padding: 0;
+            display: flex; flex-wrap: wrap; gap: 10px 28px;              /* thay cho grid 3 cột bằng nhau */
+        }
+        .rpt-legend li { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--text-muted); }
+        .rpt-legend i { flex: none; align-self: center; width: 10px; height: 10px; border-radius: 3px; }
+        .rpt-legend b { margin-left: 4px; font-size: 15px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+        .rpt-legend small { min-width: 46px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+
+        .rpt-note { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+        .rpt-note i { flex: none; font-size: 18px; }
+        .rpt-note.bad {
+            background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+            border: 1px solid color-mix(in srgb, var(--danger) 25%, var(--border));
+        }
+        .rpt-note.bad i { color: var(--danger); }
+        .rpt-note.ok { padding-left: 0; color: var(--text-muted); }
+        .rpt-note.ok i { color: var(--success); }
+        .rpt-empty { font-size: 13px; color: var(--text-muted); }
+
+        /* ==================== BẢNG BÁO CÁO ==================== */
+        .rpt-card .card-head { flex-wrap: wrap; gap: 12px; }
+        .rpt-title { display: flex; align-items: center; gap: 10px; }
+        .rpt-search { position: relative; flex: 0 1 300px; min-width: 200px; }
+        .rpt-search i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+        .rpt-search input { padding-left: 34px; }
+
+        .rpt-table th.num, .rpt-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        /* Bảng khóa học có 9 cột: đệm ngang hẹp hơn mặc định để vừa khung 1280px mà không phải cuộn ngang, và cột đầu
+           / cuối thẳng hàng với lề 20px của tiêu đề thẻ. */
+        .rpt-table th, .rpt-table td { padding-left: 10px; padding-right: 10px; }
+        /* Tiêu đề dài ("Tỷ lệ hoàn thành") được phép xuống dòng thay vì ép bảng rộng thêm — style.css mặc định cấm. */
+        .rpt-table th { white-space: normal; line-height: 1.3; }
+        .rpt-table th.num .rpt-sort { text-align: right; }
+        .rpt-table th:first-child, .rpt-table td:first-child { padding-left: 20px; min-width: 190px; }
+        .rpt-table th:last-child, .rpt-table td:last-child { padding-right: 20px; }
+        .rpt-table .rpt-wide { min-width: 130px; }
+        .rpt-table .progress { min-width: 56px; }
+        /* Tiêu đề cột bấm được là một <button> thật: tới được bằng bàn phím, trình đọc màn hình đọc ra trạng thái sắp xếp qua aria-sort. */
+        .rpt-sort {
+            display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none;
+            font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; cursor: pointer;
+        }
+        .rpt-sort i { font-size: 12px; opacity: .55; }
+        .rpt-sort:hover, th[aria-sort="ascending"] .rpt-sort, th[aria-sort="descending"] .rpt-sort { color: var(--text); }
+        th[aria-sort="ascending"] .rpt-sort i, th[aria-sort="descending"] .rpt-sort i { opacity: 1; color: var(--primary); }
+        .rpt-sort:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 4px; }
+
+        .rpt-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .rpt-name b { font-weight: 700; }
+        .rpt-name small { font-size: 12px; color: var(--text-muted); }
+        .rpt-person { display: flex; align-items: center; gap: 10px; }
+        /* Số quá hạn luôn đi kèm biểu tượng cảnh báo — màu đỏ một mình không đủ cho người mù màu. */
+        .rpt-bad { display: inline-flex; align-items: center; gap: 4px; color: var(--danger); font-weight: 700; }
+        .rpt-star { color: var(--warning); }
+        .rpt-nomatch { padding: 28px 14px; text-align: center; color: var(--text-muted); }
+
+        @media (max-width: 640px) {
+            .rpt-search { flex-basis: 100%; }
+            .tabs-container .tabs { width: 100%; }
+            .tabs-container .tabs button { flex: 1; justify-content: center; padding: 9px 8px; }
+        }
+        @media (prefers-reduced-motion: reduce) { .rpt-bar { animation: none; } }
+
+        /* ====================================================
+           NGĂN KÉO HỒ SƠ NGƯỜI HỌC (PANEL BÊN PHẢI)
+           ==================================================== */
+        .drawer-overlay {
+            position: fixed; inset: 0; background: rgba(9, 9, 11, .4);
+            opacity: 0; visibility: hidden; transition: .3s ease; z-index: 1000;
+        }
+        .drawer-overlay.open { opacity: 1; visibility: visible; }
+
+        /* visibility trễ .4s lúc đóng: ngăn kéo trượt ra khỏi màn hình xong mới bị gỡ khỏi thứ tự Tab. */
+        .drawer-panel {
+            position: fixed; top: 0; right: -480px; width: 100%; max-width: 450px; height: 100vh;
+            background: var(--surface); box-shadow: -4px 0 24px rgba(0, 0, 0, .1);
+            transition: right .4s cubic-bezier(.25, 1, .5, 1), visibility 0s linear .4s; z-index: 1001;
+            display: flex; flex-direction: column; visibility: hidden;
+        }
+        .drawer-panel.open { right: 0; visibility: visible; transition: right .4s cubic-bezier(.25, 1, .5, 1), visibility 0s; }
+
+        .drawer-header {
+            padding: 24px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: flex-start;
+        }
+        .drawer-header h3 { margin: 0; font-size: 18px; font-weight: 700; }
+        .drawer-sub { margin-top: 4px; font-size: 13px; color: var(--text-muted); }
+        .drawer-body { padding: 24px; overflow-y: auto; flex: 1; background: var(--bg); }
+
+        .close-drawer {
+            width: 32px; height: 32px; border: none; border-radius: 8px;
+            background: var(--bg); color: var(--text-muted); font-size: 18px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: .2s;
+        }
+        .close-drawer:hover { background: var(--border); color: var(--text); }
+        .close-drawer:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+        .drawer-avatar {
+            width: 48px; height: 48px; border-radius: 12px;
+            background: var(--primary); color: #fff; font-weight: 700; font-size: 18px;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+        }
+
+        .rpt-d-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .rpt-d-stat { padding: 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); }
+        .rpt-d-stat small { display: block; font-size: 12px; letter-spacing: .4px; text-transform: uppercase; color: var(--text-muted); }
+        .rpt-d-stat b { display: block; margin-top: 4px; font-size: 20px; font-weight: 700; }
+        .rpt-d-stat b span { font-size: 14px; font-weight: 600; color: var(--text-muted); }
+        .rpt-d-heading { margin-bottom: 12px; font-size: 14px; font-weight: 700; }
+
+        .drawer-course-card {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px; margin-bottom: 12px; box-shadow: var(--shadow-xs);
+        }
+        .rpt-d-row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+        .rpt-d-row.sub { font-size: 13px; color: var(--text-muted); }
+        .rpt-d-title { font-size: 14px; font-weight: 700; }
+        .rpt-d-row.sub strong { color: var(--text); }
+        .rpt-d-row.sub strong.is-done { color: var(--success); }
+
+        @media print { .drawer-overlay, .drawer-panel { display: none; } }

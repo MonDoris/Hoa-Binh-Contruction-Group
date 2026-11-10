@@ -1,0 +1,290 @@
+<!-- File: wwwroot/pages/shop/shop.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title>Trung tâm điểm thưởng · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/pages/shop/shop.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+
+        <nav class="shop-tabs" aria-label="Các khu của trung tâm điểm thưởng">
+            <div class="shop-tabs-group">
+                <button type="button" class="shop-tab active" data-view="store" aria-current="page">
+                    <i class="ph-duotone ph-storefront" aria-hidden="true"></i><span>Gian hàng</span>
+                    <span class="num" id="nav-num-store"></span>
+                </button>
+                <button type="button" class="shop-tab" data-view="mine">
+                    <i class="ph-duotone ph-receipt" aria-hidden="true"></i><span>Lượt đổi của tôi</span>
+                    <span class="num" id="nav-num-mine"></span>
+                </button>
+            </div>
+
+            <!-- Nhóm Quản trị dạt sang phải: người học không thấy nó, và với quản trị viên thì hai khu của
+                 người học vẫn nằm đúng chỗ cũ, không bị đẩy đi khi có thêm tab. -->
+            <div class="shop-tabs-group admin" id="nav-admin" style="display:none">
+                <span class="shop-tabs-cap">Quản trị</span>
+                <button type="button" class="shop-tab" data-view="product">
+                    <i class="ph-duotone ph-package" aria-hidden="true"></i><span>Sản phẩm</span>
+                    <span class="num" id="nav-num-product"></span>
+                </button>
+                <button type="button" class="shop-tab" data-view="order">
+                    <i class="ph-duotone ph-clipboard-text" aria-hidden="true"></i><span>Đơn đổi quà</span>
+                    <span class="num" id="nav-num-order"></span>
+                </button>
+                <button type="button" class="shop-tab" data-view="promo">
+                    <i class="ph-duotone ph-confetti" aria-hidden="true"></i><span>Khuyến mãi</span>
+                    <span class="num" id="nav-num-promo"></span>
+                </button>
+            </div>
+        </nav>
+
+        <section class="shop-main">
+            <div class="tab-panel active" id="tab-store"></div>
+            <div class="tab-panel" id="tab-mine"></div>
+            <div class="tab-panel" id="tab-product"></div>
+            <div class="tab-panel" id="tab-order"></div>
+            <div class="tab-panel" id="tab-promo"></div>
+        </section>
+    </div>
+</div>
+
+<!-- ==================== HỘP THOẠI: THÊM / SỬA SẢN PHẨM ==================== -->
+<div class="modal-mask" id="modal-product">
+    <div class="modal">
+        <div class="modal-head"><h3 id="p-title">Thêm sản phẩm</h3>
+            <button class="close-x" onclick="closeModal('modal-product')">×</button></div>
+        <form id="product-form">
+            <div class="modal-body">
+                <input type="hidden" id="p-id">
+                <input type="hidden" id="p-image-url">
+
+                <img class="img-preview hidden" id="p-preview" alt="Ảnh sản phẩm">
+                <div class="drop-zone compact" id="p-drop">
+                    <div class="big"><i class="ph ph-image"></i></div>
+                    <div id="p-drop-label">Kéo thả ảnh sản phẩm vào đây hoặc bấm để chọn</div>
+                    <div class="small muted">Không bắt buộc — bỏ trống thì thẻ hàng hiện biểu tượng quà</div>
+                    <input type="file" id="p-file" accept=".jpg,.jpeg,.png,.webp,.gif" hidden aria-label="Chọn ảnh sản phẩm">
+                </div>
+                <button type="button" class="btn ghost sm mt hidden" id="p-clear-image">
+                    <i class="ph ph-trash"></i> Bỏ ảnh
+                </button>
+
+                <div class="field mt">
+                    <label for="p-name">Tên sản phẩm *</label>
+                    <input id="p-name" required maxlength="200" placeholder="VD: Bình giữ nhiệt HB">
+                </div>
+                <div class="field">
+                    <label for="p-category">Nhóm sản phẩm</label>
+                    <input id="p-category" maxlength="100" placeholder="VD: Đồ dùng văn phòng, Voucher, Đồ điện tử"
+                           list="p-category-list">
+                    <datalist id="p-category-list"></datalist>
+                    <div class="hint">Để lọc khi cửa hàng đã nhiều món. Gõ lại đúng tên nhóm đã có để xếp chung một nhóm.</div>
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label for="p-cost">Giá điểm (mỗi sản phẩm) *</label>
+                        <input type="number" id="p-cost" required min="1" step="1" value="100">
+                    </div>
+                    <div class="field">
+                        <label for="p-stock">Số lượng trong kho *</label>
+                        <input type="number" id="p-stock" required min="0" step="1" value="1">
+                        <div class="hint">Để 0 = hết hàng: món vẫn hiện trong cửa hàng nhưng không bấm đổi được.</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="p-description">Mô tả</label>
+                    <textarea id="p-description" rows="3" maxlength="1000"
+                              placeholder="Chất liệu, kích cỡ, cách nhận quà..."></textarea>
+                </div>
+                <label class="check">
+                    <input type="checkbox" id="p-active" checked>
+                    <span>Còn bày bán trong cửa hàng</span>
+                </label>
+                <div class="hint">Bỏ tick để ngừng bán mà vẫn giữ nguyên lịch sử của những người đã đổi món này.</div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn ghost" onclick="closeModal('modal-product')">Hủy</button>
+                <button class="btn" type="submit">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==================== HỘP THOẠI: XÁC NHẬN ĐỔI QUÀ ==================== -->
+<div class="modal-mask" id="modal-redeem">
+    <div class="modal sm">
+        <div class="modal-head"><h3>Đổi quà bằng điểm</h3>
+            <button class="close-x" onclick="closeModal('modal-redeem')">×</button></div>
+        <form id="redeem-form">
+            <div class="modal-body">
+                <input type="hidden" id="r-id">
+                <div class="cell-product mb" id="r-product"></div>
+
+                <div class="field">
+                    <label for="r-qty">Số lượng</label>
+                    <input type="number" id="r-qty" required min="1" step="1" value="1">
+                </div>
+
+                <div class="calc" id="r-calc"></div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn ghost" onclick="closeModal('modal-redeem')">Hủy</button>
+                <button class="btn" type="submit" id="r-submit"><i class="ph ph-gift"></i> Xác nhận đổi</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==================== HỘP THOẠI: AI ĐÃ ĐỔI MÓN NÀY ==================== -->
+<div class="modal-mask" id="modal-redeemer">
+    <div class="modal wide">
+        <div class="modal-head"><h3 id="w-title">Người đã đổi sản phẩm</h3>
+            <button class="close-x" onclick="closeModal('modal-redeemer')">×</button></div>
+        <div class="modal-body" id="w-body"></div>
+        <div class="modal-foot">
+            <button type="button" class="btn ghost" onclick="closeModal('modal-redeemer')">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== HỘP THOẠI: CHỐT MỘT LƯỢT ĐỔI ==================== -->
+<div class="modal-mask" id="modal-handle">
+    <div class="modal sm">
+        <div class="modal-head"><h3 id="h-title">Chốt lượt đổi</h3>
+            <button class="close-x" onclick="closeModal('modal-handle')">×</button></div>
+        <form id="handle-form">
+            <div class="modal-body">
+                <input type="hidden" id="h-id">
+                <input type="hidden" id="h-status">
+                <div class="hint mb" id="h-note-intro"></div>
+                <div class="field">
+                    <label for="h-note">Ghi chú</label>
+                    <textarea id="h-note" rows="3" maxlength="500"></textarea>
+                    <div class="hint">Người đổi đọc được lời này trong lịch sử và trong thông báo.</div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn ghost" onclick="closeModal('modal-handle')">Hủy</button>
+                <button class="btn" type="submit" id="h-submit">Xác nhận</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ==================== HỘP THOẠI: CHƯƠNG TRÌNH KHUYẾN MÃI ==================== -->
+<div class="modal-mask" id="modal-promo">
+    <div class="modal wide">
+        <div class="modal-head"><h3 id="pr-title">Tạo chương trình khuyến mãi</h3>
+            <button class="close-x" onclick="closeModal('modal-promo')">×</button></div>
+        <form id="promo-form">
+            <div class="modal-body">
+                <input type="hidden" id="pr-id">
+
+                <!-- Xem trước đúng cái nhãn sẽ hiện trên thẻ hàng: chọn màu và mức giảm ở đây mà không
+                     thấy kết quả thì phải lưu rồi sang tab Cửa hàng mới biết mình vừa đặt ra cái gì. -->
+                <div class="promo-banner mb" id="pr-preview">
+                    <span class="ico"><i class="ph-fill ph-confetti"></i></span>
+                    <div class="txt"><b>Tên chương trình</b><div>Phạm vi áp dụng</div></div>
+                    <span class="cut">-0%</span>
+                </div>
+
+                <div class="field">
+                    <label for="pr-name">Tên chương trình *</label>
+                    <input id="pr-name" required maxlength="150" placeholder="VD: Sinh nhật công ty 2026">
+                    <div class="hint">Tên này hiện thẳng trên nhãn của thẻ hàng, nên đặt sao cho nhìn là biết giảm vì dịp gì.</div>
+                </div>
+                <div class="field">
+                    <label for="pr-description">Mô tả</label>
+                    <textarea id="pr-description" rows="2" maxlength="500"
+                              placeholder="Nội dung sự kiện, điều kiện áp dụng..."></textarea>
+                </div>
+
+                <div class="row">
+                    <div class="field">
+                        <label for="pr-discount-type">Kiểu giảm *</label>
+                        <select id="pr-discount-type">
+                            <option value="0">Giảm theo phần trăm (%)</option>
+                            <option value="1">Trừ thẳng số điểm</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="pr-discount-value" id="pr-value-label">Mức giảm (%) *</label>
+                        <input type="number" id="pr-discount-value" required min="1" step="1" value="20">
+                        <div class="hint">Giá sau giảm luôn tối thiểu 1 điểm — món 0 điểm thì ai cũng lấy được không giới hạn.</div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Màu nhãn *</label>
+                    <div class="promo-swatch-row" id="pr-swatch-row"></div>
+                    <input type="hidden" id="pr-color" value="#dc2626">
+                </div>
+
+                <div class="field">
+                    <label for="pr-scope">Áp dụng cho *</label>
+                    <select id="pr-scope">
+                        <option value="0">Toàn bộ cửa hàng</option>
+                        <option value="1">Một nhóm sản phẩm</option>
+                        <option value="2">Chọn từng sản phẩm</option>
+                    </select>
+                    <div class="hint" id="pr-scope-hint"></div>
+                </div>
+
+                <div class="field hidden" id="pr-category-field">
+                    <label for="pr-category">Nhóm sản phẩm *</label>
+                    <select id="pr-category"></select>
+                </div>
+
+                <div class="field hidden" id="pr-product-field">
+                    <label>Sản phẩm được giảm *</label>
+                    <div class="promo-pick-head">
+                        <button type="button" class="btn ghost sm" id="pr-pick-all">Chọn tất cả</button>
+                        <button type="button" class="btn ghost sm" id="pr-pick-none">Bỏ chọn hết</button>
+                        <span class="small muted" id="pr-pick-count"></span>
+                    </div>
+                    <div class="promo-pick" id="pr-product-list"></div>
+                </div>
+
+                <div class="row">
+                    <div class="field">
+                        <label for="pr-start">Bắt đầu *</label>
+                        <input type="datetime-local" id="pr-start" required>
+                    </div>
+                    <div class="field">
+                        <label for="pr-end">Kết thúc *</label>
+                        <input type="datetime-local" id="pr-end" required>
+                    </div>
+                </div>
+
+                <label class="check">
+                    <input type="checkbox" id="pr-active" checked>
+                    <span>Đang bật</span>
+                </label>
+                <div class="hint">Tắt để hoãn cả đợt mà không phải xóa hay sửa ngày — đợt đang tắt thì không giảm giá gì cả.</div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn ghost" onclick="closeModal('modal-promo')">Hủy</button>
+                <button class="btn" type="submit">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/shop/shop.js"></script>
+</body>
+</html>

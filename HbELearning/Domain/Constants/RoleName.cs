@@ -45,6 +45,10 @@ public static class RoleName
     /// <summary>Được xem báo cáo/thống kê đào tạo toàn công ty: Admin, Trưởng Nhóm, Giảng Viên và Tổng Giám Đốc.</summary>
     public const string ReportViewers = AdminOrTrainer + "," + ManagingDirector;
 
+    /// <summary>Cấp trưởng in được danh sách chứng nhận trong phạm vi cấp dưới của mình. Admin và người phòng Nhân sự
+    /// in cả công ty — phòng Nhân sự là phòng ban, không phải vai trò (xem CertificateService.GetRegister).</summary>
+    public const string CertificateRegisterHeads = ManagingDirector + "," + ApprovalRoles;
+
     /// <summary>Được xem chi tiết khóa học (kể cả danh sách học viên đã phân công) dù không có quyền tạo/sửa nội dung:
     /// Admin, Trưởng Nhóm, Giảng Viên (người tạo), và các cấp duyệt Trưởng phòng/Giám Đốc — khớp Auth.require ở course-detail.html.</summary>
     public const string CourseViewers = AdminOrTrainer + "," + ApprovalRoles;

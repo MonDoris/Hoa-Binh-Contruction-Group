@@ -1,0 +1,464 @@
+/* File: wwwroot/pages/shop/shop.css */
+        /* ---------- MÀU CHỮ RIÊNG CỦA TRANG ---------- */
+        /* Chữ xanh lá / cam / đỏ ở cỡ nhỏ phải đậm hơn màu token một bậc mới đạt tương phản 4.5:1 trên nền
+           sáng. Sang nền tối thì ngược lại: màu token ở đó đã được làm sáng sẵn, dùng thẳng là đủ.
+           Đặt trên body chứ không trên khung nội dung: các hộp thoại nằm ngoài khung đó cũng dùng tới. */
+        body { --ok-ink: #15803d; --warn-ink: #b45309; --bad-ink: #b91c1c; --thumb-bg: #fff; }
+        :root[data-theme="dark"] body {
+            --ok-ink: var(--success); --warn-ink: var(--warning); --bad-ink: var(--danger); --thumb-bg: #1b2538;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) body {
+                --ok-ink: var(--success); --warn-ink: var(--warning); --bad-ink: var(--danger); --thumb-bg: #1b2538;
+            }
+        }
+
+        /* ---------- THANH KHU VỰC (tab ngang) ---------- */
+        /* Thay cho cột rail bên trái: người học chỉ có hai khu (Gian hàng, Lượt đổi của tôi), vậy mà rail
+           chiếm hẳn 272px và ba cái hộp, đẩy lưới quà vào một góc. Tab ngang trả lại toàn bộ chiều rộng cho
+           nội dung; nhóm Quản trị dạt sang phải nên người học và quản trị viên vẫn thấy cùng một bố cục.
+           Đường kẻ chân và vạch tab đang chọn vẽ bằng box-shadow inset chứ không bằng border + margin âm:
+           thanh này cuộn ngang trên điện thoại, mà overflow cuộn thì cắt mất phần margin âm thò ra ngoài. */
+        .shop-tabs {
+            display: flex; align-items: stretch; gap: 24px; margin-bottom: 20px;
+            box-shadow: inset 0 -1px 0 var(--border);
+            overflow-x: auto; scrollbar-width: none;
+        }
+        .shop-tabs::-webkit-scrollbar { display: none; }
+        .shop-tabs-group { display: flex; align-items: stretch; gap: 22px; flex: none; }
+        .shop-tabs-group.admin { margin-left: auto; }
+        .shop-tabs-cap {
+            align-self: center; font-size: 10.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+            color: var(--text-muted); border: 1px solid var(--border); border-radius: 6px; padding: 3px 7px;
+        }
+        .shop-tab {
+            display: inline-flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 2px;
+            border: 0; background: none; cursor: pointer; white-space: nowrap;
+            font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text-muted);
+            transition: color .15s ease, box-shadow .15s ease;
+        }
+        .shop-tab > i { font-size: 18px; }
+        .shop-tab:hover { color: var(--text); }
+        .shop-tab.active { color: var(--primary-dark); box-shadow: inset 0 -2px 0 var(--primary); }
+        .shop-tab:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 6px; }
+        .shop-tab .num, .shelf-head .num {
+            font-size: 11px; font-weight: 700; line-height: 1; border-radius: 999px; padding: 4px 7px;
+            background: var(--border); color: var(--text-muted); font-variant-numeric: tabular-nums;
+        }
+        .shop-tab .num:empty { display: none; }
+        .shop-tab.active .num { background: var(--primary-light); color: var(--primary-dark); }
+        /* Việc đang chờ (quà chưa trao, đơn chưa xử lý) — phải nổi lên kể cả khi đang đứng ở khu khác. */
+        .shop-tab .num.warn { background: var(--warning-light); color: var(--warn-ink); }
+
+        /* ---------- VÍ ĐIỂM (dải đầu gian hàng) ---------- */
+        /* Nền xanh đậm cố định chứ không lấy --primary: chữ trắng trên #00a1e6 chỉ đạt khoảng 2.9:1, còn
+           trên dải #0277b6 → #075985 thì từ 4.8:1 trở lên — đọc rõ cả những con số phụ cỡ 12px. */
+        .wallet-hero {
+            display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 22px; align-items: center;
+            padding: 22px 24px; margin-bottom: 18px; border-radius: var(--radius-lg); color: #fff;
+            background: linear-gradient(125deg, #38bdf8 0%, #0ea5e9 50%, #0284c7 100%);
+            box-shadow: 0 14px 30px -16px rgba(3, 105, 161, .6);
+        }
+        .wallet-hero.solo { grid-template-columns: 1fr; }
+        .wh-cap {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+            color: rgba(255, 255, 255, .86);
+        }
+        .wh-cap i { font-size: 14px; }
+        .wh-balance { display: flex; align-items: baseline; gap: 10px; margin: 8px 0 16px; line-height: 1; }
+        .wh-balance i { align-self: center; font-size: 30px; color: #bae6fd; }
+        .wh-balance b { font-size: 46px; font-weight: 800; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; }
+        .wh-balance span { font-size: 15px; font-weight: 600; color: rgba(255, 255, 255, .86); }
+
+        .wh-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+        .wh-stat {
+            display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 12px;
+            border-radius: 999px; border: 1px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .12);
+            font-family: inherit; font-size: 12.5px; font-weight: 500; color: #fff;
+        }
+        .wh-stat b { font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+        .wh-stat > i { font-size: 15px; }
+        button.wh-stat { cursor: pointer; transition: background-color .15s ease; }
+        button.wh-stat:hover { background: rgba(255, 255, 255, .24); }
+        button.wh-stat:focus-visible, .wh-goal-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+        /* Có quà đang chờ trao thì viên này đổi sang nền vàng — đây là lời nhắc "ra nhận quà". */
+        .wh-stat.alert { background: #fef3c7; border-color: #fef3c7; color: #78350f; }
+        .wh-stat.alert b { color: #78350f; }
+
+        /* Ô "mục tiêu kế tiếp": món rẻ nhất mà bạn CHƯA đủ điểm. Một con số điểm trơn không nói được nó
+           mua được gì; đặt nó cạnh một món quà cụ thể và một thanh tiến độ thì người học biết ngay mình
+           còn cách phần thưởng bao xa. */
+        .wh-goal {
+            display: flex; flex-direction: column; gap: 10px; min-height: 132px; padding: 15px 16px;
+            border-radius: 14px; border: 1px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .12);
+        }
+        .wh-goal-item { display: flex; align-items: center; gap: 12px; }
+        .wh-thumb {
+            width: 54px; height: 54px; flex: none; padding: 5px; box-sizing: border-box; overflow: hidden;
+            border-radius: 11px; background: #fff; display: flex; align-items: center; justify-content: center;
+        }
+        .wh-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .wh-thumb i { font-size: 26px; color: #0369a1; }
+        .wh-goal-name { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .wh-goal-sub { font-size: 12.5px; color: rgba(255, 255, 255, .92); margin-top: 2px; }
+        .wh-goal-sub b { color: #fde68a; font-weight: 800; }
+        .wh-goal-big { font-size: 26px; font-weight: 800; letter-spacing: -.5px; line-height: 1.1; }
+        .wh-meter { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, .22); overflow: hidden; }
+        .wh-meter span {
+            display: block; height: 100%; border-radius: inherit;
+            background: linear-gradient(90deg, #fde68a, #fbbf24); transition: width .6s cubic-bezier(.2, .8, .2, 1);
+        }
+        .wh-goal-foot {
+            display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+            font-size: 12px; color: rgba(255, 255, 255, .88); font-variant-numeric: tabular-nums;
+        }
+        .wh-goal-btn {
+            align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px;
+            border: 0; border-radius: 9px; cursor: pointer; background: #fff; color: #075985;
+            font-family: inherit; font-size: 13px; font-weight: 700; transition: transform .15s ease;
+        }
+        .wh-goal-btn:hover { transform: translateX(2px); }
+        .wallet-skel { height: 176px; border-radius: var(--radius-lg); margin-bottom: 18px; }
+
+        /* ---------- TÌM KIẾM + NHÓM SẢN PHẨM ---------- */
+        .store-tools { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+        .store-search-row { display: flex; gap: 14px; align-items: center; }
+        .search-box { position: relative; display: flex; align-items: center; }
+        .search-box > i { position: absolute; left: 12px; font-size: 16px; color: var(--text-muted); pointer-events: none; }
+        .search-box input { flex: 1; min-width: 0; padding-left: 34px; }
+        .store-search-row .search-box { flex: 1; }
+        .store-search-row .search-box > i { left: 14px; font-size: 18px; }
+        .store-search-row .search-box input { min-height: 44px; padding-left: 42px; border-radius: 12px; font-size: 14px; }
+
+        /* Nhóm sản phẩm thành một hàng chip ngay trên lưới: bấm qua bấm lại để dạo cửa hàng là thao tác
+           chính, và chip cho thấy luôn cửa hàng đang có những nhóm nào, mỗi nhóm bao nhiêu món. */
+        .cat-row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+        .cat-row::-webkit-scrollbar { display: none; }
+
+        .chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .chip {
+            flex: none; min-height: 36px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px;
+            background: var(--surface); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+            font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+            transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+        }
+        .chip:hover { color: var(--text); border-color: var(--text-muted); }
+        .chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .chip.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+        .chip .n { font-size: 11px; font-weight: 700; opacity: .8; font-variant-numeric: tabular-nums; }
+
+        /* ---------- KỆ HÀNG ---------- */
+        /* Lưới chia ba kệ theo đúng câu hỏi người học đặt ra khi mở cửa hàng: món nào đổi được NGAY, món
+           nào phải tích thêm, món nào tạm hết. Trộn chung một lưới thì phải soi từng thẻ mới biết. */
+        .shelf + .shelf { margin-top: 28px; }
+        .shelf-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 12px; }
+        .shelf-head h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 800; }
+        .shelf-head h3 > i { font-size: 20px; }
+        .shelf-head p { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+        .shelf-ready .shelf-head h3 > i { color: var(--ok-ink); }
+        .shelf-locked .shelf-head h3 > i { color: var(--primary); }
+        .shelf-out .shelf-head h3 > i { color: var(--text-muted); }
+
+        /* ---------- THẺ QUÀ ---------- */
+        .shop-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); }
+        .shop-card {
+            border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+            background: var(--surface); display: flex; flex-direction: column;
+            transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+        }
+        .shop-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+
+        /* Ảnh dùng object-fit: CONTAIN chứ không phải cover. Phần lớn hàng trong cửa hàng là voucher, mà
+           ảnh của voucher là một cái logo: cắt cạnh logo là biến nó thành mảng màu vô nghĩa.
+           Nền khung ảnh để TRẮNG (sáng) thay vì xám như trước: logo nào cũng nằm sẵn trên nền trắng, đặt
+           lên nền xám thì thành một miếng giấy trắng dán lên thẻ. Đường kẻ dưới khung vẫn giữ, để tên món
+           không trông như viết đè lên ảnh. */
+        .shop-thumb {
+            height: 156px; padding: 16px; box-sizing: border-box;
+            background: var(--thumb-bg); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+        }
+        /* Khung ảnh dùng FLEX chứ không phải grid: trong grid, ô lưới không có chiều cao xác định nên
+           max-height: 100% của ảnh không có gì để tính và ảnh tràn xuống đè lên tên sản phẩm. Trong flex
+           thì phần trăm tính theo content-box đã cố định của khung, nên cặp max-* là trần thật. */
+        .shop-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+        .shop-thumb > i { font-size: 46px; color: var(--primary); opacity: .55; }
+
+        /* Món hết hàng chỉ làm nhạt ĐÚNG PHẦN ẢNH, để nhãn "Hết hàng" và nhãn khuyến mãi đè lên nó vẫn đọc rõ. */
+        .shop-card.off .shop-thumb img,
+        .shop-card.off .shop-thumb > i { filter: grayscale(1); opacity: .4; }
+
+        /* Hai nhãn chia hai góc đối diện: khuyến mãi bên trái, tồn kho bên phải. Nhãn tồn kho CHỈ hiện khi
+           sắp hết hoặc đã hết — "Còn 120" trên mọi thẻ chỉ là nhiễu, còn "Chỉ còn 2" mới là tin cần biết. */
+        .shop-flag, .shop-promo-flag {
+            position: absolute; top: 10px; line-height: 1;
+            font-size: 11px; font-weight: 700; letter-spacing: .2px; color: #fff;
+            border-radius: 999px; padding: 5px 9px;
+            display: inline-flex; align-items: center; gap: 4px;
+            box-shadow: 0 1px 5px rgba(15, 23, 42, .28);
+        }
+        .shop-flag { right: 10px; background: #475569; }
+        .shop-flag.low { background: #b45309; }
+        /* Màu lấy từ chính chương trình (--promo-color) để hai đợt chạy song song phân biệt được bằng mắt. */
+        .shop-promo-flag { left: 10px; background: var(--promo-color, #dc2626); }
+        .shop-card.promo { border-color: var(--promo-color, #dc2626); }
+
+        .shop-body { padding: 13px 14px 0; flex: 1; display: flex; flex-direction: column; gap: 7px; }
+        /* Nhóm sản phẩm là chip BẤM ĐƯỢC: bấm là lọc ngay cửa hàng theo nhóm đó. */
+        .shop-cat {
+            align-self: flex-start; max-width: 100%; display: inline-flex; align-items: center; gap: 4px;
+            border: 1px solid var(--border); border-radius: 999px; padding: 3px 9px; cursor: pointer;
+            background: var(--bg); font-family: inherit; font-size: 11px; font-weight: 600; color: var(--text-muted);
+            transition: color .15s ease, border-color .15s ease;
+        }
+        .shop-cat:hover { color: var(--primary-dark); border-color: var(--primary); }
+        .shop-cat:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .shop-cat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* Ghim tên đúng 2 dòng để giá và nút của cả hàng thẻ dóng thẳng nhau. */
+        .shop-body h4 {
+            margin: 0; font-size: 14.5px; font-weight: 700; line-height: 1.4; min-height: 2.8em;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .shop-desc {
+            font-size: 12.5px; color: var(--text-muted); line-height: 1.55; margin: 0;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+
+        /* Thanh tiến độ điểm trên từng thẻ: điểm khả dụng của bạn đã phủ được bao nhiêu phần giá của món.
+           Đầy và xanh lá = đổi được ngay; còn dở thì nói thẳng còn thiếu bao nhiêu điểm. */
+        .shop-meter { margin: 12px 14px 0; padding-top: 12px; border-top: 1px solid var(--border); }
+        .shop-meter .bar { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; }
+        .shop-meter .bar span {
+            display: block; height: 100%; border-radius: inherit; background: var(--primary);
+            transition: width .6s cubic-bezier(.2, .8, .2, 1);
+        }
+        .shop-meter.full .bar span { background: var(--success); }
+        .shop-meter .lab {
+            display: flex; align-items: center; gap: 5px; margin-top: 7px;
+            font-size: 12px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums;
+        }
+        .shop-meter .lab b { color: var(--text); }
+        .shop-meter.full .lab { color: var(--ok-ink); }
+
+        .shop-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; padding: 12px 14px 14px; }
+        /* Giá xếp DỌC: giá gạch ngang nhỏ ở trên, giá thực trả to đậm ở dưới. min-height giữ sẵn chỗ cho
+           dòng giá cũ để thẻ có và không có khuyến mãi vẫn có nút "Đổi quà" thẳng hàng. */
+        .shop-price {
+            display: flex; flex-direction: column; justify-content: flex-end;
+            min-height: 40px; line-height: 1.15; min-width: 0;
+        }
+        .shop-price .was {
+            font-size: 11.5px; font-weight: 600; color: var(--text-muted);
+            text-decoration: line-through; margin-bottom: 3px;
+        }
+        .shop-price .now {
+            display: inline-flex; align-items: baseline; gap: 5px;
+            font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums;
+        }
+        .shop-price .now i { align-self: center; color: var(--primary); font-size: 16px; }
+        .shop-price .now small { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+        .shop-foot .btn { flex: none; min-height: 40px; }
+        /* Nút của món chưa đổi được: không dùng kiểu "nút xanh mờ 50%" mặc định — nhìn như nút bị lỗi.
+           Nền xám phẳng kèm biểu tượng ổ khóa cho biết rõ đây là trạng thái, không phải thao tác. */
+        .btn.locked, .btn.locked:disabled {
+            background: var(--bg); color: var(--text-muted); border-color: var(--border);
+            box-shadow: none; opacity: 1;
+        }
+
+        /* ---------- BIỂU NGỮ ĐỢT ĐANG CHẠY ---------- */
+        .promo-banner-list { display: grid; gap: 10px; margin-bottom: 20px; }
+        .promo-banner {
+            display: flex; align-items: center; gap: 13px; padding: 13px 16px;
+            border-radius: 12px; border: 1px solid var(--promo-color, #dc2626);
+            /* Nền pha rất nhạt từ chính màu của đợt: nền đặc màu sự kiện chiếm mất sự chú ý của chính
+               dãy sản phẩm nằm ngay dưới nó. */
+            background: color-mix(in srgb, var(--promo-color, #dc2626) 9%, var(--surface));
+        }
+        .promo-banner .ico {
+            width: 40px; height: 40px; border-radius: 11px; flex: none; display: grid; place-items: center;
+            background: var(--promo-color, #dc2626); color: #fff; font-size: 21px;
+        }
+        .promo-banner .txt { flex: 1; min-width: 0; }
+        .promo-banner .txt b { font-size: 14px; }
+        .promo-banner .txt div { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+        .promo-banner .cut {
+            font-size: 17px; font-weight: 800; color: var(--promo-color, #dc2626); white-space: nowrap;
+        }
+
+        /* ---------- LƯỢT ĐỔI CỦA TÔI ---------- */
+        .mine-list { display: flex; flex-direction: column; gap: 10px; }
+        /* Viền trái mang màu trạng thái: lướt mắt dọc danh sách là thấy ngay lượt nào còn đang chờ. */
+        .mine-row {
+            display: grid; grid-template-columns: minmax(0, 1.6fr) 120px minmax(0, 1.25fr); gap: 20px; align-items: center;
+            padding: 14px 18px; border: 1px solid var(--border); border-left: 4px solid var(--st-color, var(--border));
+            border-radius: 14px; background: var(--surface);
+        }
+        .mine-row.s-pending { --st-color: var(--warning); }
+        .mine-row.s-delivered { --st-color: var(--success); }
+        .mine-row.s-cancelled { --st-color: var(--text-muted); }
+        .mine-product { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .mine-thumb {
+            width: 52px; height: 52px; flex: none; padding: 5px; box-sizing: border-box; overflow: hidden;
+            border-radius: 11px; border: 1px solid var(--border); background: var(--thumb-bg);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .mine-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .mine-thumb i { font-size: 24px; color: var(--primary); }
+        .mine-name { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .mine-row .sub { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+        .mine-row .saved { color: var(--ok-ink); font-weight: 600; }
+        .mine-note {
+            margin-top: 6px; font-size: 12px; color: var(--text); background: var(--bg);
+            border-radius: 8px; padding: 5px 9px; display: inline-flex; gap: 6px; align-items: flex-start;
+        }
+        .mine-cost { text-align: right; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .mine-cost i { color: var(--primary); font-size: 14px; }
+        .mine-cost.refunded .amt { text-decoration: line-through; color: var(--text-muted); }
+        .mine-cost .sub { font-weight: 600; }
+
+        /* Dòng tiến trình hai bước: Đã đổi → Chờ trao / Đã trao / Đã hủy. Một lượt đổi thật sự là một
+           chuỗi có thứ tự, nên vẽ thành chuỗi thì người học đọc ra ngay "quà của mình đang ở đâu". */
+        .track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; }
+        .track li { position: relative; padding-top: 20px; font-size: 12px; color: var(--text-muted); min-width: 0; }
+        .track li::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 14px; height: 14px; box-sizing: border-box;
+            border-radius: 50%; border: 2px solid var(--border); background: var(--surface);
+        }
+        .track li:first-child::after {
+            content: ""; position: absolute; top: 6px; left: 18px; right: 6px; height: 2px;
+            background: var(--st-color, var(--border)); border-radius: 2px;
+        }
+        .s-pending .track li:first-child::after {
+            background: repeating-linear-gradient(90deg, var(--warning) 0 6px, transparent 6px 11px);
+        }
+        .track li.done::before { border-color: var(--success); background: var(--success); }
+        .track li.now::before { border-color: var(--warning); background: var(--warning-light); }
+        .track li.cancel::before { border-color: var(--text-muted); background: var(--text-muted); }
+        .track b { display: block; font-size: 12.5px; font-weight: 700; color: var(--text); }
+        .track li.now b { color: var(--warn-ink); }
+
+        @media (max-width: 860px) {
+            .mine-row { grid-template-columns: minmax(0, 1fr) auto; gap: 12px 16px; }
+            .mine-row .track { grid-column: 1 / -1; }
+        }
+
+        /* ---------- DÃY SỐ LIỆU ĐẦU KHU ---------- */
+        .stat-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .stat-tile {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+        }
+        .stat-tile .ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-size: 19px; flex: none; }
+        .stat-tile .lab { font-size: 11.5px; font-weight: 600; color: var(--text-muted); }
+        .stat-tile .val { font-size: 20px; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; }
+
+        /* ---------- THANH CÔNG CỤ CỦA MỘT KHU ---------- */
+        .view-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+        .view-bar .grow { flex: 1; min-width: 200px; }
+
+        /* ---------- DANH SÁCH DẠNG HÀNG (thay cho <table>) ---------- */
+        /* Dựng bằng grid chứ không phải <table>: vẫn dóng thẳng cột để so sánh giữa các dòng, nhưng ở màn
+           hình hẹp thì đổ thành từng khối xếp dọc được — bảng thật thì chỉ còn cách cuộn ngang.
+           Mỗi khu tự đặt --dl-cols cho đúng số cột của mình. */
+        .dl { display: flex; flex-direction: column; gap: 8px; }
+        .dl-head, .dl-row { display: grid; grid-template-columns: var(--dl-cols); gap: 14px; align-items: center; }
+        .dl-head {
+            padding: 0 15px 2px; font-size: 10.5px; font-weight: 700; letter-spacing: .6px;
+            text-transform: uppercase; color: var(--text-muted);
+        }
+        .dl-row {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 15px;
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .dl-row:hover { border-color: var(--primary); box-shadow: var(--shadow-xs); }
+        .dl-row.off { opacity: .72; }
+        .dl-row .act { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+        .dl-row .sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+        @media (max-width: 900px) {
+            .dl-head { display: none; }
+            .dl-row { grid-template-columns: 1fr; gap: 9px; }
+            .dl-row .act { justify-content: flex-start; }
+        }
+
+        /* Ô tick sản phẩm trong biểu mẫu chương trình — cuộn trong khung, không kéo dài cả hộp thoại. */
+        .promo-pick {
+            max-height: 230px; overflow-y: auto; border: 1px solid var(--border);
+            border-radius: 10px; padding: 8px 10px; background: var(--bg);
+        }
+        .promo-pick label { display: flex; align-items: center; gap: 9px; padding: 5px 2px; cursor: pointer; }
+        .promo-pick label:hover { color: var(--primary-dark); }
+        .promo-pick input { width: auto; flex: none; }
+        .promo-pick .cost { margin-left: auto; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+        .promo-pick-head { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+        .promo-pick-head .small { margin-left: auto; }
+
+        .promo-swatch-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .promo-swatch {
+            width: 28px; height: 28px; border-radius: 50%; cursor: pointer; padding: 0;
+            border: 2px solid transparent; box-shadow: 0 0 0 1px var(--border);
+        }
+        .promo-swatch.active { border-color: var(--surface); box-shadow: 0 0 0 2px var(--primary); }
+
+        /* ---------- HÀNG NGƯỜI ĐÃ ĐỔI ---------- */
+        .who { display: flex; align-items: center; gap: 9px; }
+        .who .avatar {
+            width: 32px; height: 32px; border-radius: 50%; flex: none; object-fit: cover;
+            background: var(--primary-light); color: var(--primary-dark);
+            display: grid; place-items: center; font-size: 12.5px; font-weight: 700;
+        }
+        .who .name { font-weight: 600; }
+        .who .sub { font-size: 11.5px; color: var(--text-muted); }
+
+        /* Ảnh nhỏ đứng trước tên món trong các bảng — nhận ra món bằng mắt nhanh hơn đọc tên. */
+        .cell-product { display: flex; align-items: center; gap: 9px; }
+        .cell-product img { width: 34px; height: 34px; border-radius: 8px; object-fit: cover; flex: none; }
+        .cell-product .ph { font-size: 18px; color: var(--text-muted); width: 34px; text-align: center; flex: none; }
+
+        /* Ảnh xem trước trong hộp thoại sản phẩm — hiện ngay sau khi chọn tệp, trước cả lúc bấm Lưu. */
+        .img-preview {
+            width: 100%; height: 160px; object-fit: contain; border: 1px solid var(--border);
+            border-radius: 10px; background: var(--bg); margin-bottom: 12px;
+        }
+
+        /* Bảng tính tiền trong hộp thoại đổi quà: mỗi dòng một vế của phép trừ, dòng cuối là kết quả. */
+        .calc { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .calc div {
+            display: flex; justify-content: space-between; gap: 12px;
+            padding: 9px 13px; font-size: 13px; border-top: 1px solid var(--border);
+        }
+        .calc div:first-child { border-top: 0; }
+        .calc div.total { background: var(--bg); font-weight: 800; font-size: 14.5px; }
+        .calc div.bad { background: var(--danger-light); color: var(--bad-ink); font-weight: 700; }
+
+        /* ---------- MÀN HÌNH HẸP ---------- */
+        @media (max-width: 760px) {
+            .wallet-hero { grid-template-columns: 1fr; padding: 18px; gap: 16px; }
+            .wh-balance b { font-size: 40px; }
+            .wh-goal { min-height: 0; }
+            .shop-tabs { gap: 18px; }
+            .shop-tabs-group { gap: 18px; }
+            .store-search-row { flex-direction: column; align-items: stretch; gap: 6px; }
+            .store-search-row #s-count { align-self: flex-end; }
+        }
+        /* Điện thoại: hai thẻ một hàng thay vì một thẻ chiếm cả bề ngang — đỡ phải cuộn gấp đôi. Chân thẻ
+           xếp dọc để nút đổi quà rộng hết thẻ, dễ bấm bằng ngón cái. */
+        @media (max-width: 560px) {
+            .shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+            .shop-thumb { height: 116px; padding: 10px; }
+            .shop-body { padding: 11px 11px 0; }
+            .shop-body h4 { font-size: 13.5px; }
+            .shop-desc { display: none; }
+            .shop-meter { margin: 10px 11px 0; padding-top: 10px; }
+            .shop-foot { flex-direction: column; align-items: stretch; padding: 10px 11px 12px; }
+            .shop-foot .btn { width: 100%; min-height: 44px; }
+            .shop-price { min-height: 0; }
+            .chip { min-height: 40px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .shop-card, .shop-card:hover { transition: none; transform: none; }
+            .wh-meter span, .shop-meter .bar span { transition: none; }
+            .wh-goal-btn:hover { transform: none; }
+        }

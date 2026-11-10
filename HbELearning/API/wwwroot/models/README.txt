@@ -1,4 +1,4 @@
-MODEL 3D CHO TRANG MÔ PHỎNG (wwwroot/pages/simulation.html + wwwroot/js/sim-scene.js)
+MODEL 3D CHO TRANG MÔ PHỎNG (wwwroot/pages/learning/simulation.html + wwwroot/js/sim/sim-scene.js)
 =======================================================================================
 
 FILE ĐANG ĐƯỢC TRANG SỬ DỤNG
@@ -70,7 +70,7 @@ GHI CÔNG (giấy phép)
     Sketchfab — nhúng qua iframe, dòng ghi công hiện ngay dưới khung xem (bắt buộc theo giấy phép CC-BY).
   - Nhân vật công nhân: Mixamo (Adobe) — không yêu cầu ghi công khi dùng trong sản phẩm.
   - Cẩu tháp (grue-unwrap-v2): CẦN BỔ SUNG tên tác giả/giấy phép. Nếu model này lấy từ Sketchfab theo giấy
-    phép CC-BY thì PHẢI thêm dòng ghi công tác giả vào biến CREDIT_HTML trong pages/simulation.html.
+    phép CC-BY thì PHẢI thêm dòng ghi công tác giả vào biến CREDIT_HTML trong pages/learning/simulation.html.
 
 
 ====================================================================================
@@ -79,7 +79,7 @@ NHÂN VẬT ĐẶT VÀO CẢNH (models/character/*.glb)
 
 Khác hai file ở trên (nằm cứng trong code của cảnh công trường), thư mục này phục vụ tính năng NGƯỜI SOẠN
 BÀI TỰ ĐẶT NGƯỜI VÀO CẢNH: mở một mô phỏng dùng bối cảnh model 3D tự tải lên, bấm nút "Nhân vật", rồi bấm
-thẳng lên sàn để đặt người và chọn tư thế. Xem wwwroot/js/sim-characters.js.
+thẳng lên sàn để đặt người và chọn tư thế. Xem wwwroot/js/sim/sim-characters.js.
 
 BỘ NHÂN VẬT — HAI KIỂU TỪ MỘT TỆP
   Tệp staff.glb là nhân vật Mixamo "Ch17", một CÔNG NHÂN XÂY DỰNG: có mũ bảo hộ và áo phản quang. Mixamo để
@@ -90,7 +90,7 @@ BỘ NHÂN VẬT — HAI KIỂU TỪ MỘT TỆP
       office   Nhân viên văn phòng   -> ẩn helmet + vest, nhuộm màu cho shirt
       worker   Công nhân công trường -> giữ nguyên, nhuộm màu cho vest
 
-  Khai báo ở CHARACTER_SET_LIST trong wwwroot/js/sim-characters.js. Thêm một bộ dùng TỆP KHÁC thì trỏ
+  Khai báo ở CHARACTER_SET_LIST trong wwwroot/js/sim/sim-characters.js. Thêm một bộ dùng TỆP KHÁC thì trỏ
   trường `file` sang tên tệp mới (không kèm đuôi .glb) và thêm key đó vào CharacterSetList trong
   Controllers/ScenarioController.cs.
 
@@ -111,7 +111,7 @@ BỔ SUNG TƯ THẾ — 3 BƯỚC
      tệp phình lên gấp mấy lần mà nội dung thừa hoàn toàn).
      Đặt vào:  Scripts/character-source/staff/
 
-     TÊN FILE CHÍNH LÀ TÊN TƯ THẾ và phải nằm trong POSE_LIST của wwwroot/js/sim-characters.js:
+     TÊN FILE CHÍNH LÀ TÊN TƯ THẾ và phải nằm trong POSE_LIST của wwwroot/js/sim/sim-characters.js:
        idle.fbx  stand.fbx  sit.fbx  walk.fbx  drink.fbx  eat.fbx  talk.fbx  type.fbx  point.fbx  phone.fbx
      Animation tương ứng trên Mixamo: Idle / Standing / Sitting / Walking / Drinking / Eating / Talking /
      Typing / Pointing / Talking On Phone.

@@ -1,0 +1,605 @@
+﻿<!-- File: wwwroot/pages/course/course-detail.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="course-detail.noiDungKhoaHocHbELearning">Nội dung khóa học · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/phosphor/regular.css">
+    <link rel="stylesheet" href="/css/phosphor/fill.css">
+    <link rel="stylesheet" href="/css/phosphor/bold.css">
+    <link rel="stylesheet" href="/css/phosphor/duotone.css">
+    <!-- Bản đồ tên module cho Three.js. Trang này vốn dùng script thường, nhưng khi soạn bài cho mô phỏng
+         có bối cảnh TỰ TẢI LÊN thì nạp động js/sim/sim-asset-scene.js (một ES module) để nhúng đúng cảnh 3D mà
+         học viên sẽ thấy, cho người soạn bấm chuột chọn vị trí từng tình huống. importmap có phạm vi toàn
+         trang nên khai báo ở đây là đủ, không cần đổi các thẻ script sẵn có sang kiểu module. -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <link rel="stylesheet" href="/pages/course/course-detail.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="tabs">
+            <!-- Cấu trúc khóa học đứng đầu: khóa học là một gói SCORM, cây chương / mục chính là <organization>
+                 của gói. Các tab sau là nơi soạn nội dung từng SCO (bài học, bài kiểm tra, mô phỏng 3D). -->
+            <button class="active" data-tab="structure" style="display:flex;align-items:center;gap:8px">
+                <i class="ph-fill ph-tree-structure"></i>
+                <span data-i18n="org.cauTrucKhoaHoc">Cấu trúc khóa học</span>
+            </button>
+
+            <button data-tab="lesson" style="display:flex;align-items:center;gap:8px">
+            <i class="ph-fill ph-book-open-text"></i>
+            <span data-i18n="index.stat-lesson">Bài học</span>
+            </button>
+
+            <button data-tab="quiz" style="display:flex;align-items:center;gap:8px" >
+                <i class="ph-fill ph-target"></i>
+                <span data-i18n="index.stat-quiz">Bài kiểm tra</span>
+            </button>
+
+            <button data-tab="simulation" style="display:flex;align-items:center;gap:8px">
+                <i class="ph-fill ph-cube"></i>
+                <span data-i18n="course-detail.moPhong3d">Mô phỏng 3D</span>
+            </button>
+
+            <button data-tab="target" style="display:flex;align-items:center;gap:8px">
+                <i class="ph-fill ph-user-plus"></i>
+                <span data-i18n="course-detail.doiTuongDaoTao">Đối tượng đào tạo</span>
+            </button>
+            
+            <button data-tab="learner" style="display:flex;align-items:center;gap:8px">
+                <i class="ph-fill ph-user-circle"></i>
+                <span data-i18n="role.Học viên">Học viên</span>
+            </button>
+
+            <button data-tab="feedback" style="display:flex;align-items:center;gap:8px">
+                <i class="ph-fill ph-chat-circle-text"></i>
+                <span data-i18n="feedback.tab">Feedback</span>
+            </button>
+        </div>
+
+        <div class="tab-panel active" id="tab-structure"></div>
+        <div class="tab-panel" id="tab-lesson"></div>
+        <div class="tab-panel" id="tab-quiz"></div>
+        <div class="tab-panel" id="tab-simulation"></div>
+        <div class="tab-panel" id="tab-target"></div>
+        <div class="tab-panel" id="tab-learner"></div>
+        <div class="tab-panel" id="tab-feedback"></div>
+    </div>
+</div>
+
+<!-- Hộp thoại bài học -->
+<div class="modal-mask" id="modal-lesson">
+    <div class="modal wide">
+        <div class="modal-head"><h3 data-i18n="course-detail.themBaiHoc" id="lesson-title">Thêm bài học</h3>
+            <button class="close-x" onclick="closeModal('modal-lesson')">×</button></div>
+        <form id="lesson-form">
+            <div class="modal-body">
+                <input type="hidden" id="l-id">
+                <div class="field"><label for="l-title" data-i18n="course-detail.tieuDeBaiHoc">Tiêu đề bài học *</label><input id="l-title" required maxlength="250"></div>
+                <div class="row">
+                    <div class="field"><label for="l-type" data-i18n="course-detail.loaiNoiDung">Loại nội dung</label>
+                        <select id="l-type">
+                            <option data-i18n="course-detail.vanBan" value="0">Văn bản</option><option data-i18n="course-detail.taiLieuDinhKem" value="1">Tài liệu đính kèm</option>
+                            <option value="2">Video</option><option data-i18n="course-detail.hinhAnh" value="3">Hình ảnh</option><option data-i18n="course-detail.lienKet" value="4">Liên kết</option>
+                        </select></div>
+                    <div class="field"><label for="l-duration" data-i18n="course-detail.thoiLuongPhut">Thời lượng (phút)</label><input type="number" id="l-duration" min="0" value="15"></div>
+                    <div class="field"><label for="l-order" data-i18n="course-detail.thuTu">Thứ tự</label><input type="number" id="l-order" min="0" value="0"></div>
+                </div>
+                <div class="field" id="l-file-row">
+                    <label for="l-file" data-i18n="course-detail.tepDinhKemTaiLieuVideoHinhAnh">Tệp đính kèm (tài liệu / video / hình ảnh)</label>
+                    <div id="l-current-file"></div>
+                    <input type="file" id="l-file">
+                    <div data-i18n="course-detail.chuaCoTep" class="hint" id="l-url-hint">Chưa có tệp.</div>
+                    <input type="hidden" id="l-url">
+                </div>
+                <div class="field" id="l-link-row">
+                    <label for="l-link" data-i18n="course-detail.duongDanLienKetUrl">Đường dẫn liên kết (URL) *</label>
+                    <input type="url" id="l-link" placeholder="https://...">
+                </div>
+                <div class="field" id="l-seek-row">
+                    <label for="l-seek">Học viên được tua video tới đâu</label>
+                    <select id="l-seek">
+                        <option value="0">Tua tự do — chỉ dừng ở câu hỏi bắt buộc trả lời</option>
+                        <option value="1">Bắt buộc xem hết — không tua vượt quá đoạn đã xem</option>
+                        <option value="2">Cho bấm thẳng tới câu hỏi — không cần xem hết video</option>
+                    </select>
+                    <div class="hint">Phần lớn học viên không xem hết video. Chọn <b>bắt buộc xem hết</b> khi nội dung
+                        video mới là thứ cần học; chọn <b>cho bấm thẳng tới câu hỏi</b> khi video chỉ là tài liệu tham
+                        khảo, học viên chỉ cần làm được các câu hỏi chèn trong đó.</div>
+                </div>
+                <!-- Khối soạn bài bằng AI. Gom vào một thẻ có viền riêng thay vì để lẫn giữa các ô nhập
+                     liệu của bài học: đây là công cụ phụ trợ, người soạn phải nhìn ra ngay chỗ nào là thông
+                     tin bài học bắt buộc, chỗ nào chỉ là bước nhờ AI viết hộ rồi sửa lại. -->
+                <div class="ai-box">
+                    <div class="ai-box-head">
+                        <span class="ai-box-icon"><i class="ph-fill ph-sparkle"></i></span>
+                        <div>
+                            <div class="ai-box-title" data-i18n="course-detail.dungAiHoTroTaoNoiDung">Dùng AI hỗ trợ tạo nội dung</div>
+                            <div data-i18n="course-detail.aiSeSoanNoiDungDuaTrenTieuDeBa" class="hint">AI soạn bài dựa trên tiêu đề bài học và chủ đề bạn nhập bên trên</div>
+                        </div>
+                    </div>
+
+                    <div class="ai-box-row">
+                        <input id="l-ai-topic" data-i18n-ph="course-detail.chuDeYeuCauNoiDungVdQuyTrinhAn" placeholder="Chủ đề / yêu cầu nội dung (VD: Quy trình an toàn khi vận hành máy ép)">
+                        <!-- Độ dài chọn được ngay tại đây: một bài "nhận biết biển báo" và một bài "quy trình
+                             ứng phó sự cố" cần lượng chữ khác hẳn nhau, mà độ dài lại là thứ quyết định AI
+                             viết thành bài học hay chỉ liệt kê mấy đầu mục. -->
+                        <select id="l-ai-length" data-i18n-title="course-detail.doDaiBaiHoc" title="Độ dài bài học AI sẽ viết">
+                            <option value="short">Ngắn gọn · 400-700 từ</option>
+                            <option value="standard" selected>Chuẩn · 700-1100 từ</option>
+                            <option value="detailed">Chi tiết · 1200-1800 từ</option>
+                        </select>
+                        <button type="button" class="btn sm" id="btn-ai-lesson"><i class="ph ph-sparkle"></i> <span data-i18n="course-detail.taoNoiDung">Tạo nội dung</span></button>
+                    </div>
+
+                    <!-- Nối AI với kho tri thức "Tài liệu AI": bật thì hệ thống tra tài liệu nội bộ của công ty
+                         trước rồi mới gọi AI, và bắt AI viết bám đúng các đoạn tài liệu tìm được. Tắt thì AI viết
+                         theo kiến thức chung như trước. -->
+                    <label class="check ai-doc-toggle">
+                        <input type="checkbox" id="l-ai-use-doc" checked>
+                        <i class="ph ph-brain"></i>
+                        <span data-i18n="course-detail.bamSatTaiLieuCongTy">AI sẽ bám sát tài liệu nội bộ của Công Ty</span>
+                    </label>
+                    <div class="hint ai-doc-status" id="l-ai-doc-status"><span class="spinner-inline"></span> Đang kiểm tra kho tài liệu công ty...</div>
+
+                    <div class="ai-progress hidden" id="l-ai-progress"></div>
+
+                    <!-- Các đoạn tài liệu AI đã dựa vào. Nội dung "bám sát tài liệu" mà không chỉ ra tài liệu
+                         nào thì người soạn bài không có cách gì đối chiếu xem AI có bịa hay không. -->
+                    <div id="l-ai-source" class="ai-source-box hidden"></div>
+                </div>
+                <div class="field">
+                    <label for="l-content" data-i18n="course-detail.noiDung">Nội dung</label>
+                    <div id="l-content-editor"></div>
+
+                    <!-- Bài học nhập nguyên từ file Word. Trình soạn thảo bên trên chỉ hiểu được một tập
+                         định dạng hẹp (đậm, nghiêng, màu, danh sách) — nó KHÔNG giữ được bảng gộp ô, độ
+                         rộng cột, khung viền hay phông chữ lấy từ style của tài liệu. Nạp một bài đã nhập
+                         vào đó là mất sạch những thứ đó ngay lúc mở, và lần lưu kế tiếp ghi đè bản đã hỏng
+                         lên bản gốc. Nên mặc định không giao cho Quill: người soạn sửa chữ thẳng trên bản xem
+                         trước (contenteditable — giữ nguyên bảng, ảnh, bố cục), còn trình soạn thảo đầy đủ chỉ
+                         mở khi họ tự bấm chấp nhận đánh đổi. -->
+                    <div id="l-word-doc" class="hidden">
+                        <!-- Thanh định dạng cho bản xem trước sửa được. Dùng execCommand với styleWithCSS để kết quả là
+                             <span style="..."> — bộ lọc HTML phía server giữ được style nhưng bỏ thẻ <font>. Nút bấm
+                             chặn mousedown để không cướp vùng chọn của vùng soạn thảo (xem wordPreviewEl bên dưới). -->
+                        <div class="wd-toolbar" id="l-word-toolbar" role="toolbar" aria-label="Định dạng văn bản">
+                            <button type="button" class="wd-btn" data-cmd="undo" title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác"><i class="ph ph-arrow-counter-clockwise"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="redo" title="Làm lại (Ctrl+Y)" aria-label="Làm lại"><i class="ph ph-arrow-clockwise"></i></button>
+                            <span class="wd-sep"></span>
+                            <select class="wd-select" id="wd-block" title="Kiểu đoạn" aria-label="Kiểu đoạn">
+                                <option value="p">Đoạn văn</option>
+                                <option value="h1">Tiêu đề 1</option>
+                                <option value="h2">Tiêu đề 2</option>
+                                <option value="h3">Tiêu đề 3</option>
+                            </select>
+                            <select class="wd-select" id="wd-font" title="Phông chữ" aria-label="Phông chữ">
+                                <option value="">Phông chữ</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Calibri">Calibri</option>
+                                <option value="Cambria">Cambria</option>
+                                <option value="Tahoma">Tahoma</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Segoe UI">Segoe UI</option>
+                                <option value="Courier New">Courier New</option>
+                            </select>
+                            <select class="wd-select" id="wd-size" title="Cỡ chữ (pt) — bôi đen chữ trước" aria-label="Cỡ chữ">
+                                <option value="">Cỡ</option>
+                                <option>8</option><option>9</option><option>10</option><option>11</option>
+                                <option>12</option><option>14</option><option>16</option><option>18</option>
+                                <option>20</option><option>24</option><option>28</option><option>32</option><option>36</option>
+                            </select>
+                            <span class="wd-sep"></span>
+                            <button type="button" class="wd-btn" data-cmd="bold" title="In đậm (Ctrl+B)" aria-label="In đậm"><i class="ph ph-text-b"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="italic" title="In nghiêng (Ctrl+I)" aria-label="In nghiêng"><i class="ph ph-text-italic"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="underline" title="Gạch chân (Ctrl+U)" aria-label="Gạch chân"><i class="ph ph-text-underline"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="strikeThrough" title="Gạch ngang" aria-label="Gạch ngang"><i class="ph ph-text-strikethrough"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="subscript" title="Chỉ số dưới (CO₂)" aria-label="Chỉ số dưới"><i class="ph ph-text-subscript"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="superscript" title="Chỉ số trên (m²)" aria-label="Chỉ số trên"><i class="ph ph-text-superscript"></i></button>
+                            <label class="wd-btn" title="Màu chữ">
+                                <i class="ph ph-text-a-underline"></i><span class="wd-color-bar" id="wd-color-bar" style="background:#000000"></span>
+                                <input type="color" id="wd-color" value="#000000" aria-label="Màu chữ">
+                            </label>
+                            <label class="wd-btn" title="Tô nền chữ">
+                                <i class="ph ph-highlighter"></i><span class="wd-color-bar" id="wd-hilite-bar" style="background:#ffff00"></span>
+                                <input type="color" id="wd-hilite" value="#ffff00" aria-label="Tô nền chữ">
+                            </label>
+                            <span class="wd-sep"></span>
+                            <button type="button" class="wd-btn" data-cmd="justifyLeft" title="Căn trái" aria-label="Căn trái"><i class="ph ph-text-align-left"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="justifyCenter" title="Căn giữa" aria-label="Căn giữa"><i class="ph ph-text-align-center"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="justifyRight" title="Căn phải" aria-label="Căn phải"><i class="ph ph-text-align-right"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="justifyFull" title="Căn đều hai bên" aria-label="Căn đều hai bên"><i class="ph ph-text-align-justify"></i></button>
+                            <span class="wd-sep"></span>
+                            <button type="button" class="wd-btn" data-cmd="insertUnorderedList" title="Danh sách chấm" aria-label="Danh sách chấm"><i class="ph ph-list-bullets"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="insertOrderedList" title="Danh sách số" aria-label="Danh sách số"><i class="ph ph-list-numbers"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="outdent" title="Giảm thụt lề" aria-label="Giảm thụt lề"><i class="ph ph-text-outdent"></i></button>
+                            <button type="button" class="wd-btn" data-cmd="indent" title="Tăng thụt lề" aria-label="Tăng thụt lề"><i class="ph ph-text-indent"></i></button>
+                            <span class="wd-sep"></span>
+                            <button type="button" class="wd-btn" data-cmd="removeFormat" title="Xóa định dạng của đoạn đang chọn" aria-label="Xóa định dạng"><i class="ph ph-eraser"></i></button>
+                        </div>
+                        <div class="lesson-body" id="l-word-doc-preview"></div>
+                        <div class="hint mt" id="l-word-doc-hint">
+                            Nội dung nhập từ file Word / PowerPoint. Bấm thẳng vào chữ để sửa, bôi đen rồi dùng thanh
+                            công cụ phía trên để định dạng — bảng, ảnh, bố cục slide và cách trình bày còn lại của bản
+                            gốc được giữ nguyên. Cần chèn ảnh thì dùng trình soạn thảo đầy đủ (sẽ mất định dạng gốc).
+                        </div>
+                        <button type="button" class="btn ghost sm mt" id="btn-edit-word-doc">
+                            Dùng trình soạn thảo đầy đủ (mất định dạng gốc)
+                        </button>
+                    </div>
+
+                    <textarea id="l-content" style="display:none"></textarea>
+                    <!-- Số từ thân bài: thước đo nhanh nhất để biết bài đã đủ dày hay mới là dàn ý, nhất là
+                         với nội dung AI vừa sinh ra. -->
+                    <div class="hint" id="l-content-stat"></div>
+                </div>
+                <div class="field" id="l-quiz-toggle-row">
+                    <label class="check"><input type="checkbox" id="l-has-quiz"> Thêm bài kiểm tra ngay sau bài học này</label>
+                    <div data-i18n="course-detail.baiKiemTraSeLaBuocBatBuocNgayS" class="hint">Bài kiểm tra sẽ là bước bắt buộc ngay sau bài học trong lộ trình — người học phải làm đạt mới được mở bài học tiếp theo.</div>
+                </div>
+                <div class="card mt hidden" id="l-quiz-box">
+                    <div class="card-body">
+                        <div class="field"><label for="l-quiz-title" data-i18n="course-detail.tenBaiKiemTra">Tên bài kiểm tra *</label><input id="l-quiz-title" maxlength="250"></div>
+                        <div class="row">
+                            <div class="field"><label for="l-quiz-pass" data-i18n="course-detail.diemDat">Điểm đạt (%)</label><input type="number" id="l-quiz-pass" min="0" max="100" value="70"></div>
+                            <div class="field"><label for="l-quiz-time" data-i18n="course-detail.thoiGianPhut">Thời gian (phút)</label><input type="number" id="l-quiz-time" min="1" value="20"></div>
+                            <div class="field"><label for="l-quiz-attempt" data-i18n="course-detail.soLuotToiDa">Số lượt tối đa</label><input type="number" id="l-quiz-attempt" min="1" value="3"></div>
+                        </div>
+                        <div data-i18n="course-detail.sauKhiLuuBanSeDuocChuyenSangTh" class="hint">Sau khi lưu, bạn sẽ được chuyển sang thêm câu hỏi cho bài kiểm tra này ngay.</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="check"><input type="checkbox" id="l-active" checked> Đang hoạt động</label>
+                    <div class="hint">Tắt để tạm ẩn bài học khỏi lộ trình mà không xóa — học viên đang học sẽ không thấy bài này nữa.</div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-lesson')">Hủy</button>
+                <button data-i18n="course-detail.luuBaiHoc" type="submit" class="btn">Lưu bài học</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Hộp thoại bài kiểm tra -->
+<div class="modal-mask" id="modal-quiz">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="course-detail.themBaiKiemTra" id="quiz-modal-title">Thêm bài kiểm tra</h3>
+            <button class="close-x" onclick="closeModal('modal-quiz')">×</button></div>
+        <form id="quiz-form">
+            <div class="modal-body">
+                <input type="hidden" id="q-id">
+                <div class="field"><label for="q-title" data-i18n="course-detail.tenBaiKiemTra">Tên bài kiểm tra *</label><input id="q-title" required maxlength="250"></div>
+                <div class="field"><label for="q-lesson" data-i18n="course-detail.ganVoiBaiHocTuyChon">Gắn với bài học (tùy chọn)</label>
+                    <select id="q-lesson"><option data-i18n="course-detail.khongGanVdThiCuoiKhoa" value="">— Không gắn (VD thi cuối khóa) —</option></select>
+                    <div data-i18n="course-detail.neuChonBaiKiemTraSeLaBuocBatBu" class="hint">Nếu chọn, bài kiểm tra sẽ là bước bắt buộc ngay sau bài học đó trong lộ trình.</div></div>
+                <div class="row">
+                    <div class="field"><label for="q-pass" data-i18n="course-detail.diemDat">Điểm đạt (%)</label><input type="number" id="q-pass" min="0" max="100" value="70"></div>
+                    <div class="field"><label for="q-time" data-i18n="course-detail.thoiGianPhut">Thời gian (phút)</label><input type="number" id="q-time" min="1" value="20"></div>
+                    <div class="field"><label for="q-attempt" data-i18n="course-detail.soLuotToiDa">Số lượt tối đa</label><input type="number" id="q-attempt" min="1" value="3"></div>
+                </div>
+                <label class="check mb"><input type="checkbox" id="q-final"> Là bài kiểm tra cuối khóa (dùng để xét cấp chứng nhận)</label>
+                <label class="check"><input type="checkbox" id="q-shuffle" checked> Trộn thứ tự câu hỏi</label>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-quiz')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Hộp thoại câu hỏi -->
+<div class="modal-mask" id="modal-question">
+    <div class="modal wide">
+        <div class="modal-head"><h3 data-i18n="course-detail.nganHangCauHoi">Ngân hàng câu hỏi</h3>
+            <button class="close-x" onclick="closeModal('modal-question')">×</button></div>
+        <div class="modal-body" id="question-box"></div>
+    </div>
+</div>
+
+<!-- Hộp thoại mô phỏng 3D -->
+<div class="modal-mask" id="modal-scenario">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="course-detail.themMoPhong3d" id="scenario-modal-title">Thêm mô phỏng 3D</h3>
+            <button class="close-x" onclick="closeModal('modal-scenario')">×</button></div>
+        <form id="scenario-form">
+            <div class="modal-body">
+                <input type="hidden" id="sn-id">
+                <div class="field"><label for="sn-title" data-i18n="course-detail.tenMoPhong">Tên mô phỏng *</label><input id="sn-title" required maxlength="250"></div>
+                <!-- Ô "Mô tả" đã được gỡ khỏi biểu mẫu theo yêu cầu. Giá trị cũ vẫn được GIỮ NGUYÊN qua input ẩn này thay vì gửi null — nếu không, mỗi lần mở ra sửa một thứ khác là mô tả đã nhập trước đó bị xóa sạch mà không ai biết. -->
+                <input type="hidden" id="sn-description">
+                <div class="field"><label for="sn-lesson" data-i18n="course-detail.ganVoiBaiHocTuyChon">Gắn với bài học (tùy chọn)</label>
+                    <select id="sn-lesson"><option data-i18n="course-detail.khongGan" value="">— Không gắn —</option></select>
+                    <div data-i18n="course-detail.chonMotBaiHocODayTucLaBaiHocDo" class="hint">Chọn một bài học ở đây tức là "bài học đó có mô phỏng 3D đi kèm" — bài học sẽ hiện kèm mô phỏng trong tab Bài học, giống như bài kiểm tra.</div></div>
+                <!-- MỘT ô chọn duy nhất cho bối cảnh. Trước đây chỗ này là hai ô nối nhau — "Bối cảnh 3D"
+                     (chọn giữa hai không gian dựng sẵn và mục "tự tải lên") rồi mới tới "Tệp bối cảnh"
+                     (chọn loại tệp, chọn trong thư viện, hoặc tải tệp riêng). Người soạn bài phải hiểu sự
+                     phân biệt "dựng sẵn / tự tải lên" — vốn là chuyện KỸ THUẬT bên trong — mới điền nổi.
+                     Giờ Thư viện 3D đã chứa cả hai loại (xem Models/SimBuiltinScene.cs) nên chỉ còn một câu
+                     hỏi duy nhất: DÙNG BỐI CẢNH NÀO TRONG THƯ VIỆN. -->
+                <div class="field"><label for="sn-library">Thư viện 3D *</label>
+                    <div class="sn-library-row">
+                        <select id="sn-library"></select>
+                        <a class="btn ghost sm" href="/pages/sim-library/sim-library.html" target="_blank" rel="noopener"
+                           title="Mở Thư viện 3D ở tab mới"><i class="ph ph-cube"></i></a>
+                    </div>
+
+                    <!-- Khung xem trước dựng bằng ĐÚNG bộ dựng cảnh của trang học viên -->
+                    <div class="sn-preview" id="sn-preview">
+                        <div class="sn-preview-msg" id="sn-preview-msg">Chọn một mục ở trên để xem trước không gian.</div>
+                    </div>
+
+                    <div class="hint" id="sn-scene-hint"></div>
+                    <div class="hint">Chưa có bối cảnh cần dùng? Mở
+                        <a href="/pages/sim-library/sim-library.html" target="_blank" rel="noopener">Thư viện 3D</a>
+                        để tải model 3D / ảnh 360° lên một lần, rồi mọi khóa học đều chọn lại được.</div>
+
+                    <!-- Ba giá trị thật sự gửi lên server. Ô chọn phía trên chỉ là giao diện: mỗi mục thư viện
+                         được dịch ra bộ ba (sceneKey, assetUrl, assetType) mà ScenarioScene đang lưu. -->
+                    <input type="hidden" id="sn-scene">
+                    <input type="hidden" id="sn-asset-url">
+                    <input type="hidden" id="sn-asset-type">
+                </div>
+                <div class="field"><label for="sn-pass" data-i18n="course-detail.diemDatTrenTongDiemToiDa">Điểm đạt (%) trên tổng điểm tối đa</label>
+                    <input type="number" id="sn-pass" min="0" max="100" value="70">
+                    <div data-i18n="course-detail.hocVienChonDungHetCacTinhHuong" class="hint">Học viên chọn đúng hết các tình huống mới đạt 100%. Chọn sai sẽ bị trừ điểm, có thể xuống âm.</div></div>
+                <label class="check"><input type="checkbox" id="sn-sequential"> Bắt buộc làm theo đúng thứ tự các bước (mô phỏng quy trình)</label>
+                <label class="check"><input type="checkbox" id="sn-active" checked> Đang hoạt động</label>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-scenario')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Hộp thoại quản lý điểm nguy cơ (node) của mô phỏng 3D -->
+<div class="modal-mask" id="modal-scenario-node">
+    <!-- Cảnh 3D nằm NGOÀI khung hộp thoại: nó lơ lửng giữa khoảng trống bên trái, còn bảng soạn nội dung dán
+         sát mép phải màn hình. openNodeManager() đổ nội dung vào đây khi mô phỏng có cảnh để bấm chọn. -->
+    <div class="sim-pick-stage" id="sm-pick-stage" data-backdrop></div>
+    <div class="modal wide">
+        <div class="modal-head"><h3 data-i18n="course-detail.cacDiemNguyCoTrongMoPhong">Các điểm nguy cơ trong mô phỏng</h3>
+            <button class="close-x" onclick="closeModal('modal-scenario-node')">×</button></div>
+        <div class="modal-body" id="scenario-node-box"></div>
+    </div>
+</div>
+
+<!-- Hộp thoại đặt NHÂN VẬT vào cảnh 3D. Cùng bố cục với hộp thoại điểm nguy cơ ở trên: cảnh 3D lơ lửng bên
+     trái, bảng điều khiển dán mép phải — đặt người là thao tác vừa nhìn cảnh vừa chỉnh số, hai phần đó
+     phải thấy được cùng lúc. -->
+<div class="modal-mask" id="modal-scenario-character">
+    <div class="sim-pick-stage" id="sc-pick-stage" data-backdrop></div>
+    <div class="modal wide">
+        <div class="modal-head"><h3 data-i18n="course-detail.nhanVatTrongCanh">Nhân vật trong cảnh</h3>
+            <button class="close-x" onclick="closeModal('modal-scenario-character')">×</button></div>
+        <div class="modal-body" id="scenario-character-box"></div>
+    </div>
+</div>
+
+<!-- Hộp thoại quản lý câu hỏi chèn giữa video bài học -->
+<div class="modal-mask" id="modal-video-question">
+    <div class="modal wide">
+        <div class="modal-head"><h3 data-i18n="course-detail.cauHoiChenTrongVideo">Câu hỏi chèn trong video</h3>
+            <button class="close-x" onclick="closeModal('modal-video-question')">×</button></div>
+        <div class="modal-body" id="video-question-box"></div>
+        <!-- Thanh chân cố định: nút "Thêm câu hỏi" nằm ở đây thay vì trong phần thân cuộn được. Danh sách
+             câu hỏi dài ra là nút bị đẩy khuất lên trên, người soạn phải cuộn ngược lên đầu mới bấm được. -->
+        <div class="modal-foot" id="video-question-foot"></div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-video-chapter">
+    <div class="modal wide">
+        <div class="modal-head"><h3 data-i18n="course-detail.chuongMucTrongVideo">Chương mục trong video</h3>
+            <button class="close-x" onclick="closeModal('modal-video-chapter')">×</button></div>
+        <div class="modal-body" id="video-chapter-box"></div>
+        <div class="modal-foot" id="video-chapter-foot"></div>
+    </div>
+</div>
+
+<!-- ==================== CẤU TRÚC KHÓA HỌC ==================== -->
+<div class="modal-mask" id="modal-org-module">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="org.themChuong">Thêm chương</h3>
+            <button class="close-x" onclick="closeModal('modal-org-module')">×</button></div>
+        <div class="modal-body">
+            <div class="field"><label for="org-m-title" data-i18n="org.tenChuong">Tên chương *</label><input id="org-m-title" maxlength="250"></div>
+            <div class="field"><label for="org-m-parent" data-i18n="org.namTrongChuong">Nằm trong</label><select id="org-m-parent"></select>
+                <div class="hint" data-i18n="org.chuongGoiY">Chương là một cụm (cluster) trong cây SCORM — gom các mục học cùng chủ đề; có thể lồng chương con.</div></div>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-org-module')">Hủy</button>
+            <button data-i18n="org.themChuong" class="btn" id="btn-org-m-save">Thêm chương</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-org-add">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="org.duaNoiDungVaoCauTruc">Đưa nội dung vào cấu trúc</h3>
+            <button class="close-x" onclick="closeModal('modal-org-add')">×</button></div>
+        <div class="modal-body">
+            <div class="field"><label for="org-a-resource" data-i18n="org.noiDung">Nội dung</label><select id="org-a-resource"></select></div>
+            <div class="field"><label for="org-a-parent" data-i18n="org.namTrongChuong">Nằm trong</label><select id="org-a-parent"></select></div>
+            <label class="check"><input type="checkbox" id="org-a-required" checked> <span data-i18n="org.batBuoc">Bắt buộc</span></label>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-org-add')">Hủy</button>
+            <button data-i18n="org.duaVao" class="btn" id="btn-org-a-save">Đưa vào</button>
+        </div>
+    </div>
+</div>
+
+<!-- Thiết lập một mục = phần sequencing của <item> tương ứng trong imsmanifest.xml. -->
+<div class="modal-mask" id="modal-org-item">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="org.thietLapMuc">Thiết lập mục</h3>
+            <button class="close-x" onclick="closeModal('modal-org-item')">×</button></div>
+        <div class="modal-body">
+            <input type="hidden" id="org-i-id">
+            <div class="field"><label id="org-i-head" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"></label></div>
+            <div class="field"><label for="org-i-title" id="org-i-title-label">Tên hiển thị</label><input id="org-i-title" maxlength="250"></div>
+            <div class="field"><label for="org-i-parent" data-i18n="org.namTrongChuong">Nằm trong</label><select id="org-i-parent"></select></div>
+            <label class="check"><input type="checkbox" id="org-i-required"> <span data-i18n="org.batBuocHoanThanh">Bắt buộc — tính vào hoàn thành khóa học</span></label>
+            <label class="check mt"><input type="checkbox" id="org-i-visible"> <span data-i18n="org.hienTrongMucLuc">Hiện trong mục lục của học viên</span></label>
+            <div class="row mt">
+                <div class="field"><label for="org-i-start" data-i18n="org.moTuNgay">Mở từ</label><input type="datetime-local" id="org-i-start"></div>
+                <div class="field"><label for="org-i-end" data-i18n="org.hanChot">Hạn chót</label><input type="datetime-local" id="org-i-end">
+                    <div class="org-hint" id="org-i-end-hint"></div></div>
+            </div>
+            <div class="field"><label for="org-i-attempt" data-i18n="org.gioiHanLuot">Giới hạn số lượt mở</label><input type="number" id="org-i-attempt" min="0" max="1000" placeholder="Không giới hạn"></div>
+            <div class="field" id="org-i-threshold-row"><label for="org-i-threshold" data-i18n="org.nguongHoanThanh">Ngưỡng hoàn thành (%)</label><input type="number" id="org-i-threshold" min="0" max="100" placeholder="Do gói tự báo">
+                </div>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-org-item')">Hủy</button>
+            <button data-i18n="common.save" class="btn" id="btn-org-i-save">Lưu</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== SCORM ==================== -->
+<!-- Nhập một gói SCORM (.zip) vào khóa học — thành một mục (cụm) của cấu trúc khóa học. -->
+<div class="modal-mask" id="modal-scorm-import">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="scorm.nhapGoiScorm">Nhập gói SCORM</h3>
+            <button class="close-x" onclick="closeModal('modal-scorm-import')">×</button></div>
+        <div class="modal-body">
+            <div class="drop-zone compact" id="si-drop">
+                <div class="big"><i class="ph ph-package"></i></div>
+                <div id="si-file-label"><b data-i18n="scorm.keoThaGoiVaoDay">Kéo thả gói .zip vào đây</b>
+                    <div class="small muted" data-i18n="scorm.hoTroPhienBan">Tối đa 500 MB</div></div>
+            </div>
+            <input type="file" id="si-file" accept=".zip,application/zip,application/x-zip-compressed" hidden>
+            <div class="field mt"><label for="si-title" data-i18n="scorm.tenHienThi">Tên hiển thị</label>
+                <input id="si-title" maxlength="250" placeholder="Để trống = lấy tên trong gói"></div>
+            <div class="field"><label for="si-parent" data-i18n="org.namTrongChuong">Nằm trong</label><select id="si-parent"></select></div>
+            <label class="check"><input type="checkbox" id="si-required" checked> <span data-i18n="org.batBuoc">Bắt buộc</span></label>
+            <div id="si-progress" class="mt hidden"></div>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-scorm-import')">Hủy</button>
+            <button class="btn" id="btn-si-submit" disabled><i class="ph ph-upload-simple"></i> <span data-i18n="scorm.nhapGoi">Nhập gói</span></button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-scorm-edit">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="scorm.suaThongTinGoi">Sửa thông tin gói</h3>
+            <button class="close-x" onclick="closeModal('modal-scorm-edit')">×</button></div>
+        <div class="modal-body">
+            <input type="hidden" id="se-id">
+            <div class="field"><label for="se-title" data-i18n="scorm.tenHienThi2">Tên hiển thị *</label><input id="se-title" maxlength="250"></div>
+            <div class="field"><label for="se-duration" data-i18n="scorm.thoiLuongDuKienPhut">Thời lượng dự kiến (phút)</label><input id="se-duration" type="number" min="0" max="100000"></div>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-scorm-edit')">Hủy</button>
+            <button data-i18n="common.save" class="btn" id="btn-se-save">Lưu</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-scorm-detail">
+    <div class="modal wide">
+        <div class="modal-head"><h3 id="sd-title" data-i18n="scorm.chiTietKetQua">Chi tiết kết quả</h3>
+            <button class="close-x" onclick="closeModal('modal-scorm-detail')">×</button></div>
+        <div class="modal-body" id="sd-body"></div>
+        <div class="modal-foot"><button data-i18n="common.close" class="btn" onclick="closeModal('modal-scorm-detail')">Đóng</button></div>
+    </div>
+</div>
+
+<!-- Chỉ lọc sẵn file Excel cho khớp với mục duy nhất còn lại trong menu Nhập dữ liệu (xem importMenu).
+     Đây chỉ là bộ lọc gợi ý của hộp thoại, không phải hàng rào: server vẫn nhận cả Word và PDF, ai có sẵn
+     file đúng mẫu thì đổi bộ lọc sang "All files" là chọn được. -->
+<input type="file" id="import-lesson-file" accept=".xlsx,.xlsm" hidden aria-label="Chọn tệp danh sách bài học">
+<input type="file" id="import-question-file" accept=".xlsx,.xlsm" hidden aria-label="Chọn tệp ngân hàng câu hỏi">
+<input type="file" id="import-document-file" accept=".docx,.pptx,.pdf" hidden aria-label="Chọn tài liệu Word, PowerPoint hoặc PDF để dựng thành một bài học">
+<input type="file" id="import-pptx-file" accept=".pptx" hidden aria-label="Chọn bài giảng PowerPoint để dựng thành một bài học">
+<input type="file" id="import-question-doc-file" accept=".docx" hidden aria-label="Chọn file Word ngân hàng câu hỏi gộp nhiều bài">
+<input type="file" id="import-question-sheet-file" accept=".xlsx,.xlsm" hidden aria-label="Chọn file Excel ngân hàng câu hỏi gộp nhiều bài">
+<input type="file" id="import-question-word-file" accept=".docx" hidden aria-label="Chọn file Word đề thi tự do cho bài kiểm tra này">
+
+<!-- Xem trước các bài học tách ra từ MỘT file Word gộp nhiều bài. Hiện danh sách để người soạn kiểm rồi
+     mới tạo: tách sai mà đã tạo thẳng thì họ phải vào xóa từng bài một. Bỏ tick phần nào thì phần đó không
+     thành bài học (hay dùng cho trang bìa và mục lục). -->
+<div class="modal-mask" id="modal-word-split">
+    <div class="modal" style="max-width:640px">
+        <div class="modal-head"><h3>Tách file Word thành nhiều bài học</h3>
+            <button class="close-x" type="button" onclick="closeModal('modal-word-split')">×</button></div>
+        <div class="modal-body">
+            <p class="hint" id="word-split-note" style="margin-top:0"></p>
+            <label class="flex gap-sm" style="align-items:center; margin-bottom:8px; font-weight:600; cursor:pointer">
+                <input type="checkbox" id="word-split-all" checked> Chọn tất cả
+            </label>
+            <div id="word-split-list" class="word-split-list"></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn ghost" type="button" onclick="closeModal('modal-word-split')">Hủy</button>
+            <button class="btn" type="button" id="btn-word-split-confirm">Tạo bài học</button>
+        </div>
+    </div>
+</div>
+
+<!-- Xem trước khi nhập MỘT file Word ngân hàng câu hỏi gộp nhiều bài: mỗi nhóm trong file sẽ đổ vào bài
+     kiểm tra nào, tạo mới hay ghép vào bài đã có. Cho thấy trước vì "tạo mới" là thứ khó lùi: nhập nhầm rồi
+     thì phải xóa từng bài kiểm tra một. -->
+<div class="modal-mask" id="modal-question-split">
+    <div class="modal" style="max-width:680px">
+        <div class="modal-head"><h3>Nhập câu hỏi từ file Word</h3>
+            <button class="close-x" type="button" onclick="closeModal('modal-question-split')">&times;</button></div>
+        <div class="modal-body">
+            <p class="hint" id="question-split-note" style="margin-top:0"></p>
+            <label class="flex gap-sm" style="align-items:center; margin-bottom:8px; font-weight:600; cursor:pointer">
+                <input type="checkbox" id="question-split-all" checked> Chọn tất cả
+            </label>
+            <div id="question-split-list" class="word-split-list"></div>
+            <div id="question-split-warning"></div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn ghost" type="button" onclick="closeModal('modal-question-split')">Hủy</button>
+            <button class="btn" type="button" id="btn-question-split-confirm">Nhập câu hỏi</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-import">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="course-detail.ketQuaNhapLieuTuExcel">Kết quả nhập liệu từ Excel</h3>
+            <button class="close-x" onclick="closeModal('modal-import')">×</button></div>
+        <div class="modal-body" id="import-result"></div>
+        <div class="modal-foot"><button data-i18n="common.close" class="btn" onclick="closeModal('modal-import')">Đóng</button></div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/widgets/video-learning.js"></script>
+<script src="/js/widgets/feedback.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.min.js"></script>
+<script src="/pages/course/course-detail.js"></script>
+</body>
+</html>

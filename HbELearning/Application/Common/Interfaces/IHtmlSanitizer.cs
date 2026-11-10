@@ -6,7 +6,7 @@ namespace HbELearning.Application.Common.Interfaces;
 /// Lọc HTML do người dùng đưa vào trước khi lưu, bỏ những thứ chạy được mã.
 ///
 /// VÌ SAO CẦN: nội dung bài học được lưu nguyên dạng HTML rồi đổ thẳng vào trang học bằng innerHTML
-/// (xem renderLessonBody trong wwwroot/pages/learn.html) — đó là cách duy nhất giữ được bảng, ảnh và định
+/// (xem renderLessonBody trong wwwroot/pages/learning/learn.html) — đó là cách duy nhất giữ được bảng, ảnh và định
 /// dạng của tài liệu nhập từ Word. Nhưng nó cũng có nghĩa: một thẻ &lt;script&gt; lọt vào ô nội dung sẽ
 /// CHẠY trên máy của mọi học viên và mọi quản trị viên mở bài đó, đọc được thẻ đăng nhập họ đang giữ.
 ///

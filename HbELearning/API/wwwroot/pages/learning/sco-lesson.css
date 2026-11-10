@@ -1,0 +1,6 @@
+/* File: wwwroot/pages/learning/sco-lesson.css */
+        /* Khung video bo góc như màn hình học cũ — thanh điều khiển, thanh chương, chú thích đều nằm trong khối này
+           nên KHÔNG ép tỉ lệ 16:9 ở đây (xem ghi chú cũ ở learn.html). */
+        #lesson-video { border-radius: 14px; overflow: hidden; background: #000; margin-bottom: 18px; box-shadow: var(--shadow); }
+        #lesson-video .vl-player { border-radius: inherit; box-shadow: none; }
+        .sco-qlist { margin-bottom: 18px; }

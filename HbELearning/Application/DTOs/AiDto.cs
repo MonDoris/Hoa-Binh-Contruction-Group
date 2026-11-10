@@ -108,3 +108,17 @@ public record AiQuickReplyRequest(
 /// <summary>Kết quả bấm "Thử" trên màn hình cài đặt: câu hỏi mẫu này có khớp dòng nào không, và câu trả lời
 /// người dùng SẼ nhận (đã thay các chỗ giữ chỗ bằng thông tin của chính người đang thử).</summary>
 public record AiQuickReplyTestResult(bool IsMatched, int? Id, string? Keyword, string? Answer);
+
+// ==================== CÂU TRẢ LỜI ĐÃ GHI NHỚ ====================
+
+/// <summary>Một câu trả lời HB Minerva đã ghi nhớ, hiện trong màn hình quản trị. <paramref name="IsEdited"/>: Admin
+/// đã sửa tay, không còn là nguyên văn của model.</summary>
+public record AiAnswerMemoryDto(
+    int Id, string Question, string Answer, int HitCount, bool IsEdited, DateTime CreatedAt, DateTime LastUsedAt);
+
+/// <summary>Danh sách câu đã ghi nhớ: <paramref name="TotalCount"/> là cả bảng, <paramref name="ItemList"/> chỉ là phần
+/// đang hiện (câu được dùng lại nhiều nhất trước).</summary>
+public record AiAnswerMemoryListDto(int TotalCount, int TotalHitCount, List<AiAnswerMemoryDto> ItemList);
+
+/// <summary>Admin sửa lại câu trả lời đã ghi nhớ.</summary>
+public record AiAnswerMemoryUpdateRequest(string Answer);

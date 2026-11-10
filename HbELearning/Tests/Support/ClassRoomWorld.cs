@@ -49,6 +49,10 @@ public sealed class ClassRoomWorld : IDisposable
         services.AddSingleton<IAppPaths>(new TestAppPaths(webRoot));
         services.AddSingleton<IFileService, NullFileService>();
         services.AddSingleton<ICertificateQrCodeGenerator, FakeQrCodeGenerator>();
+        services.AddSingleton<ICertificateReader, NullCertificateReader>();
+        services.AddSingleton<IExternalCertificateVerifyQueue, FakeExternalCertificateVerifyQueue>();
+        services.AddMemoryCache();
+        services.AddLogging();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddScoped<IAppDbContext>(_ => new AppDbContext(options));
         services.AddApplication();
@@ -100,6 +104,8 @@ public sealed class ClassRoomWorld : IDisposable
         Me.UserId = user.Id;
         Me.FullName = user.FullName;
         Me.IsAdmin = user.Id == Admin?.Id;
+        using var db = NewDb();
+        Me.Role = db.User.Where(x => x.Id == user.Id).Select(x => x.Role.Name).Single();
     }
 
     public ClassRoomAttendee Attendee(User user) => new(user.Id, user.FullName, user.Id == Admin.Id);

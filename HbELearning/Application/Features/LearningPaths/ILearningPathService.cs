@@ -2,7 +2,7 @@
 
 namespace HbELearning.Application.Features.LearningPaths;
 
-/// <summary>Cấu trúc khóa học (SCORM Organization). Tầng API gọi qua cổng này (xem API/Controllers/LearningPathController.cs).</summary>
+/// <summary>Cấu trúc khóa học (SCORM Organization). Tầng API gọi qua cổng này (xem API/Controllers/Courses/LearningPathController.cs).</summary>
 public interface ILearningPathService
 {
     /// <summary>Xem cấu trúc khóa học — mở cho mọi cấp duyệt nội dung (Trưởng phòng/Giám Đốc) chứ không chỉ người tạo,

@@ -1,0 +1,56 @@
+<!-- File: wwwroot/pages/report/report.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="report.baoCaoDaoTaoHbELearning">Báo cáo đào tạo · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+
+    <link rel="stylesheet" href="/pages/report/report.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content" style="padding-top: 24px;">
+
+        <!-- Dải chỉ số + phân bố trạng thái (do JS dựng) -->
+        <div id="overview"></div>
+
+        <!-- Thẻ chuyển báo cáo -->
+        <div class="tabs-container">
+            <div class="tabs">
+                <button type="button" class="active" data-tab="course"><i class="ph ph-books"></i> <span data-i18n="report.theoKhoaHoc">Theo khóa học</span></button>
+                <button type="button" data-tab="department"><i class="ph ph-buildings"></i> <span data-i18n="report.theoPhongBan">Theo phòng ban</span></button>
+                <button type="button" data-tab="learner"><i class="ph ph-user"></i> <span data-i18n="report.theoNguoiHoc">Theo người học</span></button>
+            </div>
+        </div>
+
+        <div class="tab-panel active" id="tab-course"></div>
+        <div class="tab-panel" id="tab-department"></div>
+        <div class="tab-panel" id="tab-learner"></div>
+    </div>
+</div>
+
+<!-- Ngăn kéo hồ sơ người học -->
+<div class="drawer-overlay" id="drawer-overlay"></div>
+<div class="drawer-panel" id="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+    <div class="drawer-header">
+        <div id="drawer-user-info"></div>
+        <button type="button" class="close-drawer" id="drawer-close" aria-label="Đóng"><i class="ph ph-x"></i></button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/report/report.js"></script>
+</body>
+</html>

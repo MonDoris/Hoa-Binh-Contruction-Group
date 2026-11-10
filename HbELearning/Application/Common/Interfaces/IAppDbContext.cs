@@ -79,6 +79,7 @@ public interface IAppDbContext
     DbSet<AiChatMessage> AiChatMessage { get; }
     DbSet<AiChatAttachment> AiChatAttachment { get; }
     DbSet<AiQuickReply> AiQuickReply { get; }
+    DbSet<AiAnswerMemory> AiAnswerMemory { get; }
     DbSet<SimAsset> SimAsset { get; }
     DbSet<SimBuiltinScene> SimBuiltinScene { get; }
     DbSet<Translation> Translation { get; }

@@ -1,0 +1,189 @@
+<!-- File: wwwroot/pages/account/account.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script src="/js/head.js"></script>
+    <title data-i18n="account.taiKhoanCuaToiHbELearning">Tài khoản của tôi · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="/pages/account/account.css">
+    
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="acc-layout">            
+            <!-- ================= CỘT TRÁI: SIDEBAR PROFILE ================= -->
+            <aside class="acc-sidebar">
+                <div class="card">
+                    <div class="profile-cover" id="acc-cover">
+                        <label class="acc-cover-edit" title="Đổi ảnh bìa">
+                            <i class="ph ph-camera"></i> Đổi ảnh bìa
+                            <input type="file" id="cover-input" accept=".png,.jpg,.jpeg">
+                        </label>
+                    </div>
+                    <div class="profile-body">
+                        <!-- Avatar -->
+                        <div class="acc-avatar-wrap">
+                            <div class="avatar lg" id="acc-avatar">?</div>
+                            <label class="acc-avatar-edit" data-i18n-title="account.doiAnhDaiDien" title="Đổi ảnh đại diện">
+                                +<input type="file" id="avatar-input" accept=".png,.jpg,.jpeg">
+                            </label>
+                        </div>
+                        <h2 class="profile-name" id="acc-name">—</h2>
+                        <div class="profile-badges">
+                            <span class="badge blue" id="acc-role"></span>
+                            <code id="acc-code"></code>
+                        </div>
+                        <div class="profile-actions">
+                            <button class="btn ghost primary" id="btn-edit">
+                                <i class="ph ph-pencil-simple"></i> Sửa hồ sơ
+                            </button>
+                            <button class="btn ghost" id="btn-password">
+                                <i class="ph ph-lock"></i> Đổi Pass
+                            </button>
+                        </div>
+                        <div class="info-list">
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-envelope-simple"></i></div>
+                                <div class="detail">
+                                    <div class="label">Email</div>
+                                    <div class="val" id="acc-email">—</div>
+                                </div>
+                            </div>
+                            <!-- Chỉ hiện khi quản trị viên đã đặt tên tài khoản cho người này — người chưa có
+                                 vẫn đăng nhập bằng email, bày ra một dòng trống chỉ khiến họ tưởng mình thiếu gì đó. -->
+                            <div class="info-list-item" id="acc-username-row" hidden>
+                                <div class="ico"><i class="ph ph-user-circle"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="user.tenTaiKhoan" class="label">Tên tài khoản</div>
+                                    <div class="val" id="acc-username">—</div>
+                                </div>
+                            </div>
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-device-mobile"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="account.soDienThoai" class="label">Số điện thoại</div>
+                                    <div class="val" id="d-phone">—</div>
+                                </div>
+                            </div>
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-buildings"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="account.phongBan" class="label">Phòng ban</div>
+                                    <div class="val" id="d-department">—</div>
+                                </div>
+                            </div>
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-briefcase"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="account.viTriCongViec" class="label">Vị trí công việc</div>
+                                    <div class="val" id="d-position">—</div>
+                                </div>
+                            </div>
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-calendar-plus"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="account.ngayThamGia" class="label">Ngày tham gia</div>
+                                    <div class="val" id="d-created">—</div>
+                                </div>
+                            </div>
+                            <div class="info-list-item">
+                                <div class="ico"><i class="ph ph-clock-counter-clockwise"></i></div>
+                                <div class="detail">
+                                    <div data-i18n="account.dangNhapGanNhat" class="label">Đăng nhập gần nhất</div>
+                                    <div class="val" id="d-last-login">—</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+            <!-- ================= CỘT PHẢI: NỘI DUNG CHÍNH ================= -->
+            <main class="acc-main">
+                <div id="stat-box"></div>
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card-head">
+                        <h3 data-i18n="account.khoaHocGanDay">Khóa học gần đây</h3>
+                        <a data-i18n="dashboard.viewAll" class="btn ghost sm" href="/pages/my-course/my-course.html">Xem tất cả</a>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th data-i18n="index.stat-course">Khóa học</th>
+                                    <th data-i18n="dashboard.colStatus">Trạng thái</th>
+                                    <th data-i18n="account.tienDo" style="width:190px">Tiến độ</th>
+                                    <th data-i18n="account.hanHoanThanh">Hạn hoàn thành</th>
+                                </tr>
+                            </thead>
+                            <tbody id="course-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-head">
+                        <h3 data-i18n="index.stat-cert">Chứng nhận</h3>
+                        <a data-i18n="dashboard.viewAll" class="btn ghost sm" href="/pages/certificate/certificate.html">Xem tất cả</a>
+                    </div>
+                    <div class="card-body" id="cert-box"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODALS ================= -->
+<div class="modal-mask" id="modal-edit">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 data-i18n="account.chinhSuaHoSo">Chỉnh sửa hồ sơ</h3>
+            <button class="close-x" onclick="closeModal('modal-edit')">×</button>
+        </div>
+        <form id="edit-form">
+            <div class="modal-body">
+                <div class="field"><label data-i18n="account.hoVaTen" for="e-name">Họ và tên *</label><input id="e-name" required maxlength="150"></div>
+                <div class="field"><label data-i18n="account.soDienThoai" for="e-phone">Số điện thoại</label><input id="e-phone" maxlength="20"></div>
+                <div class="field"><label for="e-email">Email</label><input id="e-email" disabled><div data-i18n="account.lienHeQuanTriVienDeThayDoiEmai" class="hint">Liên hệ quản trị viên để thay đổi email</div></div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-edit')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-password">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 data-i18n="account.doiMatKhau">Đổi mật khẩu</h3>
+            <button class="close-x" onclick="closeModal('modal-password')">×</button>
+        </div>
+        <form id="password-form">
+            <div class="modal-body">
+                <div class="field"><label data-i18n="account.matKhauHienTai" for="p-current">Mật khẩu hiện tại *</label><input type="password" id="p-current" required></div>
+                <div class="field"><label data-i18n="account.matKhauMoi" for="p-new">Mật khẩu mới *</label><input type="password" id="p-new" required minlength="8"><div class="hint" id="p-rule">Tối thiểu 8 ký tự, phải có cả chữ và số, không dùng mật khẩu dễ đoán.</div></div>
+                <div class="field"><label data-i18n="account.xacNhanMatKhauMoi" for="p-confirm">Xác nhận mật khẩu mới *</label><input type="password" id="p-confirm" required minlength="8"></div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-password')">Hủy</button>
+                <button data-i18n="account.doiMatKhau" type="submit" class="btn">Đổi mật khẩu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= SCRIPTS ================= -->
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/account/account.js"></script>
+</body>
+</html>

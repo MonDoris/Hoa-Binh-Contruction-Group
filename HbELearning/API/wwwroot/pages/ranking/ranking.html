@@ -1,0 +1,186 @@
+<!-- File: wwwroot/pages/ranking/ranking.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="ranking.xepHangHbELearning">Xếp hạng · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/pages/ranking/ranking.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="tabs">
+            <button class="active" data-tab="mine" id="tab-btn-mine"><i class="ph ph-trophy"></i> <span data-i18n="ranking.cuaToi">Của tôi</span></button>
+            <button data-tab="board"><i class="ph ph-chart-bar"></i> <span data-i18n="ranking.bangXepHang">Bảng xếp hạng</span></button>
+            <button data-tab="top10"><i class="ph ph-medal-military"></i> <span data-i18n="ranking.top10CongTy">Top 10 công ty</span></button>
+            <button data-tab="streak"><i class="ph-fill ph-fire"></i> <span data-i18n="ranking.top20Chuoi">Top 20 chuỗi ngày</span></button>
+            <button data-tab="top5dept" id="tab-btn-top5dept" style="display:none"><i class="ph ph-users-three"></i> <span data-i18n="ranking.top5PhongBan">Top 5 phòng ban</span></button>
+            <button data-tab="manage" id="tab-btn-manage" style="display:none"><i class="ph ph-gear"></i> <span data-i18n="ranking.quanLyBacHang">Quản lý bậc hạng</span></button>
+            <button data-tab="mission" id="tab-btn-mission" style="display:none"><i class="ph ph-target"></i> <span data-i18n="ranking.quanLyNhiemVu">Quản lý nhiệm vụ</span></button>
+        </div>
+        <div class="tab-panel active" id="tab-mine"></div>
+        <div class="tab-panel" id="tab-board"></div>
+        <div class="tab-panel" id="tab-top10"></div>
+        <div class="tab-panel" id="tab-streak"></div>
+        <div class="tab-panel" id="tab-top5dept"></div>
+        <div class="tab-panel" id="tab-manage"></div>
+        <div class="tab-panel" id="tab-mission"></div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-tier">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="ranking.themBacHang" id="tier-title">Thêm bậc hạng</h3>
+            <button class="close-x" onclick="closeModal('modal-tier')">×</button></div>
+        <form id="tier-form">
+            <div class="modal-body">
+                <input type="hidden" id="t-id">
+                <input type="hidden" id="t-icon" required>
+
+                <div class="tier-form-top">
+                    <div class="tier-preview">
+                        <div class="tier-preview-badge" id="t-preview-badge"></div>
+                        <div class="tier-preview-name" id="t-preview-name">—</div>
+                        <div class="tier-preview-point" id="t-preview-point"></div>
+                    </div>
+
+                    <div>
+                        <div class="field">
+                            <label for="t-name" data-i18n="ranking.tenBacHang">Tên bậc hạng *</label>
+                            <input id="t-name" required maxlength="50" placeholder="Bronze">
+                        </div>
+                        <div class="row">
+                            <div class="field">
+                                <label for="t-minpoints" data-i18n="ranking.diemToiThieu">Điểm tối thiểu *</label>
+                                <input type="number" id="t-minpoints" required min="0" step="1" value="0">
+                            </div>
+                            <div class="field">
+                                <label for="t-order" data-i18n="ranking.thuTuHienThi">Thứ tự hiển thị</label>
+                                <input type="number" id="t-order" value="0" step="1">
+                                <div class="hint" data-i18n="ranking.soNhoHonHienThiTruocCoTheDeGio">Số nhỏ hơn hiển thị trước. Có thể để giống nhau, hệ thống luôn sắp theo điểm tối thiểu.</div>
+                            </div>
+                        </div>
+                        <div class="field" style="margin-bottom:0">
+                            <label for="t-color" data-i18n="ranking.mauChuDao">Màu chủ đạo *</label>
+                            <div class="tier-swatch-row" id="t-swatch-row">
+                                <input type="color" class="tier-color-custom" id="t-color" required value="#cd7f32"
+                                       data-i18n-title="ranking.chonMauKhac" title="Chọn màu khác">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="field mt">
+                    <label for="t-icon-search" data-i18n="ranking.bieuTuong">Biểu tượng *</label>
+                    <div class="tier-icon-head">
+                        <div class="tier-icon-search">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input id="t-icon-search" maxlength="40" autocomplete="off"
+                                   data-i18n-ph="ranking.timBieuTuong" placeholder="Tìm emoji: cúp, sao, lửa, học...">
+                        </div>
+                    </div>
+                    <div class="tier-icon-tabs" id="t-icon-tabs"></div>
+                    <div class="tier-icon-grid" id="t-icon-grid"></div>
+                    <div class="tier-icon-name" id="t-icon-name"></div>
+                </div>
+
+                <div class="field">
+                    <label for="t-reward" data-i18n="ranking.moTaPhanThuong">Mô tả phần thưởng</label>
+                    <input id="t-reward" maxlength="300" data-i18n-ph="ranking.vdVoucherHighlandCoffee50000d"
+                           placeholder="VD: Voucher Highland Coffee 50.000đ">
+                    <div class="hint" data-i18n="ranking.moTaPhanThuongHint">Câu chữ này hiện cho người học khi họ đạt bậc hạng. Để trống nếu bậc này chưa có phần thưởng.</div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-tier')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-code">
+    <div class="modal wide">
+        <div class="modal-head"><h3 data-i18n="ranking.khoMaVoucher" id="code-title">Kho mã voucher</h3>
+            <button class="close-x" onclick="closeModal('modal-code')">×</button></div>
+        <div class="modal-body">
+            <div class="field">
+                <label for="c-codes" data-i18n="ranking.themMaMoiMoiDong1Ma">Thêm mã mới (mỗi dòng 1 mã)</label>
+                <textarea id="c-codes" rows="4" class="code-pool-textarea" placeholder="HL-2026-0001&#10;HL-2026-0002&#10;HL-2026-0003"></textarea>
+            </div>
+            <button data-i18n="ranking.themVaoKho" type="button" class="btn sm w-auto" id="btn-add-code">+ Thêm vào kho</button>
+            <div class="table-wrap" style="margin-top:18px"><table>
+                <thead><tr><th data-i18n="organization.ma">Mã</th><th data-i18n="dashboard.colStatus">Trạng thái</th><th data-i18n="ranking.nguoiNhan">Người nhận</th><th data-i18n="certificate.ngayCap">Ngày cấp</th><th class="text-right"></th></tr></thead>
+                <tbody id="code-tbody"></tbody>
+            </table></div>
+        </div>
+        <div class="modal-foot"><button data-i18n="common.close" type="button" class="btn ghost" onclick="closeModal('modal-code')">Đóng</button></div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-mission">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="ranking.themNhiemVu" id="mission-title">Thêm nhiệm vụ</h3>
+            <button class="close-x" onclick="closeModal('modal-mission')">×</button></div>
+        <form id="mission-form">
+            <div class="modal-body">
+                <input type="hidden" id="m-id">
+
+                <div class="field">
+                    <label for="m-label" data-i18n="ranking.tenNhiemVu">Tên nhiệm vụ *</label>
+                    <input id="m-label" required maxlength="200" data-i18n-ph="ranking.vdHocXong5BaiHoc" placeholder="VD: Học xong 5 bài học">
+                    <div class="hint" data-i18n="ranking.tenNhiemVuHint">Đây là câu chữ người học đọc thấy. Hệ thống không tự ghép số vào, hãy tự viết chỉ tiêu vào tên cho khớp.</div>
+                </div>
+
+                <div class="row">
+                    <div class="field">
+                        <label for="m-reason" data-i18n="ranking.hoatDongDuocDem">Hoạt động được đếm *</label>
+                        <select id="m-reason" required></select>
+                    </div>
+                    <div class="field">
+                        <label for="m-target" data-i18n="ranking.chiTieuTuan">Chỉ tiêu mỗi tuần *</label>
+                        <input type="number" id="m-target" required min="1" max="999" step="1" value="1">
+                    </div>
+                    <div class="field">
+                        <label for="m-reward" data-i18n="ranking.diemThuongKhiXong">Điểm thưởng khi xong *</label>
+                        <input type="number" id="m-reward" required min="0" max="9999" step="1" value="10">
+                    </div>
+                    <div class="field">
+                        <label for="m-order" data-i18n="ranking.thuTuHienThi">Thứ tự hiển thị</label>
+                        <input type="number" id="m-order" value="0" step="1">
+                    </div>
+                </div>
+                <div class="hint" data-i18n="ranking.diemThuongHint">Điểm thưởng cộng MỘT lần khi làm đủ chỉ tiêu trong tuần, do bạn đặt. Điểm của từng hoạt động lẻ (số trong ngoặc ở ô hoạt động) vẫn cộng như thường, không thay đổi. Để 0 nếu muốn nhiệm vụ chỉ để theo dõi, không kèm thưởng.</div>
+
+                <label class="check"><input type="checkbox" id="m-active" checked>
+                    <span data-i18n="ranking.dangHienChoNguoiHoc">Đang hiện cho người học</span></label>
+                <div class="hint" data-i18n="ranking.tatNhiemVuHint">Tắt thì nhiệm vụ biến khỏi trang Tổng quan nhưng vẫn giữ nguyên đề bài, bật lại lúc nào cũng được.</div>
+
+                <div class="field mt">
+                    <label data-i18n="ranking.nguoiHocSeThay">Người học sẽ thấy</label>
+                    <div class="card" style="padding:12px 14px"><div id="m-preview"></div></div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-mission')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/ranking/ranking.js"></script>
+</body>
+</html>

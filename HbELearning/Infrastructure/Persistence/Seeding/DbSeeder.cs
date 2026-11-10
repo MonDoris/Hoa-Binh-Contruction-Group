@@ -300,7 +300,7 @@ public static class DbSeeder
     /// <summary>Đưa các bối cảnh 3D dựng sẵn bằng code vào Thư viện 3D thành mục chính thức.
     ///
     /// Trước đây "công trường xây dựng" và "văn phòng phòng Nhân sự" chỉ là hai key cứng nằm trong
-    /// wwwroot/js/sim-registry.js: mở màn hình Thư viện 3D thì thấy trống trơn dù hệ thống đang có sẵn hai
+    /// wwwroot/js/sim/sim-registry.js: mở màn hình Thư viện 3D thì thấy trống trơn dù hệ thống đang có sẵn hai
     /// không gian dùng được, và muốn đổi tên hiển thị thì phải sửa mã nguồn rồi build lại. Có bản ghi ở đây
     /// thì chúng đứng ngang hàng với tệp tải lên: xem trước được, đổi tên/mô tả được, đặt được ảnh bìa.
     ///
@@ -311,7 +311,7 @@ public static class DbSeeder
     /// người quản trị đã sửa trong thư viện.</summary>
     private static async Task SeedBuiltinSimSceneAsync(AppDbContext db)
     {
-        // SceneKey phải khớp SIM_SCENE_MAP trong wwwroot/js/sim-registry.js và SceneKeyList trong
+        // SceneKey phải khớp SIM_SCENE_MAP trong wwwroot/js/sim/sim-registry.js và SceneKeyList trong
         // Controllers/ScenarioService.cs — thiếu mã dựng cảnh thì bản ghi ở đây chỉ dẫn tới màn hình đen.
         // "custom" (bối cảnh tự tải lên) KHÔNG có mặt: nó không phải một không gian, mà là cách để người soạn
         // bài dùng chính tệp trong thư viện làm bối cảnh.

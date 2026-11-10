@@ -5,7 +5,7 @@ namespace HbELearning.Domain.Entities;
 
 /// <summary>Một đoạn nội dung của video bài học: từ giây A tới giây B là chương/mục nào, thuộc chủ đề nào.
 /// Trình phát dựa vào đây để báo cho học viên biết đoạn đang xem nói về cái gì — xem
-/// wwwroot/js/video-learning.js.
+/// wwwroot/js/widgets/video-learning.js.
 ///
 /// Vì sao lưu cả StartSecond lẫn EndSecond thay vì chỉ lưu mốc bắt đầu rồi suy đoạn kết thúc từ chương kế
 /// tiếp: video thường có đoạn dẫn nhập, đoạn nghỉ chuyển cảnh hay lời chào cuối không thuộc chương nào cả.

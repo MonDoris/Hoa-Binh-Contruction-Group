@@ -31,7 +31,7 @@ public class SimAssetService : ISimAssetService
 
     /// <summary>Loại quy ước của bối cảnh dựng sẵn trong danh sách thư viện. KHÔNG nằm trong
     /// <see cref="AssetTypeList"/>: đây không phải một loại tệp và không ai tải lên được nó — chỉ là nhãn để
-    /// giao diện lọc và hiển thị. Phải khớp giá trị 'builtin' dùng trong wwwroot/pages/sim-library.html.</summary>
+    /// giao diện lọc và hiển thị. Phải khớp giá trị 'builtin' dùng trong wwwroot/pages/sim-library/sim-library.html.</summary>
     private const string BuiltinAssetType = "builtin";
 
     /// <summary>Đuôi tệp chấp nhận cho từng loại. Kiểm ở đây chứ không chỉ dựa vào Upload:AllowedExtension:
@@ -44,7 +44,7 @@ public class SimAssetService : ISimAssetService
         ["pano-video"] = [".mp4", ".webm"],
         ["image-2d"] = [".jpg", ".jpeg", ".png", ".webp", ".gif"],
         // Nhân vật chỉ nhận .glb/.gltf, hẹp hơn bối cảnh: trình dựng nhân vật đọc bằng GLTFLoader và cần
-        // đọc được bộ xương cùng các đoạn animation trong tệp (xem js/sim-characters.js). Tệp .fbx/.obj
+        // đọc được bộ xương cùng các đoạn animation trong tệp (xem js/sim/sim-characters.js). Tệp .fbx/.obj
         // tải lên sẽ qua vòng kiểm nhưng tới lúc dựng cảnh mới hỏng, lúc đó không ai biết vì sao.
         [CharacterAssetType] = [".glb", ".gltf"],
     };

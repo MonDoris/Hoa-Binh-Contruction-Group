@@ -1,0 +1,117 @@
+/* File: wwwroot/pages/course/course-detail.css */
+        /* Khối "AI bám sát tài liệu công ty" trong hộp thoại bài học — chỉ dùng ở trang này nên để tại chỗ. */
+        .sn-library-row { display: flex; gap: 8px; align-items: center; }
+        .sn-library-row select { flex: 1; }
+
+        /* Khung xem trước 3D ngay trong hộp thoại soạn mô phỏng: chọn một mục trong Thư viện 3D là thấy
+           luôn không gian đó, thay vì phải mở tab thư viện rồi quay lại. Thấp hơn khung đặt tọa độ
+           (.sim-pick-wrap) vì đây chỉ để NHẬN RA cảnh, không phải để thao tác trên cảnh. */
+        .sn-preview {
+            position: relative; margin-top: 10px; width: 100%; height: min(230px, 32vh);
+            overflow: hidden; border-radius: 10px; border: 1px solid var(--border); background: #0f172a;
+        }
+        .sn-preview canvas { display: block; width: 100%; height: 100%; }
+        .sn-preview-msg {
+            position: absolute; inset: 0; z-index: 2; display: flex; gap: 10px; padding: 16px;
+            align-items: center; justify-content: center; text-align: center;
+            color: #cbd5e1; font-size: 12.5px; background: #0f172a;
+        }
+        .sn-preview-msg.warn { color: #fca5a5; }
+        .sn-preview-reset {
+            position: absolute; right: 8px; bottom: 8px; z-index: 3;
+            border: 1px solid rgba(226, 232, 240, .28); background: rgba(15, 23, 42, .72);
+            color: #e2e8f0; border-radius: 8px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;
+        }
+        .sn-preview-reset:hover { background: rgba(15, 23, 42, .92); }
+
+        /* Khối soạn bài bằng AI: một thẻ có viền, tách hẳn khỏi các ô nhập liệu bắt buộc của bài học. */
+        .ai-box {
+            margin: 4px 0 18px; padding: 14px 16px;
+            border: 1px solid var(--border); border-radius: 12px; background: var(--primary-soft, #f8fafc);
+        }
+        .ai-box-head { display: flex; gap: 10px; align-items: flex-start; }
+        .ai-box-head .hint { margin-top: 3px; }
+        .ai-box-title { font-size: 13.5px; font-weight: 600; }
+        .ai-box-icon {
+            flex: none; width: 28px; height: 28px; border-radius: 8px;
+            display: grid; place-items: center; font-size: 15px;
+            background: var(--primary-light); color: var(--primary-dark);
+        }
+        /* Xuống dòng được: ba ô này trên màn hình hẹp mà ép cùng một hàng thì ô chủ đề co lại còn vài chữ. */
+        .ai-box-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .ai-box-row #l-ai-topic { flex: 1 1 260px; min-width: 0; }
+        .ai-box-row #l-ai-length { flex: 0 1 190px; }
+        .ai-box-row .btn { flex: none; white-space: nowrap; }
+
+        .ai-doc-toggle { margin-top: 12px; }
+        .ai-doc-toggle i { color: var(--primary); }
+        .ai-doc-status { line-height: 1.7; }
+        /* Bài nhập từ Word sửa thẳng trên bản xem trước: viền nhấn khi đang gõ để người soạn biết đó là chỗ sửa được. */
+        #l-word-doc-preview [contenteditable="true"] { cursor: text; outline: none; }
+        #l-word-doc-preview [contenteditable="true"]:focus { box-shadow: 0 0 0 2px var(--primary); }
+
+        /* Thanh định dạng của bản xem trước Word — dính mép trên vùng cuộn của hộp thoại để bài dài vẫn với tới.
+           Ghi đè ô select/input toàn cục (width 100%, padding 9px) vì ở đây chúng là nút nhỏ trên một hàng. */
+        /* top âm = đúng bằng padding của .modal-body (22px, 16px ở màn hẹp): sticky tính mốc từ mép trong của
+           padding nên top: 0 sẽ để hở một dải 22px phía trên thanh cho chữ chạy lòi ra. */
+        .wd-toolbar {
+            position: sticky; top: -22px; z-index: 5;
+            display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+            margin-bottom: 10px; padding: 6px;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, .08); user-select: none;
+        }
+        .wd-toolbar .wd-btn {
+            position: relative; display: inline-flex; align-items: center; justify-content: center;
+            width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px;
+            background: transparent; color: var(--text); font-size: 17px; cursor: pointer;
+        }
+        .wd-toolbar .wd-btn:hover { background: var(--bg); }
+        .wd-toolbar .wd-btn.active { background: var(--primary); color: #fff; }
+        .wd-toolbar .wd-select { width: auto; height: 30px; padding: 0 28px 0 8px; font-size: 12.5px; background-position: right 8px center; }
+        .wd-toolbar .wd-sep { width: 1px; height: 20px; margin: 0 4px; background: var(--border); }
+        /* Ô chọn màu: input thật phủ trong suốt lên cả nút nên bấm vào đâu cũng mở bảng màu; thanh màu bên dưới
+           biểu tượng cho thấy màu đang chọn. */
+        .wd-toolbar .wd-btn input[type="color"] {
+            position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; opacity: 0; cursor: pointer;
+        }
+        .wd-toolbar .wd-color-bar { position: absolute; left: 6px; right: 6px; bottom: 3px; height: 3px; border-radius: 2px; pointer-events: none; }
+        @media (max-width: 900px) { .wd-toolbar { top: -16px; } }
+        .ai-draft {
+            margin-top: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 13px;
+            line-height: 1.55;
+            opacity: .75;
+            border-left: 2px solid var(--border, #ddd);
+            padding-left: 10px;
+        }
+        .ai-progress {
+            margin-top: 10px; padding: 9px 12px; border-radius: 8px;
+            background: var(--surface); border: 1px dashed var(--primary);
+            font-size: 12.5px; line-height: 1.6;
+        }
+
+        /* Ô soạn nội dung cao hơn mặc định: một bài học đầy đủ dài cả nghìn từ, khung 160px bắt người
+           soạn cuộn trong một khung bé xíu nằm giữa hộp thoại cũng đang cuộn. */
+        #l-content-editor .ql-container.ql-snow { min-height: 300px; max-height: 46vh; overflow-y: auto; }
+
+        .ai-source-box {
+            margin-top: 12px; padding: 10px 12px;
+            border: 1px solid var(--border); border-left: 3px solid var(--primary);
+            border-radius: 8px; background: var(--primary-light, #f6f8fc);
+        }
+        .ai-source-head { font-size: 12.5px; font-weight: 600; margin-bottom: 8px; }
+        .ai-source-item { font-size: 12.5px; padding: 4px 0; border-top: 1px dashed var(--border); }
+        .ai-source-item:first-of-type { border-top: none; }
+        .ai-source-item > summary { cursor: pointer; line-height: 1.5; }
+        /* Đoạn trích nguyên văn: giới hạn chiều cao để một tài liệu dài không đẩy nút "Lưu bài học"
+           xuống ngoài tầm nhìn của hộp thoại. */
+        .ai-source-text {
+            margin: 6px 0 8px 18px; padding: 8px 10px;
+            max-height: 180px; overflow: auto;
+            background: var(--bg, #fff); border-radius: 6px;
+            font-size: 12px; line-height: 1.6; white-space: pre-wrap;
+        }

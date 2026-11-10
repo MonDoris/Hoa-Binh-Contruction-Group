@@ -48,9 +48,14 @@ public interface IAiContentService
     ///
     /// Truyền cả TÊN lẫn MÃ ngôn ngữ (vi-VN, ja-JP): tên hiển thị được đặt bằng chính tiếng đó ("日本語"),
     /// mà model chạy nội bộ nhìn mấy chữ Hán trong tên là dịch nhầm sang tiếng Trung — mã ngôn ngữ theo
-    /// chuẩn là thứ duy nhất không mập mờ.</summary>
+    /// chuẩn là thứ duy nhất không mập mờ.
+    ///
+    /// <para><paramref name="exampleList"/> là các cặp câu người thật đã duyệt — model bám theo đó mà dùng
+    /// đúng thuật ngữ công ty đã chốt.</para></summary>
     Task<Dictionary<string, string>> TranslateUiTextAsync(
         string sourceLanguageName, string sourceLanguageTag,
         string targetLanguageName, string targetLanguageTag,
-        IReadOnlyList<UiTextToTranslateDto> itemList, CancellationToken cancellationToken = default);
+        IReadOnlyList<UiTextToTranslateDto> itemList,
+        IReadOnlyList<UiTranslationExampleDto>? exampleList = null,
+        CancellationToken cancellationToken = default);
 }

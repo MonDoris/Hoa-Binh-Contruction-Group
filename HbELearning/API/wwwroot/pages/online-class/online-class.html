@@ -1,0 +1,125 @@
+<!-- File: wwwroot/pages/online-class/online-class.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="online-class.phongHocOnlineHbELearning">Phòng học online · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/pages/online-class/online-class.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="tabs" id="oc-tabs">
+            <button type="button" class="active" data-tab="list"><i class="ph ph-video-camera"></i> <span data-i18n="online-class.tabBuoiHoc">Buổi học</span></button>
+            <button type="button" data-tab="history"><i class="ph ph-clock-counter-clockwise"></i> <span data-i18n="online-class.tabLichSu">Lịch sử</span></button>
+        </div>
+
+        <div class="tab-panel active" id="tab-list">
+            <section class="oc-section" id="oc-live-section" hidden>
+                <h3 class="oc-head"><i class="ph-fill ph-broadcast" style="color:var(--danger)"></i> <span data-i18n="online-class.secDangDienRa">Đang diễn ra</span> <span class="badge red" id="oc-live-count"></span></h3>
+                <div class="oc-grid" id="oc-live-grid"></div>
+            </section>
+
+            <section class="oc-section" id="oc-upcoming-section">
+                <h3 class="oc-head"><i class="ph-fill ph-calendar-dots" style="color:var(--primary)"></i> <span data-i18n="online-class.secSapDienRa">Sắp diễn ra</span> <span class="badge blue" id="oc-upcoming-count"></span></h3>
+                <div class="oc-grid" id="oc-upcoming-grid"></div>
+            </section>
+
+            <details class="oc-section oc-fold" id="oc-cancelled-section" hidden>
+                <summary><span data-i18n="online-class.secDaHuy">Đã hủy</span> <span class="badge gray" id="oc-cancelled-count"></span></summary>
+                <div class="oc-grid" id="oc-cancelled-grid"></div>
+            </details>
+        </div>
+
+        <div class="tab-panel" id="tab-history">
+            <div class="card hist-filters" role="search">
+                <label class="hist-search"><span class="lbl" data-i18n="online-class.histTimKiem">Tìm kiếm</span>
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="search" id="hist-keyword" data-i18n-ph="online-class.histSearch" placeholder="Tìm theo tên buổi học hoặc người chủ trì..."></label>
+                <div class="field"><label class="lbl" for="hist-from" data-i18n="online-class.histFrom">Từ ngày</label><input type="date" id="hist-from"></div>
+                <div class="field"><label class="lbl" for="hist-to" data-i18n="online-class.histTo">Đến ngày</label><input type="date" id="hist-to"></div>
+                <label class="hist-check"><input type="checkbox" id="hist-mine"> <span data-i18n="online-class.histOnlyMine">Chỉ buổi của tôi</span></label>
+                <button type="button" class="btn ghost sm" id="hist-reset" style="margin-bottom:6px"><i class="ph ph-x"></i> <span data-i18n="online-class.histReset">Xóa bộ lọc</span></button>
+            </div>
+            <div class="hist-count" id="hist-count" role="status" aria-live="polite"></div>
+            <div class="oc-grid" id="hist-grid"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-room">
+    <div class="modal">
+        <div class="modal-head">
+            <div class="room-modal-head">
+                <div class="room-modal-icon"><i class="ph ph-video-camera"></i></div>
+                <div>
+                    <h3 data-i18n="online-class.taoBuoiHocOnline" id="modal-title">Tạo buổi học online</h3>
+                    <p data-i18n="online-class.aiCungTaoDuocDungDeHopNhomHoac">Ai cũng tạo được — dùng để họp nhóm hoặc trò chuyện nhanh.</p>
+                </div>
+            </div>
+            <button class="close-x" type="button" onclick="closeModal('modal-room')" aria-label="Đóng">×</button>
+        </div>
+        <form id="room-form">
+            <div class="modal-body">
+                <input type="hidden" id="f-id">
+                <div class="field"><label for="f-title" data-i18n="online-class.tieuDe">Tiêu đề *</label><input id="f-title" required maxlength="250" data-i18n-ph="online-class.vdHopNhomTuanTraoDoiDuAn" placeholder="VD: Họp nhóm tuần, Trao đổi dự án..."></div>
+                <div class="row">
+                    <div class="field"><label for="f-start" data-i18n="online-class.batDau">Bắt đầu *</label><input type="datetime-local" id="f-start" required></div>
+                    <div class="field"><label for="f-end" data-i18n="online-class.ketThucDuKien">Kết thúc dự kiến</label><input type="datetime-local" id="f-end"></div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-room')">Hủy</button>
+                <button data-i18n="online-class.batDauNgay" type="button" class="btn success" id="btn-start-now">Bắt đầu ngay</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-join-code">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-head">
+            <div class="join-head">
+                <div class="join-icon"><i class="ph ph-keyhole"></i></div>
+                <div>
+                    <h3 data-i18n="online-class.nhapMaPhong">Nhập mã phòng</h3>
+                    <p data-i18n="online-class.nhapMaPhongDoNguoiChuTriCungCa">Nhập mã phòng do người chủ trì cung cấp:</p>
+                </div>
+            </div>
+            <button class="close-x" type="button" onclick="closeModal('modal-join-code')" aria-label="Đóng">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="otp-hint" data-i18n="online-class.maGom6ChuSo">Mã gồm 6 chữ số. Nhập xong sẽ tự vào phòng.</div>
+            <div class="otp-boxes" id="otp-boxes" role="group" aria-label="Mã phòng 6 chữ số" data-i18n-aria-label="online-class.maPhong6ChuSo">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 1 của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 2 của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 3 của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 4 của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 5 của mã phòng">
+                <input class="otp-box" maxlength="1" autocomplete="off" spellcheck="false" inputmode="numeric" pattern="[0-9]*" aria-label="Chữ số 6 của mã phòng">
+            </div>
+            <div class="otp-error" id="otp-error" role="alert"></div>
+        </div>
+        <div class="modal-foot">
+            <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-join-code')">Hủy</button>
+            <button type="button" class="btn" id="btn-join-code-submit"><i class="ph ph-sign-in"></i> <span data-i18n="online-class.vaoPhong">Vào phòng</span></button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/online-class/online-class.js"></script>
+</body>
+</html>

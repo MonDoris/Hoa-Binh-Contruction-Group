@@ -1,0 +1,813 @@
+// File: wwwroot/pages/dashboard/dashboard.js
+(async function () {
+    // Chờ /locales/*.json tải xong rồi mới dựng giao diện — t() là hàm đồng bộ.
+    await Lang.ready;
+
+    if (!Auth.require()) return;
+    mountLayout('dashboard', t('menu.dashboard', 'Tổng quan'), `${greeting()}, ${Auth.profile.fullName}`);
+
+    // Khai báo TRƯỚC lời gọi render bên dưới. Đặt xuống cạnh discoverHtml() cho gần chỗ dùng thì đẹp mắt
+    // hơn, nhưng renderLearner() chạy ngay ở dòng dưới đây — lúc đó một "let" nằm phía sau vẫn còn trong
+    // Temporal Dead Zone và đọc vào là lỗi "Cannot access before initialization".
+    let cardDataList = [];
+    // Số liệu đang vẽ của khung "Mức độ hoàn thành" + dạng xem đang chọn ("chart" | "table"). Cùng lý do với
+    // cardDataList: trendPanelHtml() gán vào đây ngay trong lượt render đầu tiên.
+    let trendData = null;
+    let trendView = 'chart';
+
+    const content = document.getElementById('content');
+    content.innerHTML = skeletonHtml('stats', { count: 4 }) + skeletonHtml('cards', { count: 6 });
+
+    try {
+        // Trưởng Nhóm vừa soạn nội dung vừa là người được giao khóa để học, nên đi nhánh riêng: giữ
+        // nguyên bố cục của học viên rồi kẹp thêm phần quản lý. Admin và Tổng Giám Đốc không có lộ trình
+        // học của riêng mình nên vẫn chỉ thấy số liệu.
+        content.innerHTML = Auth.isContentAuthor
+            ? await renderTrainer()
+            : (Auth.isAdmin || Auth.isManagingDirector)
+                ? await renderManager()
+                : await renderLearner();
+        bindCourseFilter();
+        bindSelfEnroll();
+        bindTrendPanel();
+        // Nút Duyệt / Từ chối trong khối "Khóa học chờ bạn duyệt" dùng chung bộ xử lý với trang Quản lý
+        // khóa học. Duyệt xong thì dựng lại cả trang: khóa vừa duyệt phải rời khỏi danh sách chờ, mà nó
+        // cũng có thể vừa được xuất bản và xuất hiện ở phần khóa học có thể học bên dưới.
+        bindCourseWorkflowButtons(content, () => location.reload());
+    } catch (ex) {
+        content.innerHTML = emptyHtml(ex.message, '<i class="ph ph-warning"></i>');
+    }
+
+    function greeting() {
+        const hour = new Date().getHours();
+        if (hour >= 6 && hour < 12) return t('greeting.morning', 'Chào buổi sáng');
+        if (hour >= 12 && hour < 14) return t('greeting.noon', 'Chào buổi trưa');
+        if (hour >= 14 && hour < 18) return t('greeting.afternoon', 'Chào buổi chiều');
+        if (hour >= 18 && hour < 24) return t('greeting.evening', 'Chào buổi tối');
+        return t('greeting.night', 'Chúc bạn ngủ ngon');
+    }
+
+    // ==================== NGƯỜI HỌC ====================
+    async function renderLearner() {
+        // Gọi song song và cho phép hỏng lẻ: mỗi ô là một mảng độc lập, một API lỗi không được kéo cả
+        // trang xuống trạng thái lỗi.
+        const [enrollmentList, availableList, dashboard, rankStatus, leaderboard, pendingApprovalList] = await Promise.all([
+            API.get('/enrollment/my'),
+            API.getSilent('/course/my-available').catch(() => []),
+            API.getSilent('/dashboard/learner').catch(() => null),
+            API.getSilent('/ranking/me').catch(() => null),
+            API.getSilent('/ranking/leaderboard?top=4').catch(() => []),
+            loadPendingApprovalList(),
+        ]);
+
+        return `<div class="dash-layout">
+            <div>
+                ${pendingApprovalHtml(pendingApprovalList)}
+                ${heroHtml(enrollmentList, rankStatus)}
+                ${discoverHtml(enrollmentList, availableList)}
+            </div>
+            <aside class="dash-side">
+                ${missionHtml(dashboard)}
+                ${streakHtml(dashboard)}
+                ${leaderboardHtml(leaderboard)}
+            </aside>
+        </div>`;
+    }
+
+    // ---------- Khóa học đang chờ chính người này duyệt ----------
+    //
+    // Trưởng phòng và Giám Đốc là người ĐI DUYỆT nhưng trang Tổng quan của họ vốn chỉ có phần người học —
+    // muốn biết có gì đang chờ mình thì phải tự nhớ mà mở trang Quản lý khóa học. Việc chờ duyệt là việc
+    // chặn người khác: khóa học nằm im ở đó thì học viên không được giao bài, nên nó phải nằm ngay đầu
+    // trang đầu tiên họ nhìn thấy sau khi đăng nhập.
+
+    /** Khóa học ở trạng thái chờ duyệt mà CHÍNH người đang đăng nhập được duyệt.
+     *
+     *  Lọc bằng canApproveCourse() dùng chung với trang Quản lý khóa học chứ không tự đoán lại theo vai trò:
+     *  luồng cấp duyệt do Admin định nghĩa có thể giao một bước cho phòng ban khác hẳn phòng ban người tạo,
+     *  đoán theo vai trò là kê ra những khóa mở vào không bấm được gì. */
+    async function loadPendingApprovalList() {
+        // Người soạn nội dung và Admin không nằm trong chuỗi duyệt — khỏi gọi API cho một khối chắc chắn rỗng.
+        if (Auth.isAdmin || Auth.isContentAuthor) return { courseList: [], hrDepartmentId: null };
+
+        try {
+            const [result, departmentList] = await Promise.all([
+                API.getSilent('/course?page=1&pageSize=100'),
+                API.getSilent('/department').catch(() => []),
+            ]);
+            const hrDepartmentId = departmentList.find(d => d.isHrDepartment)?.id ?? null;
+
+            return {
+                courseList: (result?.item || []).filter(c => canApproveCourse(c, hrDepartmentId)),
+                hrDepartmentId
+            };
+        } catch {
+            // Hỏng phần này thì bỏ qua cả khối, không kéo cả trang Tổng quan xuống trạng thái lỗi.
+            return { courseList: [], hrDepartmentId: null };
+        }
+    }
+
+    function pendingApprovalHtml({ courseList, hrDepartmentId }) {
+        // Không có gì chờ thì không hiện khối rỗng: với người vài tuần mới có một khóa cần duyệt, một ô
+        // "chưa có gì" thường trực chỉ chiếm chỗ của phần họ thật sự dùng hằng ngày.
+        if (!courseList.length) return '';
+
+        const rowHtml = courseList.map(c => `
+            <tr>
+                <td><a href="/pages/course/course-detail.html?id=${c.id}"><b>${esc(c.title)}</b></a>
+                    <div class="small muted">${esc(c.code)} · ${esc(t('course.nguoiTao', 'Người tạo'))}: ${esc(c.createdByName)}</div></td>
+                <td>${statusBadge(c.status)}
+                    ${c.approvalWorkflowName ? `<div class="small muted">${esc(pendingStepLabel(c))}</div>` : ''}</td>
+                <td class="small nowrap">${formatDate(c.createdAt)}</td>
+                <td class="text-right nowrap">${courseWorkflowActionsHtml(c, hrDepartmentId)}</td>
+            </tr>`).join('');
+
+        return `<section class="card mb">
+            <div class="card-head">
+                <h3><i class="ph-fill ph-stamp"></i> ${esc(t('dashboard.pendingApprovalTitle', 'Khóa học chờ bạn duyệt'))}
+                    <span class="badge orange">${courseList.length}</span></h3>
+                <a class="btn ghost sm" href="/pages/course/course.html">
+                    ${esc(t('menu.course', 'Quản lý khóa học'))} <i class="ph-bold ph-arrow-right"></i></a>
+            </div>
+            <div class="table-wrap"><table>
+                <thead><tr>
+                    <th>${esc(t('dashboard.colCourse', 'Khóa học'))}</th>
+                    <th>${esc(t('dashboard.colStatus', 'Trạng thái'))}</th>
+                    <th>${esc(t('course.ngayGui', 'Ngày gửi'))}</th>
+                    <th class="text-right">${esc(t('course.thaoTac', 'Thao tác'))}</th>
+                </tr></thead>
+                <tbody>${rowHtml}</tbody>
+            </table></div>
+        </section>`;
+    }
+
+    /** Tên bước đang chờ của khóa học chạy theo luồng cấp duyệt — "Bước 2/3: Giám Đốc IT duyệt". */
+    function pendingStepLabel(course) {
+        const stepNameList = course.approvalStepNameList || [];
+        const stepName = stepNameList[course.currentStepOrder - 1];
+
+        return stepName
+            ? `${course.approvalWorkflowName} · ${t('dashboard.stepOfTotal', 'Bước {current}/{total}', { current: course.currentStepOrder, total: stepNameList.length })}: ${stepName}`
+            : course.approvalWorkflowName;
+    }
+
+    // ---------- Hero "Tiếp tục học" ----------
+    function heroHtml(enrollmentList, rankStatus) {
+        // Khóa đang học dở, ưu tiên cái sắp tới hạn nhất — đó là việc cần làm trước, không phải cái mới nhận.
+        const current = enrollmentList
+            .filter(x => x.status !== 'Completed' && x.status !== 'Cancelled')
+            .sort((a, b) => (a.dueDate ? new Date(a.dueDate) : Infinity) - (b.dueDate ? new Date(b.dueDate) : Infinity))[0];
+
+        if (!current) {
+            return `<div class="dash-hero">
+                <div class="dash-hero-main">
+                    <span class="dash-hero-tag"><i class="ph-fill ph-confetti"></i> ${esc(t('dashboard.heroDoneTag', 'Không còn việc tồn'))}</span>
+                    <h2>${esc(t('dashboard.heroDoneTitle', 'Bạn đã học xong mọi khóa được giao'))}</h2>
+                    <div class="where">${esc(t('dashboard.heroDoneSub', 'Xem danh sách khóa học phù hợp bên dưới để học thêm.'))}</div>
+                </div>
+            </div>`;
+        }
+
+        const percent = Math.round(Number(current.progressPercent) || 0);
+        // Vòng tròn bên phải hiện tiến độ tới CẤP BẬC kế tiếp nếu có; chưa có dữ liệu xếp hạng thì hiện
+        // lại chính tiến độ khóa học, thay vì để một ô trống.
+        const ringPercent = rankStatus?.nextTier ? Math.round(Number(rankStatus.progressPercent) || 0) : percent;
+        const ringNote = rankStatus?.nextTier
+            ? t('dashboard.heroRingTier', 'Còn {point} điểm nữa lên hạng {tier}',
+                { point: rankStatus.pointsToNext, tier: rankStatus.nextTier.name })
+            : t('dashboard.heroRingCourse', 'Tiến độ khóa học đang học');
+
+        return `<div class="dash-hero">
+            <div class="dash-hero-main">
+                <span class="dash-hero-tag"><i class="ph-fill ph-play-circle"></i> ${esc(t('dashboard.heroTag', 'Tiếp tục học'))}</span>
+                <h2>${esc(current.courseTitle)}</h2>
+                <div class="where">${esc(current.courseCode)}${current.dueDate
+                    ? ` · ${esc(t('account.hanHoanThanh', 'Hạn hoàn thành'))}: ${formatDate(current.dueDate)}` : ''}
+                    ${current.isOverdue ? ` · <b>${esc(t('dashboard.overdue', 'Quá hạn'))}</b>` : ''}</div>
+                <div class="dash-hero-foot">
+                    <div class="dash-hero-bar">
+                        <div class="meta">
+                            <span>${esc(statusText(current.status))}</span><span>${percent}%</span>
+                        </div>
+                        <div class="track"><span style="width:${percent}%"></span></div>
+                    </div>
+                    <a class="btn-light" href="/pages/learning/scorm-player.html?enrollmentId=${current.id}">
+                        ${esc(percent > 0 ? t('my-course.hocTiep', 'Học tiếp') : t('my-course.batDau', 'Bắt đầu'))}
+                        <i class="ph-bold ph-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="dash-ring-box">
+                <div class="dash-ring" style="--value:${ringPercent}%"><i>${ringPercent}%</i></div>
+                <small>${esc(ringNote)}</small>
+            </div>
+        </div>`;
+    }
+
+    function statusText(status) {
+        return {
+            Assigned: t('dashboard.notStarted', 'Chưa bắt đầu'),
+            InProgress: t('dashboard.inProgress', 'Đang học'),
+            Completed: t('dashboard.completed', 'Đã hoàn thành'),
+        }[status] || status;
+    }
+
+    // ---------- Khám phá khóa học ----------
+    // Gộp khóa ĐƯỢC GIAO và khóa PHÙ HỢP vào một lưới, phân biệt bằng nhãn trên thẻ. Tách hai khu riêng thì
+    // người học phải nhìn hai chỗ mới biết mình có gì để học.
+    function discoverHtml(enrollmentList, availableList) {
+        const assignedList = enrollmentList.map(x => ({
+            kind: x.status === 'Completed' ? 'done' : 'assigned',
+            id: x.courseId,
+            href: `/pages/learning/scorm-player.html?enrollmentId=${x.id}`,
+            title: x.courseTitle,
+            code: x.courseCode,
+            thumbnailUrl: x.thumbnailUrl,
+            percent: Math.round(Number(x.progressPercent) || 0),
+            isOverdue: x.isOverdue,
+            hasCertificate: x.hasCertificate,
+            averageRating: x.courseAverageRating,
+            reviewCount: x.courseReviewCount,
+        }));
+
+        const suggestList = availableList.map(x => ({
+            kind: 'suggest',
+            id: x.id,
+            href: null,
+            title: x.title,
+            code: x.code,
+            thumbnailUrl: x.thumbnailUrl,
+            durationMinutes: x.durationMinutes,
+            lessonCount: x.lessonCount,
+            enrollmentCount: x.enrollmentCount,
+            teacher: x.createdByName,
+            suggestReason: x.suggestReason,
+            averageRating: x.averageRating,
+            reviewCount: x.reviewCount,
+        }));
+
+        cardDataList = [...assignedList, ...suggestList];
+
+        const filterList = [
+            { key: 'all', label: t('dashboard.tatCa', 'Tất cả'), icon: 'ph-squares-four' },
+            { key: 'assigned', label: t('dashboard.inProgress', 'Đang học'), icon: 'ph-book-open' },
+            { key: 'done', label: t('dashboard.completed', 'Đã hoàn thành'), icon: 'ph-seal-check' },
+            { key: 'suggest', label: t('my-course.khoaHocPhuHopVoiBan', 'Khóa học phù hợp với bạn'), icon: 'ph-sparkle' },
+        ].map(f => {
+            const count = f.key === 'all' ? cardDataList.length : cardDataList.filter(x => x.kind === f.key).length;
+            return `<button type="button" class="dash-chip ${f.key === 'all' ? 'active' : ''}" data-filter="${f.key}">
+                <i class="ph ${f.icon}"></i> ${esc(f.label)} <span class="count">${count}</span></button>`;
+        }).join('');
+
+        return `
+            <div class="dash-head">
+                <div>
+                    <h3>${esc(t('dashboard.discoverTitle', 'Khám phá khóa học'))}</h3>
+                </div>
+                <a class="btn ghost sm" href="/pages/my-course/my-course.html">
+                    ${esc(t('menu.my-course', 'Khóa học của tôi'))} <i class="ph-bold ph-arrow-right"></i></a>
+            </div>
+            <div class="dash-chips">${filterList}</div>
+            <div class="dash-grid" id="dash-grid">${cardDataList.map(cardHtml).join('')}</div>`;
+    }
+
+    function cardHtml(item) {
+        const tagText = { assigned: t('dashboard.duocGiao', 'Được giao'), done: t('dashboard.completed', 'Đã hoàn thành'), suggest: t('dashboard.deXuat', 'Đề xuất') }[item.kind];
+
+        const stateHtml = item.kind === 'done'
+            ? `<span class="dash-thumb-state"><i class="ph-fill ph-check-circle"></i> ${esc(t('dashboard.completed', 'Đã hoàn thành'))}</span>`
+            : item.isOverdue
+                ? `<span class="dash-thumb-state warn"><i class="ph-fill ph-warning"></i> ${esc(t('dashboard.overdue', 'Quá hạn'))}</span>`
+                : '';
+
+        const metaHtml = item.kind === 'suggest'
+            ? `<div class="dash-thumb-meta">
+                   ${item.durationMinutes ? `<span><i class="ph ph-clock"></i> ${esc(formatDuration(item.durationMinutes))}</span>` : ''}
+                   ${item.lessonCount ? `<span><i class="ph ph-book-open"></i> ${item.lessonCount} ${esc(t('dashboard.bai', 'bài'))}</span>` : ''}
+               </div>`
+            : '';
+
+        // Khóa đề xuất chưa có lộ trình học của riêng người này nên không có nút vào học — thay bằng nút tự
+        // đăng ký (xử lý ở bindSelfEnroll), đăng ký xong mới thành khóa "Được giao" có nút Bắt đầu.
+        const footHtml = item.kind === 'suggest'
+            ? `<button type="button" class="btn sm" data-enroll="${item.id}">
+                   <i class="ph ph-plus-circle"></i> ${esc(t('suggest.enroll', 'Đăng ký học'))}</button>`
+            : `<a class="btn sm" href="${item.href}">
+                   ${esc(item.kind === 'done' ? t('my-course.xemLai', 'Xem lại') : item.percent > 0 ? t('my-course.hocTiep', 'Học tiếp') : t('my-course.batDau', 'Bắt đầu'))}
+                   <i class="ph-bold ph-arrow-right"></i></a>`;
+
+        return `<article class="dash-card" data-kind="${item.kind}">
+            <div class="dash-thumb${item.thumbnailUrl ? ' has-cover' : ' is-brand'}" style="--cover-fallback:${courseThumbBackground(item.title)}">
+                ${item.thumbnailUrl
+                    ? `<i class="ph ph-book-bookmark"></i>${courseCoverHtml(item.thumbnailUrl)}`
+                    : '<img class="brand-logo" src="/img/HoaBinh.png" alt="" loading="lazy">'}
+                <span class="dash-thumb-tag">${esc(tagText)}</span>
+                ${stateHtml}
+                ${metaHtml}
+            </div>
+            <div class="dash-card-body">
+                <h4>${esc(item.title)}</h4>
+                ${item.teacher ? `<div class="dash-teacher">
+                        <span class="avatar">${esc(initial(item.teacher))}</span> ${esc(item.teacher)}</div>` : ''}
+                <div class="dash-card-stat">
+                    <span><i class="ph ph-hash"></i> ${esc(item.code)}</span>
+                    ${item.enrollmentCount ? `<span><i class="ph ph-users"></i> ${item.enrollmentCount.toLocaleString(Lang.locale)}</span>` : ''}
+                </div>
+                ${item.kind === 'suggest'
+                    ? (item.suggestReason ? `<div class="dash-card-stat"><span><i class="ph ph-sparkle"></i> ${esc(suggestReasonText(item.suggestReason))}</span></div>` : '')
+                    : `
+                    <div class="dash-card-prog">
+                        <div class="meta"><span>${esc(t('account.tienDo', 'Tiến độ'))}</span><span>${item.percent}%</span></div>
+                        <div class="track"><span style="width:${item.percent}%"></span></div>
+                    </div>`}
+                ${courseRatingHtml(item.averageRating, item.reviewCount)}
+            </div>
+            <div class="dash-card-foot">${footHtml}</div>
+        </article>`;
+    }
+
+    /** Lọc ngay trong lưới đã dựng, không gọi lại API — dữ liệu đã nằm sẵn trong bộ nhớ. */
+    function bindCourseFilter() {
+        const grid = document.getElementById('dash-grid');
+        if (!grid) return;
+
+        // Chỉ lấy chip trong .dash-chips — boxchat cũng có nút [data-filter] ("Chưa đọc", "Nhóm"...), nếu chọn
+        // toàn trang thì bấm tab của boxchat sẽ lọc luôn lưới khóa học (key 'unread' → lưới rỗng).
+        const chipList = document.querySelectorAll('.dash-chips [data-filter]');
+        chipList.forEach(chip => chip.addEventListener('click', () => {
+            chipList.forEach(x => x.classList.toggle('active', x === chip));
+            const key = chip.dataset.filter;
+            const list = key === 'all' ? cardDataList : cardDataList.filter(x => x.kind === key);
+            grid.innerHTML = list.length
+                ? list.map(cardHtml).join('')
+                : `<div style="grid-column:1/-1">${emptyHtml(t('dashboard.khongCoKhoaNao', 'Không có khóa học nào ở mục này.'), '<i class="ph ph-book-open"></i>')}</div>`;
+        }));
+    }
+
+    /** Nút "Đăng ký học" trên thẻ khóa đề xuất. Gắn một lần vào lưới (ủy quyền sự kiện) vì lọc chip dựng lại
+     *  thẻ bằng innerHTML. Đăng ký xong thì tải lại trang: khóa phải chuyển sang nhóm "Được giao", số đếm trên
+     *  các chip và ô tổng quan cũng đổi theo. */
+    function bindSelfEnroll() {
+        const grid = document.getElementById('dash-grid');
+        if (!grid) return;
+        grid.addEventListener('click', async (e) => {
+            const b = e.target.closest('[data-enroll]');
+            if (!b) return;
+            const item = cardDataList.find(x => x.kind === 'suggest' && x.id == b.dataset.enroll);
+            if (!item) return;
+            b.disabled = true;
+            if (await selfEnrollCourse(item.id, item.title)) location.reload();
+            else b.disabled = false;
+        });
+    }
+
+    // ---------- Nhiệm vụ tuần này ----------
+    function missionHtml(dashboard) {
+        // Quản trị viên có thể tắt hết nhiệm vụ (xem tab "Quản lý nhiệm vụ" trong trang Xếp hạng) — khi đó
+        // bỏ hẳn ô này thay vì hiện một khung rỗng với thanh tiến độ 0/0 không nói lên điều gì.
+        if (!dashboard || !dashboard.missionList.length) return '';
+        const doneCount = dashboard.missionList.filter(x => x.isDone).length;
+
+        return `<section class="dash-panel">
+            <div class="dash-panel-head">
+                <h4><i class="ph-fill ph-target"></i> ${esc(t('dashboard.missionTitle', 'Nhiệm vụ tuần này'))}</h4>
+                <span class="tally">${doneCount}/${dashboard.missionList.length}</span>
+            </div>
+            ${dashboard.missionList.map(m => `
+                <div class="dash-mission ${m.isDone ? 'done' : ''}">
+                    <span class="tick"><i class="ph-bold ph-check"></i></span>
+                    <span class="label">${esc(m.label)}
+                        <small>${Math.min(m.current, m.target)}/${m.target}</small></span>
+                    ${m.point > 0 ? `<span class="gain" title="${esc(t('dashboard.missionRewardTip', 'Điểm thưởng khi làm đủ chỉ tiêu'))}">+${m.point}</span>` : ''}
+                </div>`).join('')}
+            <div class="dash-card-prog" style="margin-top:10px">
+                <div class="track"><span style="width:${Math.round(doneCount / Math.max(1, dashboard.missionList.length) * 100)}%"></span></div>
+            </div>
+        </section>`;
+    }
+
+    // ---------- Chuỗi ngày học ----------
+    function streakHtml(dashboard) {
+        if (!dashboard) return '';
+
+        return `<section class="dash-panel">
+            <div class="dash-panel-head">
+                <h4><i class="ph-fill ph-fire" style="color:#ea580c"></i>
+                    ${esc(t('dashboard.streakTitle', 'Chuỗi {day} ngày', { day: dashboard.streakDay }))}</h4>
+                <span class="tally">+${dashboard.weekPoint} ${esc(t('dashboard.diemTuan', 'điểm tuần này'))}</span>
+            </div>
+            <div class="dash-streak-row">
+                ${dashboard.dayList.map(d => `
+                    <div class="dash-streak-day ${d.hasActivity ? 'on' : ''} ${d.isToday ? 'today' : ''}"
+                         title="${formatDate(d.date)}">
+                        <div class="dot">${d.hasActivity ? '<i class="ph-fill ph-fire"></i>' : ''}</div>
+                        <small>${esc(d.weekdayLabel)}</small>
+                    </div>`).join('')}
+            </div>
+            <div class="hint" style="margin-top:10px">${esc(dashboard.streakDay > 0
+                ? t('dashboard.streakKeep', 'Học thêm hôm nay để giữ chuỗi.')
+                : t('dashboard.streakStart', 'Hoàn thành một bài học để bắt đầu chuỗi.'))}</div>
+        </section>`;
+    }
+
+    // ---------- Top tuần này ----------
+    function leaderboardHtml(list) {
+        if (!list?.length) return '';
+
+        return `<section class="dash-panel">
+            <div class="dash-panel-head">
+                <h4><i class="ph-fill ph-trophy" style="color:#d97706"></i> ${esc(t('dashboard.topWeek', 'Top xếp hạng'))}</h4>
+            </div>
+            ${list.map(x => `
+                <div class="dash-rank ${x.rank <= 3 ? 'top' : ''} ${x.isMe ? 'me' : ''}">
+                    <span class="no">${x.rank}</span>
+                    ${x.avatarUrl ? `<img class="avatar" src="${esc(x.avatarUrl)}" alt="">`
+                                  : `<span class="avatar">${esc(initial(x.fullName))}</span>`}
+                    <span class="who">${esc(x.isMe ? t('dashboard.ban', 'Bạn') : x.fullName)}</span>
+                    <span class="pt">${x.totalPoints.toLocaleString(Lang.locale)}</span>
+                </div>`).join('')}
+            <a class="btn ghost sm" style="width:100%;justify-content:center;margin-top:10px" href="/pages/ranking/ranking.html">
+                ${esc(t('dashboard.xemBangDayDu', 'Xem bảng đầy đủ'))} <i class="ph-bold ph-arrow-right"></i></a>
+        </section>`;
+    }
+
+    // ==================== TRƯỞNG NHÓM ====================
+    // Trưởng Nhóm là người soạn nội dung NHƯNG cũng được giao khóa để học như mọi nhân viên khác, nên
+    // trang này giữ nguyên bố cục của học viên (hero "Tiếp tục học", lưới khám phá khóa học, cột phải
+    // nhiệm vụ / chuỗi ngày / xếp hạng) và kẹp thêm phần quản lý: dải chỉ số ở trên đầu, khung biểu đồ
+    // "Mức độ hoàn thành" ở cuối trang.
+    async function renderTrainer() {
+        // Hai phần độc lập nhau: số liệu quản lý hỏng thì vẫn phải dựng được phần người học, vì đó mới là
+        // việc họ làm hằng ngày.
+        const [learnerHtml, managerData] = await Promise.all([
+            renderLearner(),
+            loadManagerData().catch(() => null),
+        ]);
+
+        if (!managerData) return learnerHtml;
+
+        return `<div class="ops">${kpiStripHtml(managerData.overview, { authorView: true })}</div>`
+            + learnerHtml
+            + `<div class="ops mt">${trendPanelHtml(managerData.trend)}</div>`;
+    }
+
+    // ==================== QUẢN TRỊ / TỔNG GIÁM ĐỐC ====================
+    async function renderManager() {
+        const { overview, trend } = await loadManagerData();
+        return `<div class="ops">${kpiStripHtml(overview)}${trendPanelHtml(trend)}</div>`;
+    }
+
+    async function loadManagerData() {
+        const [overview, trend] = await Promise.all([
+            API.get('/report/overview'),
+            API.get('/report/completion-trend'),
+        ]);
+        return { overview, trend };
+    }
+
+    function fmtNumber(value) {
+        return Number(value || 0).toLocaleString(Lang.locale);
+    }
+
+    // ---------- Dải chỉ số ----------
+    /** Bốn chỉ số toàn cảnh, mỗi ô dẫn tới trang xử lý đúng việc đó. Chỉ gắn liên kết khi người xem mở được
+     *  trang đích (cùng danh sách vai trò với menu trong app.js) — ô bấm vào mà bị đá về trang chủ thì tệ hơn
+     *  một ô không bấm được. Số nào API chưa trả về (server bản cũ) thì hiện 0 chứ không hiện "undefined". */
+    function kpiStripHtml(overview, { authorView = false } = {}) {
+        const pendingGift = overview.pendingGift ?? 0;
+
+        // Người soạn khóa (Trưởng Nhóm / Giảng Viên) không phải người trao quà — ô thứ ba của họ là điểm sao trung
+        // bình mà học viên chấm cho các khóa CHÍNH HỌ tạo. Admin và Tổng Giám Đốc vẫn thấy hàng chờ trao quà.
+        const reviewCount = overview.myReviewCount ?? 0;
+        const hasRating = overview.myAverageRating != null && reviewCount > 0;
+        const thirdCell = authorView
+            ? {
+                tone: '#f59e0b', icon: 'ph-star', href: '/pages/course/course.html',
+                label: t('dashboard.myCourseRating', 'Đánh giá khóa học của bạn'),
+                value: overview.myAverageRating,
+                valueText: hasRating ? Number(overview.myAverageRating).toFixed(1) : '—',
+                foot: hasRating ? t('dashboard.reviewCount', '{count} lượt đánh giá', { count: fmtNumber(reviewCount) })
+                                : t('dashboard.noReview', 'Chưa có đánh giá nào'),
+            }
+            : {
+                // Tab "order" là hàng chờ trao quà của người quản lý cửa hàng; ai không có quyền quản lý thì
+                // shop.html tự đưa về tab cửa hàng nên liên kết này an toàn với mọi vai trò.
+                tone: '#f59e0b', icon: 'ph-gift', href: '/pages/shop/shop.html?tab=order',
+                label: t('dashboard.pendingGift', 'Số quà chờ trao'), value: pendingGift,
+            };
+
+        // Giảng Viên là người ngoài được mời tới dạy: không cho thấy quy mô nhân sự của công ty, chỉ số liên quan
+        // tới các khóa của chính họ. Server cũng đã cắt số liệu theo cùng phạm vi (xem ReportService.GetOverview) —
+        // đây chỉ là phần nhãn. Ô chứng chỉ của họ không gắn liên kết vì trang Chứng nhận liệt kê chứng nhận của
+        // toàn công ty.
+        const instructorView = authorView && Auth.isInstructor;
+
+        const cellList = [
+            instructorView
+                ? {
+                    tone: '#00a1e6', icon: 'ph-users', href: null,
+                    label: t('dashboard.myLearner', 'Học viên của tôi'), value: overview.learnerCount,
+                }
+                : {
+                    tone: '#00a1e6', icon: 'ph-users', href: Auth.isAdmin ? '/pages/user/user.html' : null,
+                    label: t('dashboard.activeUser', 'Người dùng hoạt động'), value: overview.activeUser,
+                },
+            {
+                tone: '#8b5cf6', icon: 'ph-books', href: Auth.isAdmin || Auth.isContentAuthor ? '/pages/course/course.html' : null,
+                label: instructorView ? t('dashboard.myPublishedCourse', 'Khóa học của tôi đang hiện hành')
+                                      : t('dashboard.publishedCourse', 'Khóa học đang hiện hành'),
+                value: overview.publishedCourse,
+            },
+            thirdCell,
+            // Chỉ Admin nhận tổng chứng chỉ toàn công ty; vai trò khác server đã đếm chứng chỉ của chính người xem
+            // (ReportService.GetOverview). Con số gồm nội bộ + bên ngoài đã được phòng Nhân sự xác nhận.
+            {
+                tone: '#10b981', icon: 'ph-certificate', href: instructorView ? null : '/pages/certificate/certificate.html',
+                label: Auth.isAdmin ? t('dashboard.issuedCertificate', 'Tất cả chứng chỉ của nhân viên')
+                                    : t('dashboard.myCertificate', 'Chứng chỉ của bạn'),
+                value: overview.totalCertificate,
+            },
+        ];
+
+        return `<div class="ops-kpi">${cellList.map((c, i) => {
+            const tag = c.href ? 'a' : 'div';
+            return `<${tag} class="ops-kpi-cell" style="--tone:${c.tone};--i:${i}"${c.href ? ` href="${c.href}"` : ''}>
+                <div class="ops-kpi-top">
+                    <span class="ops-kpi-label">${esc(c.label)}</span>
+                    <span class="ops-kpi-icon"><i class="ph-fill ${c.icon}"></i></span>
+                </div>
+                <div class="ops-kpi-value">${esc(c.valueText ?? fmtNumber(c.value))}</div>
+            </${tag}>`;
+        }).join('')}</div>`;
+    }
+
+    // ---------- Khung "Mức độ hoàn thành" ----------
+    // Hai biểu đồ cột chồng: 12 tháng của năm đang chọn, và từng năm. Mỗi cột chia hai khúc — lượt đào tạo đã
+    // hoàn thành (dưới) và chưa hoàn thành (trên) — tính theo ngày được phân công (xem
+    // ReportService.GetCompletionTrend). Biểu đồ năm kiêm luôn bộ chọn năm: bấm một cột là biểu đồ tháng đổi theo.
+
+    function trendPanelHtml(trend) {
+        trendData = trend;
+        const yearOptionHtml = [...trend.yearList].reverse()
+            .map(y => `<option value="${y.period}"${y.period === trend.year ? ' selected' : ''}>${y.period}</option>`)
+            .join('');
+
+        return `<section class="ops-trend" id="ops-trend">
+            <div class="ops-trend-head">
+                <div>
+                    <h3>${esc(t('dashboard.trendTitle', 'Kết Quả Đào Tạo'))}</h3>
+                </div>
+                <div class="ops-filter">
+                    <div class="ops-legend">
+                        <span><i style="background:var(--viz-done)"></i>${esc(t('dashboard.trendDone', 'Hoàn thành'))}</span>
+                        <span><i style="background:var(--viz-open)"></i>${esc(t('dashboard.trendOpen', 'Chưa hoàn thành'))}</span>
+                    </div>
+                    <label class="ops-year">${esc(t('dashboard.trendYear', 'Năm'))}
+                        <select id="trend-year">${yearOptionHtml}</select></label>
+                    <div class="ops-seg" role="group" aria-label="${esc(t('dashboard.trendViewLabel', 'Dạng xem'))}">
+                        <button type="button" class="${trendView === 'chart' ? 'on' : ''}" data-trend-view="chart" aria-pressed="${trendView === 'chart'}">
+                            <i class="ph ph-chart-bar"></i> ${esc(t('dashboard.trendChart', 'Biểu đồ'))}</button>
+                        <button type="button" class="${trendView === 'table' ? 'on' : ''}" data-trend-view="table" aria-pressed="${trendView === 'table'}">
+                            <i class="ph ph-table"></i> ${esc(t('dashboard.trendTable', 'Bảng'))}</button>
+                    </div>
+                    <a class="btn ghost sm" href="/pages/report/report.html">
+                        ${esc(t('dashboard.viewFullReport', 'Xem báo cáo đầy đủ'))} <i class="ph-bold ph-arrow-right"></i></a>
+                </div>
+            </div>
+            <div class="ops-trend-body">
+                <div class="ops-trend-pane" id="trend-month">${monthPaneHtml(trend)}</div>
+                <div class="ops-trend-pane" id="trend-yearly">${yearPaneHtml(trend)}</div>
+            </div>
+            <div class="trend-tip" id="trend-tip" role="tooltip"></div>
+        </section>`;
+    }
+
+    /** Câu tóm tắt của năm đang chọn — con số người đọc cần nhất, đặt ngay dưới tiêu đề. */
+    function trendSummaryHtml(trend) {
+        const done = trend.monthList.reduce((sum, p) => sum + p.completedCount, 0);
+        const total = done + trend.monthList.reduce((sum, p) => sum + p.notCompletedCount, 0);
+        const basis = esc(t('dashboard.trendBasis', 'Tính theo ngày được phân công khóa học'));
+        if (!total) return `${esc(t('dashboard.trendEmptyYear', 'Năm {year} chưa có lượt đào tạo nào được giao.', { year: trend.year }))} · ${basis}`;
+
+        return `<b>${Math.round(done / total * 100)}%</b> `
+            + esc(t('dashboard.trendSummary', 'lượt đào tạo năm {year} đã hoàn thành ({done}/{total})',
+                { year: trend.year, done: fmtNumber(done), total: fmtNumber(total) }))
+            + ` · ${basis}`;
+    }
+
+    function monthPaneHtml(trend) {
+        const pointList = trend.monthList.map(p => ({
+            label: monthShort(p.period),
+            title: t('dashboard.monthLong', 'Tháng {month}/{year}', { month: p.period, year: trend.year }),
+            done: p.completedCount,
+            open: p.notCompletedCount,
+        }));
+        return trendPaneHtml(t('dashboard.trendByMonth', 'Theo tháng'),
+            t('dashboard.yearLabel', 'Năm {year}', { year: trend.year }), pointList,
+            t('dashboard.trendEmptyYear', 'Năm {year} chưa có lượt đào tạo nào được giao.', { year: trend.year }));
+    }
+
+    function yearPaneHtml(trend) {
+        const pointList = trend.yearList.map(p => ({
+            label: String(p.period),
+            title: t('dashboard.yearLabel', 'Năm {year}', { year: p.period }),
+            done: p.completedCount,
+            open: p.notCompletedCount,
+            year: p.period,
+            selected: p.period === trend.year,
+        }));
+        return trendPaneHtml(t('dashboard.trendByYear', 'Theo năm'),
+            t('dashboard.trendPickYear', 'Bấm một cột để xem năm đó'), pointList,
+            t('dashboard.trendEmpty', 'Chưa có lượt đào tạo nào.'));
+    }
+
+    function trendPaneHtml(title, note, pointList, emptyText) {
+        return `<div class="ops-pane-title">${esc(title)} <small>${esc(note)}</small></div>
+            ${trendView === 'table' ? trendTableHtml(pointList) : trendChartHtml(pointList, emptyText)}`;
+    }
+
+    /** Nhãn tháng ngắn dưới trục: "T1".."T12" cho tiếng Việt, tên tháng viết tắt theo ngôn ngữ cho phần còn lại. */
+    function monthShort(month) {
+        return Lang.locale.startsWith('vi')
+            ? `T${month}`
+            : new Date(2000, month - 1, 1).toLocaleDateString(Lang.locale, { month: 'short' });
+    }
+
+    /** Thang trục tung tròn số (bước 1 / 2 / 5 × 10ⁿ). Ít dữ liệu thì vẫn giữ tối thiểu 4 nấc, không thì một
+     *  lượt đào tạo duy nhất sẽ thành một cột cao chạm nóc trông như "rất nhiều". */
+    function niceScale(max) {
+        if (max <= 0) return { top: 4, step: 1 };
+        const rough = max / 4;
+        const power = 10 ** Math.floor(Math.log10(rough));
+        const step = Math.max(1, [1, 2, 5, 10].map(m => m * power).find(s => s >= rough));
+        return { top: Math.max(Math.ceil(max / step) * step, step === 1 ? 4 : 0), step };
+    }
+
+    function trendChartHtml(pointList, emptyText) {
+        const max = Math.max(0, ...pointList.map(p => p.done + p.open));
+        const { top, step } = niceScale(max);
+        const tickList = [];
+        for (let v = 0; v <= top; v += step) tickList.push(v);
+        const percent = v => `${(v / top * 100).toFixed(2)}%`;
+
+        const colHtml = pointList.map((p, i) => {
+            const total = p.done + p.open;
+            // Khúc trên cùng được bo đầu (CSS :first-child) — khúc 0 thì không dựng để khỏi bo nhầm một khúc rỗng.
+            const barHtml = total
+                ? `<span class="trend-bar" style="height:${percent(total)}">
+                       ${p.open ? `<span class="open" style="--v:${p.open}"></span>` : ''}
+                       ${p.done ? `<span class="done" style="--v:${p.done}"></span>` : ''}
+                   </span>`
+                : '';
+            const attr = `class="trend-col${p.selected ? ' is-selected' : ''}" style="--i:${i}"
+                data-title="${esc(p.title)}" data-done="${p.done}" data-open="${p.open}"
+                aria-label="${esc(t('dashboard.trendAria', '{title}: {done} hoàn thành, {open} chưa hoàn thành',
+                    { title: p.title, done: p.done, open: p.open }))}"`;
+            // Cột năm bấm được (chọn năm cho biểu đồ tháng) nên là <button>; cột tháng chỉ để xem — vẫn nhận
+            // focus bằng bàn phím để đọc được số liệu y như rê chuột.
+            return p.year
+                ? `<button type="button" ${attr} data-year="${p.year}" aria-pressed="${!!p.selected}">${barHtml}</button>`
+                : `<div ${attr} tabindex="0" role="img">${barHtml}</div>`;
+        }).join('');
+
+        return `<div class="trend" style="--n:${pointList.length}">
+            <div class="trend-yaxis" aria-hidden="true">
+                ${tickList.map(v => `<span style="bottom:${percent(v)}">${fmtNumber(v)}</span>`).join('')}</div>
+            <div class="trend-plot">
+                <div class="trend-grid" aria-hidden="true">
+                    ${tickList.filter(v => v > 0).map(v => `<i style="bottom:${percent(v)}"></i>`).join('')}</div>
+                <div class="trend-cols">${colHtml}</div>
+                ${max === 0 ? `<div class="trend-empty">${esc(emptyText)}</div>` : ''}
+            </div>
+            <div class="trend-xaxis" aria-hidden="true">
+                ${pointList.map(p => `<span${p.selected ? ' class="is-selected"' : ''}>${esc(p.label)}</span>`).join('')}</div>
+        </div>`;
+    }
+
+    /** Bản bảng của cùng số liệu — đọc được không cần rê chuột, và là bản trình đọc màn hình dùng tốt nhất. */
+    function trendTableHtml(pointList) {
+        const rowHtml = pointList.map(p => {
+            const total = p.done + p.open;
+            return `<tr${p.selected ? ' class="is-selected"' : ''}>
+                <td>${esc(p.title)}</td>
+                <td class="num">${fmtNumber(p.done)}</td>
+                <td class="num">${fmtNumber(p.open)}</td>
+                <td class="num">${fmtNumber(total)}</td>
+                <td class="num">${total ? Math.round(p.done / total * 100) + '%' : '—'}</td>
+            </tr>`;
+        }).join('');
+
+        return `<div class="table-wrap trend-table"><table>
+            <thead><tr>
+                <th>${esc(t('dashboard.trendPeriod', 'Kỳ'))}</th>
+                <th class="num">${esc(t('dashboard.trendDone', 'Hoàn thành'))}</th>
+                <th class="num">${esc(t('dashboard.trendOpen', 'Chưa hoàn thành'))}</th>
+                <th class="num">${esc(t('dashboard.trendTotal', 'Tổng'))}</th>
+                <th class="num">${esc(t('dashboard.colRate', 'Tỷ lệ'))}</th>
+            </tr></thead>
+            <tbody>${rowHtml}</tbody>
+        </table></div>`;
+    }
+
+    function renderTrendPanes() {
+        document.getElementById('trend-month').innerHTML = monthPaneHtml(trendData);
+        document.getElementById('trend-yearly').innerHTML = yearPaneHtml(trendData);
+    }
+
+    /** Đổi năm của biểu đồ tháng: gọi lại API, trong lúc chờ giữ nguyên hình cũ ở độ mờ thấp. */
+    async function loadTrendYear(year) {
+        if (!trendData || !year || year === trendData.year) return;
+        const paneList = document.querySelectorAll('#ops-trend .ops-trend-pane');
+        paneList.forEach(p => p.classList.add('is-loading'));
+        try {
+            trendData = await API.get(`/report/completion-trend?year=${year}`);
+            document.getElementById('trend-year').value = trendData.year;
+            document.getElementById('trend-summary').innerHTML = trendSummaryHtml(trendData);
+            renderTrendPanes();
+        } catch (ex) {
+            document.getElementById('trend-year').value = trendData.year;
+            toastErr(ex.message);
+        } finally {
+            paneList.forEach(p => p.classList.remove('is-loading'));
+        }
+    }
+
+    function bindTrendPanel() {
+        const panel = document.getElementById('ops-trend');
+        if (!panel) return;
+        const tip = document.getElementById('trend-tip');
+
+        // Cột chỉ "mọc lên" ở lần vẽ đầu; đổi năm / đổi dạng xem về sau thì hiện ngay, không diễn lại.
+        setTimeout(() => panel.classList.add('is-ready'), 1200);
+
+        document.getElementById('trend-year').addEventListener('change', e => loadTrendYear(+e.target.value));
+
+        panel.querySelectorAll('[data-trend-view]').forEach(button => button.addEventListener('click', () => {
+            trendView = button.dataset.trendView;
+            panel.querySelectorAll('[data-trend-view]').forEach(x => {
+                x.classList.toggle('on', x === button);
+                x.setAttribute('aria-pressed', String(x === button));
+            });
+            panel.classList.add('is-ready');
+            hideTip();
+            renderTrendPanes();
+        }));
+
+        // Ủy quyền sự kiện lên cả khung: các cột được dựng lại mỗi lần đổi năm / đổi dạng xem.
+        panel.addEventListener('click', e => {
+            const col = e.target.closest('[data-year]');
+            if (col) loadTrendYear(+col.dataset.year);
+        });
+        panel.addEventListener('pointerover', e => showTip(e.target.closest('.trend-col')));
+        panel.addEventListener('pointerleave', hideTip);
+        panel.addEventListener('focusin', e => showTip(e.target.closest('.trend-col')));
+        panel.addEventListener('focusout', hideTip);
+
+        function hideTip() { tip.classList.remove('on'); }
+
+        /** Số liệu đọc từ data-* của cột và gắn bằng textContent — tên kỳ không bao giờ đi qua innerHTML. */
+        function showTip(col) {
+            if (!col) { hideTip(); return; }
+            const done = +col.dataset.done;
+            const open = +col.dataset.open;
+            const total = done + open;
+
+            const line = (className, text) => {
+                const node = document.createElement('div');
+                node.className = className;
+                node.textContent = text;
+                return node;
+            };
+            const row = (color, value, label) => {
+                const node = document.createElement('div');
+                node.className = 'tt-row';
+                const key = document.createElement('i');
+                key.className = 'tt-key';
+                key.style.background = color;
+                const number = document.createElement('b');
+                number.textContent = fmtNumber(value);
+                node.append(key, number, label);
+                return node;
+            };
+
+            tip.replaceChildren(
+                line('tt-title', col.dataset.title),
+                row('var(--viz-done)', done, t('dashboard.trendDone', 'Hoàn thành')),
+                row('var(--viz-open)', open, t('dashboard.trendOpen', 'Chưa hoàn thành')),
+                line('tt-foot', t('dashboard.trendTip', 'Tổng {total} lượt · {rate} hoàn thành', {
+                    total: fmtNumber(total), rate: total ? Math.round(done / total * 100) + '%' : '—',
+                })));
+
+            // Neo ngay trên đỉnh cột (cột 0 thì neo trên đường đáy), giữ trọn trong khung không tràn mép.
+            const panelRect = panel.getBoundingClientRect();
+            const colRect = col.getBoundingClientRect();
+            const bar = col.querySelector('.trend-bar');
+            const anchorTop = bar ? bar.getBoundingClientRect().top : colRect.bottom;
+            const halfWidth = tip.offsetWidth / 2;
+            const centerX = colRect.left + colRect.width / 2 - panelRect.left;
+            tip.style.left = `${Math.min(Math.max(centerX, halfWidth + 8), panelRect.width - halfWidth - 8)}px`;
+            tip.style.top = `${anchorTop - panelRect.top}px`;
+            tip.classList.add('on');
+        }
+    }
+})();

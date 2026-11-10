@@ -15,9 +15,12 @@ public class TranslationService : ITranslationService
     private readonly IAiContentService _ai;
     private readonly ILogger<TranslationService> _logger;
     private readonly ICurrentUser _currentUser;
+    private readonly IAiTranslateJobQueue _jobQueue;
 
-    public TranslationService(IAppDbContext db, IMemoryCache cache, IAiContentService ai, ILogger<TranslationService> logger, ICurrentUser currentUser)
+    public TranslationService(IAppDbContext db, IMemoryCache cache, IAiContentService ai, ILogger<TranslationService> logger,
+        ICurrentUser currentUser, IAiTranslateJobQueue jobQueue)
     {
+        _jobQueue = jobQueue;
         _db = db;
         _cache = cache;
         _ai = ai;
@@ -363,10 +366,13 @@ public class TranslationService : ITranslationService
                 continue;
             }
 
-            if (row.TranslatedText == text && row.Note == note) continue;
+            // Sửa chữ của một dòng máy dịch tức là đã có người soát: gỡ nhãn "cần soát lại", để dòng này được
+            // dùng làm bản dịch mẫu cho các lượt dịch AI sau (xem LoadExampleListAsync).
+            var rowNote = note == AiNote && row.TranslatedText != text ? null : note;
+            if (row.TranslatedText == text && row.Note == rowNote) continue;
 
             row.TranslatedText = text;
-            row.Note = note;
+            row.Note = rowNote;
             row.UpdatedById = _currentUser.UserId;
             row.UpdatedAt = now;
         }
@@ -423,7 +429,8 @@ public class TranslationService : ITranslationService
 
     // ==================== DỊCH BẰNG AI ====================
 
-    /// <summary>Số khóa tối đa cho MỘT lượt gọi. Màn hình dịch tự cắt lô theo con số này rồi gọi nhiều lượt.
+    /// <summary>Số khóa tối đa cho MỘT lượt gọi AI. Dịch hàng loạt giờ do dịch vụ nền tự cắt lô (cỡ lô cấu hình ở
+    /// Translation:AiBatchSize, không vượt con số này — xem <see cref="StartAiJob"/>).
     ///
     /// Không nhận cả nghìn khóa trong một yêu cầu vì ba lý do, theo thứ tự quan trọng: câu lệnh quá dài thì
     /// model bắt đầu bỏ sót khóa ở giữa; một lượt gọi kéo vài phút sẽ chạm timeout của trình duyệt mà người
@@ -436,7 +443,15 @@ public class TranslationService : ITranslationService
     /// nguyên si máy dịch. Chỉ gắn khi dòng đó chưa có ghi chú, để không xóa mất lý do người trước đã ghi.</summary>
     private const string AiNote = "Dịch tự động bằng AI — cần soát lại";
 
-    public async Task<Result> AiTranslate(AiTranslateRequest request, CancellationToken cancellationToken)
+    public Task<Result> AiTranslate(AiTranslateRequest request, CancellationToken cancellationToken)
+        => AiTranslateCore(request, _currentUser.UserId, cancellationToken);
+
+    public Task<Result> AiTranslateAs(AiTranslateRequest request, int userId, CancellationToken cancellationToken)
+        => AiTranslateCore(request, userId, cancellationToken);
+
+    /// <summary>Dịch một lô. <paramref name="userId"/> tách riêng khỏi _currentUser vì dịch vụ nền gọi hàm này
+    /// ngoài mọi yêu cầu HTTP — ở đó không có người đăng nhập nào để đọc ra.</summary>
+    private async Task<Result> AiTranslateCore(AiTranslateRequest request, int userId, CancellationToken cancellationToken)
     {
         if (!_ai.IsConfigured)
             return Result.Invalid(new MessageResponse(
@@ -505,33 +520,115 @@ public class TranslationService : ITranslationService
             return Result.Success(new AiTranslateResponse(0, skippedCount, new Dictionary<string, string>(), [],
                 "Không có dòng nào cần dịch trong lô này."));
 
-        Dictionary<string, string> resultByKey;
-        try
-        {
-            resultByKey = await _ai.TranslateUiTextAsync(
-                sourceLanguage.Name, sourceLanguage.LocaleTag,
-                targetLanguage.Name, targetLanguage.LocaleTag,
-                pendingList, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Dich bang AI that bai ({Source} -> {Target}, {Count} khoa).",
-                sourceLang, targetLang, pendingList.Count);
-            return Result.ExternalServiceFailed(new MessageResponse(
-                "Máy chủ AI đang không phản hồi nên chưa dịch được. Vui lòng thử lại sau ít phút."));
-        }
-
-        // Chỉ nhận lại đúng những khóa đã gửi đi: model thỉnh thoảng bịa thêm khóa hoặc trả về khóa bị cắt
-        // cụt, ghi thẳng vào bảng thì sinh ra dòng rác mà sau này không ai truy được từ đâu ra.
         var acceptedByKey = new Dictionary<string, string>();
         var failedKeyList = new List<string>();
 
-        foreach (var item in pendingList)
+        // 1. Bộ nhớ dịch: câu nguồn y hệt đã có bản dịch ở một khóa khác ("Lưu", "Hủy", "Chứng nhận" lặp lại ở
+        //    hàng chục màn hình) thì dùng lại luôn, khỏi tốn lượt AI — vừa nhanh vừa thống nhất thuật ngữ. Không
+        //    dùng khi ghi đè: người dùng chọn ghi đè là muốn bản dịch mới, không phải chép lại bản cũ.
+        if (!request.Overwrite)
         {
-            if (resultByKey.TryGetValue(item.ResourceKey, out var text) && !string.IsNullOrWhiteSpace(text))
-                acceptedByKey[item.ResourceKey] = text.Length > 2000 ? text[..2000] : text;
-            else
-                failedKeyList.Add(item.ResourceKey);
+            var memoryByText = await LoadTranslationMemoryAsync(sourceLang, targetLang, pendingList, cancellationToken);
+            foreach (var item in pendingList)
+                if (memoryByText.TryGetValue(item.SourceText, out var remembered))
+                    acceptedByKey[item.ResourceKey] = remembered;
+        }
+
+        // 2. Câu nguồn trùng nhau trong lô chỉ gửi AI một lần, dịch xong điền cho mọi khóa cùng câu.
+        var keyListByText = pendingList
+            .Where(x => !acceptedByKey.ContainsKey(x.ResourceKey))
+            .GroupBy(x => x.SourceText)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.ResourceKey).ToList());
+
+        if (keyListByText.Count > 0)
+        {
+            // 3. Bản tiếng Anh làm đối chiếu — chỉ khi cả nguồn lẫn đích đều không phải tiếng Anh.
+            var referenceByKey = new Dictionary<string, string>();
+            if (sourceLang != ReferenceLang && targetLang != ReferenceLang)
+            {
+                var representativeKeyList = keyListByText.Values.Select(x => x[0]).ToList();
+                referenceByKey = await _db.Translation.AsNoTracking()
+                    .Where(x => x.Lang == ReferenceLang && representativeKeyList.Contains(x.ResourceKey) && x.TranslatedText != "")
+                    .ToDictionaryAsync(x => x.ResourceKey, x => x.TranslatedText, cancellationToken);
+            }
+
+            var aiItemList = keyListByText
+                .Select(x => new UiTextToTranslateDto(x.Value[0], x.Key, referenceByKey.GetValueOrDefault(x.Value[0])))
+                .ToList();
+
+            // 4. Ví dụ người thật đã duyệt — cách "dạy" model thuật ngữ công ty mà không cần huấn luyện lại.
+            var exampleList = await LoadExampleListAsync(sourceLang, targetLang, pendingList, cancellationToken);
+
+            Dictionary<string, string> resultByKey;
+            try
+            {
+                resultByKey = await _ai.TranslateUiTextAsync(
+                    sourceLanguage.Name, sourceLanguage.LocaleTag,
+                    targetLanguage.Name, targetLanguage.LocaleTag,
+                    aiItemList, exampleList, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Bên gọi tự hủy (bấm Dừng, trình duyệt đóng kết nối, máy chủ đang tắt) — không phải máy chủ AI hỏng,
+                // nên không ghi thành lỗi và không đổi thành thông báo "AI không phản hồi".
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Dich bang AI that bai ({Source} -> {Target}, {Count} khoa).",
+                    sourceLang, targetLang, aiItemList.Count);
+                return Result.ExternalServiceFailed(new MessageResponse(
+                    "Máy chủ AI đang không phản hồi nên chưa dịch được. Vui lòng thử lại sau ít phút."));
+            }
+
+            // 5. Soát từng câu; câu hỏng (hoặc model bỏ sót) được dịch lại MỘT lần trong một lô nhỏ riêng — lô
+            //    ít câu thì model tập trung hơn. Vẫn hỏng thì để trống cho người dịch tay, không lưu bản sai.
+            var retryList = aiItemList.Where(x => !IsAcceptable(x, resultByKey, targetLang)).ToList();
+            if (retryList.Count > 0)
+            {
+                try
+                {
+                    var retryResult = await _ai.TranslateUiTextAsync(
+                        sourceLanguage.Name, sourceLanguage.LocaleTag,
+                        targetLanguage.Name, targetLanguage.LocaleTag,
+                        retryList, exampleList, cancellationToken);
+                    foreach (var item in retryList)
+                        if (retryResult.TryGetValue(item.ResourceKey, out var text)) resultByKey[item.ResourceKey] = text;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    // Lượt đầu đã dịch được phần lớn — hỏng ở lượt dịch lại thì giữ phần đã được, phần còn lại
+                    // tính là dịch trượt, chứ không bỏ cả lô.
+                    _logger.LogWarning(ex, "Dich lai {Count} cau hong that bai ({Source} -> {Target}).",
+                        retryList.Count, sourceLang, targetLang);
+                }
+            }
+
+            // Chỉ nhận lại đúng những khóa đã gửi đi: model thỉnh thoảng bịa thêm khóa hoặc trả về khóa bị cắt
+            // cụt, ghi thẳng vào bảng thì sinh ra dòng rác mà sau này không ai truy được từ đâu ra.
+            foreach (var item in aiItemList)
+            {
+                var keyGroup = keyListByText[item.SourceText];
+                var problem = resultByKey.TryGetValue(item.ResourceKey, out var text)
+                    ? UiTranslationCheck.FindProblem(item.SourceText, text, targetLang)
+                    : "AI khong tra ve";
+
+                if (problem is null)
+                {
+                    var accepted = text!.Trim();
+                    if (accepted.Length > 2000) accepted = accepted[..2000];
+                    foreach (var key in keyGroup) acceptedByKey[key] = accepted;
+                    continue;
+                }
+
+                failedKeyList.AddRange(keyGroup);
+                _logger.LogWarning("Bo ban dich AI cua khoa \"{Key}\" ({Source} -> {Target}): {Problem}.",
+                    item.ResourceKey, sourceLang, targetLang, problem);
+            }
         }
 
         if (request.Preview)
@@ -555,7 +652,7 @@ public class TranslationService : ITranslationService
                     DefaultText = null,
                     IsSystem = sourceRowByKey[key].IsSystem,
                     Note = AiNote,
-                    UpdatedById = _currentUser.UserId,
+                    UpdatedById = userId,
                     UpdatedAt = now,
                 });
                 continue;
@@ -565,7 +662,7 @@ public class TranslationService : ITranslationService
 
             targetRow.TranslatedText = text;
             if (string.IsNullOrWhiteSpace(targetRow.Note)) targetRow.Note = AiNote;
-            targetRow.UpdatedById = _currentUser.UserId;
+            targetRow.UpdatedById = userId;
             targetRow.UpdatedAt = now;
         }
 
@@ -579,6 +676,173 @@ public class TranslationService : ITranslationService
         if (failedKeyList.Count > 0) message += $" {failedKeyList.Count} câu AI không trả về, cần dịch tay.";
 
         return Result.Success(new AiTranslateResponse(acceptedByKey.Count, skippedCount, acceptedByKey, failedKeyList, message));
+    }
+
+    /// <summary>Ngôn ngữ gửi kèm làm bản đối chiếu cho AI — bảng tiếng Anh luôn được dịch đủ.</summary>
+    private const string ReferenceLang = "en";
+
+    /// <summary>Số bản dịch mẫu tối đa đưa vào câu lệnh. Mỗi mẫu là token model phải đọc (CPU đọc ~22 token/giây),
+    /// nên chỉ lấy những mẫu sát với lô đang dịch nhất.</summary>
+    private const int MaxExampleCount = 8;
+
+    private static bool IsAcceptable(UiTextToTranslateDto item, Dictionary<string, string> resultByKey, string targetLang)
+        => resultByKey.TryGetValue(item.ResourceKey, out var text)
+            && UiTranslationCheck.FindProblem(item.SourceText, text, targetLang) is null;
+
+    /// <summary>Phần màn hình của khóa dịch: "report.statusAria" -> "report".</summary>
+    private static string ScreenOf(string resourceKey)
+    {
+        var dot = resourceKey.IndexOf('.');
+        return dot > 0 ? resourceKey[..dot] : resourceKey;
+    }
+
+    /// <summary>Câu nguồn -> bản dịch ĐÃ CÓ ở một khóa khác mang đúng câu nguồn đó. Ưu tiên bản người thật đã
+    /// soát hơn bản máy dịch, và vẫn soát lại cấu trúc: bản cũ có thể chính là bản hỏng từ trước.</summary>
+    private async Task<Dictionary<string, string>> LoadTranslationMemoryAsync(string sourceLang, string targetLang,
+        List<UiTextToTranslateDto> pendingList, CancellationToken cancellationToken)
+    {
+        var textList = pendingList.Select(x => x.SourceText).Distinct().ToList();
+        var pendingKeyList = pendingList.Select(x => x.ResourceKey).ToList();
+
+        var hitList = await (
+                from source in _db.Translation.AsNoTracking()
+                where source.Lang == sourceLang
+                      && textList.Contains(source.TranslatedText)
+                      && !pendingKeyList.Contains(source.ResourceKey)
+                join target in _db.Translation.AsNoTracking() on source.ResourceKey equals target.ResourceKey
+                where target.Lang == targetLang && target.TranslatedText != ""
+                select new
+                {
+                    SourceText = source.TranslatedText,
+                    TargetText = target.TranslatedText,
+                    IsReviewed = target.Note == null || target.Note != AiNote,
+                })
+            .ToListAsync(cancellationToken);
+
+        // So khớp lại bằng C# theo đúng từng ký tự: collation của SQL Server không phân biệt hoa thường, nên
+        // "Chứng Nhận" cũng khớp "Chứng nhận" ở câu truy vấn trên.
+        var memoryByText = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var hit in hitList.OrderByDescending(x => x.IsReviewed))
+        {
+            if (memoryByText.ContainsKey(hit.SourceText)) continue;
+            if (UiTranslationCheck.FindProblem(hit.SourceText, hit.TargetText, targetLang) is not null) continue;
+            memoryByText[hit.SourceText] = hit.TargetText.Trim();
+        }
+
+        return memoryByText;
+    }
+
+    /// <summary>Bản dịch mẫu cho lô đang dịch, lấy từ những dòng người thật đã soát (không còn nhãn máy dịch).
+    ///
+    /// Chọn theo độ sát: trước hết là THUẬT NGỮ — câu mẫu ngắn nằm gọn trong câu sắp dịch ("Khóa học" trong
+    /// "Khóa học của tôi"), sau đó là câu cùng màn hình. Ngôn ngữ mới chưa ai soát dòng nào thì danh sách rỗng
+    /// và AI dịch như bình thường; càng soát nhiều, các lượt dịch sau càng sát.</summary>
+    private async Task<List<UiTranslationExampleDto>> LoadExampleListAsync(string sourceLang, string targetLang,
+        List<UiTextToTranslateDto> pendingList, CancellationToken cancellationToken)
+    {
+        var reviewedList = await (
+                from target in _db.Translation.AsNoTracking()
+                where target.Lang == targetLang && target.TranslatedText != "" && (target.Note == null || target.Note != AiNote)
+                join source in _db.Translation.AsNoTracking() on target.ResourceKey equals source.ResourceKey
+                where source.Lang == sourceLang && source.TranslatedText != "" && source.TranslatedText != target.TranslatedText
+                select new { target.ResourceKey, SourceText = source.TranslatedText, TargetText = target.TranslatedText })
+            .ToListAsync(cancellationToken);
+
+        if (reviewedList.Count == 0) return [];
+
+        var pendingKeySet = pendingList.Select(x => x.ResourceKey).ToHashSet();
+        var screenSet = pendingList.Select(x => ScreenOf(x.ResourceKey)).ToHashSet();
+        var pendingTextList = pendingList.Select(x => x.SourceText).ToList();
+
+        return reviewedList
+            .Where(x => !pendingKeySet.Contains(x.ResourceKey) && x.SourceText.Length <= 120)
+            .Select(x => new
+            {
+                x.SourceText,
+                x.TargetText,
+                IsTerm = x.SourceText.Length <= 40
+                    && pendingTextList.Any(text => text.Contains(x.SourceText, StringComparison.OrdinalIgnoreCase)),
+                IsSameScreen = screenSet.Contains(ScreenOf(x.ResourceKey)),
+            })
+            .Where(x => x.IsTerm || x.IsSameScreen)
+            .OrderByDescending(x => x.IsTerm)
+            .ThenByDescending(x => x.IsSameScreen)
+            .ThenByDescending(x => x.SourceText.Length)
+            .DistinctBy(x => x.SourceText)
+            .Take(MaxExampleCount)
+            .Select(x => new UiTranslationExampleDto(x.SourceText, x.TargetText))
+            .ToList();
+    }
+
+    // ==================== DỊCH BẰNG AI — CHẠY NỀN, TỰ CHIA LÔ ====================
+
+    /// <summary>Trần số khóa của một lượt dịch nền. Cả hệ thống hiện chỉ khoảng 2.200 câu — trần này chỉ chặn
+    /// một yêu cầu bất thường kéo hàng đợi đi cả ngày.</summary>
+    private const int MaxAiJobKey = 10000;
+
+    public async Task<Result> StartAiJob(AiTranslateJobRequest request, CancellationToken cancellationToken)
+    {
+        if (!_ai.IsConfigured)
+            return Result.Invalid(new MessageResponse(
+                "Chưa cấu hình máy chủ AI nội bộ (mục Ollama trong appsettings.json). "
+                + "Vui lòng liên hệ quản trị viên hệ thống."));
+
+        var sourceLang = (request.SourceLang ?? "").Trim().ToLowerInvariant();
+        var targetLang = (request.TargetLang ?? "").Trim().ToLowerInvariant();
+        if (sourceLang.Length == 0 || targetLang.Length == 0)
+            return Result.Invalid(new MessageResponse("Thiếu ngôn ngữ nguồn hoặc ngôn ngữ đích."));
+        if (sourceLang == targetLang)
+            return Result.Invalid(new MessageResponse("Ngôn ngữ nguồn và ngôn ngữ đích phải khác nhau."));
+
+        var languageCount = await _db.AppLanguage.AsNoTracking()
+            .CountAsync(x => x.Code == sourceLang || x.Code == targetLang, cancellationToken);
+        if (languageCount < 2)
+            return Result.Invalid(new MessageResponse("Ngôn ngữ nguồn hoặc ngôn ngữ đích không có trong hệ thống."));
+
+        var keyList = (request.ResourceKeyList ?? [])
+            .Select(x => (x ?? "").Trim())
+            .Where(x => x.Length > 0)
+            .Distinct()
+            .ToList();
+        if (keyList.Count == 0)
+            return Result.Invalid(new MessageResponse("Chưa chọn khóa dịch nào."));
+        if (keyList.Count > MaxAiJobKey)
+            return Result.Invalid(new MessageResponse($"Mỗi lượt dịch tối đa {MaxAiJobKey} câu — hãy lọc theo màn hình rồi dịch từng phần."));
+
+        var job = new AiTranslateJob(sourceLang, targetLang, keyList, request.Overwrite,
+            Math.Min(_jobQueue.BatchSize, MaxAiBatchKey), _currentUser.UserId);
+        if (!_jobQueue.TryEnqueue(job))
+        {
+            // Nói rõ đang bận tiếng nào — lượt kia có thể do người khác bấm ở máy khác, trang này không biết.
+            var runningLang = _jobQueue.Latest?.TargetLang;
+            var runningName = runningLang is null ? null : await _db.AppLanguage.AsNoTracking()
+                .Where(x => x.Code == runningLang).Select(x => x.Name).FirstOrDefaultAsync(cancellationToken);
+            return Result.Conflict(new MessageResponse(runningName is null
+                ? "Đang có một lượt dịch bằng AI chưa xong. Đợi lượt đó xong hoặc bấm Dừng rồi thử lại."
+                : $"AI đang dịch {runningName}, vui lòng chờ lượt này xong rồi dịch tiếp."));
+        }
+
+        _logger.LogInformation("Bat dau dich nen bang AI {Count} khoa {Source} -> {Target}, lo {Batch} khoa (nguoi dung #{UserId}).",
+            keyList.Count, sourceLang, targetLang, job.BatchSize, job.UserId);
+        return Result.Success(job.Snapshot(0));
+    }
+
+    public Result GetAiJob(string? id, int fromText)
+    {
+        var job = string.IsNullOrEmpty(id) ? _jobQueue.Latest : _jobQueue.Get(id);
+        if (job is null)
+            return string.IsNullOrEmpty(id)
+                ? Result.Success(null)   // chưa có lượt nào — trang hiểu là không có gì để theo dõi
+                : Result.NotFound(new MessageResponse("Không tìm thấy lượt dịch này (máy chủ có thể vừa khởi động lại)."));
+        return Result.Success(job.Snapshot(fromText));
+    }
+
+    public Result CancelAiJob(string id)
+    {
+        var job = _jobQueue.Get(id);
+        if (job is null) return Result.NotFound(new MessageResponse("Không tìm thấy lượt dịch này."));
+        job.RequestCancel();
+        return Result.Success(job.Snapshot(int.MaxValue));
     }
 
     /// <summary>Tiền tố trước dấu chấm đầu tiên. Khóa không có dấu chấm xếp vào nhóm "khác".</summary>

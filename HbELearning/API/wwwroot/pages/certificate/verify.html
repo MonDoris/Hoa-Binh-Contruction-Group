@@ -1,0 +1,51 @@
+<!-- File: wwwroot/pages/certificate/verify.html -->
+<!-- Trang xác thực chứng nhận công khai — KHÔNG yêu cầu đăng nhập (đích đến của mã QR) -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="verify.xacThucChungNhanHbELearning">Xác thực chứng nhận · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/pages/certificate/verify.css">
+</head>
+<body>
+<div class="verify-wrap decorated">
+    <div class="verify-card">
+        <div class="card">
+            <div class="card-head">
+                <h3 data-i18n="index.verifyTitle">Xác thực chứng nhận đào tạo</h3>
+                <span class="small muted">HB E-Learning</span>
+            </div>
+            <div class="card-body">
+                <div class="field">
+                    <label data-i18n="verify.soHieuChungNhan" for="code">Số hiệu chứng nhận</label>
+                    <div class="flex">
+                        <input type="text" id="code" data-i18n-ph="verify.nhapSoHieuVd" placeholder="VD: HBE-2026-000001 — hoặc quét QR trên chứng nhận">
+                        <button data-i18n="verify.kiemTra" class="btn w-auto" id="btn-verify">Kiểm tra</button>
+                    </div>
+                </div>
+                <div id="result"></div>
+            </div>
+        </div>
+        <p class="text-center small muted mt">
+            <a href="/"><i class="ph ph-arrow-left"></i> <span data-i18n="verify.veTrangChu">Về trang chủ</span></a> &nbsp;·&nbsp; <a data-i18n="verify.dangNhapHeThong" href="/pages/login/login.html">Đăng nhập hệ thống</a>
+        </p>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/certificate/verify.js"></script>
+</body>
+</html>

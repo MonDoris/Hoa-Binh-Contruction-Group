@@ -19,6 +19,7 @@ global using HbELearning.Application.Common.Results;
 // ----- Các ca sử dụng, mỗi chức năng một thư mục trong Application/Features -----
 global using HbELearning.Application.Features.Ai;
 global using HbELearning.Application.Features.AiDocuments;
+global using HbELearning.Application.Features.AiAnswerMemories;
 global using HbELearning.Application.Features.AiQuickReplies;
 global using HbELearning.Application.Features.AiTutor;
 global using HbELearning.Application.Features.ApprovalDelegates;

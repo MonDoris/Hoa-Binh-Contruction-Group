@@ -414,66 +414,117 @@ public class OllamaContentService : IAiContentService
     public async Task<Dictionary<string, string>> TranslateUiTextAsync(
         string sourceLanguageName, string sourceLanguageTag,
         string targetLanguageName, string targetLanguageTag,
-        IReadOnlyList<UiTextToTranslateDto> itemList, CancellationToken cancellationToken = default)
+        IReadOnlyList<UiTextToTranslateDto> itemList,
+        IReadOnlyList<UiTranslationExampleDto>? exampleList = null,
+        CancellationToken cancellationToken = default)
     {
         if (itemList.Count == 0) return new Dictionary<string, string>();
 
         // Gửi kèm KHÓA DỊCH chứ không chỉ câu chữ. Khóa là thứ duy nhất nói cho model biết câu này nằm ở đâu
         // trên giao diện: "common.close" là nút Đóng, còn "quiz.close" có thể là "kết thúc bài làm" — cùng
         // một chữ "Đóng" trong tiếng Việt nhưng phần lớn ngôn ngữ đích dùng hai từ khác hẳn nhau.
+        //
+        // Nhưng model chỉ phải trả về SỐ THỨ TỰ, không chép lại khóa: trên CPU thời gian nằm gần hết ở phần
+        // model viết ra (~0,2-0,3 giây mỗi token), mà một khóa như "translation.dichTamTuHint" kèm cú pháp
+        // JSON tốn ngang chính câu dịch. Số thứ tự chỉ tốn một hai token.
         var sourceJson = new JsonArray();
-        foreach (var item in itemList)
+        for (var i = 0; i < itemList.Count; i++)
         {
-            sourceJson.Add(new JsonObject
+            var item = itemList[i];
+            var row = new JsonObject
             {
+                ["i"] = i + 1,
                 ["key"] = item.ResourceKey,
-                ["text"] = item.SourceText,
-            });
+                ["src"] = item.SourceText,
+            };
+            if (!string.IsNullOrWhiteSpace(item.ReferenceText)) row["en"] = item.ReferenceText;
+            sourceJson.Add(row);
         }
 
+        var hasReference = itemList.Any(x => !string.IsNullOrWhiteSpace(x.ReferenceText));
+
+        // Gọi tên ngôn ngữ đích bằng TIẾNG ANH ("Thai"), không chỉ bằng tên tự gọi ("ไทย") và mã: đo thật với
+        // qwen2.5:7b, chỉ có "ไทย (th-TH)" thì model dịch cả lô sang tiếng Trung — thứ tiếng nó mặc định khi
+        // không chắc. Tên tiếng Anh là thứ model nhận ra chắc chắn nhất.
+        var targetEnglishName = EnglishLanguageName(targetLanguageTag) ?? targetLanguageName;
+        var notChinese = targetLanguageTag.StartsWith("zh", StringComparison.OrdinalIgnoreCase)
+            ? "" : " Do NOT write Chinese.";
+
+        // Ví dụ người thật đã duyệt: đây là cách "dạy" model thuật ngữ của công ty mà không cần huấn luyện lại.
+        // Bảng dịch càng được soát nhiều, ví dụ càng đúng màn hình, bản dịch máy càng sát.
+        var exampleSection = "";
+        if (exampleList is { Count: > 0 })
+        {
+            var exampleBuilder = new StringBuilder("\nBẢN DỊCH MẪU ĐÃ ĐƯỢC DUYỆT — dùng ĐÚNG các thuật ngữ này khi gặp lại:\n");
+            foreach (var example in exampleList)
+                exampleBuilder.Append("- ").Append(example.SourceText).Append(" => ").Append(example.TargetText).Append('\n');
+            exampleSection = exampleBuilder.ToString();
+        }
+
+        // Phần quy tắc đứng TRƯỚC và giữ nguyên giữa các lô: Ollama dùng lại phần đầu câu lệnh đã đọc ở lô
+        // trước, khỏi đọc lại vài trăm token quy tắc (đọc câu lệnh trên CPU chỉ ~22 token/giây).
         var prompt = $$"""
             Bạn là người dịch giao diện phần mềm, đang dịch bảng chữ của một hệ thống đào tạo nội bộ doanh
             nghiệp (e-learning: khóa học, bài học, bài kiểm tra, chứng nhận, mô phỏng 3D an toàn lao động).
 
-            Dịch từ {{sourceLanguageName}} (mã {{sourceLanguageTag}}) sang {{targetLanguageName}} (mã {{targetLanguageTag}}).
-
             QUY TẮC BẮT BUỘC:
-            0. NGÔN NGỮ ĐÍCH LÀ {{targetLanguageTag}}. Mọi giá trị "text" trả về phải viết bằng đúng thứ
-               tiếng đó và đúng hệ chữ viết của nó. Tuyệt đối không trả lời bằng một ngôn ngữ nào khác, kể
-               cả ngôn ngữ có chung mặt chữ với ngôn ngữ đích.
-            1. GIỮ NGUYÊN từng chỗ giữ chỗ dạng {tên} — chép lại y hệt, không dịch chữ bên trong, không đổi
-               tên, không thêm cũng không bớt cái nào. Bản dịch phải có ĐÚNG những chỗ giữ chỗ của bản nguồn.
-            2. Giữ nguyên mọi thẻ HTML (<b>, <br>...), các ký hiệu · / — % và mọi con số bản nguồn có.
-            3. Đây là chữ trên GIAO DIỆN: nhãn, nút bấm, tiêu đề cột, thông báo ngắn. Dịch gọn đúng văn phong
-               phần mềm, không diễn giải dài ra. Bản nguồn không có dấu chấm cuối câu thì bản dịch cũng không.
-            4. Trường "key" cho biết câu đó nằm ở màn hình nào — dùng nó để chọn đúng nghĩa, và CHÉP NGUYÊN
-               key vào kết quả. Tuyệt đối không dịch key.
+            1. Mỗi dòng có: "i" là số thứ tự, "key" cho biết câu nằm ở màn hình nào (dùng để chọn đúng
+               nghĩa, KHÔNG dịch), "src" là câu cần dịch{{(hasReference ? ", \"en\" là CÙNG câu đó bằng tiếng Anh — đối chiếu cả hai để hiểu đúng nghĩa, \"src\" là bản chuẩn khi hai bản lệch nhau" : "")}}.
+            2. GIỮ NGUYÊN từng chỗ giữ chỗ dạng {tên} — chép lại y hệt, không dịch chữ bên trong, không đổi
+               tên, không thêm cũng không bớt cái nào.
+            3. Giữ nguyên mọi thẻ HTML (<b>, <br>...), các ký hiệu · / — % và mọi con số bản nguồn có.
+            4. Đây là chữ trên GIAO DIỆN: nhãn, nút bấm, tiêu đề cột, thông báo ngắn. Dịch sát nghĩa, gọn
+               đúng văn phong phần mềm, không thêm không bớt ý. Bản nguồn không có dấu chấm cuối câu thì bản
+               dịch cũng không.
             5. Thuật ngữ đào tạo / an toàn lao động dịch theo cách nói phổ biến trong ngành.
-            6. Trả về ĐỦ mọi key nhận được, không bỏ sót, không thêm key lạ.
-            7. Chỉ trả về JSON đúng lược đồ, không lời dẫn, không markdown.
+            6. Trả về ĐỦ mọi số thứ tự nhận được, mỗi số đúng một lần: {"r":[{"i":1,"t":"bản dịch"}, ...]}.
+               Chỉ JSON, không lời dẫn, không markdown.
 
+            Dịch từ {{sourceLanguageName}} (mã {{sourceLanguageTag}}) sang {{targetLanguageName}} (mã {{targetLanguageTag}}).
+            TARGET LANGUAGE: {{targetEnglishName}} ({{targetLanguageTag}}). Every "t" MUST be written in
+            {{targetEnglishName}}, in its own script.{{notChinese}}
+            {{exampleSection}}
             Danh sách cần dịch:
             {{sourceJson.ToJsonString()}}
+
+            Nhắc lại: mọi "t" viết bằng {{targetEnglishName}} ({{targetLanguageTag}}).
             """;
 
-        var json = (await CallOllamaAsync(prompt, BuildTranslateSchema(), cancellationToken)).Text;
+        // Nhiệt độ 0: dịch giao diện cần ổn định — cùng một câu, chạy lại phải ra cùng bản dịch.
+        var json = (await CallOllamaAsync(prompt, BuildTranslateSchema(), cancellationToken, temperature: 0)).Text;
         var parsed = JsonSerializer.Deserialize<TranslateBatchResult>(json, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
         });
 
         var resultByKey = new Dictionary<string, string>();
-        foreach (var item in parsed?.ItemList ?? [])
+        foreach (var item in parsed?.R ?? [])
         {
-            if (string.IsNullOrWhiteSpace(item.Key) || string.IsNullOrWhiteSpace(item.Text)) continue;
-            resultByKey[item.Key.Trim()] = item.Text.Trim();
+            if (item.I is not { } index || index < 1 || index > itemList.Count || string.IsNullOrWhiteSpace(item.T)) continue;
+            resultByKey[itemList[index - 1].ResourceKey] = item.T.Trim();
         }
 
         return resultByKey;
     }
 
-    private sealed record TranslateBatchResult(List<TranslateBatchItem>? ItemList);
-    private sealed record TranslateBatchItem(string? Key, string? Text);
+    /// <summary>Tên tiếng Anh của ngôn ngữ theo mã locale ("th-TH" -> "Thai"), null nếu máy không nhận ra mã.</summary>
+    private static string? EnglishLanguageName(string languageTag)
+    {
+        try
+        {
+            var culture = System.Globalization.CultureInfo.GetCultureInfo(languageTag);
+            var neutral = culture.IsNeutralCulture ? culture : culture.Parent;
+            var name = string.IsNullOrEmpty(neutral.Name) ? culture.EnglishName : neutral.EnglishName;
+            return string.IsNullOrWhiteSpace(name) || name.StartsWith("Unknown", StringComparison.OrdinalIgnoreCase) ? null : name;
+        }
+        catch (System.Globalization.CultureNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    private sealed record TranslateBatchResult(List<TranslateBatchItem>? R);
+    private sealed record TranslateBatchItem(int? I, string? T);
 
     /// <summary>Cửa sổ ngữ cảnh đủ chứa CẢ câu lệnh LẪN phần model sắp viết ra.
     ///
@@ -585,9 +636,11 @@ public class OllamaContentService : IAiContentService
     ///
     /// <paramref name="maxToken"/> ghi đè trần token mặc định cho riêng lượt gọi này — soạn một bài học chi
     /// tiết cần gấp đôi số token của một lô dịch giao diện, dùng chung một con số thì hoặc bài học cụt hoặc
-    /// bản dịch chờ lâu vô ích.</summary>
+    /// bản dịch chờ lâu vô ích.
+    ///
+    /// <paramref name="temperature"/> để trống thì dùng 0.2 như việc soạn bài.</summary>
     private async Task<OllamaTextResult> CallOllamaAsync(string prompt, JsonObject? responseSchema,
-        CancellationToken cancellationToken = default, int? maxToken = null)
+        CancellationToken cancellationToken = default, int? maxToken = null, double? temperature = null)
     {
         var requestBody = new JsonObject
         {
@@ -601,7 +654,7 @@ public class OllamaContentService : IAiContentService
             ["options"] = new JsonObject
             {
                 // Nhiệt độ thấp: việc ở đây là soạn tài liệu đào tạo bám quy định, không phải sáng tác.
-                ["temperature"] = 0.2,
+                ["temperature"] = temperature ?? 0.2,
                 ["num_predict"] = maxToken ?? _maxContentToken,
                 // Khai báo rõ cửa sổ ngữ cảnh: để mặc định thì Ollama cắt cụt phần tài liệu dài mà không báo
                 // gì, và bài học sẽ thiếu đúng đoạn vừa bị cắt.
@@ -788,19 +841,19 @@ public class OllamaContentService : IAiContentService
             {
                 "type": "object",
                 "properties": {
-                    "itemList": {
+                    "r": {
                         "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "key": { "type": "string" },
-                                "text": { "type": "string" }
+                                "i": { "type": "integer" },
+                                "t": { "type": "string" }
                             },
-                            "required": ["key", "text"]
+                            "required": ["i", "t"]
                         }
                     }
                 },
-                "required": ["itemList"]
+                "required": ["r"]
             }
             """;
 

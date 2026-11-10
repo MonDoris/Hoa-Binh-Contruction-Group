@@ -39,6 +39,8 @@ public class ExternalCertificateService : IExternalCertificateService
 
     public async Task<Result> GetList(ExternalCertificateStatus? status, int? departmentId, string? keyword)
     {
+        if (!_currentUser.IsAdmin && !await IsHrMemberAsync()) return Result.Forbidden();
+
         var query = _db.ExternalCertificate.AsQueryable();
         if (status.HasValue) query = query.Where(x => x.Status == status);
         if (departmentId.HasValue) query = query.Where(x => x.User.DepartmentId == departmentId);
@@ -52,6 +54,9 @@ public class ExternalCertificateService : IExternalCertificateService
         }
         return Result.Success(await QueryDto(query, MaxListRow));
     }
+
+    public async Task<Result> GetHrAccess()
+        => Result.Success(new { isHrReviewer = await IsHrMemberAsync() });
 
     public async Task<Result> GetPendingCount()
         => Result.Success(new { count = await _db.ExternalCertificate.CountAsync(x => x.Status == ExternalCertificateStatus.Pending) });
@@ -195,7 +200,8 @@ public class ExternalCertificateService : IExternalCertificateService
     {
         var certificate = await _db.ExternalCertificate.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
         if (certificate is null) return NotFound();
-        if (!_currentUser.IsAdmin && certificate.UserId != _currentUser.UserId) return Result.Forbidden();
+        if (!_currentUser.IsAdmin && certificate.UserId != _currentUser.UserId && !await IsHrMemberAsync())
+            return Result.Forbidden();
 
         await using var stream = _fileService.OpenPrivate(certificate.FilePath);
         if (stream is null) return Result.NotFound(new MessageResponse("Không tìm thấy tệp quét của chứng nhận này."));
@@ -241,7 +247,38 @@ public class ExternalCertificateService : IExternalCertificateService
         return Result.Success(new MessageResponse(wasApproved ? "Đã thu hồi xác nhận." : "Đã từ chối chứng nhận."));
     }
 
+    /// <summary>Phòng Nhân sự xác nhận giấy đã qua đối chiếu. Không tự xác nhận giấy của chính mình — người khác
+    /// trong phòng phải bấm, giống lý do Admin không tự gửi giấy.</summary>
+    public async Task<Result> ConfirmByHr(int id)
+    {
+        if (!await IsHrMemberAsync())
+            return Result.Forbidden();
+
+        var certificate = await _db.ExternalCertificate.FirstOrDefaultAsync(x => x.Id == id);
+        if (certificate is null) return NotFound();
+        if (certificate.UserId == _currentUser.UserId)
+            return Invalid("Không tự xác nhận chứng nhận của chính mình — nhờ người khác trong phòng Nhân sự.");
+        if (certificate.Status != ExternalCertificateStatus.Approved)
+            return Invalid("Chỉ xác nhận được chứng nhận đã qua đối chiếu.");
+        if (certificate.HrConfirmedAt.HasValue)
+            return Result.Conflict(new MessageResponse("Phòng nhân sự đã xác nhận chứng nhận này."));
+
+        certificate.ConfirmByHr(_currentUser.UserId, DateTime.Now);
+        NotifyOwner(certificate, "Phòng nhân sự đã xác nhận chứng nhận bên ngoài",
+            $"\"{certificate.Title}\" đã được phòng Nhân sự xác nhận.");
+        await _db.SaveChangesAsync();
+        return Result.Success(new MessageResponse("Phòng nhân sự đã xác nhận chứng nhận."));
+    }
+
     // ==================== HỖ TRỢ ====================
+
+    /// <summary>Người đang đăng nhập thuộc phòng Nhân sự (phòng ban đánh dấu IsHrDepartment). Đọc từ database chứ
+    /// không từ thẻ đăng nhập: chuyển phòng xong là có / mất quyền ngay, không đợi đăng nhập lại.</summary>
+    private Task<bool> IsHrMemberAsync()
+    {
+        var userId = _currentUser.UserId;
+        return _db.User.AnyAsync(x => x.Id == userId && x.IsActive && x.Department != null && x.Department.IsHrDepartment);
+    }
 
     private sealed record UploadContent(byte[] Content, string Extension, string ContentType);
 
@@ -296,7 +333,8 @@ public class ExternalCertificateService : IExternalCertificateService
                 x.Title, x.Issuer, x.CertificateNo, x.IssuedAt, x.ExpiredAt, x.Note,
                 x.FileName, x.ContentType, x.FileSize, x.Status, x.RejectReason,
                 ReviewedByName = x.ReviewedBy != null ? x.ReviewedBy.FullName : null,
-                x.ReviewedAt, x.CreatedAt, x.IsAiReviewed, x.AiResultJson
+                x.ReviewedAt, x.CreatedAt, x.IsAiReviewed, x.AiResultJson,
+                HrConfirmedByName = x.HrConfirmedBy != null ? x.HrConfirmedBy.FullName : null, x.HrConfirmedAt
             })
             .ToListAsync();
 
@@ -307,7 +345,8 @@ public class ExternalCertificateService : IExternalCertificateService
                 x.Title, x.Issuer, x.CertificateNo, x.IssuedAt, x.ExpiredAt, x.Note,
                 x.FileName, x.ContentType, x.FileSize,
                 x.Status.ToString(), x.RejectReason, x.ReviewedByName, x.ReviewedAt, x.CreatedAt,
-                x.IsAiReviewed, ExternalCertificateVerifier.ParseAiResult(x.AiResultJson)))
+                x.IsAiReviewed, ExternalCertificateVerifier.ParseAiResult(x.AiResultJson),
+                x.HrConfirmedByName, x.HrConfirmedAt))
             .ToList();
     }
 

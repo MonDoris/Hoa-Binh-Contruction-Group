@@ -26,6 +26,10 @@ public class OllamaChatService : IAiChatService
     public string Model { get; }
     public string VisionModel { get; }
 
+    /// <summary>ĐỔI CHUỖI NÀY mỗi lần sửa BuildSystemPrompt, BuildUserPrompt hay các quy tắc gắn kèm câu hỏi — xem
+    /// <see cref="IAiChatService.PromptVersion"/>. Đặt theo ngày sửa cho dễ đối chiếu.</summary>
+    public string PromptVersion => "2026-10-28b";
+
     public OllamaChatService(HttpClient http, IConfiguration config, ILogger<OllamaChatService> logger)
     {
         _http = http;
@@ -115,7 +119,7 @@ public class OllamaChatService : IAiChatService
             : PolicyQuestionRegex.IsMatch(normalizedQuestion) ? PolicyAnswerFormat : null;
         var maxAnswerToken = isReasoning ? _reasoningMaxAnswerToken : _maxAnswerToken;
 
-        var userPrompt = BuildUserPrompt(question, contextList, _maxContextCharacter, answerFormat);
+        var userPrompt = BuildUserPrompt(question, contextList, _maxContextCharacter, answerFormat, isCitationEnabled);
 
         // Ước lượng 3 ký tự một token (tiếng Việt có dấu tốn token hơn tiếng Anh). Vượt cửa sổ ngữ cảnh thì
         // Ollama lặng lẽ bỏ phần ĐẦU câu lệnh — tức đúng đoạn tài liệu — và câu trả lời sẽ thiếu mà không ai
@@ -386,9 +390,21 @@ public class OllamaChatService : IAiChatService
     /// <summary><paramref name="maxContextCharacter"/> là trần số chữ tài liệu được nhét vào câu lệnh — dao
     /// chỉnh tốc độ chính của tính năng hỏi đáp. Đo trên máy chạy CPU: model đọc chỉ khoảng 12 token/giây,
     /// tức mỗi 1000 chữ tài liệu tốn thêm chừng 30 giây TRƯỚC KHI hiện ra chữ trả lời đầu tiên. Đưa vào ít
-    /// mà đúng thì nhanh hơn hẳn và không kém chính xác — phần chọn đoạn nào đã do tìm kiếm ngữ nghĩa lo.</summary>
+    /// mà đúng thì nhanh hơn hẳn và không kém chính xác — phần chọn đoạn nào đã do tìm kiếm ngữ nghĩa lo.
+    ///
+    /// Khi TẮT trích dẫn (trang HB Minerva của học viên) thì các đoạn chỉ ngăn nhau bằng "---": không số thứ tự, không
+    /// tên tệp, và KHÔNG gắn quy tắc nguồn mâu thuẫn. Học viên không thấy bảng nguồn, nên mọi thứ model nhìn thấy về
+    /// "nguồn" đều chảy thẳng ra câu trả lời thành những câu họ không hiểu nổi. Đo trên qwen2.5:3b với các đoạn tìm
+    /// được thật (báo cáo tập đoàn lẫn với một cuốn sách, hỏi "giờ tan làm"): có số và tên tệp thì model viết "Tài
+    /// liệu 1 ghi về..., tài liệu 2 và 3 không liên quan"; có quy tắc mâu thuẫn thì nó coi quy tắc là "tài liệu 4",
+    /// viết "chưa có thông tin về nguồn nào mới hơn" hay "Chưa rõ tài liệu nào mới hơn" dù chẳng có gì mâu thuẫn.
+    /// Viết lại quy tắc cho học viên ("nêu cả hai", "khuyên xác nhận lại với phòng ban phụ trách") cũng hỏng: model
+    /// chép lời khuyên vào gần như mọi câu, có câu còn đi tóm tắt cả đoạn sách lạc đề. Bỏ hẳn thì cả 6 tình huống thử
+    /// đều sạch, kể cả hai quyết định có ngày (vẫn tự chọn bản mới hơn). Cái giá: hai tài liệu không ghi ngày mà ghi
+    /// khác nhau thì model lặng lẽ theo một bên thay vì nêu cả hai.</summary>
     private static string BuildUserPrompt(
-        string question, IReadOnlyList<DocumentChunkMatchDto> contextList, int maxContextCharacter, string? answerFormat)
+        string question, IReadOnlyList<DocumentChunkMatchDto> contextList, int maxContextCharacter, string? answerFormat,
+        bool isCitationEnabled)
     {
         var builder = new StringBuilder();
         builder.AppendLine("TÀI LIỆU:");
@@ -401,7 +417,7 @@ public class OllamaChatService : IAiChatService
             var item = contextList[i];
             if (usedCharacter + item.TextContent.Length > maxContextCharacter) break;
 
-            builder.AppendLine($"[{i + 1}] (nguồn: {item.SourceFileName})");
+            builder.AppendLine(isCitationEnabled ? $"[{i + 1}] (nguồn: {item.SourceFileName})" : "---");
             builder.AppendLine(item.TextContent);
             builder.AppendLine();
             usedCharacter += item.TextContent.Length;
@@ -414,7 +430,7 @@ public class OllamaChatService : IAiChatService
 
         // Các quy tắc dưới đây CHỈ gắn vào câu hỏi khi chúng áp dụng được — lý do nằm trong ghi chú của
         // BuildSystemPrompt. Câu lệnh hệ thống nhờ vậy giữ nguyên giữa các câu hỏi, Ollama vẫn dùng lại bộ đệm.
-        if (sourceSet.Count > 1)
+        if (isCitationEnabled && sourceSet.Count > 1)
             builder.AppendLine().AppendLine().Append(datedSourceSet.Count > 1 ? DatedConflictRule : UndatedConflictRule);
         if (answerFormat is not null)
             builder.AppendLine().AppendLine().Append(answerFormat);
@@ -459,7 +475,8 @@ public class OllamaChatService : IAiChatService
     private static readonly Regex DateRegex = new(
         @"\b\d{1,2}/\d{1,2}/\d{4}\b|ngày \d{1,2} tháng \d{1,2} năm \d{4}", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
-    /// <summary>Quy tắc khi hai tài liệu mâu thuẫn — chỉ gắn khi TÀI LIỆU có từ hai tệp trở lên. Hệ thống không
+    /// <summary>Quy tắc khi hai tài liệu mâu thuẫn — chỉ gắn khi TÀI LIỆU có từ hai tệp trở lên, và chỉ ở màn hình
+    /// quản trị (có trích dẫn); trang học viên không gắn, xem BuildUserPrompt. Hệ thống không
     /// lưu ngày ban hành của tài liệu, nên ngày chỉ có khi nằm ngay trong đoạn văn; code tự xem có ngày hay không
     /// rồi đưa model đúng MỘT quy tắc. Đưa cả hai nhánh "có ngày thì..., không có ngày thì..." thì model 3B tự bịa
     /// ra "tài liệu này ban hành sau" cho hai tài liệu không ghi ngày nào.</summary>

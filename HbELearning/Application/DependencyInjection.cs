@@ -22,6 +22,7 @@ public static class DependencyInjection
 
 
         // ----- Ca sử dụng của từng chức năng (Application/Features) -----
+        services.AddScoped<IAiAnswerMemoryService, AiAnswerMemoryService>();
         services.AddScoped<IAiDocumentService, AiDocumentService>();
         services.AddScoped<IAiQuickReplyService, AiQuickReplyService>();
         services.AddScoped<IAiService, AiService>();

@@ -10,7 +10,8 @@ public record ExternalCertificateDto(
     string Title, string Issuer, string? CertificateNo, DateTime IssuedAt, DateTime? ExpiredAt, string? Note,
     string FileName, string ContentType, long FileSize,
     string Status, string? RejectReason, string? ReviewedByName, DateTime? ReviewedAt, DateTime CreatedAt,
-    bool IsAiReviewed, ExternalCertificateAiResultDto? AiResult);
+    bool IsAiReviewed, ExternalCertificateAiResultDto? AiResult,
+    string? HrConfirmedByName, DateTime? HrConfirmedAt);
 
 /// <summary>Kết quả một lần AI đọc giấy — đây cũng là hình dạng lưu ở cột AI_RESULT_JSON.</summary>
 /// <param name="CheckList">Kết quả so từng mục (xem CertificateCheck); rỗng khi AI chỉ quét chứ chưa đối chiếu.</param>

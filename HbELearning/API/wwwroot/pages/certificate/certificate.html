@@ -1,0 +1,111 @@
+<!-- File: wwwroot/pages/certificate/certificate.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="certificate.chungNhanHbELearning">Chứng nhận · HB E-Learning</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+
+    <link rel="stylesheet" href="/pages/certificate/certificate.css">
+</head>
+<body>
+<div class="main">
+    <div class="content" id="content"></div>
+</div>
+
+<div class="modal-mask" id="modal-cert">
+    <div class="modal wide">
+        <div class="modal-head">
+            <h3 data-i18n="certificate.chungNhanHoanThanh">Chứng nhận hoàn thành</h3>
+            <button class="close-x" onclick="closeModal('modal-cert')">×</button>
+        </div>
+        <div class="modal-body" id="cert-view"></div>
+        <div class="modal-foot no-print">
+            <button data-i18n="common.close" class="btn ghost" onclick="closeModal('modal-cert')">Đóng</button>
+            <button class="btn" id="btn-print-cert"><i class="ph ph-printer"></i> <span data-i18n="certificate.inLuuPdf">In / Lưu PDF</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Thêm chứng nhận bên ngoài: bên trái là chỗ lấy tệp (chụp camera / tải PDF, ảnh), bên phải là thông tin giấy.
+     Phần bên trái do JS dựng lại theo từng bước (đang ngắm -> đã chụp -> đã chọn tệp). Có tệp là AI đọc ngay
+     (ô #ext-ai): điền sẵn thông tin, báo sớm chỗ chắc chắn không qua — xem startScan(). -->
+<div class="modal-mask" id="modal-ext-add">
+    <div class="modal wide">
+        <form id="ext-form" novalidate>
+            <div class="modal-head">
+                <h3 data-i18n="certificate.extAddTitle">Thêm chứng nhận bên ngoài</h3>
+                <button type="button" class="close-x" onclick="closeModal('modal-ext-add')">×</button>
+            </div>
+            <div class="modal-body ext-add-body">
+                <div>
+                    <div class="ext-mode" role="tablist">
+                        <button type="button" role="tab" data-ext-mode="camera"><i class="ph ph-camera"></i> <span data-i18n="certificate.extModeCamera">Chụp bằng camera</span></button>
+                        <button type="button" role="tab" data-ext-mode="file"><i class="ph ph-file-arrow-up"></i> <span data-i18n="certificate.extModeFile">Tải tệp PDF / ảnh</span></button>
+                    </div>
+                    <div id="ext-stage"></div>
+                </div>
+                <div>
+                    <div class="ext-ai" id="ext-ai" aria-live="polite"></div>
+                    <div class="field">
+                        <label for="ext-title" data-i18n="certificate.extFieldTitle">Tên chứng nhận *</label>
+                        <input id="ext-title" maxlength="250" required data-i18n-ph="certificate.extFieldTitlePh" placeholder="VD: An toàn lao động nhóm 3">
+                    </div>
+                    <div class="field">
+                        <label for="ext-issuer" data-i18n="certificate.extFieldIssuer">Đơn vị cấp *</label>
+                        <input id="ext-issuer" maxlength="250" required data-i18n-ph="certificate.extFieldIssuerPh" placeholder="VD: Trung tâm Huấn luyện ATLĐ">
+                    </div>
+                    <div class="field">
+                        <label for="ext-no" data-i18n="certificate.extFieldNo">Số hiệu chứng nhận</label>
+                        <input id="ext-no" maxlength="100" data-i18n-ph="certificate.extFieldNoPh" placeholder="Số in trên giấy (nếu có)">
+                    </div>
+                    <div class="row">
+                        <div class="field" style="flex:1"><label for="ext-issued" data-i18n="certificate.extFieldIssued">Ngày cấp *</label><input type="date" id="ext-issued" required></div>
+                        <div class="field" style="flex:1"><label for="ext-expired" data-i18n="certificate.extFieldExpired">Ngày hết hạn</label><input type="date" id="ext-expired"></div>
+                    </div>
+                    <div class="field">
+                        <label for="ext-note" data-i18n="certificate.extFieldNote">Ghi chú</label>
+                        <textarea id="ext-note" rows="2" maxlength="1000" data-i18n-ph="certificate.extFieldNotePh" placeholder="VD: Bản gốc đã nộp phòng Nhân sự"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn ghost" onclick="closeModal('modal-ext-add')" data-i18n="common.cancel">Hủy</button>
+                <button type="submit" class="btn" id="ext-submit"><i class="ph ph-paper-plane-tilt"></i> <span data-i18n="certificate.extSubmit">Gửi xác nhận</span></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Xem tệp quét của một chứng nhận bên ngoài kèm những gì AI đọc được; với Admin thì kèm nút sửa quyết định
+     của AI (Xác nhận / Từ chối / Thu hồi). -->
+<div class="modal-mask" id="modal-ext-view">
+    <div class="modal wide">
+        <div class="modal-head">
+            <h3 data-i18n="certificate.extViewTitle">Chứng nhận bên ngoài</h3>
+            <button type="button" class="close-x" onclick="closeModal('modal-ext-view')">×</button>
+        </div>
+        <div class="modal-body ext-view-body">
+            <div class="ext-view-file" id="ext-view-file"></div>
+            <div class="ext-view-info" id="ext-view-info"></div>
+        </div>
+        <div class="modal-foot" id="ext-view-foot"></div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/certificate/certificate.js"></script>
+</body>
+</html>

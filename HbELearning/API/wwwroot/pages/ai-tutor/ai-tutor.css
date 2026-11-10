@@ -1,0 +1,285 @@
+/* File: wwwroot/pages/ai-tutor/ai-tutor.css */
+        /* ================= HB MINERVA — GIAO DIỆN "HỒ SƠ HỎI–ĐÁP" =================
+           Không theo khuôn bong bóng chat của Gemini / ChatGPT. Mỗi lượt là một CẶP thẻ:
+             - thẻ CÂU HỎI có thanh dọc màu thương hiệu bên trái và nhãn "Câu hỏi" (như phiếu yêu cầu),
+             - thẻ TRẢ LỜI có đầu thẻ ghi tên HB Minerva và chân thẻ chứa thao tác (sao chép).
+           Ô nhập là một "bàn làm việc" ba tầng: khay tệp đính kèm / vùng gõ / thanh công cụ, có dải tín hiệu
+           chạy phía trên khi HB Minerva đang đọc và soạn câu trả lời. Màu lấy hết từ biến của hệ thống nên
+           chế độ tối tự đúng. */
+        :root {
+            --ai-sidebar-bg: var(--bg);
+            --ai-sidebar-hover: var(--primary-soft);
+            --ai-main-bg: var(--surface);
+            --ai-text-main: var(--text);
+            --ai-text-muted: var(--text-muted);
+            --ai-border: var(--border);
+            --ai-primary: var(--primary);
+            --ai-rail: linear-gradient(180deg, var(--primary), var(--primary-dark));
+        }
+
+        .main { height: 100vh; }
+        .content {
+            padding: 0 !important;          /* chat chạm sát mép, không có lề như các trang dạng bảng biểu */
+            flex: 1; min-height: 0;         /* min-height: 0 là thứ cho phép phần chat tự cuộn bên trong */
+            overflow: hidden;
+        }
+
+        [hidden] { display: none !important; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes signal { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+        @keyframes dots { 0%, 80%, 100% { opacity: .25; transform: scale(.8); } 40% { opacity: 1; transform: scale(1); } }
+
+        /* ================= BỐ CỤC ================= */
+        .ai-app { display: flex; height: 100%; width: 100%; background: var(--ai-main-bg); }
+
+        /* --- Cột lịch sử --- */
+        .ai-sidebar {
+            width: 272px; flex-shrink: 0; background: var(--ai-sidebar-bg);
+            display: flex; flex-direction: column;
+            border-right: 1px solid var(--ai-border);
+            transition: transform .3s ease;
+        }
+        .ai-sidebar-header { padding: 14px; }
+
+        .btn-new-chat {
+            width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 11px 14px; border-radius: 12px; cursor: pointer;
+            background: var(--surface); border: 1px dashed var(--primary);
+            color: var(--primary-dark); font-weight: 700; font-size: 13.5px; font-family: inherit;
+            transition: background .2s, box-shadow .2s;
+        }
+        .btn-new-chat:hover { background: var(--primary-light); box-shadow: var(--shadow-xs); }
+        .btn-new-chat i { font-size: 17px; }
+
+        .ai-history-list { flex: 1; overflow-y: auto; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 3px; }
+        .ai-history-group {
+            font-size: 11px; font-weight: 700; color: var(--ai-text-muted);
+            padding: 14px 10px 6px; text-transform: uppercase; letter-spacing: .6px;
+        }
+
+        .history-item {
+            display: flex; align-items: center; justify-content: space-between; gap: 6px;
+            padding: 9px 10px 9px 12px; border-radius: 10px; cursor: pointer; position: relative;
+            color: var(--ai-text-main); font-size: 13.5px; transition: background .15s;
+        }
+        .history-item:hover, .history-item.active { background: var(--primary-light); }
+        .history-item.active { font-weight: 700; color: var(--primary-dark); }
+        .history-item.active::before {
+            content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 3px; background: var(--ai-rail);
+        }
+        .history-item .h-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+        .history-item .h-act { display: none; gap: 2px; }
+        .history-item:hover .h-act, .history-item.active .h-act { display: flex; }
+        .history-item .h-act button {
+            background: transparent; border: none; color: var(--ai-text-muted);
+            cursor: pointer; padding: 4px; border-radius: 6px;
+        }
+        .history-item .h-act button:hover { background: var(--surface); color: var(--ai-text-main); }
+
+        /* --- Khung chính --- */
+        .ai-main {
+            flex: 1; display: flex; flex-direction: column; position: relative;
+            background: var(--ai-main-bg); min-width: 0;
+        }
+
+        /* Đầu trang là một thanh THẬT trong luồng bố cục (không còn nằm đè lên vùng chat) nên chữ tin nhắn cuộn lên
+           không bao giờ chồng vào tên HB Minerva như trước. */
+        .ai-header {
+            display: flex; align-items: center; gap: 12px; flex: none;
+            padding: 12px 22px; border-bottom: 1px solid var(--ai-border); background: var(--surface);
+        }
+        #model-name { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 16px; color: var(--ai-text-main); }
+        .pico-logo { width: 30px; height: 30px; }
+        .ai-header .badge-private {
+            display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700;
+            color: var(--primary-dark); background: var(--primary-light); padding: 4px 10px; border-radius: 999px;
+        }
+        #status-card { margin-left: auto; font-size: 13px; color: var(--warning); }
+
+        .pico-face {
+            background-image: url('/img/ai-tutor.svg');
+            background-repeat: no-repeat;
+            background-position: 62% 16%;
+            background-size: 420% auto;
+            background-color: var(--ai-sidebar-bg);
+            border-radius: 50%;
+            border: 1px solid var(--ai-border);
+            flex: none;
+        }
+
+        .ai-chat-area {
+            flex: 1; min-height: 0; overflow-y: auto; scroll-behavior: smooth;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 26px 20px 12px;
+        }
+        .ai-messages-container { width: 100%; max-width: 820px; display: flex; flex-direction: column; gap: 14px; padding-bottom: 12px; }
+
+        /* ================= HỘI THOẠI HAI NGƯỜI =================
+           Người dùng bên PHẢI (bong bóng màu thương hiệu), HB Minerva bên TRÁI (có ảnh đại diện + tên), mỗi tin có
+           giờ gửi — đọc như hai người nhắn tin cho nhau. */
+        .msg { display: flex; gap: 10px; animation: fadeIn .3s ease; max-width: 100%; align-items: flex-end; }
+        .msg + .msg.me, .msg + .msg.ai { margin-top: 6px; }
+        .msg.me + .msg.ai, .msg.ai + .msg.me { margin-top: 14px; }
+
+        .msg-col { display: flex; flex-direction: column; min-width: 0; max-width: min(78%, 640px); }
+        .msg-time { font-size: 11px; color: var(--ai-text-muted); margin-top: 4px; padding: 0 6px; }
+
+        /* Người dùng: bên phải */
+        .msg.me { justify-content: flex-end; }
+        .msg.me .msg-col { align-items: flex-end; }
+        .msg.me .msg-bubble {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff;
+            padding: 10px 16px; border-radius: 20px 20px 5px 20px;
+            font-size: 15px; line-height: 1.55; word-break: break-word; box-shadow: var(--shadow-primary);
+        }
+        .q-files { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
+        .q-file {
+            display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+            padding: 5px 11px 5px 6px; border-radius: 12px; background: var(--primary-light); color: var(--primary-dark);
+            font-size: 12px; font-weight: 700;
+        }
+        .q-file b { font-size: 9.5px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; color: #fff; background: var(--primary); border-radius: 6px; padding: 3px 6px; }
+        .q-file span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Thẻ tệp tải lại được: là <button>, nên phải tự bỏ viền/nền mặc định của nút */
+        button.q-file { border: none; font-family: inherit; cursor: pointer; transition: background .15s, box-shadow .15s; }
+        button.q-file:hover { background: color-mix(in srgb, var(--primary-light) 75%, var(--primary)); }
+        button.q-file:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        button.q-file .ph { font-size: 14px; flex: none; }
+
+        /* HB Minerva: bên trái, có ảnh đại diện */
+        .msg.ai { justify-content: flex-start; }
+        .msg.ai .msg-avatar { width: 36px; height: 36px; flex: 0 0 36px; box-shadow: var(--shadow-xs); }
+        .a-name { display: flex; align-items: baseline; gap: 8px; font-size: 12px; font-weight: 800; color: var(--ai-text-main); margin: 0 0 4px 4px; }
+        .a-state { font-weight: 600; color: var(--ai-text-muted); }
+        .msg.ai .msg-bubble {
+            background: var(--bg); border: 1px solid var(--ai-border); color: var(--ai-text-main);
+            padding: 10px 16px; border-radius: 20px 20px 20px 5px;
+            font-size: 15px; line-height: 1.65; word-break: break-word;
+        }
+        .msg.ai .msg-bubble code { background: var(--surface); border: 1px solid var(--ai-border); border-radius: 5px; padding: 1px 5px; font-size: 13.5px; }
+        .a-foot { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+        .a-foot button {
+            display: inline-flex; align-items: center; gap: 5px; border: none; background: transparent; cursor: pointer;
+            font: 600 12px var(--font-sans, inherit); color: var(--ai-text-muted); padding: 4px 6px; border-radius: 7px;
+        }
+        .a-foot button:hover { background: var(--bg); color: var(--ai-text-main); }
+
+        .ai-cursor { display: inline-block; width: 6px; height: 17px; background: var(--ai-primary); vertical-align: middle; animation: blink 1s step-end infinite; margin-left: 3px; border-radius: 1px; }
+        .typing-indicator { display: flex; gap: 5px; padding: 6px 2px; }
+        .typing-indicator i { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); animation: dots 1.2s infinite; }
+        .typing-indicator i:nth-child(2) { animation-delay: .15s; }
+        .typing-indicator i:nth-child(3) { animation-delay: .3s; }
+
+        /* ================= BÀN LÀM VIỆC (Ô NHẬP) ================= */
+        .composer-dock { flex: none; padding: 8px 20px 14px; display: flex; flex-direction: column; align-items: center; background: var(--ai-main-bg); }
+
+        .desk {
+            position: relative; width: 100%; max-width: 820px; overflow: hidden;
+            background: var(--surface); border: 1px solid var(--ai-border); border-radius: 18px;
+            box-shadow: var(--shadow); transition: border-color .2s, box-shadow .2s;
+        }
+        .desk:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light), var(--shadow); }
+        .desk.is-drag { border-color: var(--primary); border-style: dashed; background: var(--primary-soft); }
+
+        /* Dải tín hiệu: đứng yên khi rảnh, một vệt sáng chạy ngang khi HB Minerva đang làm việc */
+        .desk-signal { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--primary-light); }
+        .desk-signal::after { content: ''; position: absolute; top: 0; bottom: 0; width: 30%; background: var(--ai-rail); border-radius: 3px; opacity: 0; }
+        .desk.is-busy .desk-signal::after { opacity: 1; animation: signal 1.3s ease-in-out infinite; }
+
+        .desk-tray { display: flex; gap: 8px; padding: 14px 14px 0; overflow-x: auto; }
+        .tile {
+            display: flex; align-items: center; gap: 9px; flex: none; max-width: 230px;
+            padding: 6px 6px 6px 6px; border: 1px solid var(--ai-border); border-radius: 12px; background: var(--bg);
+            animation: fadeIn .2s ease;
+        }
+        .tile-thumb {
+            width: 40px; height: 40px; border-radius: 8px; flex: none; overflow: hidden;
+            display: grid; place-items: center; background: var(--primary-light); color: var(--primary-dark);
+            font-size: 11px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase;
+        }
+        .tile-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .tile-meta { min-width: 0; }
+        .tile-meta b { display: block; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tile-meta span { font-size: 11px; color: var(--ai-text-muted); }
+        .tile-x { border: none; background: transparent; color: var(--ai-text-muted); cursor: pointer; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; }
+        .tile-x:hover { background: var(--danger-light); color: var(--danger); }
+
+        .desk textarea {
+            display: block; width: 100%; border: none; outline: none; background: transparent; resize: none;
+            color: var(--ai-text-main); font-family: inherit; font-size: 15.5px; line-height: 1.55;
+            padding: 14px 16px 6px; min-height: 52px; max-height: 190px; box-sizing: border-box;
+        }
+        .desk textarea::placeholder { color: var(--ai-text-muted); }
+
+        .desk-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px 10px 12px; }
+        .tool-btn {
+            display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 10px;
+            border: 1px solid var(--ai-border); background: transparent; cursor: pointer;
+            font: 700 12.5px var(--font-sans, inherit); color: var(--ai-text-muted); transition: .15s;
+        }
+        .tool-btn i { font-size: 16px; }
+        .tool-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary-dark); background: var(--primary-soft); }
+        .tool-btn:disabled { opacity: .5; cursor: not-allowed; }
+        .desk-hint { flex: 1; min-width: 0; text-align: right; font-size: 11.5px; color: var(--ai-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .desk-count { font-size: 11.5px; color: var(--ai-text-muted); font-variant-numeric: tabular-nums; }
+        .desk-count.is-over { color: var(--danger); font-weight: 700; }
+
+        .btn-send, .btn-stop {
+            position: absolute;
+            right: 12px;
+            display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 16px; border-radius: 11px;
+            border: none; cursor: pointer; font: 800 13.5px var(--font-sans, inherit); transition: .15s; flex: none;
+        }
+        .btn-send { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; box-shadow: var(--shadow-primary); }
+        .btn-send:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.05); }
+        .btn-send:disabled { background: var(--border); color: var(--text-muted); box-shadow: none; cursor: not-allowed; }
+        .btn-stop { background: var(--danger-light); color: var(--danger); }
+        .btn-stop:hover { filter: brightness(.97); }
+
+        .composer-footer { margin-top: 8px; font-size: 11.5px; color: var(--ai-text-muted); text-align: center; }
+
+        /* Lớp phủ kéo-thả: hiện khi kéo tệp vào khu trò chuyện */
+        .drop-veil {
+            position: absolute; inset: 12px; z-index: 20; border: 2px dashed var(--primary); border-radius: 18px;
+            background: color-mix(in srgb, var(--surface) 88%, var(--primary)); display: grid; place-items: center; text-align: center;
+            font-weight: 800; color: var(--primary-dark); pointer-events: none;
+        }
+        .drop-veil small { display: block; font-weight: 600; color: var(--ai-text-muted); margin-top: 4px; }
+
+        /* ================= MÀN HÌNH CHÀO ================= */
+        .ai-welcome { margin: auto; text-align: center; width: 100%; max-width: 720px; animation: fadeIn .5s ease; padding-bottom: 30px; }
+        .ai-welcome .hello-mark { width: 72px; height: 72px; margin: 0 auto 14px; box-shadow: var(--shadow-primary); }
+        .ai-welcome h1 {
+            font-size: 28px; font-weight: 800; margin-bottom: 6px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .ai-welcome p { color: var(--ai-text-muted); margin-bottom: 26px; font-size: 14.5px; }
+        .ai-suggest-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .ai-suggest-card {
+            background: var(--surface); border: 1px solid var(--ai-border); border-radius: 14px; padding: 14px 16px;
+            text-align: left; font-size: 13.5px; font-weight: 600; color: var(--ai-text-main); cursor: pointer; transition: .18s;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .ai-suggest-card i { font-size: 20px; color: var(--primary); flex: none; }
+        .ai-suggest-card:hover { border-color: var(--primary); background: var(--primary-soft); transform: translateY(-1px); }
+        .ai-suggest-card.is-attach { border-style: dashed; grid-column: 1 / -1; justify-content: center; color: var(--primary-dark); }
+
+        /* ================= DI ĐỘNG ================= */
+        .menu-toggle { display: none; background: transparent; border: none; font-size: 24px; color: var(--ai-text-muted); cursor: pointer; }
+        @media (max-width: 768px) {
+            .ai-sidebar { position: fixed; left: -100%; top: 0; bottom: 0; z-index: 100; }
+            .ai-sidebar.open { left: 0; box-shadow: 10px 0 30px rgba(0,0,0,.35); }
+            .menu-toggle { display: block; }
+            .ai-header { padding: 10px 14px; }
+            .ai-header .badge-private { display: none; }
+            .ai-suggest-grid { grid-template-columns: 1fr; }
+            .ai-chat-area { padding: 16px 12px 8px; }
+            .msg-col { max-width: 86%; }
+            .composer-dock { padding: 6px 12px 10px; }
+            .desk-hint { display: none; }
+            .desk-count { margin-left: auto; }
+            .tool-btn span { display: none; }
+            .tool-btn { padding: 8px 10px; }
+        }

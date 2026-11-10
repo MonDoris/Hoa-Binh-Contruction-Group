@@ -74,6 +74,13 @@ public class ExternalCertificate
     /// để trống — không có người nào đứng tên.</summary>
     public bool IsAiReviewed { get; set; }
 
+    /// <summary>Bước sau cùng: một người của phòng Nhân sự (phòng ban đánh dấu IsHrDepartment) xem lại giấy ĐÃ được
+    /// xác nhận rồi bấm xác nhận — giấy chuyển từ "AI xác nhận" sang "Phòng nhân sự đã xác nhận", kèm tên người bấm.
+    /// Null = Nhân sự chưa xác nhận. Quyết định đổi (thu hồi, xác nhận lại) thì bước này bị xóa, phải xác nhận lại.</summary>
+    public int? HrConfirmedById { get; set; }
+    public User? HrConfirmedBy { get; set; }
+    public DateTime? HrConfirmedAt { get; set; }
+
     /// <summary>Những gì AI đọc được trên giấy và kết quả so từng mục (JSON) — để nhân viên biết vì sao bị từ
     /// chối, và Admin thấy AI đã dựa vào đâu mà xác nhận.</summary>
     public string? AiResultJson { get; set; }
@@ -112,6 +119,17 @@ public class ExternalCertificate
         Decide(ExternalCertificateStatus.Rejected, RequireReason(reason), reviewerId, isAi: false, now);
     }
 
+    /// <summary>Phòng Nhân sự xác nhận giấy đã được xác nhận (bởi AI hoặc Admin). Chỉ một lần.</summary>
+    public void ConfirmByHr(int hrUserId, DateTime now)
+    {
+        if (Status != ExternalCertificateStatus.Approved)
+            throw new InvalidOperationException("Chỉ xác nhận được chứng nhận đã qua đối chiếu.");
+        if (HrConfirmedAt.HasValue)
+            throw new InvalidOperationException("Phòng nhân sự đã xác nhận chứng nhận này.");
+        HrConfirmedById = hrUserId;
+        HrConfirmedAt = now;
+    }
+
     private void Decide(ExternalCertificateStatus status, string? reason, int? reviewerId, bool isAi, DateTime now)
     {
         Status = status;
@@ -119,6 +137,9 @@ public class ExternalCertificate
         ReviewedById = reviewerId;
         IsAiReviewed = isAi;
         ReviewedAt = now;
+        // Quyết định đổi thì lần xác nhận của Nhân sự (dựa trên quyết định cũ) không còn giá trị.
+        HrConfirmedById = null;
+        HrConfirmedAt = null;
     }
 
     private static string RequireReason(string reason)

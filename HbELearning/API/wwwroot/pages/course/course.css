@@ -1,0 +1,99 @@
+/* File: wwwroot/pages/course/course.css */
+        /* ==================== QUẢN LÝ KHÓA HỌC — tổ chức theo VIỆC CẦN LÀM ====================
+           Trang này phục vụ bốn kiểu người với bốn việc khác nhau: Trưởng Nhóm soạn và gửi duyệt, Trưởng phòng /
+           Giám Đốc / người trong luồng cấp duyệt đi duyệt, Admin trông coi (lưu trữ, xóa), Giám Đốc Nhân sự ủy
+           quyền. Một bảng chung với ô lọc 9 trạng thái bắt ai cũng phải tự lọc ra phần của mình — nên ở đây danh
+           sách chia theo nhóm việc, và thẻ đầu tiên "Cần bạn xử lý" tự tính theo đúng vai trò người đang xem.
+           Mọi màu lấy từ biến của css/style.css để tự đổi theo nền sáng / tối. Tiền tố cm- (course manage). */
+
+        .cm-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .cm-toolbar .tabs { margin-bottom: 0; }
+        .cm-toolbar .tabs button { padding: 8px 14px; }
+        .cm-count {
+            min-width: 22px; padding: 1px 7px; border-radius: 999px; text-align: center;
+            background: var(--border); color: var(--text-muted); font-size: 11px; font-weight: 700; line-height: 18px;
+        }
+        .tabs button.active .cm-count { background: var(--primary-light); color: var(--primary-dark); }
+        /* Thẻ "Cần bạn xử lý" có việc thì số đếm đỏ lên — đây là con số duy nhất trên trang đòi người xem làm gì đó. */
+        .tabs button .cm-count.hot { background: var(--danger); color: #fff; }
+
+        .cm-filter { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .cm-filter select { width: auto; min-width: 190px; }
+        .cm-search { position: relative; }
+        .cm-search i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+        .cm-search input { padding-left: 34px; width: 300px; }
+
+        /* Dòng tóm tắt của thẻ "Cần bạn xử lý": việc gì, bao nhiêu — đọc một dòng là biết hôm nay phải làm gì. */
+        .cm-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+        .cm-summary span {
+            display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+            background: var(--surface); border: 1px solid var(--border); font-size: 12.5px; font-weight: 600;
+        }
+        .cm-summary .approve i { color: var(--primary); }
+        .cm-summary .fix i { color: var(--danger); }
+        .cm-summary .submit i { color: var(--warning); }
+
+        .cm-list { display: flex; flex-direction: column; gap: 12px; }
+        .cm-item {
+            display: grid; grid-template-columns: 168px minmax(0, 1fr) auto; align-items: start; overflow: hidden;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); transition: box-shadow .15s ease;
+        }
+        .cm-item:hover { box-shadow: var(--shadow); }
+        /* Viền trái đánh dấu khóa học đang chờ chính người xem: xanh = tới lượt bạn duyệt / gửi, đỏ = bị trả về. */
+        .cm-item.act-approve, .cm-item.act-submit { border-left: 3px solid var(--primary); }
+        .cm-item.act-fix { border-left: 3px solid var(--danger); }
+        /* Ảnh bìa là cả một cột bên trái: tràn kín thẻ từ trên xuống dưới và sát mép trái (thẻ bo góc + overflow
+           hidden lo phần góc). Ô 88×60 cũ chỉ chiếm góc trên, bên dưới bỏ trống. Chữ bắt đầu sau một khoảng an toàn
+           20px (padding-left của .cm-main), không dính sát ảnh. */
+        .cm-thumb-link { align-self: stretch; display: flex; min-height: 112px; }
+        .cm-thumb-link:hover { text-decoration: none; }
+        .cm-thumb-link .course-mini-thumb { flex: 1; width: auto; height: auto; border-radius: 0; font-size: 36px; }
+
+        .cm-main { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 16px 0 16px 20px; }
+        .cm-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+        .cm-title { font-size: 15px; font-weight: 700; line-height: 1.4; color: var(--text); }
+        .cm-title:hover { color: var(--primary-dark); text-decoration: none; }
+        .cm-flag {
+            display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px;
+            font-size: 11.5px; font-weight: 700; white-space: nowrap;
+            background: var(--primary-light); color: var(--primary-dark);
+        }
+        .cm-flag.fix { background: var(--danger-light); color: var(--danger); }
+        .cm-meta, .cm-stats { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--text-muted); }
+        .cm-meta span, .cm-stats span { display: inline-flex; align-items: center; gap: 5px; }
+        .cm-code { font-weight: 700; color: var(--text); letter-spacing: .2px; }
+        .cm-track { margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--border); }
+        .cm-reject {
+            display: flex; gap: 8px; align-items: flex-start; padding: 9px 12px; border-radius: 10px;
+            background: var(--danger-light); font-size: 12.5px; line-height: 1.5;
+        }
+        .cm-reject > i { color: var(--danger); font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+        .cm-reject b { color: var(--danger); }
+
+        .cm-actions {
+            display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; max-width: 360px;
+            padding: 16px 18px 16px 16px;
+        }
+        .cm-more { margin-top: 12px; text-align: center; }
+        .cm-list .empty { background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius-lg); }
+
+        @media (max-width: 760px) {
+            .cm-toolbar { align-items: stretch; }
+            /* Sáu thẻ trên màn hình hẹp: vuốt ngang thay vì xuống ba dòng đẩy danh sách ra khỏi màn hình. */
+            .cm-toolbar .tabs { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+            .cm-toolbar .tabs button { flex-shrink: 0; }
+            .cm-filter, .cm-search, .cm-filter select { width: 100%; }
+            .cm-search input { width: 100%; }
+            /* Màn hình hẹp: cột ảnh hẹp lại nhưng vẫn kín chiều cao phần nội dung; hàng nút xuống dưới, kẻ ngăn. */
+            .cm-item { grid-template-columns: 104px minmax(0, 1fr); }
+            .cm-thumb-link { min-height: 0; }
+            .cm-thumb-link .course-mini-thumb { font-size: 26px; }
+            .cm-main { padding: 12px 12px 12px 14px; }
+            .cm-actions {
+                grid-column: 1 / -1; justify-content: flex-start; max-width: none;
+                padding: 10px 12px; border-top: 1px solid var(--border);
+            }
+            /* Hàng nút có thể dài tới sát mép phải (nhiều nút Duyệt / Từ chối) — sao xuống hàng riêng, vẫn ở góc dưới phải. */
+            .cm-item > .course-rating { position: static; grid-column: 1 / -1; justify-self: end; margin: 0 14px 10px; }
+        }

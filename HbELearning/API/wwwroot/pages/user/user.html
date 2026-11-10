@@ -1,0 +1,119 @@
+<!-- File: wwwroot/pages/user/user.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="user.nguoiDungHbELearning">Người dùng · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="card">
+            <div class="card-head">
+                <div class="flex">
+                    <input type="search" id="keyword" data-i18n-ph="user.timTheoTenEmailMaNvPhongBanViT" placeholder="Tìm theo tên, email, mã NV, phòng ban, vị trí..." style="width:260px">
+                    <select id="f-department" aria-label="Lọc theo phòng ban" style="width:180px"><option data-i18n="user.tatCaPhongBan" value="">Tất cả phòng ban</option></select>
+                    <select id="f-role" aria-label="Lọc theo vai trò" style="width:150px"><option data-i18n="user.tatCaVaiTro" value="">Tất cả vai trò</option></select>
+                </div>
+            </div>
+            <div class="table-wrap"><table>
+                <thead><tr><th data-i18n="user.maNv">Mã NV</th><th data-i18n="user.hoTen">Họ tên</th><th>Email</th><th data-i18n="index.role">Vai trò</th>
+                    <th data-i18n="account.phongBan">Phòng ban</th><th data-i18n="report.viTri">Vị trí</th><th data-i18n="dashboard.colStatus">Trạng thái</th><th class="text-right"></th></tr></thead>
+                <tbody id="tbody"></tbody>
+            </table></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-mask" id="modal-user">
+    <div class="modal">
+        <div class="modal-head"><h3 data-i18n="user.themNguoiDung" id="modal-title">Thêm người dùng</h3>
+            <button class="close-x" onclick="closeModal('modal-user')">×</button></div>
+        <form id="user-form">
+            <div class="modal-body">
+                <input type="hidden" id="u-id">
+                <input type="hidden" id="u-avatar">
+
+                <div class="form-section"><i class="ph-fill ph-user-circle"></i> <span data-i18n="user.thongTinCaNhan">Thông tin cá nhân</span></div>
+
+                <div class="form-avatar-row">
+                    <label class="form-avatar-pick" data-i18n-title="account.doiAnhDaiDien" title="Đổi ảnh đại diện">
+                        <span class="avatar" id="u-avatar-preview">?</span>
+                        <span class="edit"><i class="ph-bold ph-camera"></i></span>
+                        <input type="file" id="u-avatar-file" accept=".png,.jpg,.jpeg,.webp">
+                    </label>
+                    <div class="form-avatar-info">
+                        <b data-i18n="user.anhDaiDien">Ảnh đại diện</b>
+                        <div class="hint" id="u-avatar-hint" data-i18n="user.anhDaiDienHint">Bấm vào vòng tròn để chọn ảnh. Bỏ trống thì hệ thống hiện chữ cái đầu của tên.</div>
+                        <button type="button" id="u-avatar-clear" class="hidden" data-i18n="user.goAnh">Gỡ ảnh</button>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="field"><label data-i18n="account.hoVaTen" for="u-name">Họ và tên *</label><input id="u-name" required maxlength="150"></div>
+                    <div class="field"><label data-i18n="account.soDienThoai" for="u-phone">Số điện thoại</label><input id="u-phone" maxlength="20"></div>
+                </div>
+
+                <div class="form-section"><i class="ph-fill ph-sign-in"></i> <span data-i18n="user.thongTinDangNhap">Thông tin đăng nhập</span></div>
+                <div class="row">
+                    <div class="field"><label for="u-email">Email *</label><input type="email" id="u-email" required maxlength="150"></div>
+                    <div class="field" id="password-field"><label data-i18n="user.matKhau" for="u-password">Mật khẩu *</label><input type="password" id="u-password" minlength="8">
+                        <div data-i18n="account.toiThieu6KyTu" class="hint">Tối thiểu 6 ký tự.</div></div>
+                </div>
+                <div class="field"><label data-i18n="user.tenTaiKhoan" for="u-username">Tên tài khoản</label>
+                    <input id="u-username" maxlength="50" spellcheck="false" autocapitalize="none" autocomplete="off">
+                    <div data-i18n="user.tenTaiKhoanHint" class="hint">Không bắt buộc. Có đặt thì người này đăng nhập được bằng tên tài khoản thay cho email. Dài 3–50 ký tự, chỉ gồm chữ không dấu, chữ số và các ký tự . _ - (không dùng dấu @).</div></div>
+
+                <div class="form-section"><i class="ph-fill ph-buildings"></i> <span data-i18n="user.viTriTrongToChuc">Vị trí trong tổ chức</span></div>
+                <div class="row">
+                    <div class="field"><label data-i18n="account.phongBan" for="u-department">Phòng ban</label><select id="u-department"></select></div>
+                    <div class="field"><label data-i18n="account.viTriCongViec" for="u-position">Vị trí công việc</label><select id="u-position"></select></div>
+                </div>
+                <div class="field"><label data-i18n="user.vaiTro" for="u-role">Vai trò *</label><select id="u-role" required></select></div>
+
+                <div class="form-section"><i class="ph-fill ph-shield-check"></i> <span data-i18n="user.chucNangDuocSuDung">Chức năng được sử dụng</span></div>
+                <div class="field">
+                    <div class="perm-list" id="u-function"></div>
+                    <div data-i18n="user.quyenTheoVaiTroDangChon" class="hint" id="u-function-hint">Đang hiện đúng quyền của vai trò vừa chọn. Bỏ tick để thu hẹp quyền của riêng người này; chức năng mờ là vai trò không có, muốn cấp thì phải sửa ở trang Vai trò &amp; Phân quyền.</div>
+                    <div data-i18n="user.vaiTroChuaCauHinhQuyen" class="hint hidden" id="u-function-none-hint">Vai trò này chưa được cấu hình quyền nào, nên hệ thống vẫn chặn theo tên vai trò như cũ. Hãy phân quyền cho vai trò ở trang Vai trò &amp; Phân quyền trước.</div>
+                </div>
+
+                <label class="check"><input type="checkbox" id="u-active" checked> Tài khoản đang hoạt động</label>
+            </div>
+            <div class="modal-foot">
+                <button data-i18n="common.cancel" type="button" class="btn ghost" onclick="closeModal('modal-user')">Hủy</button>
+                <button data-i18n="common.save" type="submit" class="btn">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Đồng bộ nhân sự từ phần mềm quản lý nhân sự -->
+<div class="modal-mask" id="modal-hr-sync">
+    <div class="modal wide">
+        <div class="modal-head"><h3>Đồng bộ nhân sự</h3>
+            <button class="close-x" onclick="closeModal('modal-hr-sync')">×</button></div>
+        <div class="modal-body" id="hr-sync-body"></div>
+        <div class="modal-foot">
+            <button class="btn ghost" onclick="closeModal('modal-hr-sync')">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="import-user-file" accept=".xlsx,.xlsm" hidden aria-label="Chọn tệp Excel danh sách người dùng">
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/pages/user/user.js"></script>
+</body>
+</html>

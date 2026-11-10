@@ -1,0 +1,83 @@
+/* File: wwwroot/pages/ai-document/ai-document.css */
+        /* Biến riêng của trang, có tiền tố --ai- để không đụng biến dùng chung của css/style.css.
+           Khối cũ còn đặt lại --radius-lg (biến dùng chung) thành 16px — trùng đúng giá trị mặc định nên
+           không ai thấy, nhưng đổi bo góc toàn hệ thống thì riêng trang này đứng im. */
+        :root {
+            --ai-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+            --ai-glow: rgba(168, 85, 247, .4);
+        }
+
+        /* ================= HOẠT ẢNH (ANIMATIONS) ================= */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 var(--ai-glow); }
+            70% { box-shadow: 0 0 0 10px rgba(168,85,247, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(168,85,247, 0); }
+        }
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Card, tiêu đề card lấy nguyên từ css/style.css — chỉ giữ riêng phần làm nổi bật card "Hỏi AI". */
+        .card.ai-card .card-head h3 { background: var(--ai-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* ================= KHU VỰC KÉO THẢ (DROP ZONE) ================= */
+        /* Khung kéo thả lấy từ css/style.css; ở đây chỉ đặt tông tím của khu vực AI và cho biểu tượng
+           nhấp nhô khi rê chuột. */
+        .drop-zone {
+            --dz-accent: #a855f7;
+            --dz-accent-bg: rgba(168, 85, 247, .05);
+            padding: 40px 20px;
+        }
+        .drop-zone:hover .big { animation: float 2s ease-in-out infinite; }
+
+        /* ================= FORM NHẬP LỆNH (CHAT INPUT) ================= */
+        .ai-input-wrapper { position: relative; display: flex; align-items: center; }
+        .ai-input-wrapper input {
+            width: 100%; padding: 16px 120px 16px 20px;
+            border-radius: 30px; border: 2px solid var(--border);
+            font-size: 15px; transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            background: var(--bg);
+            color: var(--text);
+        }
+        .ai-input-wrapper input:focus { border-color: #a855f7; box-shadow: 0 0 0 4px rgba(168,85,247,0.15); outline: none; }
+        .ai-input-actions { position: absolute; right: 8px; display: flex; gap: 8px; align-items: center; }
+        
+        /* ================= KẾT QUẢ AI & SOURCE ================= */
+        #answer-box:not(:empty) { margin-top: 24px; animation: slide-up 0.4s ease-out; }
+        .ai-answer {
+            position: relative; padding: 20px; border-radius: var(--radius-lg);
+            background: var(--bg); line-height: 1.7; font-size: 15px;
+        }
+        /* Tạo viền gradient mỏng cho khung trả lời */
+        .ai-answer::before {
+            content: ""; position: absolute; inset: -2px; border-radius: calc(var(--radius-lg) + 2px);
+            background: var(--ai-gradient); z-index: -1; opacity: 0.3;
+        }
+        
+        .ai-thinking .ai-answer::before { opacity: 1; animation: pulse-glow 2s infinite; }
+
+        .chunk-item { border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; font-size: 13.5px; line-height: 1.6; background: rgba(0,0,0,0.01); transition: transform 0.2s; }
+        .chunk-item:hover { transform: translateX(4px); border-color: #a855f7; }
+        .chunk-item .idx { font-size: 12px; font-weight: 700; color: #a855f7; }
+        
+        /* Thanh điểm số (Score bar) */
+        .score-bar { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; flex: 1; margin: 0 10px; }
+        .score-bar > span { display: block; height: 100%; background: var(--ai-gradient); border-radius: 999px; transition: width 0.5s ease-out; }
+
+        /* ================= TIỆN ÍCH ================= */
+        .btn-ai { background: var(--ai-gradient); color: #fff; border: none; border-radius: 20px; padding: 8px 24px; font-weight: 600; cursor: pointer; transition: opacity 0.2s, transform 0.2s; display: flex; align-items: center; gap: 6px; }
+        .btn-ai:hover { opacity: 0.9; transform: scale(1.02); }
+        .btn-ai:disabled { filter: grayscale(1); opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .mt-sm { margin-top: 8px; } .mt-md { margin-top: 12px; } .mt-lg { margin-top: 16px; } .mt-xl { margin-top: 24px; }
+        .flex-center { display: flex; align-items: center; gap: 8px; }
+        .action-row { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+        .modal-wide { max-width: 820px; }
+        .chunk-scroll { max-height: 60vh; overflow: auto; }

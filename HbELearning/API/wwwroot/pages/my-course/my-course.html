@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=cover: máy có tai thỏ thì trang phủ kín màn hình, phần né tai thỏ do CSS lo bằng env(safe-area-inset-*). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Màu thanh trạng thái, biểu tượng, manifest và service worker — xem js/head.js. Nạp đồng bộ và
+         đứng trước <title> để các thẻ đó có mặt trước khi trang bắt đầu vẽ. -->
+    <script src="/js/head.js"></script>
+    <title data-i18n="my-course.khoaHocCuaToiHbELearning">Khóa học của tôi · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+
+    <link rel="stylesheet" href="/pages/my-course/my-course.css">
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="mc-tabs-row">
+            <div class="tabs" role="tablist" id="mc-tabs">
+                <button type="button" role="tab" class="active" data-tab="course">
+                    <i class="ph ph-books"></i> <span data-i18n="my-course.theKhoaHoc">Khóa học</span></button>
+                <button type="button" role="tab" data-tab="schedule">
+                    <i class="ph ph-calendar-dots"></i> <span data-i18n="my-course.theLichNhacNho">Lịch &amp; nhắc nhở</span></button>
+                <button type="button" role="tab" data-tab="suggest">
+                    <i class="ph ph-sparkle"></i> <span data-i18n="my-course.theGoiY">Gợi ý cho bạn</span>
+                    <span class="mc-count hidden" id="mc-suggest-count"></span></button>
+            </div>
+        </div>
+
+        <!-- ===== Thẻ 1: Khóa học ===== -->
+        <div class="tab-panel active" id="tab-course">
+            <div class="mc-layout">
+                <section>
+                    <div class="mc-toolbar">
+                        <div class="dash-chips" id="mc-filter" role="group" aria-label="Lọc khóa học"></div>
+                        <div class="mc-search">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input type="search" id="mc-keyword" data-i18n-ph="my-course.timKhoaHoc" placeholder="Tìm khóa học...">
+                        </div>
+                    </div>
+                    <div id="course-list"></div>
+                </section>
+
+                <aside class="mc-side">
+                    <div class="card">
+                        <div class="card-head"><h3 class="mc-card-title"><i class="ph-fill ph-chart-donut"></i>
+                            <span data-i18n="my-course.tienDoChung">Tiến độ chung</span></h3></div>
+                        <div class="card-body" id="mc-overview"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head"><h3 class="mc-card-title"><i class="ph-fill ph-flag-checkered"></i>
+                            <span data-i18n="my-course.hanChot">Hạn chót</span></h3></div>
+                        <div class="card-body" id="mc-deadline"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head">
+                            <h3 class="mc-card-title"><i class="ph-fill ph-alarm"></i> <span data-i18n="my-course.nhacNhoSapToi">Nhắc nhở sắp tới</span></h3>
+                            <button type="button" class="btn ghost sm icon" id="btn-side-add-reminder"
+                                    data-i18n-title="my-course.datNhacNho" title="Đặt nhắc nhở" aria-label="Đặt nhắc nhở"><i class="ph-bold ph-plus"></i></button>
+                        </div>
+                        <div class="card-body" id="mc-reminder-mini"></div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- ===== Thẻ 2: Lịch & nhắc nhở ===== -->
+        <div class="tab-panel" id="tab-schedule">
+            <div class="mc-layout wide-side">
+                <section class="card">
+                    <div class="card-head">
+                        <h3 class="mc-card-title"><i class="ph-fill ph-calendar-check"></i> <span data-i18n="my-course.lichHoc">Lịch học</span></h3>
+                        <div class="mc-cal-nav">
+                            <button type="button" class="btn ghost sm" id="btn-cal-today"><span data-i18n="my-course.homNay">Hôm nay</span></button>
+                            <button type="button" class="btn ghost sm icon" id="btn-cal-prev" aria-label="Tháng trước"><i class="ph-bold ph-caret-left"></i></button>
+                            <strong id="mc-cal-label">…</strong>
+                            <button type="button" class="btn ghost sm icon" id="btn-cal-next" aria-label="Tháng sau"><i class="ph-bold ph-caret-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="card-body"><div id="mc-agenda"></div></div>
+                </section>
+
+                <aside class="card">
+                    <div class="card-head">
+                        <h3 class="mc-card-title"><i class="ph-fill ph-alarm"></i> <span data-i18n="my-course.nhacNhoCuaToi">Nhắc nhở của tôi</span></h3>
+                        <button type="button" class="btn sm" id="btn-add-reminder"><i class="ph-bold ph-plus"></i> <span data-i18n="my-course.datNhacNho">Đặt nhắc nhở</span></button>
+                    </div>
+                    <div class="card-body">
+                        <p class="mc-hint" data-i18n="my-course.nhacNhoGoiY">Tự hẹn giờ học của riêng bạn. Tới đúng giờ, hệ thống gửi thông báo vào chuông (và email nếu bạn chọn) — không cần mở sẵn trang này.</p>
+                        <button type="button" class="btn ghost sm block mb hidden" id="btn-enable-desktop-notification">
+                            <i class="ph ph-bell-ringing"></i> <span data-i18n="my-course.batThongBaoTrenMay">Bật thông báo trên máy</span></button>
+                        <div id="reminder-list"></div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- ===== Thẻ 3: Gợi ý ===== -->
+        <div class="tab-panel" id="tab-suggest">
+            <p class="mc-hint" data-i18n="my-course.goiYMoTa">Khóa học dành cho phòng ban / vị trí của bạn mà bạn chưa học. Đăng ký là học được ngay.</p>
+            <div id="available"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Bảng điểm -->
+<div class="modal-mask" id="modal-scoreboard">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="scoreboard-title" data-i18n="my-course.bangDiem">Bảng điểm</h3>
+            <button class="close-x" onclick="closeModal('modal-scoreboard')">×</button>
+        </div>
+        <div class="modal-body" id="scoreboard-body"></div>
+        <div class="modal-foot">
+            <button data-i18n="common.close" class="btn ghost" onclick="closeModal('modal-scoreboard')">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Phản hồi khóa học -->
+<div class="modal-mask" id="modal-feedback">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="feedback-title" data-i18n="feedback.tieuDe">Phản hồi khóa học</h3>
+            <button class="close-x" onclick="closeModal('modal-feedback')">×</button>
+        </div>
+        <div class="modal-body" id="feedback-body"></div>
+        <div class="modal-foot">
+            <button data-i18n="common.close" class="btn ghost" onclick="closeModal('modal-feedback')">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Đặt nhắc nhở học tập -->
+<div class="modal-mask" id="modal-reminder">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="reminder-modal-title">Đặt nhắc nhở học tập</h3>
+            <button class="close-x" onclick="closeModal('modal-reminder')">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="field">
+                <label for="reminder-title" data-i18n="my-course.nhacToiViecGi">Nhắc tôi việc gì</label>
+                <input type="text" id="reminder-title" maxlength="200" data-i18n-ph="my-course.nhacToiViecGiVD" placeholder="VD: Học bài An toàn lao động">
+            </div>
+            <div class="field">
+                <label for="reminder-enrollment" data-i18n="my-course.khoaHocLienQuan">Khóa học liên quan</label>
+                <select id="reminder-enrollment"></select>
+            </div>
+            <div class="row">
+                <div class="field">
+                    <label for="reminder-at" data-i18n="my-course.nhacLuc">Nhắc lúc</label>
+                    <input type="datetime-local" id="reminder-at">
+                </div>
+                <div class="field">
+                    <label for="reminder-repeat" data-i18n="my-course.lapLai">Lặp lại</label>
+                    <!-- Giá trị là SỐ của ReminderRepeat (Helpers/AppEnum.cs): máy chủ không cấu hình đọc enum
+                         dạng chữ trong thân JSON, gửi "Daily" lên là 400. -->
+                    <select id="reminder-repeat">
+                        <option value="0" data-i18n="my-course.lapKhong">Không lặp — chỉ báo một lần</option>
+                        <option value="1" data-i18n="my-course.lapHangNgay">Hằng ngày</option>
+                        <option value="2" data-i18n="my-course.lapNgayThuong">Thứ 2 → Thứ 6</option>
+                        <option value="3" data-i18n="my-course.lapHangTuan">Hằng tuần</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label for="reminder-note" data-i18n="my-course.ghiChuNhacNho">Ghi chú (hiện trong nội dung thông báo)</label>
+                <textarea id="reminder-note" rows="2" maxlength="400" data-i18n-ph="my-course.ghiChuNhacNhoPh"
+                          placeholder="Để trống thì hệ thống tự viết câu nhắc."></textarea>
+            </div>
+            <label class="check"><input type="checkbox" id="reminder-email"> <span data-i18n="my-course.guiKemEmail">Gửi kèm email cho tôi</span></label>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn ghost" data-i18n="common.cancel" onclick="closeModal('modal-reminder')">Hủy</button>
+            <button type="button" class="btn" id="btn-save-reminder" data-i18n="my-course.luuNhacNho">Lưu nhắc nhở</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/widgets/feedback.js"></script>
+<script src="/pages/my-course/my-course.js"></script>
+</body>
+</html>

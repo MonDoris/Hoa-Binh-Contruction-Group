@@ -1,0 +1,106 @@
+/* File: wwwroot/pages/online-class/online-class.css */
+        /* Trang này dùng bộ màu và chữ của hệ thống (css/style.css); không còn màu ghi cứng ở nút. Phần riêng của trang:
+           các thẻ buổi học (Đang diễn ra / Sắp diễn ra / Đã hủy / Lịch sử), hộp nhập mã 6 ô và hộp tạo buổi học. */
+
+        /* ---- Khối và lưới thẻ ---- */
+        .oc-section { margin-bottom: 26px; }
+        .oc-head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 16px; font-weight: 800; letter-spacing: -.3px; }
+        .oc-head .badge { font-size: 11.5px; }
+        .oc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; }
+        .oc-note { font-size: 13px; color: var(--text-muted); margin: 0 2px; }
+
+        /* ---- Thẻ buổi học ---- */
+        .oc-card {
+            position: relative; display: flex; flex-direction: column; gap: 10px; padding: 18px 20px 16px;
+            background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
+            transition: box-shadow .2s, transform .2s;
+        }
+        .oc-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+        /* Vạch màu nhận diện trạng thái trên đỉnh thẻ — giống ô số của Tổng quan. */
+        .oc-card::before { content: ""; position: absolute; left: 20px; right: 20px; top: 0; height: 3px; border-radius: 0 0 3px 3px; background: var(--tone); }
+        .oc-live { --tone: var(--danger); background: linear-gradient(180deg, color-mix(in srgb, var(--danger) 6%, var(--surface)), var(--surface) 70%); }
+        .oc-soon { --tone: var(--primary); }
+        .oc-off { --tone: var(--text-muted); }
+        .oc-off h4, .oc-off .oc-meta { color: var(--text-muted); }
+        .oc-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .oc-state { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase; color: var(--tone); }
+        .oc-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); }
+        .oc-live .oc-dot { animation: oc-pulse 1.4s ease-in-out infinite; }
+        @keyframes oc-pulse { 50% { opacity: .3; transform: scale(.8); } }
+        .oc-count { font-size: 12.5px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+        .oc-card h4 { margin: 0; font-size: 15.5px; font-weight: 800; letter-spacing: -.2px; line-height: 1.35; overflow-wrap: anywhere; }
+        .oc-meta { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); min-width: 0; }
+        .oc-meta i { font-size: 15px; flex: none; }
+        .oc-meta span { min-width: 0; overflow-wrap: anywhere; }
+        .oc-code { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; }
+        .oc-code b {
+            font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; letter-spacing: 2px; font-size: 13px;
+            background: var(--primary-light); color: var(--primary-dark); padding: 4px 10px; border-radius: 8px;
+        }
+        .oc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border); }
+        .oc-wait { font-size: 12.5px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 6px; }
+        .oc-fold > summary { cursor: pointer; font-size: 14px; font-weight: 700; color: var(--text-muted); padding: 6px 2px; list-style: none; }
+        .oc-fold > summary::-webkit-details-marker { display: none; }
+        .oc-fold > summary::before { content: "▸"; display: inline-block; width: 18px; transition: transform .15s; }
+        .oc-fold[open] > summary::before { transform: rotate(90deg); }
+        .oc-fold > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
+        .oc-fold .oc-grid { margin-top: 10px; }
+        .oc-empty { padding: 28px 12px; }
+
+        /* ---- Tab Lịch sử ---- */
+        .hist-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 14px; padding: 16px 20px; margin-bottom: 16px; }
+        .hist-filters .field { margin: 0; }
+        .hist-filters .lbl { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+        .hist-search { position: relative; flex: 1 1 280px; min-width: 220px; }
+        .hist-search i { position: absolute; left: 11px; bottom: 11px; color: var(--text-muted); pointer-events: none; }
+        .hist-search input { padding-left: 34px; }
+        .hist-check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; padding-bottom: 9px; }
+        .hist-check input { width: 16px; height: 16px; accent-color: var(--primary); }
+        .hist-count { font-size: 12.5px; color: var(--text-muted); margin: 0 2px 12px; }
+        .hist-card { --tone: var(--success); }
+        .hist-stats { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12.5px; }
+        .hist-stats span { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .hist-stats i { font-size: 15px; color: var(--primary); }
+
+        /* ---- Hộp nhập mã ---- */
+        .join-head { display: flex; align-items: center; gap: 14px; }
+        .join-icon {
+            width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; font-size: 19px; display: grid; place-items: center;
+            background: var(--primary-light); color: var(--primary-dark);
+        }
+        .join-head h3 { margin: 0 0 2px; }
+        .join-head p { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+        .otp-boxes { display: flex; gap: 10px; justify-content: center; margin: 8px 0 6px; }
+        .otp-box {
+            width: 46px; height: 56px; text-align: center; font-size: 22px; font-weight: 800; padding: 0;
+            font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+            text-transform: uppercase; border: 1.5px solid var(--border); border-radius: 12px;
+            background: var(--bg); color: var(--text); transition: border-color .15s, box-shadow .15s, background .15s;
+        }
+        .otp-box:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); background: var(--surface); }
+        .otp-box.filled { border-color: var(--primary); background: var(--primary-light); }
+        .otp-boxes.is-error .otp-box { border-color: var(--danger); background: var(--danger-light); }
+        .otp-error { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; color: var(--danger); min-height: 18px; margin-top: 10px; }
+        .otp-hint { font-size: 13px; color: var(--text-muted); text-align: center; margin: 0 0 10px; }
+
+        /* ---- Hộp tạo / sửa buổi học ---- */
+        .room-modal-head { display: flex; align-items: center; gap: 14px; }
+        .room-modal-icon {
+            width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0; font-size: 19px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .room-modal-head h3 { margin: 0 0 2px; }
+        .room-modal-head p { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+        #f-title { font-size: 15px; }
+
+        @media (max-width: 480px) {
+            .oc-grid { grid-template-columns: minmax(0, 1fr); }
+            .otp-box { width: 40px; height: 52px; }
+            .otp-boxes { gap: 7px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .oc-card, .hist-card { transition: none; }
+            .oc-card:hover, .hist-card:hover { transform: none; }
+            .oc-live .oc-dot { animation: none; }
+        }

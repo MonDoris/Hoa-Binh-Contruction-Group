@@ -1,0 +1,117 @@
+/* File: wwwroot/pages/account/account.css */
+        
+        @keyframes fadeUp {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        
+        .acc-layout {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 24px;
+            align-items: start;
+            animation: fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+        }
+        
+        @media (max-width: 992px) {
+            .acc-layout { grid-template-columns: 1fr; }
+        }
+
+        .profile-cover {
+            height: 120px;
+            /* Gradient tái tạo lại mảng màu hồng -> đào -> xanh lam nhạt */
+            background: linear-gradient(135deg, #f3448f 0%, #ffbba6 65%, #76b1c4 100%);
+            position: relative;
+            border-radius: 16px 16px 0 0; /* Bo tròn góc trên */
+        }
+        
+        .profile-cover::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(0,0,0,0.4) 100%);
+        }
+
+        .acc-cover-edit {
+            position: absolute;
+            top: 12px; right: 12px;
+            background: rgba(0, 0, 0, 0.4);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .acc-cover-edit:hover {
+            background: rgba(0, 0, 0, 0.6);
+            transform: translateY(-2px);
+        }
+        .acc-cover-edit input[type="file"] { display: none; }
+        
+        .profile-body {
+            padding: 0 24px 24px 24px;
+            text-align: center;
+            position: relative;
+        }
+
+        .profile-name { font-size: 22px; margin: 0 0 8px 0; font-weight: 800; }
+        .profile-badges { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+        
+        .profile-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .profile-actions .btn { border-radius: 10px; font-weight: 600; }
+        
+        .info-list { text-align: left; border-top: 1px dashed var(--border); padding-top: 20px; }
+        .info-list-item { 
+            display: flex; align-items: center; gap: 12px; margin-bottom: 16px; 
+            padding: 8px; border-radius: 8px; transition: all 0.3s;
+        }
+        .info-list-item:hover { background: rgba(14, 165, 233, 0.08); transform: translateX(4px); }
+        .info-list-item .ico { 
+            width: 36px; height: 36px; border-radius: 10px; 
+            background: rgba(14, 165, 233, 0.1); /* Nền icon màu xanh dương nhạt */
+            color: #0284c7; /* Icon xanh dương đậm */
+            display: grid; place-items: center; font-size: 18px; 
+        }
+        .info-list-item .detail { flex: 1; }
+        .info-list-item .label { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+        .info-list-item .val { font-weight: 600; font-size: 14px; word-break: break-word; }
+
+        #stat-box { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        #stat-box .stat {
+            background: var(--surface); padding: 24px 20px; border-radius: 16px;
+            border: 1px solid rgba(0,0,0,0.03); box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            text-align: center; transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        #stat-box .stat:hover { transform: translateY(-5px); box-shadow: 0 12px 25px rgba(14, 165, 233, 0.15); }
+        #stat-box .stat::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #0ea5e9; /* Viền thẻ xanh */
+        }
+        #stat-box .stat .value {
+            font-size: 32px; font-weight: 900; margin-top: 8px;
+            background: linear-gradient(135deg, #0ea5e9, #0284c7); /* Gradient số xanh trời -> xanh biển */
+            -webkit-background-clip: text; color: transparent;
+        }
+        #stat-box .stat .label { font-size: 14px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .acc-cert-card {
+            --cert-tint: #bae6fd;
+            --cert-glow: rgba(0, 161, 230, .15);
+            --cert-glow-strong: rgba(0, 161, 230, .4);
+            --cert-shine: rgba(56, 189, 248, .25);
+            display: flex; flex-direction: column; padding: 20px; text-decoration: none;
+        }
+        .acc-cert-card:hover { border-color: #38bdf8; }
+        .acc-cert-card .cert-card-stamp { right: -25px; bottom: -25px; font-size: 130px; opacity: .1; color: var(--primary); }
+        .acc-cert-card .cert-card-no { font-size: 16px; }
+        .acc-cert-card .cert-card-no i { color: var(--primary); font-size: 20px; filter: drop-shadow(0 2px 4px rgba(0, 161, 230, .4)); }
+        .acc-cert-title {
+            font-size: 16px; line-height: 1.4; margin-bottom: 16px; display: -webkit-box;
+            -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .acc-cert-date { margin-top: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); font-weight: 600; padding-top: 12px; border-top: 1px dashed #7dd3fc; }

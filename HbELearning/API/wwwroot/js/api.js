@@ -76,7 +76,7 @@ const Auth = {
 
     logout() {
         this.clear();
-        location.href = '/login.html';
+        location.href = '/pages/login/login.html';
     },
 
     /**
@@ -109,7 +109,7 @@ const Auth = {
      *                 dù tên vai trò không nằm trong roleList (phục vụ vai trò do Admin tự tạo).
      */
     require(roleList, functionKey) {
-        if (!this.isLoggedIn) { location.href = '/login.html'; return false; }
+        if (!this.isLoggedIn) { location.href = '/pages/login/login.html'; return false; }
 
         const allowed = functionKey ? this.can(functionKey) : null;
         const passed = allowed === null
@@ -118,7 +118,7 @@ const Auth = {
 
         if (!passed) {
             alert('Bạn không có quyền truy cập chức năng này.');
-            location.href = '/pages/dashboard.html';
+            location.href = '/pages/dashboard/dashboard.html';
             return false;
         }
         return true;
@@ -288,9 +288,9 @@ async function request(method, path, body, isFormData = false, silent = false, s
         }
 
         // Hết hạn token -> quay về trang đăng nhập
-        if (response.status === 401 && !location.pathname.endsWith('/login.html')) {
+        if (response.status === 401 && !location.pathname.endsWith('/pages/login/login.html')) {
             Auth.clear();
-            location.href = '/login.html';
+            location.href = '/pages/login/login.html';
             throw new ApiError('Phiên đăng nhập đã hết hạn.', 401);
         }
 
@@ -390,7 +390,7 @@ const API = {
             xhr.onload = () => {
                 if (xhr.status === 401) {
                     Auth.clear();
-                    location.href = '/login.html';
+                    location.href = '/pages/login/login.html';
                     reject(new ApiError('Phiên đăng nhập đã hết hạn.', 401));
                     return;
                 }

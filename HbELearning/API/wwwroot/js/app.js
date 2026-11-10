@@ -1143,26 +1143,26 @@ function approverStepHtml(step, requireAll = false) {
 
 // ==================== BỐ CỤC ====================
 const MENU = [
-    { key: 'dashboard',    href: '/pages/dashboard.html',   icon: '<i class="ph ph-gauge"></i>', label: t('menu.dashboard', 'Tổng quan'),        role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'dashboard',    href: '/pages/dashboard/dashboard.html',   icon: '<i class="ph ph-gauge"></i>', label: t('menu.dashboard', 'Tổng quan'),        role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
     { group: t('group.learning', 'Học tập'),    groupKey: 'learning', role: ['Học viên', 'Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'my-course',    href: '/pages/my-course.html',   icon: '<i class="ph ph-graduation-cap"></i>', label: t('menu.my-course', 'Khóa học của tôi'), role: ['Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'ai-tutor',     href: '/pages/ai-tutor.html',    icon: '<i class="ph ph-chalkboard-teacher"></i>', label: t('menu.ai-tutor', 'HB Minerva'), role: ['Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'certificate',  href: '/pages/certificate.html', icon: '<i class="ph ph-seal-check"></i>', label: t('index.stat-cert', 'Chứng nhận'),       role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'ranking',      href: '/pages/ranking.html',     icon: '<i class="ph ph-trophy"></i>', label: t('menu.ranking', 'Xếp hạng'),         role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'shop',         href: '/pages/shop.html',        icon: '<i class="ph ph-storefront"></i>', label: t('menu.shop', 'Trung Tâm Điểm Thưởng'),          role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'online-class', href: '/pages/online-class.html',icon: '<i class="ph ph-video-camera"></i>', label: t('menu.online-class', 'Phòng học online'), role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'my-course',    href: '/pages/my-course/my-course.html',   icon: '<i class="ph ph-graduation-cap"></i>', label: t('menu.my-course', 'Khóa học của tôi'), role: ['Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'ai-tutor',     href: '/pages/ai-tutor/ai-tutor.html',    icon: '<i class="ph ph-chalkboard-teacher"></i>', label: t('menu.ai-tutor', 'HB Minerva'), role: ['Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'certificate',  href: '/pages/certificate/certificate.html', icon: '<i class="ph ph-seal-check"></i>', label: t('index.stat-cert', 'Chứng nhận'),       role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'ranking',      href: '/pages/ranking/ranking.html',     icon: '<i class="ph ph-trophy"></i>', label: t('menu.ranking', 'Xếp hạng'),         role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'shop',         href: '/pages/shop/shop.html',        icon: '<i class="ph ph-storefront"></i>', label: t('menu.shop', 'Trung Tâm Điểm Thưởng'),          role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'online-class', href: '/pages/online-class/online-class.html',icon: '<i class="ph ph-video-camera"></i>', label: t('menu.online-class', 'Phòng học online'), role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
     { group: t('group.training', 'Đào tạo'),    groupKey: 'training', role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
-    { key: 'course',       href: '/pages/course.html',      icon: '<i class="ph ph-books"></i>', label: t('menu.course', 'Quản lý khóa học'), role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc'] },
-    { key: 'approval-workflow', href: '/pages/approval-workflow.html', icon: '<i class="ph ph-git-branch"></i>', label: t('menu.approval-workflow', 'Luồng cấp duyệt'), role: ['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc'] },
-    { key: 'sim-library',  href: '/pages/sim-library.html', icon: '<i class="ph ph-cube"></i>', label: t('menu.sim-library', 'Thư viện 3D'), role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên'] },
-    { key: 'report',       href: '/pages/report.html',      icon: '<i class="ph ph-chart-line-up"></i>', label: t('menu.report', 'Báo cáo'),          role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
+    { key: 'course',       href: '/pages/course/course.html',      icon: '<i class="ph ph-books"></i>', label: t('menu.course', 'Quản lý khóa học'), role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc'] },
+    { key: 'approval-workflow', href: '/pages/approval-workflow/approval-workflow.html', icon: '<i class="ph ph-git-branch"></i>', label: t('menu.approval-workflow', 'Luồng cấp duyệt'), role: ['Admin', 'Trưởng Nhóm', 'Trưởng phòng', 'Giám Đốc'] },
+    { key: 'sim-library',  href: '/pages/sim-library/sim-library.html', icon: '<i class="ph ph-cube"></i>', label: t('menu.sim-library', 'Thư viện 3D'), role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên'] },
+    { key: 'report',       href: '/pages/report/report.html',      icon: '<i class="ph ph-chart-line-up"></i>', label: t('menu.report', 'Báo cáo'),          role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] },
     { group: t('group.system', 'Hệ thống'),   groupKey: 'system',   role: ['Admin'] },
-    { key: 'user',         href: '/pages/user.html',        icon: '<i class="ph ph-users"></i>', label: t('menu.user', 'Người dùng'),       role: ['Admin'] },
-    { key: 'organization', href: '/pages/organization.html',icon: '<i class="ph ph-buildings"></i>', label: t('menu.organization', 'Phòng ban & Vị trí'), role: ['Admin'] },
-    { key: 'role',         href: '/pages/role.html',        icon: '<i class="ph ph-shield-check"></i>', label: t('menu.role', 'Vai trò & Phân quyền'), role: ['Admin'] },
-    { key: 'translation',  href: '/pages/translation.html', icon: '<i class="ph ph-translate"></i>', label: t('menu.translation', 'Dịch ngôn ngữ'), role: ['Admin'] },
-    { key: 'ai-document', href: '/pages/ai-document.html', icon: '<i class="ph ph-brain"></i>', label: t('menu.ai-document', 'Tài liệu AI'), role: ['Admin'] },
-    { key: 'information',  href: '/pages/account.html', icon: '<i class="ph ph-gear"></i>', label: t('menu.information', 'Thông tin'),          role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] }
+    { key: 'user',         href: '/pages/user/user.html',        icon: '<i class="ph ph-users"></i>', label: t('menu.user', 'Người dùng'),       role: ['Admin'] },
+    { key: 'organization', href: '/pages/organization/organization.html',icon: '<i class="ph ph-buildings"></i>', label: t('menu.organization', 'Phòng ban & Vị trí'), role: ['Admin'] },
+    { key: 'role',         href: '/pages/role/role.html',        icon: '<i class="ph ph-shield-check"></i>', label: t('menu.role', 'Vai trò & Phân quyền'), role: ['Admin'] },
+    { key: 'translation',  href: '/pages/translation/translation.html', icon: '<i class="ph ph-translate"></i>', label: t('menu.translation', 'Dịch ngôn ngữ'), role: ['Admin'] },
+    { key: 'ai-document', href: '/pages/ai-document/ai-document.html', icon: '<i class="ph ph-brain"></i>', label: t('menu.ai-document', 'Tài liệu AI'), role: ['Admin'] },
+    { key: 'information',  href: '/pages/account/account.html', icon: '<i class="ph ph-gear"></i>', label: t('menu.information', 'Thông tin'),          role: ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Học viên', 'Trưởng phòng', 'Giám Đốc', 'Tổng Giám Đốc'] }
 ];
 
 
@@ -1459,7 +1459,7 @@ function mountLayout(activeKey, title, subtitle = '') {
     ensureUicons();
 
     const profile = Auth.profile;
-    if (!profile) { location.href = '/login.html'; return; }
+    if (!profile) { location.href = '/pages/login/login.html'; return; }
 
     // Mọi tên vai trò người này được coi là đang giữ — gồm cả vai trò CHA nếu vai trò của họ kế thừa
     // ("Trưởng phòng IT" cũng là "Trưởng phòng"). Không xét vai trò cha thì menu của cha bị giấu sạch,
@@ -1518,7 +1518,7 @@ function mountLayout(activeKey, title, subtitle = '') {
             <nav class="sidebar-nav">${navHtml}</nav>
             <div class="sidebar-user">
                 <div class="sidebar-user-top">
-                    <a class="sidebar-user-link" href="/pages/account.html">
+                    <a class="sidebar-user-link" href="/pages/account/account.html">
                         ${profile.avatarUrl ? `<img class="avatar" src="${esc(profile.avatarUrl)}" alt="">` : `<div class="avatar">${esc(initial(profile.fullName))}</div>`}
                         <div class="info">
                             <strong>${esc(profile.fullName)}</strong>
@@ -1540,6 +1540,21 @@ function mountLayout(activeKey, title, subtitle = '') {
                 </div>
             </div>
         </aside>`);
+
+    // Giữ chỗ cuộn của thanh bên khi chuyển trang: mỗi trang là một file HTML riêng nên thanh bên dựng lại từ đầu
+    // và cuộn về đỉnh. Lưu trong sessionStorage, đặt lại ngay sau khi chèn vào DOM để không thấy nhảy.
+    const sidebarEl = document.getElementById('sidebar');
+    try { sidebarEl.scrollTop = +sessionStorage.getItem('hbe_sidebar_scroll') || 0; } catch { }
+    const saveSidebarScroll = () => { try { sessionStorage.setItem('hbe_sidebar_scroll', sidebarEl.scrollTop); } catch { } };
+    sidebarEl.addEventListener('scroll', saveSidebarScroll, { passive: true });
+    window.addEventListener('pagehide', saveSidebarScroll);
+
+    // Chưa có chỗ cuộn nào được lưu (mở tab mới, vào thẳng bằng URL): cuộn vừa đủ để thấy mục đang sáng.
+    const activeLink = sidebarEl.querySelector('.sidebar-nav a.active');
+    if (activeLink) {
+        const box = sidebarEl.getBoundingClientRect(), r = activeLink.getBoundingClientRect();
+        if (r.top < box.top || r.bottom > box.bottom) activeLink.scrollIntoView({ block: 'nearest' });
+    }
 
     // Người dùng bàn phím: phím Tab đầu tiên trên mọi trang dừng ở liên kết này, khỏi phải đi qua cả menu bên
     // trái lẫn hàng nút trên thanh trên mới tới được nội dung. Phải đứng TRƯỚC thanh bên trong DOM (chèn sau
@@ -1605,7 +1620,7 @@ function mountLayout(activeKey, title, subtitle = '') {
                              tiêu được, mà chỗ tiêu lại nằm sâu trong menu bên trái. Vai trò không được vào cửa
                              hàng thì nó vẫn là một viên chỉ số tĩnh như trước. -->
                         <span class="topbar-pill point hidden${canOpenShop ? ' clickable' : ''}" id="pill-point"
-                              ${canOpenShop ? `onclick="location.href='/pages/shop.html'"` : ''}
+                              ${canOpenShop ? `onclick="location.href='/pages/shop/shop.html'"` : ''}
                               title="${esc(canOpenShop
                                   ? t('shell.pointTitleShop', 'Điểm tích lũy — bấm để vào Trung Tâm đổi quà')
                                   : t('shell.pointTitle', 'Điểm tích lũy'))}">
@@ -1615,7 +1630,7 @@ function mountLayout(activeKey, title, subtitle = '') {
                   <div class="topbar-dock">
                     <!-- Hộp chat nội bộ. Dùng lại class .notif-btn/.notif-badge của chuông chứ không tự
                          đặt kiểu riêng: hai nút đứng cạnh nhau mà lệch vài pixel là thấy ngay, và mỗi lần
-                         chỉnh khuôn nút tiện ích lại phải nhớ sửa hai chỗ. Bảng chat do js/chat.js đổ vào
+                         chỉnh khuôn nút tiện ích lại phải nhớ sửa hai chỗ. Bảng chat do js/widgets/chat.js đổ vào
                          trong thẻ bọc này (nó cần .notif-wrapper làm mốc position:relative để xổ xuống). -->
                     <div class="notif-wrapper" id="chat-bell">
                         <button class="notif-btn" id="chat-topbar-btn" type="button" title="${esc(t('shell.chat', 'Tin nhắn'))}"
@@ -1730,7 +1745,7 @@ function mountTopbarSearch() {
     const canOpenCourse = allowedKeyList
         ? hasFunctionView(allowedKeyList, 'course')
         : ['Admin', 'Trưởng Nhóm', 'Giảng Viên', 'Trưởng phòng', 'Giám Đốc'].some(x => Auth.hasRole(x));
-    const targetPage = canOpenCourse ? '/pages/course.html' : '/pages/my-course.html';
+    const targetPage = canOpenCourse ? '/pages/course/course.html' : '/pages/my-course/my-course.html';
 
     const topbar = document.getElementById('topbar');
     const toggle = document.getElementById('topbar-search-toggle');
@@ -1926,10 +1941,10 @@ function courseActionOf(course, onEnrolled) {
     if (course.enrollmentId && course.enrollmentStatus !== 'Cancelled')
         return {
             label: course.enrollmentStatus === 'Completed' ? t('search.xemLai', 'Xem lại') : t('search.vaoHoc', 'Vào học'),
-            run: () => { location.href = `/pages/scorm-player.html?enrollmentId=${course.enrollmentId}`; }
+            run: () => { location.href = `/pages/learning/scorm-player.html?enrollmentId=${course.enrollmentId}`; }
         };
     if (course.isMine)
-        return { label: t('search.moKhoaHoc', 'Mở khóa học'), run: () => { location.href = `/pages/course-detail.html?id=${course.id}`; } };
+        return { label: t('search.moKhoaHoc', 'Mở khóa học'), run: () => { location.href = `/pages/course/course-detail.html?id=${course.id}`; } };
     // Lượt học đã bị người phụ trách gỡ thì không mời tự đăng ký lại — máy chủ cũng sẽ từ chối.
     if (course.enrollmentStatus === 'Cancelled')
         return { label: t('search.daGoPhanCong', 'Đã gỡ phân công'), disabled: true, run: () => {} };
@@ -2180,19 +2195,22 @@ async function runExcelImport(path, file, buttonEl, onDone) {
  * @param {object} option { templateId, importId, fileId, templatePath, importPath, fileName, onDone }
  *        templatePath/importPath nhận được là HÀM để trang nào có nhiều tab (VD Phòng ban / Vị trí) trả về
  *        đường dẫn theo tab đang mở tại thời điểm bấm, thay vì cố định lúc gắn sự kiện.
+ *        Hai nút là tùy chọn: trang gom hai việc này vào menu "…" thì bỏ trống id và gọi hai hàm trả về.
+ * @returns {{downloadTemplate: Function, pickFile: Function} | null}
  */
 function bindExcelImport(option) {
     const templateBtn = document.getElementById(option.templateId);
     const importBtn = document.getElementById(option.importId);
     const fileInput = document.getElementById(option.fileId);
-    if (!importBtn || !fileInput) return;
+    if (!fileInput) return null;
 
     const resolve = (value) => (typeof value === 'function' ? value() : value);
+    const downloadTemplate = () =>
+        API.download(resolve(option.templatePath), resolve(option.fileName)).catch(ex => toastErr(ex.message));
+    const pickFile = () => fileInput.click();
 
-    templateBtn?.addEventListener('click', () =>
-        API.download(resolve(option.templatePath), resolve(option.fileName)).catch(ex => toastErr(ex.message)));
-
-    importBtn.addEventListener('click', () => fileInput.click());
+    templateBtn?.addEventListener('click', downloadTemplate);
+    importBtn?.addEventListener('click', pickFile);
 
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -2200,6 +2218,7 @@ function bindExcelImport(option) {
         e.target.value = '';
         if (file) runExcelImport(resolve(option.importPath), file, importBtn, option.onDone);
     });
+    return { downloadTemplate, pickFile };
 }
 
 // ==================== CHUÔNG THÔNG BÁO ====================
@@ -2341,14 +2360,14 @@ function mountNotificationBell() {
         // Người soạn khóa đọc ở thẻ Feedback của khóa; người học (nhận trả lời) về hộp phản hồi ở Khóa học của tôi.
         if (item.type === 'CourseFeedback' && item.courseId)
             return Auth.isContentAuthor || Auth.isAdmin
-                ? `/pages/course-detail.html?id=${item.courseId}&tab=feedback`
-                : `/pages/my-course.html?feedback=${item.courseId}`;
-        if (item.enrollmentId) return `/pages/scorm-player.html?enrollmentId=${item.enrollmentId}`;
-        if (item.courseId) return `/pages/course-detail.html?id=${item.courseId}`;
-        if (item.type === 'ShopRedemption') return '/pages/shop.html?tab=mine';
+                ? `/pages/course/course-detail.html?id=${item.courseId}&tab=feedback`
+                : `/pages/my-course/my-course.html?feedback=${item.courseId}`;
+        if (item.enrollmentId) return `/pages/learning/scorm-player.html?enrollmentId=${item.enrollmentId}`;
+        if (item.courseId) return `/pages/course/course-detail.html?id=${item.courseId}`;
+        if (item.type === 'ShopRedemption') return '/pages/shop/shop.html?tab=mine';
         // Nhân viên nhận kết quả AI / Admin đối chiếu -> thẻ của mình; Admin (thông báo "chờ duyệt" cũ) -> thẻ quản lý.
         if (item.type === 'ExternalCertificate')
-            return `/pages/certificate.html?tab=${Auth.isAdmin ? 'review' : 'external'}`;
+            return `/pages/certificate/certificate.html?tab=${Auth.isAdmin ? 'review' : 'external'}`;
         return null;
     }
 
@@ -2596,9 +2615,9 @@ function mountChatWidget() {
     });
 
     loadScript('/js/lib/signalr.min.js', 'signalr-lib')
-        .then(ok => ok ? loadScript('/js/chat.js', 'chat-script') : false)
+        .then(ok => ok ? loadScript('/js/widgets/chat.js', 'chat-script') : false)
         .then(ok => {
-            if (!ok) { console.warn('Không nạp được hộp chat (js/chat.js hoặc signalr.min.js).'); return; }
+            if (!ok) { console.warn('Không nạp được hộp chat (js/widgets/chat.js hoặc signalr.min.js).'); return; }
 
             // Gọi ChatBox TRẦN, không phải window.ChatBox: chat.js khai báo `const ChatBox = ...` ở cấp
             // cao nhất của một classic script, mà `const`/`let` cấp cao nhất nằm trong global lexical
@@ -2606,7 +2625,7 @@ function mountChatWidget() {
             // window.ChatBox vì vậy vĩnh viễn undefined — viết `window.ChatBox?.init()` thì dấu ?. nuốt
             // luôn, không dựng hộp chat mà console cũng sạch bong. Auth trong api.js cũng đúng kiểu này,
             // và cả dự án vẫn gọi thẳng `Auth.xxx` — giữ cho nhất quán.
-            if (typeof ChatBox === 'undefined') { console.warn('js/chat.js không khai báo ChatBox.'); return; }
+            if (typeof ChatBox === 'undefined') { console.warn('js/widgets/chat.js không khai báo ChatBox.'); return; }
             ChatBox.init();
         });
 }
@@ -2947,7 +2966,7 @@ function setTopbarAction(html) {
 // ==================== KHUNG TRANG CỦA SCO ====================
 //
 // Bài học / bài kiểm tra / mô phỏng là SCO của khóa học SCORM, chạy TRONG khung nội dung của trình phát
-// (pages/scorm-player.html). Trình phát đã có mục lục, nút Tiếp/Trước và tên khóa học — dựng thêm thanh bên và
+// (pages/learning/scorm-player.html). Trình phát đã có mục lục, nút Tiếp/Trước và tên khóa học — dựng thêm thanh bên và
 // thanh trên ở đây chỉ phí chỗ của nội dung. Nên khung SCO chỉ có một dòng tiêu đề mỏng và vùng nội dung.
 
 /** Dựng khung trang SCO. Gọi sau Lang.ready + Auth.require(), giống mountLayout. */
@@ -3016,7 +3035,9 @@ function closeTopbarOverlay(except = null) {
 /**
  * Mở menu neo dưới một nút.
  * @param {HTMLElement} anchorEl nút bấm để neo tọa độ
- * @param {Array<{icon?: string, label: string, onClick?: Function, danger?: boolean}>} itemList
+ * @param {Array<{icon?: string, label: string, onClick?: Function, danger?: boolean, checked?: boolean}>} itemList
+ *        `checked` (true/false) biến menu thành nhóm chọn một: mục đang chọn có dấu tích, mục khác chừa đúng chỗ đó
+ *        để chữ các dòng thẳng hàng.
  */
 function openPopMenu(anchorEl, itemList) {
     closePopMenu();
@@ -3029,9 +3050,12 @@ function openPopMenu(anchorEl, itemList) {
     itemList.forEach(item => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.setAttribute('role', 'menuitem');
+        const isChoice = typeof item.checked === 'boolean';
+        btn.setAttribute('role', isChoice ? 'menuitemradio' : 'menuitem');
+        if (isChoice) btn.setAttribute('aria-checked', String(item.checked));
         if (item.danger) btn.className = 'danger';
-        btn.innerHTML = `${item.icon ? `<i class="${esc(item.icon)}"></i>` : ''}<span>${esc(item.label)}</span>`;
+        const checkHtml = isChoice ? `<i class="ph-bold ph-check pop-check${item.checked ? '' : ' off'}"></i>` : '';
+        btn.innerHTML = `${checkHtml}${item.icon ? `<i class="${esc(item.icon)}"></i>` : ''}<span>${esc(item.label)}</span>`;
         btn.addEventListener('click', () => { closePopMenu(); item.onClick?.(); });
         menu.appendChild(btn);
     });

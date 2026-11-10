@@ -6,7 +6,7 @@
 
 // ĐỔI SỐ NÀY mỗi lần sửa danh sách SHELL hoặc đổi chiến lược cache — tên cache đổi thì bản cũ bị xóa
 // sạch ở bước activate, người dùng không kẹt lại ở phiên bản cũ.
-const VERSION = 'v48';
+const VERSION = 'v62';
 const SHELL_CACHE = `hbe-shell-${VERSION}`;
 const PAGE_CACHE = `hbe-page-${VERSION}`;
 
@@ -73,7 +73,7 @@ self.addEventListener('fetch', event => {
                 if (res.ok) (await caches.open(PAGE_CACHE)).put(req, res.clone());
                 return res;
             } catch {
-                return (await caches.match(req)) || (await caches.match('/pages/dashboard.html'))
+                return (await caches.match(req)) || (await caches.match('/pages/dashboard/dashboard.html'))
                     || new Response(
                         '<meta charset="utf-8"><p style="font:15px system-ui;padding:24px">Đang ngoại tuyến — hãy mở lại khi có mạng.</p>',
                         { headers: { 'Content-Type': 'text/html; charset=utf-8' }, status: 503 }
@@ -83,9 +83,10 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // JSON ngôn ngữ: cũng ưu tiên mạng. Để stale-while-revalidate thì sửa một câu dịch phải tải lại
-    // trang HAI lần mới thấy — lần đầu vẫn ra chữ cũ trong cache.
-    if (url.pathname.startsWith('/locales/')) {
+    // JSON ngôn ngữ và CSS/JS riêng của từng trang (/pages/<trang>/*.js|css): cũng ưu tiên mạng. Để
+    // stale-while-revalidate thì sửa một câu dịch hay mã của một trang phải tải lại HAI lần mới thấy — lần đầu
+    // vẫn ra bản cũ trong cache, tệp JS cũ còn chạy lệch với HTML mới.
+    if (url.pathname.startsWith('/locales/') || url.pathname.startsWith('/pages/')) {
         event.respondWith((async () => {
             try {
                 const res = await fetch(req, { cache: 'no-cache' });

@@ -59,4 +59,17 @@ public interface ITranslationService
     /// các dòng sẵn có, mà cơ chế phân quyền suy thao tác từ HTTP method (xem FunctionKey.ActionFromHttpMethod)
     /// — để POST thì việc này lại đòi quyền "thêm mới", sai với thứ nó thực sự làm.</summary>
     Task<Result> AiTranslate(AiTranslateRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Như <see cref="AiTranslate"/> nhưng ghi dấu người dịch là <paramref name="userId"/> — cho dịch vụ
+    /// nền, nơi không có yêu cầu HTTP nào để biết ai đang đăng nhập.</summary>
+    Task<Result> AiTranslateAs(AiTranslateRequest request, int userId, CancellationToken cancellationToken);
+
+    /// <summary>Nhận CẢ danh sách khóa cần dịch, xếp vào hàng đợi; dịch vụ nền tự cắt lô và dịch. Trả về ngay.</summary>
+    Task<Result> StartAiJob(AiTranslateJobRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Tiến độ một lượt dịch nền; <paramref name="id"/> trống = lượt gần nhất.</summary>
+    Result GetAiJob(string? id, int fromText);
+
+    /// <summary>Dừng một lượt dịch nền — dừng ngay cả lô đang dịch dở; các lô đã xong vẫn được giữ.</summary>
+    Result CancelAiJob(string id);
 }

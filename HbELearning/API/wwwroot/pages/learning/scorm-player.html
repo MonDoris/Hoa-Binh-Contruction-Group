@@ -1,0 +1,64 @@
+<!-- File: wwwroot/pages/learning/scorm-player.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script src="/js/head.js"></script>
+    <title data-i18n="scorm.tieuDeTrang">Học khóa học · HB E-Learning</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/pages/learning/scorm-player.css">
+    <script>(function(){var t=localStorage.getItem('hbe_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+<div class="main">
+    <div class="content">
+        <div class="sp-shell" id="sp-shell">
+            <div class="sp-toolbar">
+                <button type="button" class="btn ghost sm sp-icon-btn" id="sp-toc-toggle" aria-label="Mục lục" title="Mục lục"><i class="ph ph-list"></i></button>
+                <div class="sp-title">
+                    <b id="sp-activity" data-i18n="classroom.dangTai">Đang tải...</b>
+                    <span class="small muted" id="sp-sub"></span>
+                </div>
+                <div class="sp-actions">
+                    <button type="button" class="btn ghost sm" id="sp-prev"><i class="ph ph-caret-left"></i> <span class="lbl" data-i18n="scorm.truoc">Trước</span></button>
+                    <button type="button" class="btn sm" id="sp-next"><span class="lbl" data-i18n="scorm.tiep">Tiếp</span> <i class="ph ph-caret-right"></i></button>
+                    <button type="button" class="btn ghost sm" id="sp-exit" title="Thoát (vị trí đang học được lưu lại)" data-i18n-title="scorm.thoatLuuViTri"><i class="ph ph-sign-out"></i> <span class="lbl" data-i18n="scorm.thoat">Thoát</span></button>
+                    <button type="button" class="btn ghost sm sp-icon-btn" id="sp-fullscreen" aria-label="Toàn màn hình" title="Toàn màn hình"><i class="ph ph-corners-out"></i></button>
+                </div>
+            </div>
+            <div class="sp-body">
+                <nav class="sp-toc" id="sp-toc" aria-label="Mục lục gói SCORM"></nav>
+                <div class="sp-stage">
+                    <iframe id="sp-frame" title="Nội dung SCORM" allow="fullscreen; autoplay; clipboard-write; encrypted-media"></iframe>
+                    <div class="sp-overlay" id="sp-overlay"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Đánh giá khóa học: tự mở khi học viên vừa hoàn thành khóa -->
+<div class="modal-mask" id="modal-feedback">
+    <div class="modal">
+        <div class="modal-head">
+            <h3 id="feedback-title" data-i18n="feedback.tieuDe">Phản hồi khóa học</h3>
+            <button class="close-x" onclick="closeModal('modal-feedback')">×</button>
+        </div>
+        <div class="modal-body" id="feedback-body"></div>
+        <div class="modal-foot">
+            <button data-i18n="common.close" class="btn ghost" onclick="closeModal('modal-feedback')">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/language.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/password.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/widgets/feedback.js"></script>
+<script src="/pages/learning/scorm-rte.js"></script>
+<script src="/pages/learning/scorm-player.js"></script>
+</body>
+</html>
